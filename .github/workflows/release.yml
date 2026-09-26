@@ -1,0 +1,42 @@
+name: Release mod zip
+
+# Push a version tag (e.g. v1.4.0.1) to build the installable mod zip and attach it to a
+# GitHub release. The tag must match <version> in modDesc.xml.
+on:
+    push:
+        tags:
+            - 'v*'
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Check tag matches modDesc version
+              run: |
+                  version=$(grep -o -m1 '<version>[^<]*' modDesc.xml | sed 's/<version>//')
+                  if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+                      echo "::error::Tag $GITHUB_REF_NAME does not match modDesc.xml version $version"
+                      exit 1
+                  fi
+
+            # Same file set as the upstream release zip: modDesc.xml at the root, no docs or repo files.
+            - name: Build mod zip
+              run: |
+                  zip -r -q -X FS25_RealisticLivestockRM.zip \
+                      modDesc.xml LICENSE icon_RealisticLivestock.dds \
+                      animals fonts gui mod_support objects scripts translations xml
+                  unzip -l FS25_RealisticLivestockRM.zip | tail -1
+
+            - name: Create release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  prerelease=""
+                  case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease" ;; esac
+                  gh release create "$GITHUB_REF_NAME" FS25_RealisticLivestockRM.zip \
+                      --title "$GITHUB_REF_NAME" --generate-notes $prerelease
