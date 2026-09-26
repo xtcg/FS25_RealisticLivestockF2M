@@ -174,6 +174,7 @@
         <text name="rl_ui_moveValidSummary" text="%d animal(es) serán movidos" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="%d animal(es) omitidos: no cumplen el requisito de edad (%d-%d meses)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="%d animal(es) omitidos: no hay suficiente espacio en el destino" tag="format"/>
+        <text name="rl_ui_moveRejectedPenRules" text="%d animal(s) skipped: not allowed in this pen (breed, sex, castration or age)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="No se puede mover ningún animal a este destino."/>
         <text name="rl_ui_moveBulkConfirmTitle" text="Mover animales"/>
         <text name="rl_ui_moveErrorNoPermission" text="No tienes permiso para mover animales aquí."/>

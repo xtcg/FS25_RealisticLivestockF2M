@@ -157,6 +157,10 @@ function AnimalBuyEvent:run(connection)
 
 			local errorCode = AnimalBuyEvent.validate(self.object, animal.subTypeIndex, animal.age, #self.animals, self.buyPrice, self.transportPrice, farmId)
 
+			if errorCode == nil and not RLHusbandryProfiles.checkAnimal(self.object, animal) then
+				errorCode = AnimalBuyEvent.BUY_ERROR_ANIMAL_NOT_SUPPORTED
+			end
+
 			if errorCode ~= nil then
 				Log:trace("AnimalBuyEvent:run phase: validate FAILED took %.2fms errorCode=%d", phaseDoneMs(), errorCode)
 				connection:sendEvent(AnimalBuyEvent.newServerToClient(errorCode))

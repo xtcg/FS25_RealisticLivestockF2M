@@ -162,6 +162,7 @@
         <text name="rl_ui_moveValidSummary" text="%d Tier(e) werden verschoben" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="%d Tier(e) übersprungen: Erfüllen nicht die Altersanforderung (%d-%d months)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="%d Tier(e) übersprungen: Nicht genug Platz am Zielort" tag="format"/>
+        <text name="rl_ui_moveRejectedPenRules" text="%d Tier(e) übersprungen: In diesem Stall nicht erlaubt (Rasse, Geschlecht, Kastration oder Alter)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="Keine Tiere können an diesen Zielort verschoben werden."/>
         <text name="rl_ui_moveBulkConfirmTitle" text="Verschiebe Tiere"/>
         <text name="rl_ui_moveErrorNoPermission" text="Du hast keine Erlaubnis Tiere hierhin zu verschieben."/>

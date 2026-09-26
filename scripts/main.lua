@@ -95,6 +95,7 @@ source(modDirectory .. "scripts/fillTypes/RealisticLivestock_FillTypeManager.lua
 source(modDirectory .. "scripts/bridge/RLVersionSpec.lua")
 source(modDirectory .. "scripts/bridge/RLMapBridge.lua")
 source(modDirectory .. "scripts/bridge/RLModBridge.lua")
+source(modDirectory .. "scripts/bridge/RLHusbandryProfiles.lua")
 
 -- SECTION 11b: Breeding Mathematics
 source(modDirectory .. "scripts/animal/BreedingMath.lua")

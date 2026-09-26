@@ -175,6 +175,7 @@
         <text name="rl_ui_moveValidSummary" text="%d hayvan taşınacak" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="%d hayvan atlandı: yaş gereksinimini karşılamıyor (%d-%d ay)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="%d hayvan atlandı: hedefte yeterli yer yok" tag="format"/>
+        <text name="rl_ui_moveRejectedPenRules" text="%d animal(s) skipped: not allowed in this pen (breed, sex, castration or age)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="Bu hedefe hiçbir hayvan taşınamaz."/>
         <text name="rl_ui_moveBulkConfirmTitle" text="Hayvanları Taşı"/>
         <text name="rl_ui_moveErrorNoPermission" text="Buraya hayvan taşıma izniniz yok."/>

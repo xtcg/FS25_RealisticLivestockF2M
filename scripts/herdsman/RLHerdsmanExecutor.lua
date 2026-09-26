@@ -455,6 +455,16 @@ function RLHerdsmanExecutor._doBuy(action, ctx, placeable, farmId, count)
         return true, false, "missing-placeable"
     end
 
+    for _, animal in ipairs(action.animals or {}) do
+        local ok, reason, detail = RLHusbandryProfiles.checkAnimal(placeable, animal)
+        if not ok then
+            Log:warning("%s rule=%s op=buy husbandry=%s farm=%s: pen rules refuse uniqueId=%s (%s %s) - dispatch skipped (wage charged)",
+                LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId),
+                tostring(animal.uniqueId), tostring(reason), tostring(detail))
+            return true, false, "pen-rules"
+        end
+    end
+
     ctx.server:broadcastEvent(AIAnimalBuyEvent.new(placeable, action.animals, action.amountSpent), true)
     return true, true, nil
 end

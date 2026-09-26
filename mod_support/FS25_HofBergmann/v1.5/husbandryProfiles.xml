@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    Pen rules for Hof Bergmann's cattle husbandries (RLHusbandryProfiles).
+
+    The map whitelists four female cow subtypes, or only its own BULL, per building, which
+    leaves RLRM's bulls, male calves, steers and Hereford nowhere to go. These profiles
+    replace those whitelists.
+
+    profile:
+        female      true/false  cows and heifers
+        steer       true/false  castrated males
+        intactMale  true/false/untilMature
+                    untilMature: intact males only until their subtype's breeding age
+                    (reproduction minAgeMonth, 12 months for RLRM cattle)
+        minAge      months, inclusive (omit for no limit)
+        maxAge      months, inclusive (omit for no limit)
+        breeds      breed names, space separated (omit for every breed)
+
+    husbandry:
+        filename    the building's config, matched against the end of its path
+        profile     a profile above
+        breeds      replaces the profile's breeds for this building
+
+    Rules apply to animals coming in: an animal that ages out stays where it is, and
+    births are never blocked. Hof Bergmann's MVB dairy (MILKCOW) is the map's own
+    system and is left as it is.
+-->
+<husbandryProfiles>
+    <profile name="CALF"      female="true"  steer="true"  intactMale="true"        maxAge="5"/>
+    <profile name="BULL_CALF" female="false" steer="true"  intactMale="true"        maxAge="5"/>
+    <profile name="DAIRY"     female="true"  steer="false" intactMale="false"       minAge="6" breeds="HOLSTEIN SWISS_BROWN"/>
+    <profile name="BULL"      female="false" steer="false" intactMale="true"        minAge="6"/>
+    <profile name="MIXED"     female="true"  steer="true"  intactMale="untilMature" minAge="6"/>
+    <profile name="PASTURE"   female="true"  steer="true"  intactMale="untilMature"/>
+
+    <!-- Calf igloos 01-05 -->
+    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu01.xml" profile="CALF"/>
+    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu02.xml" profile="CALF"/>
+    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu03.xml" profile="CALF"/>
+    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu04.xml" profile="CALF"/>
+    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu05.xml" profile="CALF"/>
+
+    <!-- Calf rearing boxes A/B (bulls) -->
+    <husbandry filename="placeables/animalHusbandry/bullStable/bullCalfZone01.xml" profile="BULL_CALF"/>
+    <husbandry filename="placeables/animalHusbandry/bullStable/bullCalfZone02.xml" profile="BULL_CALF"/>
+
+    <!-- Bull barns (farm and MVB) -->
+    <husbandry filename="placeables/animalHusbandry/bullStable/bullStable.xml" profile="BULL"/>
+    <husbandry filename="placeables/animalHusbandry/dairyFarm/bullStableDairyFarm.xml" profile="BULL"/>
+
+    <!-- Cow barn (farm): milked into its tank -->
+    <husbandry filename="placeables/animalHusbandry/cowHusbandryOldFarm/cowHusbandryOldFarm.xml" profile="DAIRY"/>
+
+    <!-- Cow barn with pasture (farm 2) -->
+    <husbandry filename="placeables/animalHusbandry/cowHusbandryFarm02/cowHusbandryFarm02.xml" profile="MIXED"/>
+
+    <!-- Pastures -->
+    <husbandry filename="placeables/constructibles/constructible_cowPasture.xml" profile="PASTURE"/>
+    <husbandry filename="placeables/animalHusbandry/cowPastures/cowPasture01.xml" profile="PASTURE" breeds="WATER_BUFFALO"/>
+    <husbandry filename="placeables/animalHusbandry/cowPastures/cowPasture02.xml" profile="PASTURE" breeds="HIGHLAND COW_HIGHLAND_CATTLE"/>
+    <!-- COW_HIGHLAND_CATTLE: the map's own Highland cow, registered when the Highlands DLC is off (its breed defaults to its name). -->
+</husbandryProfiles>

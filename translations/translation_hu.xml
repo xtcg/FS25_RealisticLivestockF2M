@@ -175,6 +175,7 @@
         <text name="rl_ui_moveValidSummary" text="%d állat lesz áthelyezve" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="%d állat kihagyva: nem felel meg az életkori követelménynek (%d-%d hónap)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="%d állat kihagyva: nincs elég hely a célállomáson" tag="format"/>
+        <text name="rl_ui_moveRejectedPenRules" text="%d animal(s) skipped: not allowed in this pen (breed, sex, castration or age)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="Egyetlen állat sem helyezhető át erre a célállomásra."/>
         <text name="rl_ui_moveBulkConfirmTitle" text="Állatok áthelyezése"/>
         <text name="rl_ui_moveErrorNoPermission" text="Nincs jogosultságod ide állatokat áthelyezni."/>

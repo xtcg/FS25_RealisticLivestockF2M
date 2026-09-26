@@ -655,6 +655,16 @@ function AnimalMoveEvent:run(connection)
 				return
 			end
 
+			-- Pen rules per animal (castration, maturity, age), read off the live server animal.
+			local liveAnimal = self.sourceObject:getClusterSystem():getClusterById(
+				RLAnimalUtil.toKey(animal.farmId, animal.uniqueId, animal.birthday.country)) or animal
+			local penOk, penReason, penDetail = RLHusbandryProfiles.checkAnimal(self.targetObject, liveAnimal)
+			if not penOk then
+				Log:debug("AnimalMoveEvent:run: animal %d refused by the pen rules (%s %s)", i, tostring(penReason), tostring(penDetail))
+				connection:sendEvent(AnimalMoveEvent.newServerToClient(AnimalMoveEvent.MOVE_ERROR_ANIMAL_NOT_SUPPORTED))
+				return
+			end
+
 			validatedCount = validatedCount + 1
 
 			-- A target that weighs deliveries checks the batch's summed yield at delivery instead.
@@ -837,6 +847,7 @@ function AnimalMoveEvent.validate(sourceObject, targetObject, farmId, subTypeInd
 
 	if not g_currentMission.accessHandler:canFarmAccess(farmId, sourceObject) or not g_currentMission.accessHandler:canFarmAccess(farmId, targetObject) then return AnimalMoveEvent.MOVE_ERROR_NO_PERMISSION end
 
+	RLHusbandryProfiles.apply(targetObject)
 	if not targetObject:getSupportsAnimalSubType(subTypeIndex) then return AnimalMoveEvent.MOVE_ERROR_ANIMAL_NOT_SUPPORTED end
 
 	if AnimalMoveEvent._getTargetFreeSlots(targetObject, farmId, subTypeIndex) < 1 then return AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE end

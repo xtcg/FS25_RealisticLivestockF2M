@@ -959,9 +959,12 @@ function RLMenuMoveFrame:onMoveDestinationSelected(entry)
         self.pendingMoveAnimals, entry, animalTypeIndex)
 
     -- Count rejections by reason
-    local ageTooYoung, ageTooOld, noCapacity, sick = 0, 0, 0, 0
+    local ageTooYoung, ageTooOld, noCapacity, sick, penRules = 0, 0, 0, 0, 0
     for _, r in ipairs(validationResult.rejected) do
-        if r.reason == "AGE_TOO_YOUNG" then ageTooYoung = ageTooYoung + 1
+        -- A pen's age window has no min/max on the entry to print, so it counts as a pen rule.
+        local isPenAge = (r.reason == "AGE_TOO_YOUNG" or r.reason == "AGE_TOO_OLD") and (entry.minAge == nil or entry.maxAge == nil)
+        if r.reason == RLHusbandryProfiles.REJECT_PEN_RULES or isPenAge then penRules = penRules + 1
+        elseif r.reason == "AGE_TOO_YOUNG" then ageTooYoung = ageTooYoung + 1
         elseif r.reason == "AGE_TOO_OLD" then ageTooOld = ageTooOld + 1
         elseif r.reason == "SICK" then sick = sick + 1
         elseif r.reason == "NO_CAPACITY" then noCapacity = noCapacity + 1
@@ -982,6 +985,9 @@ function RLMenuMoveFrame:onMoveDestinationSelected(entry)
         end
         if noCapacity > 0 then
             table.insert(lines, string.format(g_i18n:getText("rl_ui_moveRejectedCapacity"), noCapacity))
+        end
+        if penRules > 0 then
+            table.insert(lines, string.format(g_i18n:getText("rl_ui_moveRejectedPenRules"), penRules))
         end
         InfoDialog.show(table.concat(lines, "\n"))
         Log:debug("RLMenuMoveFrame:onMoveDestinationSelected: all %d rejected", #validationResult.rejected)
@@ -1007,6 +1013,9 @@ function RLMenuMoveFrame:onMoveDestinationSelected(entry)
         end
         if noCapacity > 0 then
             table.insert(confirmLines, string.format(g_i18n:getText("rl_ui_moveRejectedCapacity"), noCapacity))
+        end
+        if penRules > 0 then
+            table.insert(confirmLines, string.format(g_i18n:getText("rl_ui_moveRejectedPenRules"), penRules))
         end
     end
 

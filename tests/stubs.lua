@@ -52,3 +52,50 @@ function loadMod(path)
     assert(chunk, err)
     chunk()
 end
+
+-- XMLFile over a real file on disk: elements and attributes only (comments and the
+-- declaration dropped), addressed with the engine's "root.child(i).grandchild(j)#attr" keys.
+function loadXMLFileFromDisk(path)
+    local handle = io.open(path, "r")
+    if handle == nil then return nil end
+    local text = handle:read("a"):gsub("<!%-%-.-%-%->", ""):gsub("<%?.-%?>", "")
+    handle:close()
+
+    local nodes, counts, stack = {}, {}, {}
+    for closing, name, attrText, selfClosing in text:gmatch("<(/?)([%w_]+)([^>]-)(/?)>") do
+        if closing == "/" then
+            table.remove(stack)
+        else
+            local parent = stack[#stack]
+            local key = name
+            if parent ~= nil then
+                local base = parent .. "." .. name
+                counts[base] = (counts[base] or 0) + 1
+                key = string.format("%s(%d)", base, counts[base] - 1)
+            end
+            local attrs = {}
+            for attr, value in attrText:gmatch('([%w_]+)="([^"]*)"') do attrs[attr] = value end
+            nodes[key] = attrs
+            if selfClosing ~= "/" then table.insert(stack, key) end
+        end
+    end
+
+    local function get(key)
+        local node, attr = key:match("^(.*)#(.*)$")
+        return nodes[node] ~= nil and nodes[node][attr] or nil
+    end
+    return {
+        getString = function(_, key, default) return get(key) or default end,
+        getFloat = function(_, key, default) return tonumber(get(key)) or default end,
+        getInt = function(_, key, default) local v = tonumber(get(key)); return v ~= nil and math.floor(v) or default end,
+        getBool = function(_, key, default)
+            local v = get(key)
+            if v == nil then return default end
+            return v:lower() == "true"
+        end,
+        iterate = function(_, key, fn)
+            for i = 0, (counts[key] or 0) - 1 do fn(i, string.format("%s(%d)", key, i)) end
+        end,
+        delete = function() end,
+    }
+end
