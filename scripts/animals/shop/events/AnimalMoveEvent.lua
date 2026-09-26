@@ -30,34 +30,230 @@ function AnimalMoveEvent._logVisualCountSnapshot(side, stage, clusterSystem)
 		side, stage, tostring(ownerName), visualCount, table.concat(slotsParts, ","))
 end
 
---- Deliver animals to an extended-production-point target via per-animal-atomic
---- addCluster calls.
+--- Abort reason when an EPP target ran without error but credited nothing (full storage,
+--- no open contract order). Mapped to MOVE_ERROR_NOT_ENOUGH_SPACE for the client.
+AnimalMoveEvent.EPP_NOT_ACCEPTED = "EPP target did not accept the animal"
+
+--- Typical slaughter live weight (kg) per animal type. A delivered animal's carcass scales with
+--- its live weight against this, so an animal of typical slaughter weight yields exactly what
+--- the facility is configured for per head, and breed, sex and finish show up through weight.
+--- Types missing here fall back to the mean target weight of the subtypes the facility accepts.
+AnimalMoveEvent.CARCASS_REFERENCE_WEIGHT = {
+	COW = 650,      -- finished steer / young bull
+	PIG = 120,      -- finishing pig
+	SHEEP = 50,     -- lamb; goats share the type
+	HORSE = 550,
+	CHICKEN = 2.5,  -- ducks share the type on Hof Bergmann
+	GOOSE = 6,
+	RABBIT = 2.8,
+}
+
+--- Bounds on live weight / reference weight.
+AnimalMoveEvent.CARCASS_WEIGHT_RATIO_MIN = 0.1
+AnimalMoveEvent.CARCASS_WEIGHT_RATIO_MAX = 2.5
+
+--- Carcass yield change per unit of the meat gene (0.25-1.75, 1 = average): the same 25% swing
+--- Animal:getSellPrice gives the base price, read as carcass merit (muscling / saleable meat),
+--- since a facility's meat fill type carries no grade to price quality through.
+AnimalMoveEvent.CARCASS_QUALITY_SWING = 0.25
+
+
+--- Reference live weight for an animal's type at a facility: the table entry for its type,
+--- else the mean target weight of the subtypes the facility maps to the same input fill type.
+--- @return number|nil referenceWeight
+function AnimalMoveEvent.getCarcassReferenceWeight(targetObject, subTypeIndex)
+	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
+	if animalSystem == nil then return nil end
+
+	local subType = animalSystem:getSubTypeByIndex(subTypeIndex)
+	local animalType = subType ~= nil and animalSystem:getTypeByIndex(subType.typeIndex) or nil
+	local listed = animalType ~= nil and AnimalMoveEvent.CARCASS_REFERENCE_WEIGHT[animalType.name] or nil
+	if listed ~= nil then return listed end
+
+	local subTypeToFillType = targetObject.animalSubTypeToFillType
+	local fillType = subTypeToFillType ~= nil and subTypeToFillType[subTypeIndex] or nil
+	if fillType == nil then return subType ~= nil and subType.targetWeight or nil end
+
+	local total, count = 0, 0
+	for otherIndex, otherFillType in pairs(subTypeToFillType) do
+		local other = otherFillType == fillType and animalSystem:getSubTypeByIndex(otherIndex) or nil
+		if other ~= nil and other.targetWeight ~= nil and other.targetWeight > 0 then
+			total, count = total + other.targetWeight, count + 1
+		end
+	end
+	return count > 0 and total / count or nil
+end
+
+
+--- Carcass yield of one animal in "typical animals": live weight / reference weight, times
+--- 1 + CARCASS_QUALITY_SWING x (meat gene - 1). 1 for an average-gene animal at the reference.
+--- @param animal table|nil The live server Animal
+--- @param referenceWeight number|nil Typical slaughter live weight for its type
+--- @return number factor
+function AnimalMoveEvent.getCarcassYieldFactor(animal, referenceWeight)
+	if animal == nil then return 1 end
+
+	local weightRatio = 1
+	if animal.weight ~= nil and referenceWeight ~= nil and referenceWeight > 0 then
+		weightRatio = math.clamp(animal.weight / referenceWeight,
+			AnimalMoveEvent.CARCASS_WEIGHT_RATIO_MIN, AnimalMoveEvent.CARCASS_WEIGHT_RATIO_MAX)
+	end
+
+	local quality = animal.genetics ~= nil and animal.genetics.quality or 1
+	return weightRatio * (1 + AnimalMoveEvent.CARCASS_QUALITY_SWING * (quality - 1))
+end
+
+
+--- Scale a unit-based butcher's configured units per animal (Hof Bergmann's farm butcher,
+--- `animalInput.animal#unitsPerAnimal`) to this animal's yield for one addCluster call. The
+--- target reads the table live, so its own capacity and storage logic stays authoritative.
+--- @return function|nil restore Puts the configured value back; nil when nothing was changed
+function AnimalMoveEvent._applyCarcassYield(targetObject, subTypeIndex, animal)
+	local unitsByFillType = targetObject.eppAnimalInputUnitsByFillType
+	local fillType = targetObject.animalSubTypeToFillType ~= nil and targetObject.animalSubTypeToFillType[subTypeIndex] or nil
+	if targetObject.eppHasScaledAnimalInputs ~= true or type(unitsByFillType) ~= "table"
+		or fillType == nil or unitsByFillType[fillType] == nil then
+		return nil
+	end
+
+	local configured = unitsByFillType[fillType]
+	local factor = AnimalMoveEvent.getCarcassYieldFactor(animal,
+		AnimalMoveEvent.getCarcassReferenceWeight(targetObject, subTypeIndex))
+	unitsByFillType[fillType] = configured * factor
+	Log:debug("AnimalMoveEvent._applyCarcassYield: fillType=%s units %.1f -> %.1f (factor=%.3f weight=%s)",
+		tostring(fillType), configured, configured * factor, factor, tostring(animal and animal.weight))
+
+	return function() unitsByFillType[fillType] = configured end
+end
+
+
+--- Whether a farm can pay a contract facility's per-batch fee for `amount` of input. Mirrors
+--- the facility's own budget rule (money plus unused fee credit), so a weighted delivery is
+--- refused up front instead of being credited only in part. True when the facility's order
+--- data is not readable - it then applies its own limit.
+function AnimalMoveEvent._canAffordContractInput(targetObject, farmId, fillType, amount)
+	local serviceSpec = targetObject.spec_contractProductionService
+	if serviceSpec == nil or serviceSpec.orders == nil or serviceSpec.recipeById == nil then return true end
+
+	for _, order in pairs(serviceSpec.orders) do
+		local recipe = order.farmId == farmId and serviceSpec.recipeById[order.recipeId] or nil
+		local recipeInput = recipe ~= nil and recipe.inputs ~= nil and recipe.inputs[fillType] or nil
+		if recipeInput ~= nil then
+			if fillType ~= recipe.feeInputFillTypeIndex or (recipe.feePerBatch or 0) <= 0 then return true end
+			local budget = math.max(g_currentMission:getMoney(farmId), 0) + math.max(order.feeCredit or 0, 0)
+			return budget + 0.001 >= amount / recipeInput.amount * recipe.feePerBatch
+		end
+	end
+	return true
+end
+
+
+--- Deliver one animal to a contract facility (Hof Bergmann's public slaughterhouse) as its
+--- carcass yield in "typical animals", so the open order's meat output and per-head fee scale
+--- with it. Falls back to one whole animal when the facility lacks the bulk deliver call.
+--- @return number accepted 1 when the animal was taken, else 0
+function AnimalMoveEvent._deliverToContractTarget(targetObject, subTypeIndex, animal, farmId)
+	local fillType = targetObject.animalSubTypeToFillType ~= nil and targetObject.animalSubTypeToFillType[subTypeIndex] or nil
+	if fillType == nil or type(targetObject.contractProductionDeliver) ~= "function"
+		or type(targetObject.contractProductionGetAnimalFreeSlots) ~= "function" then
+		return targetObject:contractProductionAddAnimals(farmId, subTypeIndex, 1) or 0
+	end
+
+	-- Order and slot check per head, as the facility counts heads for its slot limit.
+	if targetObject:contractProductionGetAnimalFreeSlots(farmId, subTypeIndex) < 1 then return 0 end
+
+	local amount = AnimalMoveEvent.getCarcassYieldFactor(animal,
+		AnimalMoveEvent.getCarcassReferenceWeight(targetObject, subTypeIndex))
+	if not AnimalMoveEvent._canAffordContractInput(targetObject, farmId, fillType, amount) then return 0 end
+
+	local credited = targetObject:contractProductionDeliver(farmId, fillType, amount) or 0
+	Log:debug("AnimalMoveEvent._deliverToContractTarget: farmId=%s fillType=%s yield=%.3f credited=%.3f weight=%s",
+		tostring(farmId), tostring(fillType), amount, credited, tostring(animal and animal.weight))
+	if credited <= 0.001 then return 0 end
+
+	if credited < amount - 0.001 then
+		Log:warning("AnimalMoveEvent._deliverToContractTarget: facility credited %.3f of %.3f for one animal (farmId=%s)",
+			credited, amount, tostring(farmId))
+	end
+	if targetObject.contractProductionRefreshAnimalVisuals ~= nil then
+		targetObject:contractProductionRefreshAnimalVisuals()
+	end
+	return 1
+end
+
+
+--- Deliver one animal to an EPP target and return how many it credited (0 or 1).
+---
+--- Contract facilities credit a farm's open order, so they take the farm from the call; their
+--- addCluster instead guesses it from the local animal-screen trailer, which a multiplayer
+--- server never has. Everything else gets a single-animal cluster shim. The shim answers both
+--- cluster access styles - fields (farm butcher) and getters (slaughterhouse) - and counts
+--- what the target takes through changeNumAnimals, which targets call only for animals they
+--- actually stored.
+--- @param farmId number|nil The delivering farm, when known
+--- @return number accepted
+function AnimalMoveEvent._deliverOneToEPPTarget(targetObject, subTypeIndex, animal, farmId)
+	if farmId ~= nil and type(targetObject.contractProductionAddAnimals) == "function" then
+		return AnimalMoveEvent._deliverToContractTarget(targetObject, subTypeIndex, animal, farmId)
+	end
+
+	local accepted = 0
+	local shim = {
+		subTypeIndex = subTypeIndex,
+		numAnimals = 1,
+		getSubTypeIndex = function() return subTypeIndex end,
+		getNumAnimals = function() return 1 end,
+		changeNumAnimals = function(_, delta) accepted = accepted - delta end,
+	}
+
+	local restore = AnimalMoveEvent._applyCarcassYield(targetObject, subTypeIndex, animal)
+	local ok, err = pcall(targetObject.addCluster, targetObject, shim)
+	if restore ~= nil then restore() end
+	if not ok then error(err, 0) end
+
+	return accepted
+end
+
+
+--- Free slots at a move target. A contract facility is asked for the delivering farm's
+--- slots directly, for the same reason _deliverOneToEPPTarget passes the farm.
+function AnimalMoveEvent._getTargetFreeSlots(targetObject, farmId, subTypeIndex)
+	if farmId ~= nil and targetObject.isServer
+		and type(targetObject.contractProductionGetAnimalFreeSlots) == "function" then
+		return targetObject:contractProductionGetAnimalFreeSlots(farmId, subTypeIndex)
+	end
+	return targetObject:getNumOfFreeAnimalSlots(subTypeIndex)
+end
+
+
+--- Deliver animals to an extended-production-point target, one animal at a time.
 ---
 --- Production-points exposing animalsTypeData and a per-instance addCluster (with
 --- no spec_husbandryAnimals) accept animals via that override which bumps storage
 --- fillLevel; their internal cluster system is a placeholder, so cluster-system
---- flush would never reach the override. Each animal gets a single-animal cluster
---- shim; addCluster runs inside a per-animal pcall so a failure aborts the batch
---- with state consistency: every animal is either still in source (and uncredited)
---- or removed and credited. RLRM owns source-side bookkeeping in the staged
---- source-flush step the caller runs after this returns, so the shim's
---- changeNumAnimals is a no-op.
+--- flush would never reach the override. Each delivery runs inside a per-animal
+--- pcall, and an animal the target does not credit aborts the batch too, so state
+--- stays consistent: every animal is either still in source (and uncredited) or
+--- removed and credited. RLRM owns source-side bookkeeping in the staged
+--- source-flush step the caller runs after this returns.
 ---
 --- @param targetObject table Production-point factory exposing per-instance addCluster
 --- @param transferList table Array of {animal, sourceCluster} entries to deliver
---- @return table deliveredList Subset of transferList that addCluster accepted (in order)
---- @return string|nil abortError Pcall error from the failed call, or nil if all succeeded
-function AnimalMoveEvent._deliverToEPPTarget(targetObject, transferList)
+--- @param farmId number|nil The delivering farm, when known
+--- @return table deliveredList Subset of transferList that the target accepted (in order)
+--- @return string|nil abortError Error from the failed delivery, or nil if all succeeded
+function AnimalMoveEvent._deliverToEPPTarget(targetObject, transferList, farmId)
 	local deliveredList = {}
 	for i, entry in ipairs(transferList) do
-		local shim = {
-			subTypeIndex = entry.animal.subTypeIndex,
-			numAnimals = 1,
-			changeNumAnimals = function() end,
-		}
+		-- Weight and genetics from the live server animal, never the client's payload copy.
+		local liveAnimal = entry.sourceCluster or entry.animal
+		local accepted = 0
 		local ok, err = pcall(function()
-			targetObject:addCluster(shim)
+			accepted = AnimalMoveEvent._deliverOneToEPPTarget(targetObject, entry.animal.subTypeIndex, liveAnimal, farmId)
 		end)
+		if ok and accepted < 1 - 0.001 then
+			ok, err = false, AnimalMoveEvent.EPP_NOT_ACCEPTED
+		end
 		if ok then
 			-- Clear engine identity only on the delivered branch. A failed addCluster
 			-- leaves the animal in source; stripping its idFull there would orphan
@@ -92,6 +288,7 @@ end
 --- @param targetObject table The destination of the move (husbandry placeable or EPP factory)
 --- @param transferList table Array of {animal, sourceCluster} entries to deliver
 --- @param targetClusterSystem table Cluster system retrieved from targetObject:getClusterSystem()
+--- @param farmId number|nil The delivering farm, forwarded to EPP delivery
 --- @return boolean ok True if all delivery succeeded
 --- @return string|nil err Error message from the failing step, or nil
 --- @return table deliveredList Entries successfully delivered (subset for EPP, equals transferList for husbandry)
@@ -114,7 +311,7 @@ function AnimalMoveEvent._stageSourceFlushForDelivered(clusterSystemSource, deli
 end
 
 
-function AnimalMoveEvent._dispatchTargetDelivery(targetObject, transferList, targetClusterSystem)
+function AnimalMoveEvent._dispatchTargetDelivery(targetObject, transferList, targetClusterSystem, farmId)
 	local isEPPTarget = targetObject.animalsTypeData ~= nil
 		and type(targetObject.addCluster) == "function"
 		and targetObject.spec_husbandryAnimals == nil
@@ -122,7 +319,7 @@ function AnimalMoveEvent._dispatchTargetDelivery(targetObject, transferList, tar
 	if isEPPTarget then
 		Log:debug("AnimalMoveEvent._dispatchTargetDelivery: EPP target detected, delivering via addCluster (animals=%d)",
 			#transferList)
-		local deliveredList, abortError = AnimalMoveEvent._deliverToEPPTarget(targetObject, transferList)
+		local deliveredList, abortError = AnimalMoveEvent._deliverToEPPTarget(targetObject, transferList, farmId)
 		return abortError == nil, abortError, deliveredList
 	end
 
@@ -260,7 +457,7 @@ function AnimalMoveEvent:run(connection)
 
 			validatedCount = validatedCount + 1
 
-			if self.targetObject:getNumOfFreeAnimalSlots(animal.subTypeIndex) < validatedCount then
+			if AnimalMoveEvent._getTargetFreeSlots(self.targetObject, farmId, animal.subTypeIndex) < validatedCount then
 				Log:debug("AnimalMoveEvent:run: not enough space at target (need=%d)", validatedCount)
 				connection:sendEvent(AnimalMoveEvent.newServerToClient(AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE))
 				return
@@ -345,7 +542,7 @@ function AnimalMoveEvent:run(connection)
 
 		if isEPPTarget then
 			okTarget, errTarget, deliveredList = AnimalMoveEvent._dispatchTargetDelivery(
-				self.targetObject, transferList, targetClusterSystem)
+				self.targetObject, transferList, targetClusterSystem, farmId)
 
 			ok1, err1 = pcall(function()
 				AnimalMoveEvent._stageSourceFlushForDelivered(clusterSystemSource, deliveredList)
@@ -397,7 +594,11 @@ function AnimalMoveEvent:run(connection)
 				isEPPTarget and "epp" or "cluster",
 				#deliveredList,
 				tostring(err1), tostring(err2), tostring(errTarget))
-			connection:sendEvent(AnimalMoveEvent.newServerToClient(AnimalMoveEvent.MOVE_ERROR_INVALID_CLUSTER))
+			local errorCode = AnimalMoveEvent.MOVE_ERROR_INVALID_CLUSTER
+			if ok1 and ok2 and errTarget == AnimalMoveEvent.EPP_NOT_ACCEPTED then
+				errorCode = AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE
+			end
+			connection:sendEvent(AnimalMoveEvent.newServerToClient(errorCode))
 			return
 		end
 
@@ -436,7 +637,7 @@ function AnimalMoveEvent.validate(sourceObject, targetObject, farmId, subTypeInd
 
 	if not targetObject:getSupportsAnimalSubType(subTypeIndex) then return AnimalMoveEvent.MOVE_ERROR_ANIMAL_NOT_SUPPORTED end
 
-	if targetObject:getNumOfFreeAnimalSlots(subTypeIndex) < 1 then return AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE end
+	if AnimalMoveEvent._getTargetFreeSlots(targetObject, farmId, subTypeIndex) < 1 then return AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE end
 
 	return nil
 
