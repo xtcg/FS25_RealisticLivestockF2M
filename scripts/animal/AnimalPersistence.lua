@@ -215,6 +215,8 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
     local monitor = { ["active"] = xmlFile:getBool(key .. ".monitor#active", false), ["removed"] = xmlFile:getBool(key .. ".monitor#removed", false) }
 
     local isCastrated = xmlFile:getBool(key .. "#isCastrated", false)
+    local semenCollectedAge = xmlFile:getInt(key .. "#semenCollectedAge")
+    local semenProducedAge = xmlFile:getInt(key .. "#semenProducedAge")
 
     -- nil when absent (backward compatible, treated as sellable); false when explicitly saved
     local canBeSold = xmlFile:getBool(key .. "#canBeSold")
@@ -395,6 +397,7 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
         fitness = fitness, riding = riding, farmId = farmId, weight = weight,
         genetics = genetics, impregnatedBy = impregnatedBy, variation = variation,
         children = children, monitor = monitor, isCastrated = isCastrated,
+        semenCollectedAge = semenCollectedAge, semenProducedAge = semenProducedAge,
         diseases = diseases, recentlyBoughtByAI = recentlyBoughtByAI,
         marks = marks, insemination = insemination,
         canBeSold = canBeSold
@@ -580,6 +583,8 @@ function AnimalPersistence.saveToXMLFile(animal, xmlFile, key)
     xmlFile:setBool(key .. ".monitor#removed", animal.monitor.removed)
 
     if animal.isCastrated then xmlFile:setBool(key .. "#isCastrated", true) end
+    if animal.semenCollectedAge ~= nil then xmlFile:setInt(key .. "#semenCollectedAge", animal.semenCollectedAge) end
+    if animal.semenProducedAge ~= nil then xmlFile:setInt(key .. "#semenProducedAge", animal.semenProducedAge) end
     if animal.canBeSold == false then xmlFile:setBool(key .. "#canBeSold", false) end
 
     -- INDEXED walk, never `pairs`, and this is the site that MATERIALISES the positional

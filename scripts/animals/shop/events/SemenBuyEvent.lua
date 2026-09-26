@@ -93,6 +93,15 @@ function SemenBuyEvent:run(connection)
 		-- Server only - create the dewar Vehicle
 		if g_server == nil then return end
 
+		-- Only the bull's identity, the quantity and the spawn point are taken from the client. The
+		-- bull comes from the server's own dealer stock, the price from RLAIStockService, and the
+		-- buyer is the connection's farm - so a client cannot set its price, farm or genetics.
+		if connection ~= nil and not connection:getIsServer() then
+			local request = SemenBuyEvent.resolveServerRequest(self, connection)
+			if request == nil then return end
+			self.animal, self.price, self.farmId = request.animal, request.price, request.farmId
+		end
+
 		Log:info("SemenBuyEvent:run farmId=%d quantity=%d price=%.2f animalType=%s",
 			self.farmId, self.quantity, self.price, tostring(self.animal.animalTypeIndex))
 
@@ -121,6 +130,50 @@ function SemenBuyEvent:run(connection)
 
 	end)
 
+end
+
+
+--- Rebuild a purchase from server state. Nil (with a warning) when the buyer lacks the
+--- permission or the money, the quantity is not one the dealer sells, or the bull is not in stock.
+--- @return table|nil request { animal = live dealer bull, price = negative charge, farmId }
+function SemenBuyEvent.resolveServerRequest(event, connection)
+	local userId = g_currentMission.userManager:getUniqueUserIdByConnection(connection)
+	local farm = userId ~= nil and g_farmManager:getFarmForUniqueUserId(userId) or nil
+	local farmId = farm ~= nil and farm.farmId or nil
+
+	if farmId == nil or not g_currentMission:getHasPlayerPermission("tradeAnimals", connection) then
+		Log:warning("SemenBuyEvent: refused, no farm or no tradeAnimals permission")
+		return nil
+	end
+
+	local quantityValid = false
+	for _, quantity in pairs(RLConstants.DEWAR_QUANTITIES) do
+		if quantity == event.quantity then quantityValid = true end
+	end
+	if not quantityValid then
+		Log:warning("SemenBuyEvent: refused, quantity %s is not sold", tostring(event.quantity))
+		return nil
+	end
+
+	local animalSystem = g_currentMission.animalSystem
+	local requested = event.animal
+	local subType = requested ~= nil and animalSystem:getSubTypeByIndex(requested.subTypeIndex) or nil
+	local country = requested ~= nil and requested.birthday ~= nil and requested.birthday.country or nil
+	local bull = subType ~= nil and RLAnimalUtil.find(animalSystem:getAIAnimalsByTypeIndex(subType.typeIndex),
+		requested.farmId, requested.uniqueId, country) or nil
+	if bull == nil then
+		Log:warning("SemenBuyEvent: refused, bull %s/%s not in dealer stock",
+			tostring(requested and requested.farmId), tostring(requested and requested.uniqueId))
+		return nil
+	end
+
+	local price = RLAIStockService.getPriceForQuantity(bull, event.quantity)
+	if g_currentMission:getMoney(farmId) < price then
+		Log:warning("SemenBuyEvent: refused, farmId=%d cannot pay %.2f", farmId, price)
+		return nil
+	end
+
+	return { animal = bull, price = -price, farmId = farmId }
 end
 
 

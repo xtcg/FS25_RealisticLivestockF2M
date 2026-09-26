@@ -146,6 +146,8 @@ function AnimalSerialization.writeStream(animal, streamId, connection)
     streamWriteFloat32(streamId, animal.monitor.fee or 5)
 
     streamWriteBool(streamId, animal.isCastrated or false)
+    streamWriteInt32(streamId, animal.semenCollectedAge or -1)
+    streamWriteInt32(streamId, animal.semenProducedAge or -1)
 
     streamWriteUInt8(streamId, #animal.diseases)
 
@@ -333,6 +335,10 @@ function AnimalSerialization.readStream(animal, streamId, connection)
     }
 
     animal.isCastrated = streamReadBool(streamId)
+    animal.semenCollectedAge = streamReadInt32(streamId)
+    if animal.semenCollectedAge < 0 then animal.semenCollectedAge = nil end
+    animal.semenProducedAge = streamReadInt32(streamId)
+    if animal.semenProducedAge < 0 then animal.semenProducedAge = nil end
 
     local numDiseases = streamReadUInt8(streamId)
     local diseases = {}

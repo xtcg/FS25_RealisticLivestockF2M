@@ -892,5 +892,23 @@
         <text name="rl_menu_filters_valueSet_title" text="Vybrat hodnoty" />
         <text name="rl_menu_filters_valueSet_summary" text="Vybráno: %d" />
         <text name="rl_menu_filters_valueSet_button" text="Upravit hodnoty..." />
+        <!-- SEMEN COLLECTION / SALE -->
+        <text name="input_RL_SELL_SEMEN" text="Sell semen"/>
+        <text name="rl_semen_collect" text="Collect Semen"/>
+        <text name="rl_semen_collected" text="Semen collected: %d straws. You can pick up the dewar at the store."/>
+        <text name="rl_semen_collectFailed" text="Semen could not be collected."/>
+        <text name="rl_semen_refuseNotMale" text="Semen can only be collected from males."/>
+        <text name="rl_semen_refuseSpecies" text="Semen is not traded for this species."/>
+        <text name="rl_semen_refuseInfertile" text="This animal is castrated or infertile."/>
+        <text name="rl_semen_refuseTooYoung" text="This animal is too young for semen collection."/>
+        <text name="rl_semen_refuseTooOld" text="This animal is past its fertile age."/>
+        <text name="rl_semen_refuseCollected" text="Semen was already collected from this animal this month."/>
+        <text name="rl_semen_refuseSick" text="Semen cannot be collected from an animal showing disease symptoms."/>
+        <text name="rl_semen_refuseProduced" text="This bull's semen already went to its stable's semen storage this month."/>
+        <text name="rl_semen_sell" text="Sell Semen"/>
+        <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
+        <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_saleValue" text="Sale value"/>
+        <text name="rl_semen_sale" text="Semen Sales"/>
     </texts>
 </l10n>

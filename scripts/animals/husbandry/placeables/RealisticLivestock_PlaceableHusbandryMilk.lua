@@ -83,6 +83,13 @@ function PlaceableHusbandryMilk:updateInputAndOutput(superFunc, animals)
                     spec.litersPerHour[milk.fillType] = spec.litersPerHour[milk.fillType] + milkPerHour
                     table.addElement(spec.activeFillTypes, milk.fillType)
 
+                    -- A sire whose semen this building stores has had this month's semen: no dewar
+                    -- collection until next month (RLSemenCollection). Marked here, where output
+                    -- reaches storage - a bull in a building without semen storage stays collectable.
+                    if milkPerHour > 0 and Animal.isSemenFillType(milk.fillType) then
+                        animal.semenProducedAge = animal.age
+                    end
+
                     Log:trace("Milk[%s]: cow=%s/%s subType=%s age=%d isLactating=%s isParent=%s months=%s productivity=%.3f -> milk=%.4f l/h fillType=%s",
                         penName, tostring(animal.farmId), tostring(animal.uniqueId), tostring(subType.name),
                         animal.age or -1, tostring(animal.isLactating), tostring(animal.isParent),

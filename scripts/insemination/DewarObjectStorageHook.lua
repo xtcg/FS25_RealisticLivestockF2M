@@ -60,6 +60,7 @@ function DewarObjectStorageHook.snapshot(vehicle)
             typeIndex = a.typeIndex,
             subTypeIndex = a.subTypeIndex,
             success = a.success,
+            collected = a.collected,
             genetics = a.genetics and table.clone(a.genetics, 3) or nil,
         }
     end
@@ -125,6 +126,7 @@ function DewarObjectStorageHook.writeStateToXML(state, xmlFile, baseKey)
         if a.typeIndex    ~= nil then xmlFile:setValue(animalBase .. "#typeIndex",    a.typeIndex)    end
         if a.subTypeIndex ~= nil then xmlFile:setValue(animalBase .. "#subTypeIndex", a.subTypeIndex) end
         if a.success      ~= nil then xmlFile:setValue(animalBase .. "#success",      a.success)      end
+        if a.collected then xmlFile:setValue(animalBase .. "#collected", true) end
         if a.genetics ~= nil then
             for _, gene in ipairs(DewarObjectStorageHook.GENETICS_FIELDS) do
                 if a.genetics[gene] ~= nil then
@@ -158,6 +160,7 @@ function DewarObjectStorageHook.readStateFromXML(xmlFile, baseKey)
             typeIndex    = xmlFile:getValue(animalBase .. "#typeIndex"),
             subTypeIndex = xmlFile:getValue(animalBase .. "#subTypeIndex"),
             success      = xmlFile:getValue(animalBase .. "#success"),
+            collected    = xmlFile:getValue(animalBase .. "#collected") == true,
             genetics = {},
         }
         for _, gene in ipairs(DewarObjectStorageHook.GENETICS_FIELDS) do
@@ -215,6 +218,7 @@ local function installHooks()
         schema:register(XMLValueType.INT,    animalBase .. "#typeIndex",    "Stored animal type index")
         schema:register(XMLValueType.INT,    animalBase .. "#subTypeIndex", "Stored animal subtype index")
         schema:register(XMLValueType.FLOAT,  animalBase .. "#success",      "Stored animal breeding success")
+        schema:register(XMLValueType.BOOL,   animalBase .. "#collected",    "Stored semen was collected on the owner's farm")
         for _, gene in ipairs(DewarObjectStorageHook.GENETICS_FIELDS) do
             schema:register(XMLValueType.FLOAT, animalBase .. ".genetics#" .. gene, "Stored animal genetics " .. gene)
         end

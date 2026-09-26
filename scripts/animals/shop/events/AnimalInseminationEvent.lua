@@ -103,6 +103,16 @@ function AnimalInseminationEvent:run(connection)
 		Log:trace("InseminationEvent:run branch=%s animal=%s", isServerBranch and "server" or "client", tostring(identifiers.uniqueId))
 
 		if isServerBranch then
+			-- The straw must be one the server handed this player; its recorded sire snapshot
+			-- replaces the genetics the client sent (RLStrawLedger).
+			local semen = RLStrawLedger.spendForSemen(RLStrawLedger.getUserId(connection), self.semen)
+			if semen == nil then
+				Log:warning("InseminationEvent:run: refused, no straw of sire %s on record for this player",
+					tostring(self.semen ~= nil and self.semen.uniqueId))
+				return
+			end
+			self.semen = semen
+
 			-- Server: validate animal lookup, idempotency guard, then rebroadcast.
 			-- Gate the rebroadcast on animal-found: if the authoritative server
 			-- has no record of the animal, do NOT propagate to other clients.

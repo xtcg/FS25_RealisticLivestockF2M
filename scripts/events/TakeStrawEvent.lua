@@ -51,6 +51,21 @@ function TakeStrawEvent:run(connection)
 		return
 	end
 
+	-- From a remote client: hand out a straw only from a stocked dewar of the player's own farm,
+	-- and record it so it can later be used or put back (RLStrawLedger). From the server: mirror.
+	if not connection:getIsServer() then
+		local dewar = self.object
+		local farmId = RLStrawLedger.getFarmId(connection)
+		if dewar.isDewar ~= true or dewar:getAnimal() == nil or (dewar.straws or 0) <= 0
+			or farmId == nil or dewar:getOwnerFarmId() ~= farmId then
+			Log:warning("TakeStrawEvent:run refused straw from dewar=%s (farmId=%s owner=%s straws=%s)",
+				tostring(dewar.getUniqueId ~= nil and dewar:getUniqueId()), tostring(farmId),
+				tostring(dewar.getOwnerFarmId ~= nil and dewar:getOwnerFarmId()), tostring(dewar.straws))
+			return
+		end
+		RLStrawLedger.record(RLStrawLedger.getUserId(connection), dewar)
+	end
+
 	self.object:changeStraws(-1)
 	Log:debug("TakeStrawEvent:run decremented dewar=%s", tostring(self.object:getUniqueId()))
 end

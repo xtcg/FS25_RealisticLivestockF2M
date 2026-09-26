@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<l10n>
+	<texts>
+		<!-- Fülltypen für durch Bridge hinzugefügte männliche Untertypen -->
+		<text name="fillType_duck_male" text="Erpel"/>
+		<text name="fillType_goose_male" text="Ganter"/>
+		<text name="fillType_tomcat" text="Kater"/>
+
+		<!-- Tiernamen und Beschreibungen -->
+		<text name="rl_bridge_drakeDuckling" text="Erpel-Küken"/>
+		<text name="rl_bridge_drakeAdult" text="Erpel"/>
+		<text name="rl_bridge_drakeDucklingDesc" text="Ein junger männlicher Ente."/>
+		<text name="rl_bridge_drakeAdultDesc" text="Ein erwachsener Erpel. Erpel, die gesund und älter als 6 Monate sind, können sich fortpflanzen."/>
+
+		<text name="rl_bridge_ganderYoung" text="Junger Ganter"/>
+		<text name="rl_bridge_ganderAdult" text="Ganter"/>
+		<text name="rl_bridge_ganderYoungDesc" text="Eine junge männliche Gans."/>
+		<text name="rl_bridge_ganderAdultDesc" text="Ein erwachsener Ganter. Ganter, die gesund und älter als 10 Monate sind, können sich fortpflanzen."/>
+
+		<text name="rl_bridge_tomcatKitten" text="Männliches Kätzchen"/>
+		<text name="rl_bridge_tomcatAdult" text="Kater"/>
+		<text name="rl_bridge_tomcatKittenDesc" text="Eine junge männliche Katze."/>
+		<text name="rl_bridge_tomcatAdultDesc" text="Ein erwachsener Kater. Kater, die gesund und älter als 8 Monate sind, können sich fortpflanzen."/>
+
+		<!-- Alpaka-Hengste Fülltypen -->
+		<text name="fillType_alpaca_white_male" text="Weißer Alpaka-Hengst"/>
+		<text name="fillType_alpaca_brown_male" text="Brauner Alpaka-Hengst"/>
+		<text name="fillType_alpaca_black_male" text="Schwarzer Alpaka-Hengst"/>
+		<text name="fillType_alpaca_grey_male" text="Grauer Alpaka-Hengst"/>
+
+		<!-- Alpaka-Hengst Tiernamen und Beschreibungen -->
+		<text name="rl_bridge_alpacaWhiteMaleYoung" text="Junges weißes Alpaka-Hengstfohlen"/>
+		<text name="rl_bridge_alpacaWhiteMaleAdult" text="Weißer Alpaka-Hengst"/>
+		<text name="rl_bridge_alpacaWhiteMaleYoungDesc" text="Ein junges männliches weißes Alpaka."/>
+		<text name="rl_bridge_alpacaWhiteMaleAdultDesc" text="Ein erwachsener weißer Alpaka-Hengst. Hengste, die gesund und älter als 8 Monate sind, können sich fortpflanzen."/>
+
+		<text name="rl_bridge_alpacaBrownMaleYoung" text="Junges braunes Alpaka-Hengstfohlen"/>
+		<text name="rl_bridge_alpacaBrownMaleAdult" text="Brauner Alpaka-Hengst"/>
+		<text name="rl_bridge_alpacaBrownMaleYoungDesc" text="Ein junges männliches braunes Alpaka."/>
+		<text name="rl_bridge_alpacaBrownMaleAdultDesc" text="Ein erwachsener brauner Alpaka-Hengst. Hengste, die gesund und älter als 8 Monate sind, können sich fortpflanzen."/>
+
+		<text name="rl_bridge_alpacaBlackMaleYoung" text="Junges schwarzes Alpaka-Hengstfohlen"/>
+		<text name="rl_bridge_alpacaBlackMaleAdult" text="Schwarzer Alpaka-Hengst"/>
+		<text name="rl_bridge_alpacaBlackMaleYoungDesc" text="Ein junges männliches schwarzes Alpaka."/>
+		<text name="rl_bridge_alpacaBlackMaleAdultDesc" text="Ein erwachsener schwarzer Alpaka-Hengst. Hengste, die gesund und älter als 8 Monate sind, können sich fortpflanzen."/>
+
+		<text name="rl_bridge_alpacaGreyMaleYoung" text="Junges graues Alpaka-Hengstfohlen"/>
+		<text name="rl_bridge_alpacaGreyMaleAdult" text="Grauer Alpaka-Hengst"/>
+		<text name="rl_bridge_alpacaGreyMaleYoungDesc" text="Ein junges männliches graues Alpaka."/>
+		<text name="rl_bridge_alpacaGreyMaleAdultDesc" text="Ein erwachsener grauer Alpaka-Hengst. Hengste, die gesund und älter als 8 Monate sind, können sich fortpflanzen."/>
+
+		<!-- Wilderpel -->
+		<text name="fillType_duckwild_male" text="Wilderpel"/>
+
+		<text name="rl_bridge_duckwildMaleYoung" text="Junger Wilderpel"/>
+		<text name="rl_bridge_duckwildMaleAdult" text="Wilderpel"/>
+		<text name="rl_bridge_duckwildMaleYoungDesc" text="Eine junge männliche Wildente."/>
+		<text name="rl_bridge_duckwildMaleAdultDesc" text="Ein erwachsener Wilderpel. Erpel, die gesund und älter als 6 Monate sind, können sich fortpflanzen."/>
+
+		<!-- Wachtelhahn -->
+		<text name="fillType_quail_male" text="Wachtelhahn"/>
+
+		<text name="rl_bridge_quailMaleYoung" text="Junger Wachtelhahn"/>
+		<text name="rl_bridge_quailMaleAdult" text="Wachtelhahn"/>
+		<text name="rl_bridge_quailMaleYoungDesc" text="Eine junge männliche Wachtel."/>
+		<text name="rl_bridge_quailMaleAdultDesc" text="Ein erwachsener Wachtelhahn. Wachtelhähne, die gesund und älter als 6 Monate sind, können sich fortpflanzen."/>
+	</texts>
+</l10n>
