@@ -886,5 +886,23 @@
         <text name="rl_menu_filters_valueSet_title" text="Select values"/>
         <text name="rl_menu_filters_valueSet_summary" text="%d selected"/>
         <text name="rl_menu_filters_valueSet_button" text="Edit values..."/>
+        <!-- SEMEN COLLECTION / SALE -->
+        <text name="input_RL_SELL_SEMEN" text="Sperma verkaufen"/>
+        <text name="rl_semen_collect" text="Sperma gewinnen"/>
+        <text name="rl_semen_collected" text="Sperma gewonnen: %d Pailletten. Der Behälter steht am Shop zur Abholung bereit."/>
+        <text name="rl_semen_collectFailed" text="Sperma konnte nicht gewonnen werden."/>
+        <text name="rl_semen_refuseNotMale" text="Sperma kann nur von männlichen Tieren gewonnen werden."/>
+        <text name="rl_semen_refuseSpecies" text="Für diese Tierart wird kein Sperma gehandelt."/>
+        <text name="rl_semen_refuseInfertile" text="Dieses Tier ist kastriert oder unfruchtbar."/>
+        <text name="rl_semen_refuseTooYoung" text="Dieses Tier ist zu jung für die Spermagewinnung."/>
+        <text name="rl_semen_refuseTooOld" text="Dieses Tier ist nicht mehr im fruchtbaren Alter."/>
+        <text name="rl_semen_refuseCollected" text="Von diesem Tier wurde diesen Monat bereits Sperma gewonnen."/>
+        <text name="rl_semen_refuseSick" text="Von einem Tier mit Krankheitssymptomen kann kein Sperma gewonnen werden."/>
+        <text name="rl_semen_refuseProduced" text="Das Sperma dieses Bullen ging diesen Monat bereits in den Spermaspeicher seines Stalls."/>
+        <text name="rl_semen_sell" text="Sperma verkaufen"/>
+        <text name="rl_semen_sellPrompt" text="Sperma verkaufen (%s)"/>
+        <text name="rl_semen_sellConfirm" text="Diesen Behälter mit %d Pailletten für %s verkaufen?"/>
+        <text name="rl_semen_saleValue" text="Verkaufswert"/>
+        <text name="rl_semen_sale" text="Spermaverkauf"/>
     </texts>
 </l10n>

@@ -39,8 +39,19 @@ function ReturnStrawEvent:writeStream(streamId, connection)
 end
 
 
+--- From the server: mirror the return. From a remote client: accepted only for a straw the
+--- server handed that player from this dewar (RLStrawLedger), so straws cannot be conjured.
 function ReturnStrawEvent:run(connection)
 
-	if self.object ~= nil then self.object:changeStraws(1) end
+	if self.object == nil then return end
+
+	if not connection:getIsServer()
+		and not RLStrawLedger.spendForReturn(RLStrawLedger.getUserId(connection), self.object) then
+		Log:warning("ReturnStrawEvent:run refused, no straw from dewar=%s on record for this player",
+			tostring(self.object.getUniqueId ~= nil and self.object:getUniqueId()))
+		return
+	end
+
+	self.object:changeStraws(1)
 
 end

@@ -896,5 +896,23 @@
         <text name="rl_menu_filters_valueSet_title" text="Select values"/>
         <text name="rl_menu_filters_valueSet_summary" text="%d selected"/>
         <text name="rl_menu_filters_valueSet_button" text="Edit values..."/>
+        <!-- SEMEN COLLECTION / SALE -->
+        <text name="input_RL_SELL_SEMEN" text="出售精液"/>
+        <text name="rl_semen_collect" text="采集精液"/>
+        <text name="rl_semen_collected" text="采精完成：%d 支细管。液氮罐已送到商店，可前往领取。"/>
+        <text name="rl_semen_collectFailed" text="无法采集精液。"/>
+        <text name="rl_semen_refuseNotMale" text="只能从公畜采集精液。"/>
+        <text name="rl_semen_refuseSpecies" text="该物种没有精液交易。"/>
+        <text name="rl_semen_refuseInfertile" text="该动物已阉割或不育。"/>
+        <text name="rl_semen_refuseTooYoung" text="该动物年龄太小，还不能采精。"/>
+        <text name="rl_semen_refuseTooOld" text="该动物已过繁殖年龄。"/>
+        <text name="rl_semen_refuseCollected" text="本月已经从该动物采过精。"/>
+        <text name="rl_semen_refuseSick" text="不能从有疾病症状的动物采精。"/>
+        <text name="rl_semen_refuseProduced" text="这头公牛本月的精液已经进了牛棚的精液储存，下个月才能采精。"/>
+        <text name="rl_semen_sell" text="出售精液"/>
+        <text name="rl_semen_sellPrompt" text="出售精液（%s）"/>
+        <text name="rl_semen_sellConfirm" text="出售这个装有 %d 支细管的液氮罐，售价 %s？"/>
+        <text name="rl_semen_saleValue" text="出售价值"/>
+        <text name="rl_semen_sale" text="精液销售"/>
     </texts>
 </l10n>

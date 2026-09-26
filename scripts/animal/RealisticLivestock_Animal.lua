@@ -60,6 +60,10 @@ function Animal.new(config)
     self.input, self.output = {}, {}
 
     self.isCastrated = cfg.isCastrated or false
+    -- Age (months) at the last semen collection; one collection per month (RLSemenCollection).
+    self.semenCollectedAge = cfg.semenCollectedAge
+    -- Age (months) in which a semen-storing building last took this sire's semen output.
+    self.semenProducedAge = cfg.semenProducedAge
 
     self.clusterSystem = cfg.clusterSystem
 
@@ -401,6 +405,8 @@ function Animal:clone()
         children = self.children,
         monitor = self.monitor,
         isCastrated = self.isCastrated,
+        semenCollectedAge = self.semenCollectedAge,
+        semenProducedAge = self.semenProducedAge,
         diseases = self.diseases,
         recentlyBoughtByAI = self.recentlyBoughtByAI,
         marks = self.marks,
@@ -1670,6 +1676,17 @@ end
 --- Recompute this animal's per-hour output for every fill type its subtype produces.
 ---@param temp number The day's minimum temperature, read by the wool cold gate.
 ---@return nil
+--- Fill types a map produces through a subtype's milk output that are semen, not milk.
+Animal.SEMEN_FILL_TYPE_NAMES = { BULLSPERM = true }
+
+--- Whether a milk-output fill type is semen (Hof Bergmann's BULLSPERM) rather than milk.
+---@param fillTypeIndex number|nil
+---@return boolean
+function Animal.isSemenFillType(fillTypeIndex)
+    local name = fillTypeIndex ~= nil and g_fillTypeManager:getFillTypeNameByIndex(fillTypeIndex) or nil
+    return name ~= nil and Animal.SEMEN_FILL_TYPE_NAMES[name] == true
+end
+
 function Animal:updateOutput(temp)
     local subType = self:getSubType()
 
@@ -1741,7 +1758,24 @@ function Animal:updateOutput(temp)
         local isMilk = fillType == "milk"
         local milkCurve, milkFactor, milkProductivity, milkPreDisease
 
-        if isMilk then
+        if isMilk and Animal.isSemenFillType(output.fillType) then
+            -- Hof Bergmann models bull semen as the milk output of its BULL subtype. Semen is not
+            -- lactation, so the mother gate below would zero it for good; the sire's fertility
+            -- scales it instead, and a castrated or infertile sire produces none. Only a semen fill
+            -- type takes this branch, so no other male starts producing milk. A month in which
+            -- the sire was collected into a dewar (RLSemenCollection) yields nothing here.
+            local collectedThisMonth = self.semenCollectedAge ~= nil and self.semenCollectedAge >= self.age
+            local fertility = (self.isCastrated or collectedThisMonth) and 0 or (self.genetics.fertility or 1)
+            local curveLitersPerDay = litersPerDay
+
+            litersPerDay = litersPerDay * fertility
+
+            Log:trace("updateOutput[semen]: animal=%s/%s subType=%s age=%d curve(l/day)=%.3f fertility=%.3f castrated=%s collectedThisMonth=%s -> l/day=%.3f",
+                tostring(self.farmId), tostring(self.uniqueId), tostring(subType.name), self.age or -1,
+                curveLitersPerDay, fertility, tostring(self.isCastrated), tostring(collectedThisMonth), litersPerDay)
+
+            isMilk = false
+        elseif isMilk then
             local monthsSinceLastBirth = self.monthsSinceLastBirth or 12
             local factor = 0.8
             local productivity = self.genetics.productivity or 1

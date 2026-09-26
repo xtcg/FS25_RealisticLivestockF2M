@@ -141,6 +141,7 @@ function DewarData:loadDewarFromSavegame(xmlFile, key)
         animal.typeIndex = xmlFile:getInt(animalKey .. "#typeIndex")
         animal.subTypeIndex = xmlFile:getInt(animalKey .. "#subTypeIndex")
         animal.success = xmlFile:getFloat(animalKey .. "#success")
+        animal.collected = xmlFile:getBool(animalKey .. "#collected", false)
 
         animal.genetics = {
             ["metabolism"] = xmlFile:getFloat(animalKey .. ".genetics#metabolism"),
@@ -220,6 +221,7 @@ function DewarData:saveToXMLFile(xmlFile, key, usedModNames)
         xmlFile:setInt(animalKey .. "#typeIndex", animal.typeIndex)
         xmlFile:setInt(animalKey .. "#subTypeIndex", animal.subTypeIndex)
         xmlFile:setFloat(animalKey .. "#success", animal.success)
+        if animal.collected then xmlFile:setBool(animalKey .. "#collected", true) end
 
         for type, value in pairs(animal.genetics) do
             xmlFile:setFloat(animalKey .. ".genetics#" .. type, value)
@@ -252,6 +254,7 @@ function DewarData:onWriteStream(streamId, connection)
         streamWriteFloat32(streamId, animal.genetics.health)
         streamWriteFloat32(streamId, animal.genetics.quality)
         streamWriteFloat32(streamId, animal.genetics.productivity or -1)
+        streamWriteBool(streamId, animal.collected == true)
     end
 
     Log:trace("DewarData:onWriteStream uniqueId=%s straws=%d hasAnimal=%s",
@@ -280,6 +283,7 @@ function DewarData:onReadStream(streamId, connection)
         animal.genetics.quality = streamReadFloat32(streamId)
         animal.genetics.productivity = streamReadFloat32(streamId)
         if animal.genetics.productivity < 0 then animal.genetics.productivity = nil end
+        animal.collected = streamReadBool(streamId)
 
         spec.animal = animal
     end
@@ -439,6 +443,8 @@ function DewarData:showInfo(superFunc, box)
     local subType = animalSystem:getSubTypeByIndex(animal.subTypeIndex)
 
     box:addLine(g_i18n:getText("rl_ui_strawMultiple"), tostring(spec.straws))
+    box:addLine(g_i18n:getText("rl_semen_saleValue"),
+        g_i18n:formatMoney(RLSemenCollection.getSellValue(animal, spec.straws), 0, true, true))
     box:addLine(g_i18n:getText("rl_ui_averageSuccess"), string.format("%s%%", tostring(math.round(animal.success * 100))))
     box:addLine(g_i18n:getText("rl_ui_species"), animalSystem:getTypeByIndex(animal.typeIndex).groupTitle)
     box:addLine(g_i18n:getText("infohud_type"), g_fillTypeManager:getFillTypeTitleByIndex(subType.fillTypeIndex))

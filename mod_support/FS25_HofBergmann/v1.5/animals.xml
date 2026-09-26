@@ -1,0 +1,868 @@
+<!--
+    Bridge animals for Hof Bergmann map (FS25_HofBergmann).
+
+    This file serves two purposes:
+    1. NEW SUBTYPES: Adds male subtypes to exotic animal types (DUCK_MALE, GOOSE_MALE, TOMCAT)
+    2. PROPERTY OVERRIDES: Patches properties on existing types/subtypes from earlier layers
+       (base game, RLRM, map) - e.g. fixing incorrect weights, reproduction ages, pregnancy counts.
+
+    Property override rules:
+    - Only explicitly defined properties are overridden (omitted = keep current value)
+    - Works for both type-level (pregnancy, fertility) and subtype-level (weights, reproduction) properties
+    - Same XML structure as animals.xml - no special tags needed
+-->
+<animals>
+
+    <!--
+        CHICKEN type: HB 1.4 reordered models from base game layout.
+        Base game: 1=hen, 2=rooster, 3=chick
+        HB 1.4:    1=chick, 2=chick2(young), 3=hen, 4=rooster, 5=duckling, 6=duck
+
+        RLRM Phase 1 defines 2 visual stages (baby, adult) with base game indices.
+        Bridge remaps indices to HB 1.4 layout and adds the young stage (minAge=3).
+    -->
+    <animal type="CHICKEN">
+        <!-- Override: remap CHICKEN (hen) visual indices + add young stage.
+             Output remap: RLRM uses EGG, HB stables use EGG_HB in palletSpawner. -->
+        <subType subType="CHICKEN">
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="1" image="character/animals/domesticated/chicken/store_chick.png" canBeBought="false"/>
+                <visual minAge="3" visualAnimalIndex="2" image="$dataS/character/animals/domesticated/chicken/store_chickenChick.png" canBeBought="true"/>
+                <visual minAge="6" visualAnimalIndex="3" image="$dataS/character/animals/domesticated/chicken/store_chickenHen.png"/>
+            </visuals>
+            <output><pallets fillType="EGG_HB"/></output>
+        </subType>
+
+        <!-- Override: remap CHICKEN_ROOSTER visual indices + add young stage -->
+        <subType subType="CHICKEN_ROOSTER">
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="1" image="character/animals/domesticated/chicken/store_chick.png" canBeBought="false"/>
+                <visual minAge="3" visualAnimalIndex="2" image="$dataS/character/animals/domesticated/chicken/store_chickenChick.png" canBeBought="false"/>
+                <visual minAge="6" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/chicken/store_chickenRooster.png"/>
+            </visuals>
+        </subType>
+
+        <!-- DUCK_MALE: male variant for DUCK subtype -->
+        <!-- DUCK uses visualAnimalIndex 5 (duckling) and 6 (adult) in HB 1.4's chicken config -->
+        <subType subType="DUCK_MALE" fillTypeName="DUCK_MALE" gender="male" breed="DUCK"
+                 minWeight="1.0" targetWeight="3.5" maxWeight="5.5">
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="5" image="character/animals/domesticated/chicken/store_duckling.png" name="$l10n_rl_bridge_drakeDuckling" canBeBought="false">
+                    <description>$l10n_rl_bridge_drakeDucklingDesc</description>
+                </visual>
+                <visual minAge="6" visualAnimalIndex="6" image="character/animals/domesticated/chicken/store_duck.png" name="$l10n_rl_bridge_drakeAdult" canBeBought="true">
+                    <description>$l10n_rl_bridge_drakeAdultDesc</description>
+                </visual>
+            </visuals>
+            <reproduction supported="false" minAgeMonth="6"/>
+            <buyPrice>
+                <key ageMonth="0" value="30"/>
+                <key ageMonth="6" value="65"/>
+            </buyPrice>
+            <sellPrice>
+                <key ageMonth="0" value="15"/>
+                <key ageMonth="6" value="35"/>
+            </sellPrice>
+            <transportPrice>
+                <key ageMonth="0" value="5"/>
+                <key ageMonth="6" value="10"/>
+            </transportPrice>
+            <input>
+                <food>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="6" value="5"/>
+                </food>
+                <straw>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="6" value="5"/>
+                </straw>
+                <water>
+                    <key ageMonth="0" value="1"/>
+                    <key ageMonth="6" value="1"/>
+                </water>
+            </input>
+        </subType>
+    </animal>
+
+    <!-- GOOSE: new male subtype + weight fix for existing female -->
+    <!-- Map navMesh (h=0.6, r=0.2) gives absurd derived weights: max=90kg, target=36kg -->
+    <!-- Real domestic geese: 4-7kg female, 5-10kg male -->
+    <animal type="GOOSE">
+        <pregnancy average="3" max="6"/>
+
+        <!-- Override: fix existing GOOSE (female) weights from navMesh-derived values -->
+        <subType subType="GOOSE" minWeight="0.5" targetWeight="5.0" maxWeight="8.0"/>
+
+        <!-- New: GOOSE_MALE -->
+        <subType subType="GOOSE_MALE" fillTypeName="GOOSE_MALE" gender="male" breed="GOOSE"
+                 minWeight="0.5" targetWeight="6.5" maxWeight="11.0">
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="1" image="character/animals/domesticated/goose/store_gooseYoung.png" name="$l10n_rl_bridge_ganderYoung" canBeBought="false">
+                    <description>$l10n_rl_bridge_ganderYoungDesc</description>
+                </visual>
+                <visual minAge="10" visualAnimalIndex="2" image="character/animals/domesticated/goose/store_goose.png" name="$l10n_rl_bridge_ganderAdult" canBeBought="true">
+                    <description>$l10n_rl_bridge_ganderAdultDesc</description>
+                </visual>
+            </visuals>
+            <reproduction supported="false" minAgeMonth="10"/>
+            <buyPrice>
+                <key ageMonth="0" value="25"/>
+                <key ageMonth="12" value="55"/>
+            </buyPrice>
+            <sellPrice>
+                <key ageMonth="0" value="15"/>
+                <key ageMonth="12" value="30"/>
+            </sellPrice>
+            <transportPrice>
+                <key ageMonth="0" value="2"/>
+                <key ageMonth="12" value="2"/>
+            </transportPrice>
+            <input>
+                <food>
+                    <key ageMonth="0" value="15"/>
+                    <key ageMonth="12" value="45"/>
+                </food>
+                <straw>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="12" value="50"/>
+                </straw>
+                <water>
+                    <key ageMonth="0" value="1"/>
+                    <key ageMonth="12" value="1"/>
+                </water>
+            </input>
+        </subType>
+    </animal>
+
+    <!-- CAT: new male subtype + pregnancy override -->
+    <!-- Default pregnancy avg=1, max=3 - real cats have 3-5 kittens per litter -->
+    <!-- CAT uses visualAnimalIndex 1 (kitten) and 2 (adult) -->
+    <animal type="CAT">
+        <pregnancy average="3" max="6"/>
+
+        <!-- New: TOMCAT -->
+        <subType subType="TOMCAT" fillTypeName="TOMCAT" gender="male" breed="TOMCAT"
+                 minWeight="0.1" targetWeight="4.0" maxWeight="7.0">
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="1" image="character/animals/domesticated/cat/store_kitten.png" name="$l10n_rl_bridge_tomcatKitten" canBeBought="false">
+                    <description>$l10n_rl_bridge_tomcatKittenDesc</description>
+                </visual>
+                <visual minAge="8" visualAnimalIndex="2" image="character/animals/domesticated/cat/store_femaleCatTiger.png" name="$l10n_rl_bridge_tomcatAdult" canBeBought="true">
+                    <description>$l10n_rl_bridge_tomcatAdultDesc</description>
+                </visual>
+            </visuals>
+            <reproduction supported="false" minAgeMonth="8"/>
+            <buyPrice>
+                <key ageMonth="0" value="30"/>
+                <key ageMonth="8" value="100"/>
+            </buyPrice>
+            <sellPrice>
+                <key ageMonth="0" value="15"/>
+                <key ageMonth="8" value="50"/>
+            </sellPrice>
+            <transportPrice>
+                <key ageMonth="0" value="5"/>
+                <key ageMonth="8" value="5"/>
+            </transportPrice>
+            <input>
+                <food>
+                    <key ageMonth="0" value="3"/>
+                    <key ageMonth="8" value="5"/>
+                </food>
+                <water>
+                    <key ageMonth="0" value="1"/>
+                    <key ageMonth="8" value="1"/>
+                </water>
+            </input>
+        </subType>
+    </animal>
+
+    <!-- RABBIT: override reproduction age for existing RABBIT_MALE + pregnancy -->
+    <!-- Map sets RABBIT_MALE reproduction supported="false" with no minAgeMonth -> defaults to 18 -->
+    <!-- Real rabbits mature at 3-4 months; 6 months is conservative -->
+    <!-- Default pregnancy avg=1, max=3 - real rabbits have 4-8 kits per litter -->
+    <animal type="RABBIT">
+        <pregnancy average="4" max="8"/>
+
+        <!-- Override: fix RABBIT weights (navMesh h=0.1, r=0.1 gives max=7.5 - refine) -->
+        <subType subType="RABBIT" minWeight="0.1" targetWeight="2.5" maxWeight="5.0"/>
+
+        <!-- Override: fix RABBIT_MALE reproduction age from default 18 -> 6 months -->
+        <subType subType="RABBIT_MALE" minWeight="0.1" targetWeight="3.0" maxWeight="5.5">
+            <reproduction minAgeMonth="6"/>
+        </subType>
+    </animal>
+
+    <!-- ALPACA: 4 per-color male subtypes + breed overrides on existing females -->
+    <!-- Real alpacas: 60-90 kg male, 55-65 kg female -->
+    <!-- Cross-color breeding: all ALPACA subtypes share breed="ALPACA" -->
+    <animal type="ALPACA">
+        <!-- Override: set breed on existing females for breeding group compatibility -->
+        <subType subType="ALPACA_WHITE" breed="ALPACA"/>
+        <subType subType="ALPACA_BROWN" breed="ALPACA"/>
+        <subType subType="ALPACA_BLACK" breed="ALPACA"/>
+        <subType subType="ALPACA_GREY" breed="ALPACA"/>
+
+        <!-- New: ALPACA_WHITE_MALE -->
+        <subType subType="ALPACA_WHITE_MALE" fillTypeName="ALPACA_WHITE_MALE" gender="male" breed="ALPACA"
+                 minWeight="5.0" targetWeight="75.0" maxWeight="90.0">
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="1"
+                        image="character/animals/domesticated/alpaca/store_alpacaYoungWhite.png"
+                        name="$l10n_rl_bridge_alpacaWhiteMaleYoung" canBeBought="false">
+                    <description>$l10n_rl_bridge_alpacaWhiteMaleYoungDesc</description>
+                </visual>
+                <visual minAge="3" visualAnimalIndex="1"
+                        image="character/animals/domesticated/alpaca/store_alpacaYoungWhite.png"
+                        name="$l10n_rl_bridge_alpacaWhiteMaleYoung" canBeBought="true">
+                    <description>$l10n_rl_bridge_alpacaWhiteMaleYoungDesc</description>
+                </visual>
+                <visual minAge="8" visualAnimalIndex="2"
+                        image="character/animals/domesticated/alpaca/store_alpacaWhite.png"
+                        name="$l10n_rl_bridge_alpacaWhiteMaleAdult" canBeBought="true">
+                    <description>$l10n_rl_bridge_alpacaWhiteMaleAdultDesc</description>
+                </visual>
+            </visuals>
+            <reproduction supported="false" minAgeMonth="8"/>
+            <buyPrice>
+                <key ageMonth="0" value="3000"/>
+                <key ageMonth="3" value="3000"/>
+                <key ageMonth="8" value="6000"/>
+            </buyPrice>
+            <sellPrice>
+                <key ageMonth="0" value="2500"/>
+                <key ageMonth="3" value="2500"/>
+                <key ageMonth="8" value="5000"/>
+            </sellPrice>
+            <transportPrice>
+                <key ageMonth="0" value="20"/>
+                <key ageMonth="3" value="20"/>
+                <key ageMonth="8" value="50"/>
+            </transportPrice>
+            <input>
+                <food>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="3" value="5"/>
+                    <key ageMonth="8" value="50"/>
+                </food>
+                <straw>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="3" value="5"/>
+                    <key ageMonth="8" value="20"/>
+                </straw>
+                <water>
+                    <key ageMonth="0" value="2"/>
+                    <key ageMonth="3" value="2"/>
+                    <key ageMonth="8" value="20"/>
+                </water>
+            </input>
+        </subType>
+
+        <!-- New: ALPACA_BROWN_MALE -->
+        <subType subType="ALPACA_BROWN_MALE" fillTypeName="ALPACA_BROWN_MALE" gender="male" breed="ALPACA"
+                 minWeight="5.0" targetWeight="75.0" maxWeight="90.0">
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="3"
+                        image="character/animals/domesticated/alpaca/store_alpacaYoungBrown.png"
+                        name="$l10n_rl_bridge_alpacaBrownMaleYoung" canBeBought="false">
+                    <description>$l10n_rl_bridge_alpacaBrownMaleYoungDesc</description>
+                </visual>
+                <visual minAge="3" visualAnimalIndex="3"
+                        image="character/animals/domesticated/alpaca/store_alpacaYoungBrown.png"
+                        name="$l10n_rl_bridge_alpacaBrownMaleYoung" canBeBought="true">
+                    <description>$l10n_rl_bridge_alpacaBrownMaleYoungDesc</description>
+                </visual>
+                <visual minAge="8" visualAnimalIndex="4"
+                        image="character/animals/domesticated/alpaca/store_alpacaBrown.png"
+                        name="$l10n_rl_bridge_alpacaBrownMaleAdult" canBeBought="true">
+                    <description>$l10n_rl_bridge_alpacaBrownMaleAdultDesc</description>
+                </visual>
+            </visuals>
+            <reproduction supported="false" minAgeMonth="8"/>
+            <buyPrice>
+                <key ageMonth="0" value="3000"/>
+                <key ageMonth="3" value="3000"/>
+                <key ageMonth="8" value="6000"/>
+            </buyPrice>
+            <sellPrice>
+                <key ageMonth="0" value="2500"/>
+                <key ageMonth="3" value="2500"/>
+                <key ageMonth="8" value="5000"/>
+            </sellPrice>
+            <transportPrice>
+                <key ageMonth="0" value="20"/>
+                <key ageMonth="3" value="20"/>
+                <key ageMonth="8" value="50"/>
+            </transportPrice>
+            <input>
+                <food>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="3" value="5"/>
+                    <key ageMonth="8" value="50"/>
+                </food>
+                <straw>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="3" value="5"/>
+                    <key ageMonth="8" value="20"/>
+                </straw>
+                <water>
+                    <key ageMonth="0" value="2"/>
+                    <key ageMonth="3" value="2"/>
+                    <key ageMonth="8" value="20"/>
+                </water>
+            </input>
+        </subType>
+
+        <!-- New: ALPACA_BLACK_MALE -->
+        <subType subType="ALPACA_BLACK_MALE" fillTypeName="ALPACA_BLACK_MALE" gender="male" breed="ALPACA"
+                 minWeight="5.0" targetWeight="75.0" maxWeight="90.0">
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="5"
+                        image="character/animals/domesticated/alpaca/store_alpacaYoungBlack.png"
+                        name="$l10n_rl_bridge_alpacaBlackMaleYoung" canBeBought="false">
+                    <description>$l10n_rl_bridge_alpacaBlackMaleYoungDesc</description>
+                </visual>
+                <visual minAge="3" visualAnimalIndex="5"
+                        image="character/animals/domesticated/alpaca/store_alpacaYoungBlack.png"
+                        name="$l10n_rl_bridge_alpacaBlackMaleYoung" canBeBought="true">
+                    <description>$l10n_rl_bridge_alpacaBlackMaleYoungDesc</description>
+                </visual>
+                <visual minAge="8" visualAnimalIndex="6"
+                        image="character/animals/domesticated/alpaca/store_alpacaBlack.png"
+                        name="$l10n_rl_bridge_alpacaBlackMaleAdult" canBeBought="true">
+                    <description>$l10n_rl_bridge_alpacaBlackMaleAdultDesc</description>
+                </visual>
+            </visuals>
+            <reproduction supported="false" minAgeMonth="8"/>
+            <buyPrice>
+                <key ageMonth="0" value="3000"/>
+                <key ageMonth="3" value="3000"/>
+                <key ageMonth="8" value="6000"/>
+            </buyPrice>
+            <sellPrice>
+                <key ageMonth="0" value="2500"/>
+                <key ageMonth="3" value="2500"/>
+                <key ageMonth="8" value="5000"/>
+            </sellPrice>
+            <transportPrice>
+                <key ageMonth="0" value="20"/>
+                <key ageMonth="3" value="20"/>
+                <key ageMonth="8" value="50"/>
+            </transportPrice>
+            <input>
+                <food>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="3" value="5"/>
+                    <key ageMonth="8" value="50"/>
+                </food>
+                <straw>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="3" value="5"/>
+                    <key ageMonth="8" value="20"/>
+                </straw>
+                <water>
+                    <key ageMonth="0" value="2"/>
+                    <key ageMonth="3" value="2"/>
+                    <key ageMonth="8" value="20"/>
+                </water>
+            </input>
+        </subType>
+
+        <!-- New: ALPACA_GREY_MALE -->
+        <subType subType="ALPACA_GREY_MALE" fillTypeName="ALPACA_GREY_MALE" gender="male" breed="ALPACA"
+                 minWeight="5.0" targetWeight="75.0" maxWeight="90.0">
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="7"
+                        image="character/animals/domesticated/alpaca/store_alpacaYoungGrey.png"
+                        name="$l10n_rl_bridge_alpacaGreyMaleYoung" canBeBought="false">
+                    <description>$l10n_rl_bridge_alpacaGreyMaleYoungDesc</description>
+                </visual>
+                <visual minAge="3" visualAnimalIndex="7"
+                        image="character/animals/domesticated/alpaca/store_alpacaYoungGrey.png"
+                        name="$l10n_rl_bridge_alpacaGreyMaleYoung" canBeBought="true">
+                    <description>$l10n_rl_bridge_alpacaGreyMaleYoungDesc</description>
+                </visual>
+                <visual minAge="8" visualAnimalIndex="8"
+                        image="character/animals/domesticated/alpaca/store_alpacaGrey.png"
+                        name="$l10n_rl_bridge_alpacaGreyMaleAdult" canBeBought="true">
+                    <description>$l10n_rl_bridge_alpacaGreyMaleAdultDesc</description>
+                </visual>
+            </visuals>
+            <reproduction supported="false" minAgeMonth="8"/>
+            <buyPrice>
+                <key ageMonth="0" value="3000"/>
+                <key ageMonth="3" value="3000"/>
+                <key ageMonth="8" value="6000"/>
+            </buyPrice>
+            <sellPrice>
+                <key ageMonth="0" value="2500"/>
+                <key ageMonth="3" value="2500"/>
+                <key ageMonth="8" value="5000"/>
+            </sellPrice>
+            <transportPrice>
+                <key ageMonth="0" value="20"/>
+                <key ageMonth="3" value="20"/>
+                <key ageMonth="8" value="50"/>
+            </transportPrice>
+            <input>
+                <food>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="3" value="5"/>
+                    <key ageMonth="8" value="50"/>
+                </food>
+                <straw>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="3" value="5"/>
+                    <key ageMonth="8" value="20"/>
+                </straw>
+                <water>
+                    <key ageMonth="0" value="2"/>
+                    <key ageMonth="3" value="2"/>
+                    <key ageMonth="8" value="20"/>
+                </water>
+            </input>
+        </subType>
+    </animal>
+
+    <!-- QUAIL: new male subtype -->
+    <!-- Real quail: 120-180g male, slightly smaller than female -->
+    <animal type="QUAIL">
+        <!-- Override: set breed on existing female for breeding group compatibility -->
+        <subType subType="QUAIL" breed="QUAIL"/>
+
+        <!-- New: QUAIL_MALE -->
+        <subType subType="QUAIL_MALE" fillTypeName="QUAIL_MALE" gender="male" breed="QUAIL"
+                 minWeight="0.05" targetWeight="0.15" maxWeight="0.2">
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="1"
+                        image="character/animals/domesticated/chicken/store_quail.png"
+                        name="$l10n_rl_bridge_quailMaleYoung" canBeBought="false">
+                    <description>$l10n_rl_bridge_quailMaleYoungDesc</description>
+                </visual>
+                <visual minAge="6" visualAnimalIndex="1"
+                        image="character/animals/domesticated/chicken/store_quail.png"
+                        name="$l10n_rl_bridge_quailMaleAdult" canBeBought="true">
+                    <description>$l10n_rl_bridge_quailMaleAdultDesc</description>
+                </visual>
+            </visuals>
+            <reproduction supported="false" minAgeMonth="6"/>
+            <buyPrice>
+                <key ageMonth="0" value="6"/>
+                <key ageMonth="6" value="12"/>
+            </buyPrice>
+            <sellPrice>
+                <key ageMonth="0" value="5"/>
+                <key ageMonth="6" value="25"/>
+            </sellPrice>
+            <transportPrice>
+                <key ageMonth="0" value="1"/>
+                <key ageMonth="6" value="5"/>
+            </transportPrice>
+            <input>
+                <food>
+                    <key ageMonth="0" value="2"/>
+                    <key ageMonth="6" value="2"/>
+                </food>
+            </input>
+        </subType>
+    </animal>
+
+    <!-- DUCKWILD: new male subtype -->
+    <!-- Wild ducks use the same duck visual config as DUCK -->
+    <animal type="DUCKWILD">
+        <!-- Override: set breed on existing female for breeding group compatibility -->
+        <subType subType="DUCKWILD" breed="DUCKWILD"/>
+
+        <!-- New: DUCKWILD_MALE -->
+        <subType subType="DUCKWILD_MALE" fillTypeName="DUCKWILD_MALE" gender="male" breed="DUCKWILD"
+                 minWeight="1.0" targetWeight="3.5" maxWeight="5.5">
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="1"
+                        image="character/animals/domesticated/chicken/store_duckling.png"
+                        name="$l10n_rl_bridge_duckwildMaleYoung" canBeBought="false">
+                    <description>$l10n_rl_bridge_duckwildMaleYoungDesc</description>
+                </visual>
+                <visual minAge="6" visualAnimalIndex="2"
+                        image="character/animals/domesticated/chicken/store_duck.png"
+                        name="$l10n_rl_bridge_duckwildMaleAdult" canBeBought="true">
+                    <description>$l10n_rl_bridge_duckwildMaleAdultDesc</description>
+                </visual>
+            </visuals>
+            <reproduction supported="false" minAgeMonth="6"/>
+            <buyPrice>
+                <key ageMonth="0" value="30"/>
+                <key ageMonth="6" value="65"/>
+            </buyPrice>
+            <sellPrice>
+                <key ageMonth="0" value="15"/>
+                <key ageMonth="6" value="35"/>
+            </sellPrice>
+            <transportPrice>
+                <key ageMonth="0" value="5"/>
+                <key ageMonth="6" value="10"/>
+            </transportPrice>
+            <input>
+                <food>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="6" value="5"/>
+                </food>
+                <straw>
+                    <key ageMonth="0" value="5"/>
+                    <key ageMonth="6" value="5"/>
+                </straw>
+                <water>
+                    <key ageMonth="0" value="1"/>
+                    <key ageMonth="6" value="1"/>
+                </water>
+            </input>
+        </subType>
+    </animal>
+
+    <!--
+        Breeding groups: subtypes in the same group can ONLY breed with each other.
+        Subtypes not in any group follow base game rules.
+        maxFertilityAge: max age in months for male fertility (overrides base fallback).
+    -->
+    <breedingGroups>
+        <group name="DUCK" maxFertilityAge="36">
+            <subType name="DUCK"/>
+            <subType name="DUCK_MALE"/>
+        </group>
+        <group name="ALPACA" maxFertilityAge="180">
+            <subType name="ALPACA_WHITE"/>
+            <subType name="ALPACA_WHITE_MALE"/>
+            <subType name="ALPACA_BROWN"/>
+            <subType name="ALPACA_BROWN_MALE"/>
+            <subType name="ALPACA_BLACK"/>
+            <subType name="ALPACA_BLACK_MALE"/>
+            <subType name="ALPACA_GREY"/>
+            <subType name="ALPACA_GREY_MALE"/>
+        </group>
+        <group name="QUAIL" maxFertilityAge="24">
+            <subType name="QUAIL"/>
+            <subType name="QUAIL_MALE"/>
+        </group>
+        <group name="DUCKWILD" maxFertilityAge="36">
+            <subType name="DUCKWILD"/>
+            <subType name="DUCKWILD_MALE"/>
+        </group>
+    </breedingGroups>
+
+    <!--
+        SHEEP type: HB 1.4 uses SHEEPWOOL_SHEARED instead of the base game's WOOL fillType.
+        RLRM's bundled sheep subtypes produce WOOL. Remap output to match HB's building config
+        so pallets actually spawn at the sheep stable/pasture.
+    -->
+    <animal type="SHEEP">
+        <subType subType="SHEEP_LANDRACE">
+            <output><pallets fillType="SHEEPWOOL_SHEARED"/></output>
+        </subType>
+        <subType subType="RAM_LANDRACE">
+            <output><pallets fillType="SHEEPWOOL_SHEARED"/></output>
+        </subType>
+        <subType subType="SHEEP_STEINSCHAF">
+            <output><pallets fillType="SHEEPWOOL_SHEARED"/></output>
+        </subType>
+        <subType subType="RAM_STEINSCHAF">
+            <output><pallets fillType="SHEEPWOOL_SHEARED"/></output>
+        </subType>
+        <subType subType="SHEEP_SWISS_MOUNTAIN">
+            <output><pallets fillType="SHEEPWOOL_SHEARED"/></output>
+        </subType>
+        <subType subType="RAM_SWISS_MOUNTAIN">
+            <output><pallets fillType="SHEEPWOOL_SHEARED"/></output>
+        </subType>
+        <subType subType="SHEEP_BLACK_WELSH">
+            <output><pallets fillType="SHEEPWOOL_SHEARED"/></output>
+        </subType>
+        <subType subType="RAM_BLACK_WELSH">
+            <output><pallets fillType="SHEEPWOOL_SHEARED"/></output>
+        </subType>
+    </animal>
+
+    <!--
+        COW type: HB's pallet-spawner cow buildings (constructible cow pasture, cowPasture01,
+        cowHusbandryFarm02) carry husbandryPallets but no husbandryMilk, so output.pallets is
+        the ONLY milk path there. RLRM cows define output.milk but no output.pallets, so those
+        spawners are never fed and no milk cans appear. Give every RLRM female cow subtype an
+        output.pallets mirroring its own milk curve so the spawner produces milkCan pallets.
+        (cowHusbandryOldFarm is unaffected: it milks to a tank via output.milk, no spawner.)
+
+        The <pallets> MUST carry a FULL <key> curve, unlike the SHEEP/CHICKEN fillType-only
+        remaps above. RLRM cows have no pre-existing output.pallets, so only the bridge's
+        create-branch (which requires a curve) builds one; a bare fillType-only entry takes the
+        remap branch, which needs an existing output.pallets - a silent no-op for cows.
+
+        All RLRM cow breeds carry a milk curve by design (beef breeds a smaller one), so all get
+        cans - excluding a breed would silently drop it for a player who relies on it. The pallets
+        path is not lactation-gated (parity with base-HB cluster pallets): a dry or nulliparous
+        adult cow still spawns cans. MILK and BUFFALOMILK already exist in HB's cow palletSpawner.
+    -->
+    <animal type="COW">
+        <subType subType="COW_SWISS_BROWN">
+            <output>
+                <pallets fillType="MILK">
+                    <key ageMonth="0" value="0"/>
+                    <key ageMonth="12" value="0"/>
+                    <key ageMonth="12" value="180"/>
+                    <key ageMonth="36" value="180"/>
+                    <key ageMonth="36" value="255"/>
+                    <key ageMonth="72" value="255"/>
+                    <key ageMonth="120" value="110"/>
+                </pallets>
+            </output>
+        </subType>
+        <subType subType="COW_HOLSTEIN">
+            <output>
+                <pallets fillType="MILK">
+                    <key ageMonth="0" value="0"/>
+                    <key ageMonth="12" value="0"/>
+                    <key ageMonth="12" value="195"/>
+                    <key ageMonth="36" value="195"/>
+                    <key ageMonth="36" value="330"/>
+                    <key ageMonth="72" value="330"/>
+                    <key ageMonth="120" value="180"/>
+                </pallets>
+            </output>
+        </subType>
+        <subType subType="COW_ANGUS">
+            <output>
+                <pallets fillType="MILK">
+                    <key ageMonth="0" value="0"/>
+                    <key ageMonth="12" value="0"/>
+                    <key ageMonth="12" value="100"/>
+                    <key ageMonth="36" value="100"/>
+                    <key ageMonth="36" value="160"/>
+                    <key ageMonth="72" value="160"/>
+                    <key ageMonth="120" value="70"/>
+                </pallets>
+            </output>
+        </subType>
+        <subType subType="COW_LIMOUSIN">
+            <output>
+                <pallets fillType="MILK">
+                    <key ageMonth="0" value="0"/>
+                    <key ageMonth="12" value="0"/>
+                    <key ageMonth="12" value="90"/>
+                    <key ageMonth="36" value="90"/>
+                    <key ageMonth="36" value="140"/>
+                    <key ageMonth="72" value="140"/>
+                    <key ageMonth="120" value="50"/>
+                </pallets>
+            </output>
+        </subType>
+        <subType subType="COW_HEREFORD">
+            <output>
+                <pallets fillType="MILK">
+                    <key ageMonth="0" value="0"/>
+                    <key ageMonth="12" value="0"/>
+                    <key ageMonth="12" value="190"/>
+                    <key ageMonth="36" value="190"/>
+                    <key ageMonth="36" value="265"/>
+                    <key ageMonth="72" value="265"/>
+                    <key ageMonth="120" value="125"/>
+                </pallets>
+            </output>
+        </subType>
+        <!-- DLC-gated (highlandsFishingPack): if the DLC is absent the subtype is unregistered
+             and the bridge simply skips this override - harmless. -->
+        <subType subType="COW_HIGHLAND_CATTLE">
+            <output>
+                <pallets fillType="MILK">
+                    <key ageMonth="0" value="0"/>
+                    <key ageMonth="12" value="0"/>
+                    <key ageMonth="12" value="100"/>
+                    <key ageMonth="36" value="100"/>
+                    <key ageMonth="36" value="160"/>
+                    <key ageMonth="72" value="160"/>
+                    <key ageMonth="120" value="70"/>
+                </pallets>
+            </output>
+        </subType>
+        <subType subType="COW_WATERBUFFALO">
+            <output>
+                <pallets fillType="BUFFALOMILK">
+                    <key ageMonth="0" value="0"/>
+                    <key ageMonth="12" value="0"/>
+                    <key ageMonth="12" value="30"/>
+                </pallets>
+            </output>
+        </subType>
+        <!--
+            BULL: Hof Bergmann 1.5's bull-stable animal, a COW subtype whose semen is modelled as a
+            <milk fillType="BULLSPERM"> output. Marked male - RLRM's name-based gender detection reads
+            "BULL" (no underscore) as female. The semen curve replaces the map's, which peaked at 12
+            months and stopped at 24: output starts at 12 months, is full from 24 to 54 months - inside
+            the slaughterhouse's 60-month limit, so a bull can still be sold for meat after its prime -
+            then declines to nothing at 14 years. Key values load as integers, so the shape comes from
+            the game's linear interpolation between keys (about 0.63 L/day at 8 years, 0.21 at 12).
+        -->
+        <subType subType="BULL" gender="male">
+            <output>
+                <milk fillType="BULLSPERM">
+                    <key ageMonth="0" value="0"/>
+                    <key ageMonth="11" value="0"/>
+                    <key ageMonth="24" value="1"/>
+                    <key ageMonth="54" value="1"/>
+                    <key ageMonth="168" value="0"/>
+                </milk>
+            </output>
+        </subType>
+    </animal>
+
+    <!--
+        HORSE type: HB uses interleaved foal/adult entries (4 breeds x 2 stages = 8 entries).
+        Base game: 8 flat entries (1 per breed, adult model only, 4x2 texture atlas).
+        HB:        [1]=Gray foal, [2]=Gray adult, [3]=Palomino foal, [4]=Palomino adult,
+                   [5]=Black foal, [6]=Black adult, [7]=Seal Brown foal, [8]=Seal Brown adult
+
+        RLRM Phase 1 defines 8 breeds (16 subtypes with gender) using flat indices 1-8.
+        Bridge remaps to HB's interleaved layout with 2-stage foal/adult visuals.
+        HB only has models for 4 breeds; the other 4 map to visually similar breeds:
+        Pinto->Gray, Chestnut->Seal Brown, Bay->Seal Brown, Dun->Palomino.
+    -->
+    <animal type="HORSE">
+        <!-- Native HB breeds: Gray (foal=1, adult=2) -->
+        <subType subType="HORSE_GRAY">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="1" image="character/animals/domesticated/horse/store_foalGray.png" canBeBought="true"/>
+                <visual minAge="12" visualAnimalIndex="2" image="$dataS/character/animals/domesticated/horse/store_horseGray.png" canBeBought="true"/>
+            </visuals>
+        </subType>
+        <subType subType="STALLION_GRAY">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="1" image="character/animals/domesticated/horse/store_foalGray.png" canBeBought="true"/>
+                <visual minAge="12" visualAnimalIndex="2" image="$dataS/character/animals/domesticated/horse/store_horseGray.png" canBeBought="true"/>
+            </visuals>
+        </subType>
+
+        <!-- Native HB breeds: Palomino (foal=3, adult=4) -->
+        <subType subType="HORSE_PALOMINO">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="3" image="character/animals/domesticated/horse/store_foalPalomino.png" canBeBought="true"/>
+                <visual minAge="12" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/horse/store_horsePalomino.png" canBeBought="true"/>
+            </visuals>
+        </subType>
+        <subType subType="STALLION_PALOMINO">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="3" image="character/animals/domesticated/horse/store_foalPalomino.png" canBeBought="true"/>
+                <visual minAge="12" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/horse/store_horsePalomino.png" canBeBought="true"/>
+            </visuals>
+        </subType>
+
+        <!-- Native HB breeds: Black (foal=5, adult=6) -->
+        <subType subType="HORSE_BLACK">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="5" image="character/animals/domesticated/horse/store_foalBlack.png" canBeBought="true"/>
+                <visual minAge="12" visualAnimalIndex="6" image="$dataS/character/animals/domesticated/horse/store_horseBlack.png" canBeBought="true"/>
+            </visuals>
+        </subType>
+        <subType subType="STALLION_BLACK">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="5" image="character/animals/domesticated/horse/store_foalBlack.png" canBeBought="true"/>
+                <visual minAge="12" visualAnimalIndex="6" image="$dataS/character/animals/domesticated/horse/store_horseBlack.png" canBeBought="true"/>
+            </visuals>
+        </subType>
+
+        <!-- Native HB breeds: Seal Brown (foal=7, adult=8) -->
+        <subType subType="HORSE_SEAL_BROWN">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="7" image="character/animals/domesticated/horse/store_foalSealBrown.png" canBeBought="true"/>
+                <visual minAge="12" visualAnimalIndex="8" image="$dataS/character/animals/domesticated/horse/store_horseSealBrown.png" canBeBought="true"/>
+            </visuals>
+        </subType>
+        <subType subType="STALLION_SEAL_BROWN">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="7" image="character/animals/domesticated/horse/store_foalSealBrown.png" canBeBought="true"/>
+                <visual minAge="12" visualAnimalIndex="8" image="$dataS/character/animals/domesticated/horse/store_horseSealBrown.png" canBeBought="true"/>
+            </visuals>
+        </subType>
+
+        <!-- Unsupported breeds: not purchasable on HB (no native 3D models).
+             Visual indices map to closest HB breed for existing savegame animals. -->
+
+        <!-- Pinto -> Gray visual (not purchasable) -->
+        <subType subType="HORSE_PINTO">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="1" image="character/animals/domesticated/horse/store_foalGray.png" canBeBought="false"/>
+                <visual minAge="12" visualAnimalIndex="2" image="$dataS/character/animals/domesticated/horse/store_horsePinto.png" canBeBought="false"/>
+            </visuals>
+        </subType>
+        <subType subType="STALLION_PINTO">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="1" image="character/animals/domesticated/horse/store_foalGray.png" canBeBought="false"/>
+                <visual minAge="12" visualAnimalIndex="2" image="$dataS/character/animals/domesticated/horse/store_horsePinto.png" canBeBought="false"/>
+            </visuals>
+        </subType>
+
+        <!-- Chestnut -> Seal Brown visual (not purchasable) -->
+        <subType subType="HORSE_CHESTNUT">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="7" image="character/animals/domesticated/horse/store_foalSealBrown.png" canBeBought="false"/>
+                <visual minAge="12" visualAnimalIndex="8" image="$dataS/character/animals/domesticated/horse/store_horseChestnut.png" canBeBought="false"/>
+            </visuals>
+        </subType>
+        <subType subType="STALLION_CHESTNUT">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="7" image="character/animals/domesticated/horse/store_foalSealBrown.png" canBeBought="false"/>
+                <visual minAge="12" visualAnimalIndex="8" image="$dataS/character/animals/domesticated/horse/store_horseChestnut.png" canBeBought="false"/>
+            </visuals>
+        </subType>
+
+        <!-- Bay -> Seal Brown visual (not purchasable) -->
+        <subType subType="HORSE_BAY">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="7" image="character/animals/domesticated/horse/store_foalSealBrown.png" canBeBought="false"/>
+                <visual minAge="12" visualAnimalIndex="8" image="$dataS/character/animals/domesticated/horse/store_horseBay.png" canBeBought="false"/>
+            </visuals>
+        </subType>
+        <subType subType="STALLION_BAY">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="7" image="character/animals/domesticated/horse/store_foalSealBrown.png" canBeBought="false"/>
+                <visual minAge="12" visualAnimalIndex="8" image="$dataS/character/animals/domesticated/horse/store_horseBay.png" canBeBought="false"/>
+            </visuals>
+        </subType>
+
+        <!-- Dun -> Palomino visual (not purchasable) -->
+        <subType subType="HORSE_DUN">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="3" image="character/animals/domesticated/horse/store_foalPalomino.png" canBeBought="false"/>
+                <visual minAge="12" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/horse/store_horseDun.png" canBeBought="false"/>
+            </visuals>
+        </subType>
+        <subType subType="STALLION_DUN">
+            <rideable filename="character/animals/domesticated/horse/horse.xml"/>
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="3" image="character/animals/domesticated/horse/store_foalPalomino.png" canBeBought="false"/>
+                <visual minAge="12" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/horse/store_horseDun.png" canBeBought="false"/>
+            </visuals>
+        </subType>
+    </animal>
+
+    <!--
+        Config overrides: update animalType.configFilename for types where the map's
+        3D model config has additional models beyond the base game config.
+        Without this, the C++ engine only loads base game models and map-specific
+        visual indices (e.g. duck models at index 5-6) cause "invalid animal subtype" errors.
+    -->
+    <configOverrides>
+        <override type="CHICKEN" configFilename="character/animals/domesticated/chicken/husbandryAnimalsChicken.xml"/>
+        <override type="HORSE" configFilename="character/animals/domesticated/horse/husbandryAnimalsHorse.xml"/>
+    </configOverrides>
+
+</animals>

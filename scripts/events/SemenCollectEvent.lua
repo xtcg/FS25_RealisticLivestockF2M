@@ -1,0 +1,261 @@
+--[[
+    SemenCollectEvent.lua
+    Collect semen from one of the player's own sires into a new dewar.
+
+    REQUEST  client -> server: husbandry, sire identifiers, spawn position. The server
+             re-validates (farm access, tradeAnimals permission, RLSemenCollection rules),
+             spawns the dewar through VehicleLoadingData like SemenBuyEvent, and on success
+             records the collection month on the sire.
+    STATE    server -> all clients: the sire's new semenCollectedAge, so every copy of the
+             animal refuses a second collection this month.
+    RESULT   server -> requester: success with the straw count, or the refusal reason.
+]]
+
+local Log = RmLogging.getLogger("RLRM")
+local modDirectory = g_currentModDirectory
+
+SemenCollectEvent = {}
+
+local SemenCollectEvent_mt = Class(SemenCollectEvent, Event)
+InitEventClass(SemenCollectEvent, "SemenCollectEvent")
+
+SemenCollectEvent.MODE_REQUEST = 0
+SemenCollectEvent.MODE_STATE = 1
+SemenCollectEvent.MODE_RESULT = 2
+
+--- Result sent when the refusal is not one of RLSemenCollection.REFUSAL.
+SemenCollectEvent.RESULT_FAILED = "rl_semen_collectFailed"
+
+--- Callback for the next RESULT on this client: { callback, target }.
+SemenCollectEvent.pendingResult = nil
+
+
+function SemenCollectEvent.emptyNew()
+    return Event.new(SemenCollectEvent_mt)
+end
+
+
+function SemenCollectEvent.newRequest(object, animal, position, rotation)
+    local self = SemenCollectEvent.emptyNew()
+    self.mode = SemenCollectEvent.MODE_REQUEST
+    self.object = object
+    self.animal = animal
+    self.position = position
+    self.rotation = rotation
+    return self
+end
+
+
+function SemenCollectEvent.newState(object, animal, collectedAge)
+    local self = SemenCollectEvent.emptyNew()
+    self.mode = SemenCollectEvent.MODE_STATE
+    self.object = object
+    self.animal = animal
+    self.collectedAge = collectedAge
+    return self
+end
+
+
+function SemenCollectEvent.newResult(resultKey, straws)
+    local self = SemenCollectEvent.emptyNew()
+    self.mode = SemenCollectEvent.MODE_RESULT
+    self.resultKey = resultKey
+    self.straws = straws or 0
+    return self
+end
+
+
+function SemenCollectEvent:writeStream(streamId, connection)
+    streamWriteUIntN(streamId, self.mode, 2)
+
+    if self.mode == SemenCollectEvent.MODE_RESULT then
+        streamWriteString(streamId, self.resultKey or "")
+        streamWriteUInt16(streamId, self.straws)
+        return
+    end
+
+    NetworkUtil.writeNodeObject(streamId, self.object)
+    RLAnimalUtil.writeStreamIdentifiers(self.animal, streamId, connection)
+
+    if self.mode == SemenCollectEvent.MODE_STATE then
+        streamWriteInt32(streamId, self.collectedAge)
+    else
+        for i = 1, 3 do streamWriteFloat32(streamId, self.position[i]) end
+        for i = 1, 3 do streamWriteFloat32(streamId, self.rotation[i]) end
+    end
+end
+
+
+function SemenCollectEvent:readStream(streamId, connection)
+    self.mode = streamReadUIntN(streamId, 2)
+
+    if self.mode == SemenCollectEvent.MODE_RESULT then
+        self.resultKey = streamReadString(streamId)
+        self.straws = streamReadUInt16(streamId)
+    else
+        self.object = NetworkUtil.readNodeObject(streamId)
+        self.animal = RLAnimalUtil.readStreamIdentifiers(streamId, connection)
+
+        if self.mode == SemenCollectEvent.MODE_STATE then
+            self.collectedAge = streamReadInt32(streamId)
+        else
+            self.position = { streamReadFloat32(streamId), streamReadFloat32(streamId), streamReadFloat32(streamId) }
+            self.rotation = { streamReadFloat32(streamId), streamReadFloat32(streamId), streamReadFloat32(streamId) }
+        end
+    end
+
+    self:run(connection)
+end
+
+
+--- Resolve the live animal an event names in its husbandry, or nil.
+local function findAnimal(object, identifiers)
+    if object == nil or object.getClusterSystem == nil or identifiers == nil then return nil end
+    local clusterSystem = object:getClusterSystem()
+    if clusterSystem == nil then return nil end
+    local country = identifiers.country or (identifiers.birthday ~= nil and identifiers.birthday.country)
+    return RLAnimalUtil.find(clusterSystem.animals, identifiers.farmId, identifiers.uniqueId, country)
+end
+
+
+--- Each mode is accepted from one direction only: the server takes REQUESTs from clients, and
+--- clients take STATE and RESULT from the server. Anything else is dropped, so a client cannot
+--- rewrite a sire's collection month or fake a result.
+function SemenCollectEvent:run(connection)
+    local fromServer = connection:getIsServer()
+
+    if self.mode == SemenCollectEvent.MODE_REQUEST and not fromServer then
+        RmSafeUtils.safeCall("SemenCollectEvent:run", function() self:runRequest(connection) end)
+    elseif self.mode == SemenCollectEvent.MODE_STATE and fromServer then
+        local animal = findAnimal(self.object, self.animal)
+        if animal ~= nil then animal.semenCollectedAge = self.collectedAge end
+    elseif self.mode == SemenCollectEvent.MODE_RESULT and fromServer then
+        self:runResult()
+    else
+        Log:warning("SemenCollectEvent: dropped mode=%s fromServer=%s", tostring(self.mode), tostring(fromServer))
+    end
+end
+
+
+--- Server: validate the request and spawn the dewar.
+function SemenCollectEvent:runRequest(connection)
+    local function reply(resultKey, straws)
+        connection:sendEvent(SemenCollectEvent.newResult(resultKey, straws))
+    end
+
+    local userId = g_currentMission.userManager:getUniqueUserIdByConnection(connection)
+    local farm = userId ~= nil and g_farmManager:getFarmForUniqueUserId(userId) or nil
+    local farmId = farm ~= nil and farm.farmId or nil
+
+    if farmId == nil or self.object == nil
+        or not g_currentMission:getHasPlayerPermission("tradeAnimals", connection)
+        or not g_currentMission.accessHandler:canFarmAccess(farmId, self.object) then
+        Log:warning("SemenCollectEvent: refused, no permission or access (farmId=%s)", tostring(farmId))
+        reply(SemenCollectEvent.RESULT_FAILED)
+        return
+    end
+
+    local animal = findAnimal(self.object, self.animal)
+    if animal == nil then
+        Log:warning("SemenCollectEvent: sire not found uniqueId=%s", tostring(self.animal and self.animal.uniqueId))
+        reply(SemenCollectEvent.RESULT_FAILED)
+        return
+    end
+
+    local refusal = RLSemenCollection.getRefusal(animal)
+    if refusal ~= nil then
+        Log:debug("SemenCollectEvent: refused uniqueId=%s reason=%s", tostring(animal.uniqueId), refusal)
+        reply(refusal)
+        return
+    end
+
+    local storeItem = g_storeManager:getItemByXMLFilename(modDirectory .. "objects/dewar/dewar.xml")
+    if storeItem == nil then
+        Log:error("SemenCollectEvent: dewar store item missing")
+        reply(SemenCollectEvent.RESULT_FAILED)
+        return
+    end
+
+    local straws = RLSemenCollection.getStrawYield(animal)
+    local snapshot = RLSemenCollection.createSnapshot(animal)
+
+    -- Claim the month before the async load, so a second request in flight is refused.
+    animal.semenCollectedAge = animal.age
+
+    -- Drop the sire's cached semen rate at once; the building's own hourly total can still carry
+    -- at most the rest of the current hour.
+    local milk = animal:getSubType().output.milk
+    if milk ~= nil and Animal.isSemenFillType(milk.fillType) and animal.output ~= nil then
+        animal.output.milk = 0
+    end
+
+    local data = VehicleLoadingData.new()
+    data:setStoreItem(storeItem)
+    data:setPropertyState(VehiclePropertyState.OWNED)
+    data:setOwnerFarmId(farmId)
+    data:setPosition(self.position[1], self.position[2], self.position[3])
+    data:setRotation(self.rotation[1], self.rotation[2], self.rotation[3])
+
+    local object, identifiers, collectedAge = self.object, self.animal, animal.age
+    data:load(function(_, vehicles, loadingState)
+        local vehicle = vehicles ~= nil and vehicles[1] or nil
+        if loadingState ~= VehicleLoadingState.OK or vehicle == nil then
+            Log:warning("SemenCollectEvent: dewar failed to load (state=%s), month released", tostring(loadingState))
+            animal.semenCollectedAge = nil
+            reply(SemenCollectEvent.RESULT_FAILED)
+            return
+        end
+
+        vehicle:setAnimal(snapshot)
+        vehicle:setStraws(straws)
+
+        g_server:broadcastEvent(SemenCollectEvent.newState(object, identifiers, collectedAge))
+        reply("", straws)
+
+        Log:info("SemenCollectEvent: collected %d straw(s) from uniqueId=%s farmId=%d success=%.2f",
+            straws, tostring(animal.uniqueId), farmId, snapshot.success)
+    end, self)
+end
+
+
+--- Client: show the outcome and run the requester's callback.
+function SemenCollectEvent:runResult()
+    local text
+    if self.resultKey == "" then
+        text = string.format(g_i18n:getText("rl_semen_collected"), self.straws)
+    else
+        text = g_i18n:getText(self.resultKey)
+    end
+
+    local pending = SemenCollectEvent.pendingResult
+    SemenCollectEvent.pendingResult = nil
+
+    InfoDialog.show(text, function()
+        if pending ~= nil and pending.callback ~= nil then pending.callback(pending.target) end
+    end, nil, self.resultKey == "" and DialogElement.TYPE_INFO or DialogElement.TYPE_WARNING)
+end
+
+
+--- Client: request a collection. The dewar is delivered to a free store spawn place, like a
+--- bought one. Returns false (and warns) when no place is free.
+--- @param callback function|nil Called with `target` after the result dialog closes
+function SemenCollectEvent.sendRequest(object, animal, callback, target)
+    local spawnPlaces = g_currentMission.storeSpawnPlaces
+    local usedPlaces = g_currentMission.usedStorePlaces
+    local x, y, z, place, width = nil, nil, nil, nil, nil
+    if spawnPlaces ~= nil and usedPlaces ~= nil then
+        x, y, z, place, width = PlacementUtil.getPlace(spawnPlaces,
+            { width = 1, height = 2.5, length = 1, widthOffset = 0.5, lengthOffset = 0.5 },
+            usedPlaces, true, true, false, true)
+    end
+
+    if x == nil then
+        InfoDialog.show(g_i18n:getText("shop_messageNoSpace"), nil, nil, DialogElement.TYPE_WARNING)
+        return false
+    end
+
+    PlacementUtil.markPlaceUsed(usedPlaces, place, width)
+    SemenCollectEvent.pendingResult = { callback = callback, target = target }
+    g_client:getServerConnection():sendEvent(SemenCollectEvent.newRequest(object, animal, { x, y, z }, { 0, 0, 0 }))
+    return true
+end
