@@ -106,13 +106,13 @@ Bulls consistently sell for more than cows at all ages. Beef breeds (Angus, Limo
 
 | Breed | Cow (newborn) | Cow (adult) | Bull (newborn) | Bull (adult) |
 |-------|--------------|-------------|----------------|--------------|
-| **Swiss Brown** | 200 | 2,400 | 250 | 2,700 |
-| **Holstein** | 200 | 2,200 | 235 | 2,500 |
-| **Angus** | 275 | 3,200 | 300 | 3,200 |
-| **Limousin** | 320 | 3,400 | 350 | 3,750 |
-| **Hereford** | 225 | 2,400 | 250 | 2,500 |
-| **Highland** | 300 | 3,000 | 350 | 3,500 |
-| **Water Buffalo** | 200 | 1,500 | 250 | 1,800 |
+| **Swiss Brown** | 225 | 2,500 | 275 | 2,900 |
+| **Holstein** | 225 | 2,400 | 250 | 2,950 |
+| **Angus** | 300 | 2,900 | 325 | 3,350 |
+| **Limousin** | 340 | 3,150 | 375 | 3,850 |
+| **Hereford** | 250 | 2,450 | 275 | 3,000 |
+| **Highland** | 300 | 2,400 | 350 | 2,600 |
+| **Water Buffalo** | 200 | 1,800 | 250 | 2,500 |
 
 *Adult prices are at age 24-36 months. Dealer animals have randomised genetics.*
 
