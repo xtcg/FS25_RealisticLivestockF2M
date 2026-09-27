@@ -7,7 +7,8 @@
 
     One collection per sire per month (tracked on the animal as `semenCollectedAge`). Straws per
     collection scale with the sire's fertility and an age curve built from the same fertile-age
-    limits natural breeding uses. A month's semen goes one way only: once a semen-storing
+    limits natural breeding uses; Hof Bergmann's bull stable scales its semen by the same curve.
+    A month's semen goes one way only: once a semen-storing
     building (Hof Bergmann's bull stable) has taken a sire's output that month, it cannot be
     collected into a dewar; once collected, the building gets no semen from it until next month.
 ]]
@@ -119,7 +120,8 @@ end
 
 
 --- Output factor over the fertile life: half at the first month, full from 1.5x that age,
---- then down to 30% at the last fertile month.
+--- then falling from 70% of the cutoff age (maxAge) toward 30% just before it. Output itself
+--- stops at the cutoff: getAgeOutputFactor is 0 from maxAge on.
 function RLSemenCollection.getAgeFactor(age, minAge, maxAge)
     if minAge == nil or maxAge == nil or maxAge <= minAge then return 1 end
 
@@ -135,14 +137,27 @@ function RLSemenCollection.getAgeFactor(age, minAge, maxAge)
 end
 
 
+--- Share of a sire's peak semen output at its current age: getAgeFactor inside the collection
+--- age window, 0 outside it. Dewar straws and a semen-storing building's output (Hof Bergmann's
+--- bull stable) both follow it, so a sire yields the same share either way.
+function RLSemenCollection.getAgeOutputFactor(animal)
+    local minAge, maxAge = RLSemenCollection.getAgeWindow(animal)
+    if minAge ~= nil and animal.age < minAge then return 0 end
+    if maxAge ~= nil and animal.age >= maxAge then return 0 end
+    return math.clamp(RLSemenCollection.getAgeFactor(animal.age, minAge, maxAge), 0, 1)
+end
+
+
 --- Straws one collection yields from this animal (0 when it cannot be collected from).
 function RLSemenCollection.getStrawYield(animal)
     local base = RLSemenCollection.STRAWS_PER_COLLECTION[RLSemenCollection.getTypeName(animal) or ""]
     if base == nil then return 0 end
 
-    local minAge, maxAge = RLSemenCollection.getAgeWindow(animal)
-    local ageFactor = math.clamp(RLSemenCollection.getAgeFactor(animal.age, minAge, maxAge), 0, 1)
-    local straws = math.floor(base * (animal.genetics.fertility or 1) * ageFactor + 0.5)
+    local ageFactor = RLSemenCollection.getAgeOutputFactor(animal)
+    local fertility = animal.genetics.fertility or 1
+    if ageFactor <= 0 or fertility <= 0 then return 0 end
+
+    local straws = math.floor(base * fertility * ageFactor + 0.5)
 
     return math.clamp(straws, 1, DewarData.CAPACITY)
 end

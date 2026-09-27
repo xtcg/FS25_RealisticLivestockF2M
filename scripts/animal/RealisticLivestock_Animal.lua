@@ -1822,16 +1822,19 @@ function Animal:updateOutput(temp)
             -- lactation, so the mother gate below would zero it for good; the sire's fertility
             -- scales it instead, and a castrated or infertile sire produces none. Only a semen fill
             -- type takes this branch, so no other male starts producing milk. A month in which
-            -- the sire was collected into a dewar (RLSemenCollection) yields nothing here.
+            -- the sire was collected into a dewar (RLSemenCollection) yields nothing here. The age
+            -- shape is dewar collection's (RLSemenCollection.getAgeOutputFactor); the XML curve
+            -- only sets the peak amount.
             local collectedThisMonth = self.semenCollectedAge ~= nil and self.semenCollectedAge >= self.age
             local fertility = (self.isCastrated or collectedThisMonth) and 0 or (self.genetics.fertility or 1)
+            local ageFactor = RLSemenCollection.getAgeOutputFactor(self)
             local curveLitersPerDay = litersPerDay
 
-            litersPerDay = litersPerDay * fertility
+            litersPerDay = litersPerDay * fertility * ageFactor
 
-            Log:trace("updateOutput[semen]: animal=%s/%s subType=%s age=%d curve(l/day)=%.3f fertility=%.3f castrated=%s collectedThisMonth=%s -> l/day=%.3f",
+            Log:trace("updateOutput[semen]: animal=%s/%s subType=%s age=%d curve(l/day)=%.3f fertility=%.3f ageFactor=%.3f castrated=%s collectedThisMonth=%s -> l/day=%.3f",
                 tostring(self.farmId), tostring(self.uniqueId), tostring(subType.name), self.age or -1,
-                curveLitersPerDay, fertility, tostring(self.isCastrated), tostring(collectedThisMonth), litersPerDay)
+                curveLitersPerDay, fertility, ageFactor, tostring(self.isCastrated), tostring(collectedThisMonth), litersPerDay)
 
             isMilk = false
         elseif isMilk then

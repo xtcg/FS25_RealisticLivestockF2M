@@ -286,10 +286,8 @@ If you want bulls that breed with your cows, use the cattle bulls available in t
 
 For the full picture of what Hof Bergmann support includes, see [Hof Bergmann Map Support](map-hof-bergmann.md).
 
-## Why doesn't the Hof Bergmann bull stable produce sperm under RLRM?
+## How does the Hof Bergmann bull stable produce sperm under RLRM?
 
-Hof Bergmann models bull sperm (BULLSPERM) as a milk output on the dedicated BULL animal type. In vanilla FS25 this works because the husbandry building generates milk from cluster-level production, regardless of subtype gender. RLRM replaces that pipeline with per-animal output that only produces milk for lactating female cows that have given birth within the last 10 months. The BULL animal type is a separate species from COW (see the previous question), so its animals never qualify and the bull stable's BULLSPERM trigger stays empty.
-
-There is no mod-side fix that wouldn't have side effects on every other animal type, so this is a documented incompatibility rather than a patched one. With RLRM active the HB pasture bulls and their stable are essentially decorative: the animals still get individual tracking, genetics, and visuals, but the bull stable doesn't yield sperm for artificial insemination workflows that depend on it.
+Hof Bergmann models bull sperm (BULLSPERM) as a milk output on the dedicated BULL animal type. RLRM's per-animal milk output would zero it - it only gives milk for lactating cows - so BULLSPERM takes its own path: each intact bull produces semen scaled by its fertility gene and the same age curve as dewar semen collection. Output starts at 12 months at half, is full from 18 months, declines from 70% of the bull's last fertile month (132 months x fertility), and stops there. Castrated bulls produce none, and a bull collected into a dewar gives the stable nothing that month (and the other way round).
 
 See [Hof Bergmann Map Support](map-hof-bergmann.md#pasture-bulls-are-not-cattle) for the full set of HB-under-RLRM caveats.
