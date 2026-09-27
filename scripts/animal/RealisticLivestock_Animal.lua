@@ -1714,6 +1714,28 @@ function Animal.isSemenFillType(fillTypeIndex)
     return name ~= nil and Animal.SEMEN_FILL_TYPE_NAMES[name] == true
 end
 
+--- Pallet output fill types that are milk, so gated by lactation like output.milk.
+Animal.LACTATION_PALLET_FILL_TYPE_NAMES = { GOATMILK = true, MILK = true, BUFFALOMILK = true }
+
+--- Whether a pallets-output fill type is milk (goat milk, or Hof Bergmann's milk cans).
+---@param fillTypeIndex number|nil
+---@return boolean
+function Animal.isLactationPalletFillType(fillTypeIndex)
+    local name = fillTypeIndex ~= nil and g_fillTypeManager:getFillTypeNameByIndex(fillTypeIndex) or nil
+    return name ~= nil and Animal.LACTATION_PALLET_FILL_TYPE_NAMES[name] == true
+end
+
+--- Milk yield through the lactation: 0.8 at birth, rising to 1.3 at 3 months, falling to about
+--- 0.93 at 9 months, and 0 from 10 months on or for an animal not lactating or never a mother.
+---@return number
+function Animal:getLactationFactor()
+    local monthsSinceLastBirth = self.monthsSinceLastBirth or 12
+
+    if monthsSinceLastBirth >= 10 or not self.isLactating or not self.isParent then return 0 end
+    if monthsSinceLastBirth <= 3 then return 0.8 + (monthsSinceLastBirth / 6) end
+    return 0.8 + ((11 - monthsSinceLastBirth) / 15)
+end
+
 function Animal:updateOutput(temp)
     local subType = self:getSubType()
 
@@ -1758,23 +1780,19 @@ function Animal:updateOutput(temp)
 
                 Log:trace("updateOutput[wool]: animal=%s/%s temp=%s coldGateClosed=%s",
                     tostring(self.farmId), tostring(self.uniqueId), tostring(temp), tostring(temp < 12))
-            elseif fillTypeIndex == FillType.GOATMILK then
-                local monthsSinceLastBirth = self.monthsSinceLastBirth or 12
-                local factor = 0.8
-
-                if monthsSinceLastBirth >= 10 or not self.isLactating or not self.isParent then
-                    factor = 0
-                elseif monthsSinceLastBirth <= 3 then
-                    factor = factor + (monthsSinceLastBirth / 6)
-                else
-                    factor = factor + ((11 - monthsSinceLastBirth) / 15)
-                end
+            elseif Animal.isLactationPalletFillType(fillTypeIndex) then
+                -- Milk sold in cans or pallets: goat milk, and cow and buffalo milk in Hof
+                -- Bergmann's pallet-spawner cattle buildings. Gated like the tank milk below, so a
+                -- dry or never-calved animal fills none.
+                local factor = self:getLactationFactor()
 
                 litersPerDay = litersPerDay * factor
 
-                Log:trace("updateOutput[goatmilk]: animal=%s/%s months=%s isLactating=%s isParent=%s factor=%s",
-                    tostring(self.farmId), tostring(self.uniqueId), tostring(monthsSinceLastBirth),
-                    tostring(self.isLactating), tostring(self.isParent), tostring(factor))
+                Log:trace("updateOutput[palletMilk]: animal=%s/%s fillType=%s months=%s isLactating=%s isParent=%s factor=%s",
+                    tostring(self.farmId), tostring(self.uniqueId),
+                    tostring(g_fillTypeManager:getFillTypeNameByIndex(fillTypeIndex)),
+                    tostring(self.monthsSinceLastBirth), tostring(self.isLactating), tostring(self.isParent),
+                    tostring(factor))
             end
 
             litersPerDay = litersPerDay * productivity
@@ -1803,18 +1821,9 @@ function Animal:updateOutput(temp)
 
             isMilk = false
         elseif isMilk then
-            local monthsSinceLastBirth = self.monthsSinceLastBirth or 12
-            local factor = 0.8
+            local factor = self:getLactationFactor()
             local productivity = self.genetics.productivity or 1
             local curveLitersPerDay = litersPerDay
-
-            if monthsSinceLastBirth >= 10 or not self.isLactating or not self.isParent then
-                factor = 0
-            elseif monthsSinceLastBirth <= 3 then
-                factor = factor + (monthsSinceLastBirth / 6)
-            else
-                factor = factor + ((11 - monthsSinceLastBirth) / 15)
-            end
 
             litersPerDay = litersPerDay * factor * productivity
 
