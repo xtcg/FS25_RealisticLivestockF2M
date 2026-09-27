@@ -17,7 +17,10 @@ DewarData = {}
 
 DewarData.SPEC_TABLE_NAME = "spec_FS25_RealisticLivestockRM.dewarData"
 DewarData.CAPACITY = 1000
-DewarData.PRICE_PER_STRAW = 0.85
+--- Price of one straw from an average sire (breeding index 1) at conception rate 1 and dealer
+--- price factor 1, before RLSemenCollection.getStrawPrice applies those. Set so the AI dealer's
+--- average straw costs what it did under the old per-gene product (about 18).
+DewarData.PRICE_PER_STRAW = 4.65
 
 
 function DewarData.prerequisitesPresent(specializations)
