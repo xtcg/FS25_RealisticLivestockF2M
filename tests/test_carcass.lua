@@ -67,7 +67,7 @@ loadMod("scripts/animals/shop/events/AnimalMoveEvent.lua")
 
 local config = AnimalMoveEvent.getCarcassConfig()
 check("config: shipped xml/carcassYield.xml is read",
-    near(config.qualitySwing, 0.25) and config.types.COW == 650 and config.types.PIG == 120
+    near(config.qualitySwing, 0.25) and config.types.COW == 750 and config.types.PIG == 120
     and config.breeds.SHEEP.GOAT == 32 and near(config.maxWeightRatio, 2.5))
 
 local function animal(sub, weight, quality)
@@ -103,12 +103,12 @@ local function butcherUnits(a)
     return f.level, #list, f
 end
 
-local units, count, f = butcherUnits(animal(1, 650, 1))
-check("butcher: 650 kg average-gene cow = configured 750", near(units, 750) and count == 1)
+local units, count, f = butcherUnits(animal(1, 750, 1))
+check("butcher: 750 kg average-gene cow = configured 750", near(units, 750) and count == 1)
 check("butcher: configured units restored", f.eppAnimalInputUnitsByFillType[BEEF] == 750)
-check("butcher: 900 kg Angus bull -> 750*900/650 = 1038.5", near(butcherUnits(animal(1, 900, 1)), 1038.46))
-check("butcher: 575 kg Holstein cow -> 663.5", near(butcherUnits(animal(2, 575, 1)), 663.46))
-check("butcher: same cow, meat gene 1.5 -> 746.4", near(butcherUnits(animal(2, 575, 1.5)), 746.39))
+check("butcher: 900 kg Angus bull -> 900", near(butcherUnits(animal(1, 900, 1)), 900))
+check("butcher: 575 kg Holstein cow -> 575", near(butcherUnits(animal(2, 575, 1)), 575))
+check("butcher: same cow, meat gene 1.5 -> 646.9", near(butcherUnits(animal(2, 575, 1.5)), 646.875))
 check("butcher: 110 kg finishing pig -> 110", near(butcherUnits(animal(3, 110, 1)), 110))
 check("butcher: unlisted type falls back to the mean target weight", near(butcherUnits(animal(4, 3.5, 1)), 11.67))
 check("butcher: 32 kg goat uses the GOAT breed reference -> 80", near(butcherUnits(animal(6, 32, 1)), 80))
@@ -122,13 +122,13 @@ check("config: subtype reference beats type (575 kg Holstein -> 750)", near(butc
 check("config: qualitySwing read from config (gene 1.5 -> 1.05)", near(butcherUnits(animal(2, 575, 1.5)), 787.5))
 AnimalMoveEvent.carcassConfig = shipped
 
-local heavy = butcher(2000)
+local heavy = butcher(1700)
 list = AnimalMoveEvent._deliverToEPPTarget(heavy, { entry(animal(1, 900, 1)), entry(animal(1, 900, 1)) }, 1)
-check("butcher: two 1038-unit bulls into 2000 of room -> whole batch refused, nothing stored",
+check("butcher: two 900-unit bulls into 1700 of room -> whole batch refused, nothing stored",
     #list == 0 and heavy.level == 0)
 
 local full = butcher(1500, 1000)
-local list, abort = AnimalMoveEvent._deliverToEPPTarget(full, { entry(animal(1, 650, 1)) }, 1)
+local list, abort = AnimalMoveEvent._deliverToEPPTarget(full, { entry(animal(1, 750, 1)) }, 1)
 check("butcher: no room for a whole carcass -> refused, nothing stored",
     #list == 0 and full.level == 1000 and abort == AnimalMoveEvent.EPP_NOT_ACCEPTED)
 
@@ -166,27 +166,27 @@ end
 MONEY[2] = 10000
 local s = slaughterhouse(2, 100)
 list, abort = AnimalMoveEvent._deliverToEPPTarget(s, { entry(animal(1, 900, 1)), entry(animal(2, 575, 1.5)) }, 2)
-check("slaughterhouse: bull + cow buffered as 2.380 animal-equivalents", #list == 2 and abort == nil and near(s.order.buffered, 2.380))
-check("slaughterhouse: fee scales with yield (237.98)", near(10000 - MONEY[2], 237.98))
+check("slaughterhouse: bull + cow buffered as 1.2 + 0.8625 = 2.0625 animal-equivalents", #list == 2 and abort == nil and near(s.order.buffered, 2.0625))
+check("slaughterhouse: fee scales with yield (206.25)", near(10000 - MONEY[2], 206.25))
 check("slaughterhouse: visuals refreshed per animal", s.refreshed == 2)
 
-MONEY[2] = 120
+MONEY[2] = 110
 s = slaughterhouse(2, 100)
 list, abort = AnimalMoveEvent._deliverToEPPTarget(s, { entry(animal(1, 900, 1)) }, 2)
-check("slaughterhouse: can pay one head but not 1.385 -> refused, nothing charged",
-    #list == 0 and abort == AnimalMoveEvent.EPP_NOT_ACCEPTED and MONEY[2] == 120 and s.order.buffered == 0)
-list, abort = AnimalMoveEvent._deliverToEPPTarget(slaughterhouse(nil, 0), { entry(animal(1, 650, 1)) }, 2)
+check("slaughterhouse: can pay one head but not 1.2 -> refused, nothing charged",
+    #list == 0 and abort == AnimalMoveEvent.EPP_NOT_ACCEPTED and MONEY[2] == 110 and s.order.buffered == 0)
+list, abort = AnimalMoveEvent._deliverToEPPTarget(slaughterhouse(nil, 0), { entry(animal(1, 750, 1)) }, 2)
 check("slaughterhouse: no open order -> refused", #list == 0 and abort == AnimalMoveEvent.EPP_NOT_ACCEPTED)
 
 MONEY[2] = 10000
 s = slaughterhouse(2, 100, 10, 7)
 list, abort = AnimalMoveEvent._deliverToEPPTarget(s,
     { entry(animal(1, 900, 1)), entry(animal(1, 900, 1)), entry(animal(1, 900, 1)) }, 2)
-check("slaughterhouse: 3 heads fit the slots but 4.15 yield does not fit 3 of room -> whole batch refused",
+check("slaughterhouse: 3 heads fit the slots but 3.6 yield does not fit 3 of room -> whole batch refused",
     #list == 0 and abort == AnimalMoveEvent.EPP_NOT_ACCEPTED and s.order.buffered == 7 and MONEY[2] == 10000)
 
 s = slaughterhouse(2, 100, 10, 8.5)
-list, abort = AnimalMoveEvent._deliverToEPPTarget(s, { entry(animal(2, 455, 1)), entry(animal(2, 455, 1)) }, 2)
+list, abort = AnimalMoveEvent._deliverToEPPTarget(s, { entry(animal(2, 525, 1)), entry(animal(2, 525, 1)) }, 2)
 check("slaughterhouse: two 0.7 animals into 1.5 of room (1 whole slot) -> both taken",
     #list == 2 and abort == nil and near(s.order.buffered, 9.9))
 
@@ -219,7 +219,7 @@ local function mixedSlaughterhouse(beefCredit, porkCredit)
     function t:contractProductionAddAnimals() error("per-head path must not be used") end
     return t
 end
-local cowAndPigs = function() return { entry(animal(2, 650, 1)), entry(animal(3, 120, 1)), entry(animal(3, 120, 1)) } end
+local cowAndPigs = function() return { entry(animal(2, 750, 1)), entry(animal(3, 120, 1)), entry(animal(3, 120, 1)) } end
 
 MONEY[3] = 150
 local mixed = mixedSlaughterhouse()

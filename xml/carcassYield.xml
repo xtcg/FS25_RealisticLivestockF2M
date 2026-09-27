@@ -21,7 +21,7 @@
     entirely. In multiplayer the server's file applies.
 -->
 <carcassYield qualitySwing="0.25" minWeightRatio="0.1" maxWeightRatio="2.5">
-    <animalType name="COW" referenceWeight="650"/>      <!-- finished steer / young bull -->
+    <animalType name="COW" referenceWeight="750"/>      <!-- Hof Bergmann butcher: 750 units per cow -->
     <animalType name="PIG" referenceWeight="120"/>      <!-- finishing pig -->
     <animalType name="SHEEP" referenceWeight="50">      <!-- lamb -->
         <breed name="GOAT" referenceWeight="32"/>       <!-- goats share the SHEEP type -->
