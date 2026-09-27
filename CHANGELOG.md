@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.4.0.1-dev.1 (xtcg fork, Hof Bergmann)
+
+### Added
+
+- Added collecting and selling semen from your own sires.
+- Added pen rules for Hof Bergmann's cattle buildings, set in mod_support/FS25_HofBergmann/v1.5/husbandryProfiles.xml:
+  - Calf igloos take all calves up to 5 months.
+  - Calf rearing boxes take male and steer calves up to 5 months.
+  - Bull barns take intact bulls of every breed from 6 months.
+  - The farm cow barn takes Holstein and Swiss Brown cows from 6 months.
+  - The cow barn with pasture takes cows, steers and bulls under 12 months, from 6 months.
+  - The pastures take the same animals, calves included.
+- Added xml/carcassYield.xml for the carcass yield settings. A copy in modSettings/FS25_RealisticLivestockRM/ replaces it.
+
+### Changed
+
+- Butcher and slaughterhouse deliveries scale with the animal: live weight against a typical slaughter weight (cattle 750 kg, pigs 120 kg, sheep 50 kg, goats 32 kg), times its meat gene.
+- A delivery that does not fit the facility's room or the farm's fee budget is refused whole and stays in the trailer.
+
+### Fixed
+
+- Fixed the Hof Bergmann public slaughterhouse refusing every animal, and the delivering farm in multiplayer.
+- Fixed Hof Bergmann's bull stable semen.
+- Fixed Hof Bergmann's age limits on cattle buildings being skipped for RLRM moves.
+
 ## 1.4.0.0:
 
 ### Heads up before you update

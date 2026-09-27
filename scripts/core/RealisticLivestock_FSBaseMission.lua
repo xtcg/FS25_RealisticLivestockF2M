@@ -205,6 +205,9 @@ end
 --- Mission start: re-bind the AnimalScreen GUI, read the visual-animal cap and register every RLRM dialog.
 function RealisticLivestock_FSBaseMission:onStartMission()
 
+    -- Map pen rules go in after the map has set its own husbandry filters at load.
+    RLHusbandryProfiles.applyAll()
+
     -- Re-load the BASE AnimalScreen GUI so its callback bindings re-snapshot.
     --
     -- The GUI layer captures onOpen / onClose / onCreate as function references at XML parse

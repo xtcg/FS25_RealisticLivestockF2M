@@ -132,6 +132,13 @@ function RLMoveDestinationHelper.buildMoveValidationResult(animals, destination,
                     animal.name or animal.uniqueId or "?", age, maxAge)
                 rejected = true
             end
+        elseif not destination.isEPP and destination.placeable ~= nil then
+            local ok, reason = RLHusbandryProfiles.checkAnimal(destination.placeable, animal)
+            if not ok then
+                table.insert(result.rejected, { animal = animal, reason = reason })
+                Log:trace("  rejected '%s': %s", tostring(animal.name or animal.uniqueId or "?"), tostring(reason))
+                rejected = true
+            end
         end
 
         if not rejected then

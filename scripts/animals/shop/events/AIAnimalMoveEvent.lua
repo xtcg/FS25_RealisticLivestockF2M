@@ -152,7 +152,21 @@ function AIAnimalMoveEvent:run(connection)
             return
         end
 
-        -- Husbandry target. Source-first: remove and flush the source before delivering, per the
+        -- Husbandry target. Animals the pen's rules turn away stay in the source.
+        local admitted = {}
+        for _, entry in ipairs(transferList) do
+            local ok, reason, detail = RLHusbandryProfiles.checkAnimal(self.targetObject, entry.animal)
+            if ok then
+                admitted[#admitted + 1] = entry
+            else
+                Log:debug("AIAnimalMoveEvent:run: pen rules keep uniqueId=%s in the source (%s %s)",
+                    tostring(entry.animal.uniqueId), tostring(reason), tostring(detail))
+            end
+        end
+        transferList = admitted
+        if #transferList == 0 then return end
+
+        -- Source-first: remove and flush the source before delivering, per the
         -- ordering invariant above. getClusterSystem is resolved here, never on the EPP branch.
         local targetClusterSystem = self.targetObject:getClusterSystem()
         local ok1, err1 = pcall(function()
