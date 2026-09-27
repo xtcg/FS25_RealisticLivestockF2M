@@ -11,11 +11,11 @@ Cattle are the most diverse livestock in Realistic Livestock RM, with 7 breeds r
 | Breed | Type | Target Weight | Milk Range (peak, lactating) | Sell Value |
 |-------|------|--------------|------------------------------|------------|
 | **Holstein** | Dairy | 680 / 1,000 kg | 65 - 750 L/day | Moderate |
-| **Hereford** | Dual | 600 / 850 kg | 55 - 600 L/day | Above average |
-| **Swiss Brown** | Dual | 650 / 900 kg | 50 - 580 L/day | Above average |
-| **Angus** | Beef | 650 / 850 kg | 30 - 365 L/day | High |
-| **Highland** *(DLC)* | Beef | 500 / 750 kg | 30 - 365 L/day | High, retains value in old age |
-| **Limousin** | Beef | 650 / 1,000 kg | 30 - 320 L/day | Highest |
+| **Hereford** | Beef | 600 / 850 kg | 15 - 180 L/day | Above average |
+| **Swiss Brown** | Dual | 650 / 900 kg | 55 - 635 L/day | Above average |
+| **Angus** | Beef | 650 / 850 kg | 15 - 160 L/day | High |
+| **Highland** *(DLC)* | Beef | 500 / 750 kg | 10 - 115 L/day | High, retains value in old age |
+| **Limousin** | Beef | 650 / 1,000 kg | 10 - 135 L/day | Highest |
 | **Water Buffalo** | Special | 550 / 900 kg | 5 - 70 L/day | Low |
 
 *Target weights shown as cow / bull. Milk range shows the full span from poor to excellent genetics. All cows produce milk when lactating - beef breeds just produce less. Highland cattle require the Highlands & Fishing Pack DLC.*
@@ -37,11 +37,11 @@ Cows produce milk **only while lactating** (10 months after giving birth). Non-l
 | Breed | 12 mo | 36 mo (peak) | 120 mo |
 |-------|-------|--------------|-------|
 | **Holstein** | 40 - 445 | **65 - 750** | 35 - 410 |
-| **Hereford** | 40 - 435 | **55 - 600** | 25 - 285 |
-| **Swiss Brown** | 35 - 410 | **50 - 580** | 20 - 250 |
-| **Angus** | 20 - 230 | **30 - 365** | 15 - 160 |
-| **Highland** | 20 - 230 | **30 - 365** | 15 - 160 |
-| **Limousin** | 20 - 205 | **30 - 320** | 10 - 115 |
+| **Hereford** | 10 - 130 | **15 - 180** | 10 - 85 |
+| **Swiss Brown** | 40 - 450 | **55 - 635** | 25 - 275 |
+| **Angus** | 10 - 100 | **15 - 160** | 5 - 70 |
+| **Highland** | 5 - 70 | **10 - 115** | 5 - 50 |
+| **Limousin** | 10 - 90 | **10 - 135** | 5 - 50 |
 | **Water Buffalo** | 5 - 70 | 5 - 70 | 5 - 70 |
 
 *Genetics and lactation phase cause large variation between individual animals. Most cows produce somewhere in the middle of these ranges. A CVM carrier cow produces considerably more than a non-carrier with the same genetics while the **Diseases** setting is on.*
@@ -54,10 +54,10 @@ xychart-beta
     title "Swiss Brown Milk Output (average genetics, lactating)"
     x-axis "Age (months)" [12, 24, 36, 48, 60, 72, 84, 96, 108, 120]
     y-axis "Litres / day" 0 --> 300
-    line [180, 180, 255, 255, 255, 255, 219, 183, 146, 110]
+    line [198, 198, 280, 280, 280, 280, 240, 201, 161, 121]
 ```
 
-*Chart shows Swiss Brown as a representative mid-range breed with average genetics. Holstein produces more, beef breeds produce less - see the table above for per-breed ranges. The line is the **age** curve (the cow's lifetime production envelope while lactating); the **lactation-phase** curve within each 10-month nursing window is shown separately in the [Breeding Guide](guide-breeding.md#lactation-phase-curve), and the breed table's "50 - 580" range combines both factors with the genetics multiplier.*
+*Chart shows Swiss Brown, the dual-purpose breed at about 85% of Holstein, with average genetics. Beef breeds (Hereford, Angus, Limousin, Highland) give 15-24% of Holstein - see the table above for per-breed ranges. The line is the **age** curve (the cow's lifetime production envelope while lactating); the **lactation-phase** curve within each 10-month nursing window is shown separately in the [Breeding Guide](guide-breeding.md#lactation-phase-curve), and the breed table's "55 - 635" range combines both factors with the genetics multiplier.*
 
 ---
 

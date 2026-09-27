@@ -604,11 +604,11 @@
                 <pallets fillType="MILK">
                     <key ageMonth="0" value="0"/>
                     <key ageMonth="12" value="0"/>
-                    <key ageMonth="12" value="180"/>
-                    <key ageMonth="36" value="180"/>
-                    <key ageMonth="36" value="255"/>
-                    <key ageMonth="72" value="255"/>
-                    <key ageMonth="120" value="110"/>
+                    <key ageMonth="12" value="198"/>
+                    <key ageMonth="36" value="198"/>
+                    <key ageMonth="36" value="280"/>
+                    <key ageMonth="72" value="280"/>
+                    <key ageMonth="120" value="121"/>
                 </pallets>
             </output>
         </subType>
@@ -630,11 +630,11 @@
                 <pallets fillType="MILK">
                     <key ageMonth="0" value="0"/>
                     <key ageMonth="12" value="0"/>
-                    <key ageMonth="12" value="100"/>
-                    <key ageMonth="36" value="100"/>
-                    <key ageMonth="36" value="160"/>
-                    <key ageMonth="72" value="160"/>
-                    <key ageMonth="120" value="70"/>
+                    <key ageMonth="12" value="44"/>
+                    <key ageMonth="36" value="44"/>
+                    <key ageMonth="36" value="70"/>
+                    <key ageMonth="72" value="70"/>
+                    <key ageMonth="120" value="31"/>
                 </pallets>
             </output>
         </subType>
@@ -643,11 +643,11 @@
                 <pallets fillType="MILK">
                     <key ageMonth="0" value="0"/>
                     <key ageMonth="12" value="0"/>
-                    <key ageMonth="12" value="90"/>
-                    <key ageMonth="36" value="90"/>
-                    <key ageMonth="36" value="140"/>
-                    <key ageMonth="72" value="140"/>
-                    <key ageMonth="120" value="50"/>
+                    <key ageMonth="12" value="39"/>
+                    <key ageMonth="36" value="39"/>
+                    <key ageMonth="36" value="60"/>
+                    <key ageMonth="72" value="60"/>
+                    <key ageMonth="120" value="21"/>
                 </pallets>
             </output>
         </subType>
@@ -656,11 +656,11 @@
                 <pallets fillType="MILK">
                     <key ageMonth="0" value="0"/>
                     <key ageMonth="12" value="0"/>
-                    <key ageMonth="12" value="190"/>
-                    <key ageMonth="36" value="190"/>
-                    <key ageMonth="36" value="265"/>
-                    <key ageMonth="72" value="265"/>
-                    <key ageMonth="120" value="125"/>
+                    <key ageMonth="12" value="57"/>
+                    <key ageMonth="36" value="57"/>
+                    <key ageMonth="36" value="80"/>
+                    <key ageMonth="72" value="80"/>
+                    <key ageMonth="120" value="38"/>
                 </pallets>
             </output>
         </subType>
@@ -671,11 +671,11 @@
                 <pallets fillType="MILK">
                     <key ageMonth="0" value="0"/>
                     <key ageMonth="12" value="0"/>
-                    <key ageMonth="12" value="100"/>
-                    <key ageMonth="36" value="100"/>
-                    <key ageMonth="36" value="160"/>
-                    <key ageMonth="72" value="160"/>
-                    <key ageMonth="120" value="70"/>
+                    <key ageMonth="12" value="31"/>
+                    <key ageMonth="36" value="31"/>
+                    <key ageMonth="36" value="50"/>
+                    <key ageMonth="72" value="50"/>
+                    <key ageMonth="120" value="22"/>
                 </pallets>
             </output>
         </subType>
