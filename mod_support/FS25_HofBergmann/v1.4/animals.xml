@@ -594,9 +594,9 @@
         remap branch, which needs an existing output.pallets - a silent no-op for cows.
 
         All RLRM cow breeds carry a milk curve by design (beef breeds a smaller one), so all get
-        cans - excluding a breed would silently drop it for a player who relies on it. The pallets
-        path is not lactation-gated (parity with base-HB cluster pallets): a dry or nulliparous
-        adult cow still spawns cans. MILK and BUFFALOMILK already exist in HB's cow palletSpawner.
+        cans - excluding a breed would silently drop it for a player who relies on it. The cans are gated
+        like tank milk (Animal:updateOutput): only a cow in the 10 months after calving fills any,
+        following the same lactation curve. MILK and BUFFALOMILK already exist in HB's cow palletSpawner.
     -->
     <animal type="COW">
         <subType subType="COW_SWISS_BROWN">

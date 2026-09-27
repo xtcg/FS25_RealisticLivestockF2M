@@ -32,6 +32,7 @@
 - Fixed the Hof Bergmann public slaughterhouse refusing every animal, and the delivering farm in multiplayer.
 - Fixed Hof Bergmann's bull stable semen.
 - Fixed Hof Bergmann's age limits on cattle buildings being skipped for RLRM moves.
+- Fixed Hof Bergmann's milk-can cattle buildings (constructible cow pasture, cowPasture01, cowHusbandryFarm02) filling cans from dry cows and cows that never calved. Cans now follow the same lactation curve as tank milk.
 
 ## 1.4.0.0:
 
