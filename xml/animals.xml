@@ -128,9 +128,9 @@
 			<reproduction supported="false" minAgeMonth="12"/>
 			<buyPrice>
 				<key ageMonth="0" value="275"/>
-				<key ageMonth="12" value="1650"/>
-				<key ageMonth="18" value="2250"/>
-				<key ageMonth="24" value="2750"/>
+				<key ageMonth="12" value="1800"/>
+				<key ageMonth="18" value="2450"/>
+				<key ageMonth="24" value="2900"/>
 			</buyPrice>
 			<sellPrice>
 				<key ageMonth="0" value="220"/>
@@ -283,9 +283,9 @@
 			<reproduction supported="false" minAgeMonth="12"/>
 			<buyPrice>
 				<key ageMonth="0" value="250"/>
-				<key ageMonth="12" value="1700"/>
-				<key ageMonth="18" value="2450"/>
-				<key ageMonth="24" value="2850"/>
+				<key ageMonth="12" value="1750"/>
+				<key ageMonth="18" value="2500"/>
+				<key ageMonth="24" value="2950"/>
 			</buyPrice>
 			<sellPrice>
 				<key ageMonth="0" value="200"/>
@@ -439,9 +439,9 @@
 			<reproduction supported="false" minAgeMonth="12"/>
 			<buyPrice>
 				<key ageMonth="0" value="325"/>
-				<key ageMonth="12" value="1800"/>
-				<key ageMonth="18" value="2600"/>
-				<key ageMonth="24" value="3200"/>
+				<key ageMonth="12" value="1950"/>
+				<key ageMonth="18" value="2750"/>
+				<key ageMonth="24" value="3350"/>
 			</buyPrice>
 			<sellPrice>
 				<key ageMonth="0" value="245"/>
@@ -594,9 +594,9 @@
 			<reproduction supported="false" minAgeMonth="12"/>
 			<buyPrice>
 				<key ageMonth="0" value="375"/>
-				<key ageMonth="12" value="1950"/>
-				<key ageMonth="18" value="2950"/>
-				<key ageMonth="24" value="3600"/>
+				<key ageMonth="12" value="2100"/>
+				<key ageMonth="18" value="3250"/>
+				<key ageMonth="24" value="3850"/>
 			</buyPrice>
 			<sellPrice>
 				<key ageMonth="0" value="275"/>
@@ -749,9 +749,9 @@
 			<reproduction supported="false" minAgeMonth="12"/>
 			<buyPrice>
 				<key ageMonth="0" value="275"/>
-				<key ageMonth="12" value="1700"/>
-				<key ageMonth="18" value="2350"/>
-				<key ageMonth="24" value="2900"/>
+				<key ageMonth="12" value="1800"/>
+				<key ageMonth="18" value="2500"/>
+				<key ageMonth="24" value="3000"/>
 			</buyPrice>
 			<sellPrice>
 				<key ageMonth="0" value="225"/>
@@ -903,9 +903,9 @@
 			<reproduction supported="false" minAgeMonth="12"/>
 			<buyPrice>
 				<key ageMonth="0" value="350"/>
-				<key ageMonth="12" value="1350"/>
-				<key ageMonth="18" value="1900"/>
-				<key ageMonth="24" value="2300"/>
+				<key ageMonth="12" value="1450"/>
+				<key ageMonth="18" value="2050"/>
+				<key ageMonth="24" value="2600"/>
 			</buyPrice>
 			<sellPrice>
 				<key ageMonth="0" value="280"/>
@@ -1052,9 +1052,9 @@
 			<reproduction minAgeMonth="12" supported="false"/>
 			<buyPrice>
 				<key ageMonth="0" value="250"/>
-				<key ageMonth="12" value="1250"/>
-				<key ageMonth="18" value="1800"/>
-				<key ageMonth="24" value="2350"/>
+				<key ageMonth="12" value="1350"/>
+				<key ageMonth="18" value="1950"/>
+				<key ageMonth="24" value="2500"/>
 			</buyPrice>
 			<sellPrice>
 				<key ageMonth="0" value="200"/>
@@ -1138,7 +1138,7 @@
 			<reproduction minAgeMonth="6" durationMonth="4" minHealthFactor="0.75"/>
 			<buyPrice>
 				<key ageMonth="0" value="55"/>
-				<key ageMonth="6" value="250"/>
+				<key ageMonth="6" value="220"/>
 				<key ageMonth="12" value="1100"/>
 			</buyPrice>
 			<sellPrice>
@@ -1202,7 +1202,7 @@
 			<reproduction minAgeMonth="8" supported="false"/>
 			<buyPrice>
 				<key ageMonth="0" value="65"/>
-				<key ageMonth="6" value="275"/>
+				<key ageMonth="6" value="235"/>
 				<key ageMonth="12" value="1400"/>
 			</buyPrice>
 			<sellPrice>
@@ -1269,7 +1269,7 @@
 			<reproduction minAgeMonth="6" durationMonth="4" minHealthFactor="0.75"/>
 			<buyPrice>
 				<key ageMonth="0" value="45"/>
-				<key ageMonth="6" value="225"/>
+				<key ageMonth="6" value="200"/>
 				<key ageMonth="12" value="1000"/>
 			</buyPrice>
 			<sellPrice>
@@ -1333,7 +1333,7 @@
 			<reproduction minAgeMonth="8" supported="false"/>
 			<buyPrice>
 				<key ageMonth="0" value="55"/>
-				<key ageMonth="6" value="250"/>
+				<key ageMonth="6" value="215"/>
 				<key ageMonth="12" value="1200"/>
 			</buyPrice>
 			<sellPrice>
@@ -1400,7 +1400,7 @@
 			<reproduction minAgeMonth="6" durationMonth="4" minHealthFactor="0.75"/>
 			<buyPrice>
 				<key ageMonth="0" value="65"/>
-				<key ageMonth="6" value="280"/>
+				<key ageMonth="6" value="250"/>
 				<key ageMonth="12" value="1200"/>
 			</buyPrice>
 			<sellPrice>
@@ -1464,7 +1464,7 @@
 			<reproduction minAgeMonth="8" supported="false"/>
 			<buyPrice>
 				<key ageMonth="0" value="75"/>
-				<key ageMonth="6" value="310"/>
+				<key ageMonth="6" value="270"/>
 				<key ageMonth="12" value="1500"/>
 			</buyPrice>
 			<sellPrice>
@@ -1548,7 +1548,7 @@
 			<reproduction minAgeMonth="8" durationMonth="5" minHealthFactor="0.75"/>
 			<buyPrice>
 				<key ageMonth="0" value="50"/>
-				<key ageMonth="6" value="180"/>
+				<key ageMonth="6" value="165"/>
 				<key ageMonth="36" value="600"/>
 			</buyPrice>
 			<sellPrice>
@@ -1615,7 +1615,7 @@
 			<reproduction minAgeMonth="5" supported="false"/>
 			<buyPrice>
 				<key ageMonth="0" value="60"/>
-				<key ageMonth="6" value="220"/>
+				<key ageMonth="6" value="205"/>
 				<key ageMonth="36" value="800"/>
 			</buyPrice>
 			<sellPrice>
@@ -1685,7 +1685,7 @@
 			<reproduction minAgeMonth="8" durationMonth="5" minHealthFactor="0.75"/>
 			<buyPrice>
 				<key ageMonth="0" value="90"/>
-				<key ageMonth="6" value="235"/>
+				<key ageMonth="6" value="220"/>
 				<key ageMonth="36" value="950"/>
 			</buyPrice>
 			<sellPrice>
@@ -1752,7 +1752,7 @@
 			<reproduction minAgeMonth="5" supported="false"/>
 			<buyPrice>
 				<key ageMonth="0" value="125"/>
-				<key ageMonth="6" value="275"/>
+				<key ageMonth="6" value="255"/>
 				<key ageMonth="36" value="1200"/>
 			</buyPrice>
 			<sellPrice>
@@ -1822,7 +1822,7 @@
 			<reproduction minAgeMonth="8" durationMonth="5" minHealthFactor="0.75"/>
 			<buyPrice>
 				<key ageMonth="0" value="115"/>
-				<key ageMonth="6" value="250"/>
+				<key ageMonth="6" value="235"/>
 				<key ageMonth="36" value="1100"/>
 			</buyPrice>
 			<sellPrice>
@@ -1889,7 +1889,7 @@
 			<reproduction minAgeMonth="5" supported="false"/>
 			<buyPrice>
 				<key ageMonth="0" value="145"/>
-				<key ageMonth="6" value="290"/>
+				<key ageMonth="6" value="270"/>
 				<key ageMonth="36" value="1350"/>
 			</buyPrice>
 			<sellPrice>
@@ -1959,7 +1959,7 @@
 			<reproduction minAgeMonth="8" durationMonth="5" minHealthFactor="0.75"/>
 			<buyPrice>
 				<key ageMonth="0" value="45"/>
-				<key ageMonth="6" value="165"/>
+				<key ageMonth="6" value="150"/>
 				<key ageMonth="36" value="575"/>
 			</buyPrice>
 			<sellPrice>
@@ -2026,7 +2026,7 @@
 			<reproduction minAgeMonth="5" supported="false"/>
 			<buyPrice>
 				<key ageMonth="0" value="55"/>
-				<key ageMonth="6" value="200"/>
+				<key ageMonth="6" value="185"/>
 				<key ageMonth="36" value="650"/>
 			</buyPrice>
 			<sellPrice>
