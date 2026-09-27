@@ -12,9 +12,9 @@ Cattle are the most diverse livestock in Realistic Livestock RM, with 7 breeds r
 
 | Breed | Type | Target Weight | Milk Range (peak, lactating) | Sell Value |
 |-------|------|--------------|------------------------------|------------|
-| **Holstein** | Dairy | 680 / 1,000 kg | 65 - 750 L/month | Moderate |
+| **Holstein** | Dairy | 680 / 1,000 kg | 75 - 860 L/month | Moderate |
 | **Hereford** | Beef | 600 / 850 kg | 15 - 180 L/month | Above average |
-| **Swiss Brown** | Dual | 650 / 900 kg | 55 - 635 L/month | Above average |
+| **Swiss Brown** | Dual | 650 / 900 kg | 65 - 725 L/month | Above average |
 | **Angus** | Beef | 650 / 850 kg | 15 - 160 L/month | High |
 | **Highland** *(DLC)* | Beef | 500 / 750 kg | 10 - 115 L/month | High, retains value in old age |
 | **Limousin** | Beef | 650 / 1,000 kg | 10 - 135 L/month | Highest |

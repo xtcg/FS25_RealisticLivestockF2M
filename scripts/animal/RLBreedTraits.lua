@@ -207,10 +207,11 @@ function RLBreedTraits.get(subType, trait)
 end
 
 
---- The age in months by which an animal on full feed reaches its target weight: the growth line
---- updateWeight follows and the expected weight for age that food, sale value and newly
---- generated animals are measured against. matureAgeMonth when set, else 1.5 x the subtype's
---- reproductionMinAgeMonth (the mod's original rule).
+--- Time scale of growth in months: updateWeight's base gain is (target - minWeight) / this per
+--- month, before breed growth, femaleGrowth, age and nutrition change the actual rate. It is also
+--- the age at which the expected weight for age (food, sale value, newly generated animals)
+--- reaches the target. matureAgeMonth when set, else 1.5 x the subtype's reproductionMinAgeMonth
+--- (the mod's original rule).
 --- @param subType table|nil
 --- @return number months, 0 when unknown
 function RLBreedTraits.getMatureAge(subType)
