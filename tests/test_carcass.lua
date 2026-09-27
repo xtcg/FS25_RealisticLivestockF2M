@@ -84,6 +84,16 @@ check("yield: 1 without an animal; no weight -> size x carcass only",
 local units, count, f = butcherUnits(animal(1, 663, 1))
 check("butcher: Angus bull at its reference -> 750 x 1.065 = 798.9", near(units, 798.95, 0.05) and count == 1)
 check("butcher: configured units restored", f.eppAnimalInputUnitsByFillType[BEEF] == 750)
+
+-- Hof Bergmann's insemination system: the same unit-based input, but it turns 1000 units back
+-- into one live MILK_COW, so a head must stay 1000 units whatever the cow weighs.
+local insemination = butcher(1e6)
+insemination.eppAnimalInputUnitsByFillType = { [BEEF] = 1000 }
+insemination.eao_specs = { { animals = { { inputFillTypeIndex = BEEF } } } }
+AnimalMoveEvent._deliverToEPPTarget(insemination, { entry(animal(2, 450, 1)) }, 1)
+check("insemination: a light Holstein is still 1000 units (not carcass-scaled)", insemination.level == 1000)
+check("insemination: counted by head, not by yield",
+    not AnimalMoveEvent._isWeighedTarget(insemination, nil, 2) and AnimalMoveEvent._isWeighedTarget(butcher(1), nil, 2))
 check("butcher: Holstein cull cow at 578 kg, gene 1.5 -> 753.1", near(butcherUnits(animal(2, 578, 1.5)), 753.07, 0.05))
 check("butcher: 120 kg Landrace gilt -> 117.2", near(butcherUnits(animal(3, 120, 1)), 117.21, 0.05))
 check("butcher: unlisted type anchors on the facility mean target weight -> 10.39",

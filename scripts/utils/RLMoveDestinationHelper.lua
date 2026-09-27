@@ -15,8 +15,11 @@ RLMoveDestinationHelper = {}
 ---@param sourceHusbandry table|nil Source husbandry excluded from the results (nil admits every owner-farm placeable)
 ---@param farmId number Owning farm ID the destinations must belong to
 ---@param animalSubTypeIndex number Animal subtype the destination must support
+---@param animals table|nil The animals being moved or bought. When given, a husbandry whose pen
+---  rules or age window (RLHusbandryProfiles.checkAnimal) take none of them is left out, so a
+---  calf igloo is not offered for grown cattle.
 ---@return table Array of entries {placeable, name, currentCount, maxCount, freeSlots, isEPP, minAge?, maxAge?}
-function RLMoveDestinationHelper.getValidDestinations(sourceHusbandry, farmId, animalSubTypeIndex)
+function RLMoveDestinationHelper.getValidDestinations(sourceHusbandry, farmId, animalSubTypeIndex, animals)
     Log:trace("getValidDestinations: farmId=%d subTypeIndex=%d", farmId, animalSubTypeIndex)
 
     local destinations = {}
@@ -34,7 +37,8 @@ function RLMoveDestinationHelper.getValidDestinations(sourceHusbandry, farmId, a
             -- skip: wrong farm
         elseif placeable.spec_husbandryAnimals ~= nil
                and placeable:getSupportsAnimalSubType(animalSubTypeIndex)
-               and placeable ~= sourceHusbandry then
+               and placeable ~= sourceHusbandry
+               and RLMoveDestinationHelper.acceptsAny(placeable, animals) then
             -- Regular husbandry
             local currentCount = placeable:getNumOfAnimals()
             local maxCount = placeable:getMaxNumOfAnimals(animalType)
@@ -87,6 +91,21 @@ function RLMoveDestinationHelper.getValidDestinations(sourceHusbandry, farmId, a
 
     Log:trace("getValidDestinations: found %d destinations", #destinations)
     return destinations
+end
+
+
+--- Whether a husbandry's pen rules take at least one of the animals (true for no animals).
+---@param placeable table Husbandry placeable
+---@param animals table|nil
+---@return boolean
+function RLMoveDestinationHelper.acceptsAny(placeable, animals)
+    if animals == nil or #animals == 0 then return true end
+    for _, animal in ipairs(animals) do
+        if RLHusbandryProfiles.checkAnimal(placeable, animal) then return true end
+    end
+    Log:trace("  husbandry: '%s' skipped, its pen rules take none of the %d animal(s)",
+        tostring(placeable:getName()), #animals)
+    return false
 end
 
 

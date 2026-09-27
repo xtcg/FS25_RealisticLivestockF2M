@@ -916,7 +916,7 @@ function RLMenuMoveFrame:startMoveFlow(animals)
     end
 
     local farmId = self.selectedHusbandry:getOwnerFarmId()
-    local entries = RLAnimalMoveService.getValidDestinations(self.selectedHusbandry, farmId, subTypeIndex)
+    local entries = RLAnimalMoveService.getValidDestinations(self.selectedHusbandry, farmId, subTypeIndex, animals)
 
     if #entries == 0 then
         Log:debug("RLMenuMoveFrame:startMoveFlow: no destinations available")

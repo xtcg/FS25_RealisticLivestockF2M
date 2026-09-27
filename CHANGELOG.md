@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Selling a dewar with K did nothing once the player had been in a vehicle: the sell action was re-registered for the vehicle and the on-foot one was never switched on.
+- The buy and move screens listed pens whose rules take none of the selected animals, such as a calf igloo for cattle over 5 months. A pen is now listed only when it takes at least one of them.
+- Holsteins delivered to Hof Bergmann's insemination system were scaled by carcass yield like meat, so a light cow counted as less than one and the system made fewer milk cows than it was given. It now counts them by head.
+
 ## 1.4.0.1-dev.4 (xtcg fork, Hof Bergmann)
 
 ### Added
