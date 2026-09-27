@@ -71,20 +71,20 @@ Bulls consistently sell for more than cows at all ages. Beef breeds (Angus, Limo
 
 | Breed | | Newborn | 24 mo | 36 mo (peak) | 60 mo |
 |-------|---|---------|-------|--------------|-------|
-| **Swiss Brown** | Cow | 150 | 2,000 | 2,400 | 1,400 |
-| | Bull | 220 | 2,400 | 2,800 | 1,800 |
-| **Holstein** | Cow | 135 | 1,900 | 2,000 | 1,100 |
-| | Bull | 200 | 2,250 | 2,600 | 1,500 |
-| **Angus** | Cow | 200 | 2,800 | 3,800 | 2,000 |
-| | Bull | 245 | 3,200 | 4,100 | 2,300 |
-| **Limousin** | Cow | 225 | 2,950 | 4,000 | 2,200 |
-| | Bull | 275 | 3,450 | 4,400 | 2,550 |
-| **Hereford** | Cow | 210 | 2,200 | 2,800 | 1,600 |
-| | Bull | 225 | 2,400 | 3,000 | 1,800 |
-| **Highland** | Cow | 230 | 3,000 | 3,500 | 2,500 |
-| | Bull | 280 | 3,500 | 4,000 | 3,000 |
-| **Water Buffalo** | Cow | 150 | 1,500 | 1,500 | 1,000 |
-| | Bull | 200 | 1,750 | 2,000 | 1,250 |
+| **Swiss Brown** | Cow | 150 | 2,100 | 2,500 | 1,550 |
+| | Bull | 220 | 2,250 | 2,800 | 1,850 |
+| **Holstein** | Cow | 135 | 2,000 | 2,300 | 1,400 |
+| | Bull | 200 | 2,350 | 2,600 | 1,600 |
+| **Angus** | Cow | 200 | 2,400 | 3,800 | 2,200 |
+| | Bull | 245 | 2,650 | 4,100 | 2,500 |
+| **Limousin** | Cow | 225 | 2,600 | 4,000 | 2,400 |
+| | Bull | 275 | 3,000 | 4,400 | 2,700 |
+| **Hereford** | Cow | 210 | 2,050 | 2,850 | 1,800 |
+| | Bull | 225 | 2,400 | 3,000 | 1,900 |
+| **Highland** | Cow | 230 | 1,950 | 3,500 | 2,600 |
+| | Bull | 280 | 1,900 | 4,000 | 3,000 |
+| **Water Buffalo** | Cow | 150 | 1,450 | 1,800 | 1,200 |
+| | Bull | 200 | 1,950 | 2,300 | 1,500 |
 
 *These are typical prices for an average, healthy animal. Actual prices vary widely - well-bred healthy animals sell for significantly more, poor-quality animals can sell for far less, and a sick animal is worth less while sick.*
 
@@ -106,13 +106,13 @@ Bulls consistently sell for more than cows at all ages. Beef breeds (Angus, Limo
 
 | Breed | Cow (newborn) | Cow (adult) | Bull (newborn) | Bull (adult) |
 |-------|--------------|-------------|----------------|--------------|
-| **Swiss Brown** | 200 | 2,400 | 250 | 2,700 |
-| **Holstein** | 200 | 2,200 | 235 | 2,500 |
-| **Angus** | 275 | 3,200 | 300 | 3,200 |
-| **Limousin** | 320 | 3,400 | 350 | 3,750 |
-| **Hereford** | 225 | 2,400 | 250 | 2,500 |
-| **Highland** | 300 | 3,000 | 350 | 3,500 |
-| **Water Buffalo** | 200 | 1,500 | 250 | 1,800 |
+| **Swiss Brown** | 225 | 2,500 | 275 | 2,900 |
+| **Holstein** | 225 | 2,400 | 250 | 2,950 |
+| **Angus** | 300 | 2,900 | 325 | 3,350 |
+| **Limousin** | 340 | 3,150 | 375 | 3,850 |
+| **Hereford** | 250 | 2,450 | 275 | 3,000 |
+| **Highland** | 300 | 2,400 | 350 | 2,600 |
+| **Water Buffalo** | 200 | 1,800 | 250 | 2,500 |
 
 *Adult prices are at age 24-36 months. Dealer animals have randomised genetics.*
 

@@ -2,6 +2,10 @@
 
 ## 1.4.0.1-dev.5 (xtcg fork, Hof Bergmann)
 
+### Changed
+
+- Recalibrated cattle, pig and sheep/goat live-market prices against the realistic body weights and finishing ages. Young finished cattle now sell around £2,000-£2,700 by breed instead of being undervalued by the old curves; six-month finishing pigs are £170-£240 rather than £375-£525; six-month lambs are £130-£220. Dealer buy prices keep a typical 15-35% premium at commodity ages, while older breeding-stock prices stay higher.
+
 ### Fixed
 
 - Selling a dewar with K did nothing once the player had been in a vehicle: the sell action was re-registered for the vehicle and the on-foot one was never switched on.
