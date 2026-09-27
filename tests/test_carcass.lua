@@ -260,6 +260,46 @@ check("shim answers getSubTypeIndex/getNumAnimals", #list == 1 and getterStyle.c
 check("weight ratio clamped at 2.5", near(yield(animal(1, 5000, 1)), 2.5))
 AnimalMoveEvent.carcassConfig = shipped
 
+-- Contract recipes rescaled to the farm butcher's meat per typical animal (animalType#meatPerHead).
+local BEEFMEAT, PORKMEAT, POULTRYMEAT, SHEEPMEAT, WASTE = 30, 31, 32, 33, 34
+local function contractRecipes(subTypeToFillType)
+    local function recipe(id, input, output, amount, extra)
+        local r = { id = id, inputs = { [input] = { amount = 1 } }, outputs = { [output] = { amount = amount } },
+            primaryOutputFillTypeIndex = output }
+        if extra ~= nil then r.outputs[WASTE] = { amount = extra } end
+        return r
+    end
+    local recipes = { recipe("beef", BEEF, BEEFMEAT, 1000), recipe("pork", PIGS, PORKMEAT, 500),
+        recipe("poultry", POULTRY, POULTRYMEAT, 100), recipe("sheep", SHEEPGOAT, SHEEPMEAT, 400, 80) }
+    return { spec_contractProductionService = { serviceId = "slaughterhouse", recipes = recipes },
+        animalSubTypeToFillType = subTypeToFillType or { [1] = BEEF, [2] = BEEF, [3] = PIGS, [4] = POULTRY,
+            [5] = POULTRY, [6] = SHEEPGOAT, [7] = SHEEPGOAT } }, recipes
+end
+
+local target, recipes = contractRecipes()
+check("contract recipes: beef, pork and sheep rescaled; a type without meatPerHead left alone",
+    AnimalMoveEvent.alignContractRecipes(target) == 3)
+check("contract recipes: 1 cow -> 450 kg, 1 pig -> 75 kg, like the farm butcher",
+    near(recipes[1].outputs[BEEFMEAT].amount, 450) and near(recipes[2].outputs[PORKMEAT].amount, 75))
+check("contract recipes: DUCKWILD (no meatPerHead) keeps 100", recipes[3].outputs[POULTRYMEAT].amount == 100)
+check("contract recipes: sheep 400 -> 50 kg, its other output scaled by the same factor",
+    near(recipes[4].outputs[SHEEPMEAT].amount, 50) and near(recipes[4].outputs[WASTE].amount, 10))
+AnimalMoveEvent.alignContractRecipes(target)
+check("contract recipes: a second run does not scale again",
+    near(recipes[1].outputs[BEEFMEAT].amount, 450) and near(recipes[4].outputs[WASTE].amount, 10))
+
+target, recipes = contractRecipes({ [1] = BEEF, [3] = BEEF })
+check("contract recipes: a fill type taken by two animal types is left alone",
+    AnimalMoveEvent.alignContractRecipes(target) == 0 and recipes[1].outputs[BEEFMEAT].amount == 1000)
+check("contract recipes: a placeable without the contract spec is ignored",
+    AnimalMoveEvent.alignContractRecipes({}) == 0 and AnimalMoveEvent.alignContractRecipes(nil) == 0)
+
+-- The reported Swiss Brown bull: 516 kg, average meat gene, target 900 kg -> 0.79 typical animals.
+SUBS[10] = { typeIndex = 1, targetWeight = 900, name = "BULL_SWISS_BROWN", breed = "SWISS_BROWN", gender = "male" }
+local bull = yield(animal(10, 516, 1))
+check("Swiss Brown bull 516 kg: 0.79 typical animals, 356 kg of beef at either facility",
+    near(bull, 0.794, 0.002) and near(bull * 750 * 900 / 1500, bull * 450))
+
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") then check("no script error: " .. line, false) end
 end

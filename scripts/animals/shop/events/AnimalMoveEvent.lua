@@ -52,7 +52,7 @@ AnimalMoveEvent.CARCASS_CONFIG_DEFAULTS = {
 --- Per-animal settings, looked up subtype, then breed within the animal type, then animal type,
 --- then on the carcassYield element (RLBreedTraits.resolve).
 AnimalMoveEvent.CARCASS_ATTRIBUTES = { "anchorWeight", "referenceWeight", "maleMaturity", "femaleMaturity",
-	"carcassFactor", "qualitySwing" }
+	"carcassFactor", "qualitySwing", "meatPerHead" }
 
 --- Used when no layer sets them.
 AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS = { maleMaturity = 1, femaleMaturity = 1, carcassFactor = 1, qualitySwing = 0.2 }
@@ -219,6 +219,93 @@ function AnimalMoveEvent._applyCarcassYield(targetObject, subTypeIndex, animal)
 		tostring(fillType), configured, scaled, tostring(animal and animal.weight))
 
 	return function() unitsByFillType[fillType] = configured end
+end
+
+
+--- Meat one typical animal of a type gives, in the output fill type's units (kg), from
+--- carcassYield animalType#meatPerHead. Read per animal type only: a facility's recipe is shared
+--- by every breed that goes in as the same fill type.
+--- @param typeName string|nil
+--- @return number|nil meatPerHead nil when the type sets none
+function AnimalMoveEvent.getMeatPerHead(typeName)
+	if typeName == nil then return nil end
+	local layer = AnimalMoveEvent.getCarcassConfig().layers.types[typeName:upper()]
+	local value = layer ~= nil and layer.meatPerHead or nil
+	return value ~= nil and value > 0 and value or nil
+end
+
+
+--- Rescale a contract facility's animal recipes (Hof Bergmann's public slaughterhouse) so one
+--- input unit - one typical animal, as delivery credits it - gives meatPerHead of meat, the same
+--- as the farm butcher. The shipped recipes give 1000 kg of beef, 500 kg of pork or 400 kg of
+--- sheep meat per animal, two to eight times the butcher. Every output of the recipe is scaled
+--- by the same factor, and fees are left alone, so they stay per typical animal.
+---
+--- Runs on every peer from Placeable.finalizePlacement, as the recipe table is also what the
+--- order dialog shows. The shipped amounts are kept on the recipe, so running it again is a no-op.
+--- @param placeable table
+--- @return number patched Number of recipes rescaled
+function AnimalMoveEvent.alignContractRecipes(placeable)
+	local spec = placeable ~= nil and placeable.spec_contractProductionService or nil
+	local subTypeToFillType = placeable ~= nil and placeable.animalSubTypeToFillType or nil
+	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
+	if spec == nil or type(spec.recipes) ~= "table" or type(subTypeToFillType) ~= "table" or animalSystem == nil then
+		return 0
+	end
+
+	-- Animal type behind each input fill type; a fill type shared by two types is left alone.
+	local typeByFillType = {}
+	for subTypeIndex, fillType in pairs(subTypeToFillType) do
+		local typeName = RLBreedTraits.getTypeName(animalSystem:getSubTypeByIndex(subTypeIndex))
+		if typeName ~= nil then
+			local known = typeByFillType[fillType]
+			if known == nil then
+				typeByFillType[fillType] = typeName
+			elseif known ~= typeName then
+				typeByFillType[fillType] = false
+			end
+		end
+	end
+
+	local patched = 0
+	for _, recipe in ipairs(spec.recipes) do
+		local fillType, input = next(recipe.inputs or {})
+		local single = fillType ~= nil and next(recipe.inputs, fillType) == nil
+		local typeName = single and typeByFillType[fillType] or nil
+		local meatPerHead = typeName and AnimalMoveEvent.getMeatPerHead(typeName) or nil
+		local primary = recipe.outputs ~= nil and recipe.outputs[recipe.primaryOutputFillTypeIndex] or nil
+
+		if meatPerHead ~= nil and primary ~= nil and input.amount > 0 then
+			if recipe.rlShippedOutputAmounts == nil then
+				recipe.rlShippedOutputAmounts = {}
+				for outputFillType, output in pairs(recipe.outputs) do
+					recipe.rlShippedOutputAmounts[outputFillType] = output.amount
+				end
+			end
+
+			local shipped = recipe.rlShippedOutputAmounts
+			local scale = meatPerHead * input.amount / shipped[recipe.primaryOutputFillTypeIndex]
+			for outputFillType, output in pairs(recipe.outputs) do
+				output.amount = shipped[outputFillType] * scale
+			end
+			patched = patched + 1
+			Log:debug("AnimalMoveEvent.alignContractRecipes: recipe %s (%s) %.1f -> %.1f per animal",
+				tostring(recipe.id), typeName, shipped[recipe.primaryOutputFillTypeIndex] / input.amount, meatPerHead)
+		end
+	end
+
+	if patched > 0 then
+		Log:info("AnimalMoveEvent.alignContractRecipes: %d recipe(s) of %s set to the butcher's meat per animal",
+			patched, tostring(spec.serviceId))
+	end
+	return patched
+end
+
+
+if Placeable ~= nil and Placeable.finalizePlacement ~= nil then
+	Placeable.finalizePlacement = Utils.appendedFunction(Placeable.finalizePlacement, function(self)
+		AnimalMoveEvent.alignContractRecipes(self)
+	end)
 end
 
 

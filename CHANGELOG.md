@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Hof Bergmann's public slaughterhouse gave far more meat per animal than the farm butcher: 1000 kg of beef per typical cow against 450, 500 kg of pork per pig against 75, 400 kg of sheep meat per sheep against 50. Buying animals to slaughter them there made money for nothing. Its recipes are now rescaled at load to the butcher's meat per animal (the new meatPerHead in xml/carcassYield.xml), so both give the same meat and the slaughterhouse only saves time and work. Fees stay per animal. Horses keep the slaughterhouse's own recipe, as the butcher takes none.
+
 ## 1.4.0.1-dev.5 (xtcg fork, Hof Bergmann)
 
 ### Fixed
