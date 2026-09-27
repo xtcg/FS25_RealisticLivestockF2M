@@ -31,6 +31,7 @@
 - Gilts grow at 95% of a boar's rate (new femaleGrowth trait, was 60% like all females), so finishing gilts are ready with the boars. Cattle and sheep females stay at 60%.
 - Food curves rescaled so feed per kg gained keeps the breed order: against Angus, Limousin 0.92, Hereford 0.96, Swiss Brown 1.00, Holstein and Water Buffalo 1.05, Highland 1.15; against Black Pied pigs, Landrace 0.90, Berkshire 1.15; against Landrace sheep, Black Welsh 0.93, Steinschaf 1.05, Swiss Mountain 1.09.
 - Cows' food follows the change in their frame, (new target − birth weight) / (old − birth weight) ^ 0.75: Holstein x1.14, Water Buffalo x1.23, Limousin x1.03, Angus x0.94, Hereford x0.91, Highland x0.74, Swiss Brown unchanged. Milk is under "Milk by breed" above.
+- Hof Bergmann's bull stable semen follows the dewar collection age curve: half at 12 months, full from 18, falling from 70% of the last fertile month (132 months x fertility) to 30%, then none (was full from 24 to 54 months, then down to none at 168).
 
 ### Fixed
 

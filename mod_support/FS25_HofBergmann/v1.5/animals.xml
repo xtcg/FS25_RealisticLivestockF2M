@@ -691,20 +691,16 @@
         <!--
             BULL: Hof Bergmann 1.5's bull-stable animal, a COW subtype whose semen is modelled as a
             <milk fillType="BULLSPERM"> output. Marked male - RLRM's name-based gender detection reads
-            "BULL" (no underscore) as female. The semen curve replaces the map's, which peaked at 12
-            months and stopped at 24: output starts at 12 months, is full from 24 to 54 months - inside
-            the slaughterhouse's 60-month limit, so a bull can still be sold for meat after its prime -
-            then declines to nothing at 14 years. Key values load as integers, so the shape comes from
-            the game's linear interpolation between keys (about 0.63 L/day at 8 years, 0.21 at 12).
+            "BULL" (no underscore) as female. The flat curve only sets the peak amount; RLRM scales it
+            by the sire's fertility and the dewar collection age curve (RLSemenCollection): nothing
+            before 12 months, half at 12, full at 18, down from 70% of the last fertile month (132
+            months x fertility) to 30% at it, then nothing.
         -->
         <subType subType="BULL" gender="male">
             <output>
                 <milk fillType="BULLSPERM">
-                    <key ageMonth="0" value="0"/>
-                    <key ageMonth="11" value="0"/>
-                    <key ageMonth="24" value="1"/>
-                    <key ageMonth="54" value="1"/>
-                    <key ageMonth="168" value="0"/>
+                    <key ageMonth="0" value="1"/>
+                    <key ageMonth="360" value="1"/>
                 </milk>
             </output>
         </subType>
