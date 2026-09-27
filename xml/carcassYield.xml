@@ -1,37 +1,67 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <!--
     Carcass yield for deliveries to production butchers and contract slaughterhouses
-    (Hof Bergmann's farm butcher and public slaughterhouse).
-
-    An animal counts as  live weight / referenceWeight x (1 + qualitySwing x (meat gene - 1))
-    typical animals, so one of reference weight and average genes gets exactly what the
+    (Hof Bergmann's farm butcher and public slaughterhouse), in "typical animals": the units a
     facility is configured for per head.
 
-    qualitySwing    Yield change per unit of the meat gene (0.25 - 1.75, 1 = average).
-                    0.25 gives -18.75% .. +18.75%.
-    minWeightRatio  Bounds on live weight / referenceWeight.
-    maxWeightRatio
+        reference = the animal's own target weight x maleMaturity (or femaleMaturity)
+        size      = clamp((reference / anchorWeight) ^ sizeExponent, minSizeFactor, maxSizeFactor)
+        finish    = clamp((live weight / reference) ^ finishExponent, minFinishFactor, maxFinishFactor)
+        yield     = size x finish x carcassFactor x (1 + qualitySwing x (meat gene - 1))
 
-    referenceWeight is a typical slaughter live weight in kg. It is looked up by subType name
-    first, then by breed within the animal type, then by animal type. An animal with none
-    falls back to the mean target weight of the subtypes the facility accepts.
+    The animal's own target weight is its breed's, moved by its metabolism gene. Maturity is the
+    share of it a typical slaughter animal of that sex has reached: a finished steer or young
+    bull, a cull cow. So a large-framed breed finished to its reference yields more than a small
+    one, but less than in proportion to weight, and an animal short of its reference yields less.
+
+    anchorWeight   The reference weight that counts as size 1.
+    referenceWeight  Optional: a fixed reference in kg, used instead of target weight x maturity.
+    carcassFactor  Breed carcass merit (dressing, muscling, meat value).
+    qualitySwing   Yield change per unit of the meat gene (0.25 - 1.75, 1 = average).
+
+    Each of these is looked up by subType name first, then by breed within the animal type, then
+    by animal type, then on the carcassYield element. A type with no anchorWeight uses the mean
+    target weight of the subtypes the facility takes as the same fill type.
 
     To change these without editing the mod, copy this file to
     modSettings/FS25_RealisticLivestockRM/carcassYield.xml; that copy then replaces this file
     entirely. In multiplayer the server's file applies.
 -->
-<carcassYield qualitySwing="0.25" minWeightRatio="0.1" maxWeightRatio="2.5">
-    <animalType name="COW" referenceWeight="650"/>      <!-- finished steer / young bull -->
-    <animalType name="PIG" referenceWeight="120"/>      <!-- finishing pig -->
-    <animalType name="SHEEP" referenceWeight="50">      <!-- lamb -->
-        <breed name="GOAT" referenceWeight="32"/>       <!-- goats share the SHEEP type -->
+<carcassYield qualitySwing="0.20"
+              sizeExponent="0.25" minSizeFactor="0.88" maxSizeFactor="1.15"
+              finishExponent="0.85" minFinishFactor="0.5" maxFinishFactor="1.3">
+    <animalType name="COW" anchorWeight="650" maleMaturity="0.75" femaleMaturity="0.90">
+        <breed name="HOLSTEIN"      maleMaturity="0.68" femaleMaturity="0.85" carcassFactor="0.94"/>
+        <breed name="SWISS_BROWN"   maleMaturity="0.74" femaleMaturity="0.85" carcassFactor="0.98"/>
+        <breed name="HEREFORD"      maleMaturity="0.76" carcassFactor="1.00"/>
+        <breed name="ANGUS"         maleMaturity="0.78" carcassFactor="1.06"/>
+        <breed name="LIMOUSIN"      maleMaturity="0.75" carcassFactor="1.06"/>
+        <breed name="HIGHLAND"      maleMaturity="0.78" carcassFactor="1.01"/>
+        <breed name="WATER_BUFFALO" maleMaturity="0.72" carcassFactor="0.94"/>
     </animalType>
-    <animalType name="HORSE" referenceWeight="550"/>
-    <animalType name="CHICKEN" referenceWeight="2.5"/>  <!-- ducks share the type on Hof Bergmann -->
-    <animalType name="GOOSE" referenceWeight="6"/>
-    <animalType name="RABBIT" referenceWeight="2.8"/>
+
+    <!-- Finishing pigs go at about 120 kg whatever the breed; breeding stock grows on to 200-300 kg. -->
+    <animalType name="PIG" anchorWeight="120" maleMaturity="0.42" femaleMaturity="0.52">
+        <breed name="BERKSHIRE"  carcassFactor="1.08"/>
+        <breed name="LANDRACE"   carcassFactor="1.00"/>
+        <breed name="BLACK_PIED" carcassFactor="0.96"/>
+    </animalType>
+
+    <!-- Male lambs and kids go young; ewes and does are culled grown. Goats share the SHEEP type. -->
+    <animalType name="SHEEP" anchorWeight="50" maleMaturity="0.62" femaleMaturity="0.85">
+        <breed name="BLACK_WELSH"    carcassFactor="1.00"/>
+        <breed name="LANDRACE"       carcassFactor="1.00"/>
+        <breed name="STEINSCHAF"     carcassFactor="1.02"/>
+        <breed name="SWISS_MOUNTAIN" carcassFactor="1.04"/>
+        <breed name="GOAT" anchorWeight="32" maleMaturity="0.45" carcassFactor="0.94" qualitySwing="0.12"/>
+    </animalType>
+
+    <animalType name="HORSE" anchorWeight="550"/>
+    <animalType name="CHICKEN" anchorWeight="2.5"/>  <!-- ducks share the type on Hof Bergmann -->
+    <animalType name="GOOSE" anchorWeight="6"/>
+    <animalType name="RABBIT" anchorWeight="2.8"/>
 
     <!-- Example of a single subtype:
-    <subType name="BULL_HIGHLAND_CATTLE" referenceWeight="800"/>
+    <subType name="BULL_HIGHLAND_CATTLE" maleMaturity="0.80"/>
     -->
 </carcassYield>
