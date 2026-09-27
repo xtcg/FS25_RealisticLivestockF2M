@@ -18,6 +18,10 @@
     referenceWeight  Optional: a fixed reference in kg, used instead of target weight x maturity.
     carcassFactor  Breed carcass merit (dressing, muscling, meat value).
     qualitySwing   Yield change per unit of the meat gene (0.25 - 1.75, 1 = average).
+    meatPerHead    Animal type only: kg of meat one typical animal gives. A contract slaughterhouse's
+                   recipe (Hof Bergmann's public one) is rescaled to it at load, so it gives the same
+                   meat as the farm butcher (its unitsPerAnimal x recipe output / input) and only
+                   saves time and work. A type without it keeps the facility's own recipe.
 
     Each of these is looked up by subType name first, then by breed within the animal type, then
     by animal type, then on the carcassYield element. A type with no anchorWeight uses the mean
@@ -30,7 +34,7 @@
 <carcassYield qualitySwing="0.20"
               sizeExponent="0.25" minSizeFactor="0.88" maxSizeFactor="1.15"
               finishExponent="0.85" minFinishFactor="0.5" maxFinishFactor="1.3">
-    <animalType name="COW" anchorWeight="650" maleMaturity="0.75" femaleMaturity="0.90">
+    <animalType name="COW" anchorWeight="650" meatPerHead="450" maleMaturity="0.75" femaleMaturity="0.90">
         <breed name="HOLSTEIN"      maleMaturity="0.68" femaleMaturity="0.85" carcassFactor="0.94"/>
         <breed name="SWISS_BROWN"   maleMaturity="0.74" femaleMaturity="0.85" carcassFactor="0.98"/>
         <breed name="HEREFORD"      maleMaturity="0.76" carcassFactor="1.00"/>
@@ -42,7 +46,7 @@
 
     <!-- Finishing pigs go at about 120 kg whatever the breed; breeding stock grows on to 200-300 kg.
          Black Pied is a smaller frame, so it is finished at a larger share of it. -->
-    <animalType name="PIG" anchorWeight="120" maleMaturity="0.42" femaleMaturity="0.52">
+    <animalType name="PIG" anchorWeight="120" meatPerHead="75" maleMaturity="0.42" femaleMaturity="0.52">
         <breed name="BERKSHIRE"  carcassFactor="1.08"/>
         <breed name="LANDRACE"   carcassFactor="1.00"/>
         <breed name="BLACK_PIED" maleMaturity="0.48" femaleMaturity="0.67" carcassFactor="0.96"/>
@@ -51,7 +55,7 @@
     <!-- Male lambs and kids go young; ewes and does are culled grown. Goats share the SHEEP type.
          A goat's anchor is 32 kg, but its reference still comes from its own target and sex:
          about 34 kg for a buck kid (75 x 0.45) and 51 kg for a cull doe (60 x 0.85). -->
-    <animalType name="SHEEP" anchorWeight="50" maleMaturity="0.62" femaleMaturity="0.85">
+    <animalType name="SHEEP" anchorWeight="50" meatPerHead="50" maleMaturity="0.62" femaleMaturity="0.85">
         <breed name="BLACK_WELSH"    carcassFactor="1.00"/>
         <breed name="LANDRACE"       carcassFactor="1.00"/>
         <breed name="STEINSCHAF"     carcassFactor="1.02"/>
@@ -59,10 +63,13 @@
         <breed name="GOAT" anchorWeight="32" maleMaturity="0.45" carcassFactor="0.94" qualitySwing="0.12"/>
     </animalType>
 
+    <!-- meatPerHead is the farm butcher's: cow 750 x 900/1500, pig 120 x 150/240, sheep 80 x 100/160,
+         chicken 10 x 60/100, goose 15 x 55/90, rabbit 10 x 40/70. The butcher takes no horses, so the
+         slaughterhouse keeps its own horse recipe. -->
     <animalType name="HORSE" anchorWeight="550"/>
-    <animalType name="CHICKEN" anchorWeight="2.5"/>  <!-- ducks share the type on Hof Bergmann -->
-    <animalType name="GOOSE" anchorWeight="6"/>
-    <animalType name="RABBIT" anchorWeight="2.8"/>
+    <animalType name="CHICKEN" anchorWeight="2.5" meatPerHead="6"/>  <!-- ducks share the type on Hof Bergmann -->
+    <animalType name="GOOSE" anchorWeight="6" meatPerHead="9.17"/>
+    <animalType name="RABBIT" anchorWeight="2.8" meatPerHead="5.71"/>
 
     <!-- Example of a single subtype:
     <subType name="BULL_HIGHLAND_CATTLE" maleMaturity="0.80"/>
