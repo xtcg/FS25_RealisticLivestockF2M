@@ -71,18 +71,20 @@ Sheep and goat prices peak at 36 months and stay at that level for older animals
 
 ### Typical Sell Prices ($)
 
-| Breed | | Newborn | 36 mo (peak) |
-|-------|---|---------|--------------|
-| **Black Welsh** | Ewe | 35 | 520 |
-| | Ram | 45 | 600 |
-| **Landrace** | Ewe | 40 | 550 |
-| | Ram | 50 | 675 |
-| **Steinschaf** | Ewe | 80 | 900 |
-| | Ram | 100 | 1,050 |
-| **Swiss Mountain** | Ewe | 100 | 1,050 |
-| | Ram | 120 | 1,200 |
-| **Goat** | Doe | 100 | 1,000 |
-| | Ram Goat | 150 | 1,500 |
+Commodity lambs are normally sold around 5-6 months; 36-month values below are mature breeding-stock values.
+
+| Breed | | Newborn | 6 mo | 36 mo (peak) |
+|-------|---|---------|------|--------------|
+| **Black Welsh** | Ewe | 35 | 130 | 520 |
+| | Ram | 45 | 155 | 600 |
+| **Landrace** | Ewe | 40 | 140 | 550 |
+| | Ram | 50 | 170 | 675 |
+| **Steinschaf** | Ewe | 80 | 180 | 900 |
+| | Ram | 100 | 210 | 1,050 |
+| **Swiss Mountain** | Ewe | 100 | 190 | 1,050 |
+| | Ram | 120 | 220 | 1,200 |
+| **Goat** | Doe | 100 | 300 | 1,000 |
+| | Ram Goat | 150 | 350 | 1,500 |
 
 *These are typical prices for an average, healthy animal. Actual prices vary widely - well-bred healthy animals sell for significantly more, poor-quality animals can sell for far less, and a sick animal is worth less while sick.*
 
