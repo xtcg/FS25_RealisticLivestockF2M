@@ -1,6 +1,6 @@
 <modDesc descVersion="110">
     <author>Ritter</author>
-    <version>1.4.0.1-dev.2</version>
+    <version>1.4.0.1-dev.3</version>
     <title>
         <en>Realistic Livestock - Ritter version</en>
         <it>Allevamento Realistico - Versione Ritter</it>
@@ -26,9 +26,12 @@ Source code and issue tracker: https://github.com/rittermod/FS25_RealisticLivest
 
 Changelog
 
-1.4.0.1-dev.2 (xtcg fork, Hof Bergmann):
+1.4.0.1-dev.3 (xtcg fork, Hof Bergmann):
 - Fixed the Hof Bergmann public slaughterhouse refusing every animal, and passed the delivering farm to it in multiplayer.
-- Butcher and slaughterhouse deliveries now scale with the animal: live weight against a typical slaughter weight (cattle 650 kg, pigs 120 kg, sheep 50 kg, goats 32 kg), times its meat gene. Settings in xml/carcassYield.xml; a copy in modSettings/FS25_RealisticLivestockRM/ replaces it.
+- Butcher and slaughterhouse deliveries now scale with the animal: its frame (its own target weight x a slaughter maturity for its breed and sex), how finished it is, its breed's carcass factor and its meat gene. Settings in xml/carcassYield.xml; a copy in modSettings/FS25_RealisticLivestockRM/ replaces it.
+- New breed target weights for cattle, pigs, sheep and goats; animals in a save move to them.
+- Breeds differ in feed, growth and how well they use grass, hay and silage (xml/breedTraits.xml). Growth needs better feed for full speed: silage no longer grows as fast as TMR. Daily food follows body condition.
+- Milk by breed relative to Holstein (330, unchanged): Swiss Brown 280, Hereford 80, Angus 70, Limousin 60, Highland 50.
 - A delivery that does not fit the facility's room or the farm's fee budget is refused whole and stays in the trailer.
 - Added collecting and selling semen from your own sires, and fixed Hof Bergmann's bull stable semen.
 - Added pen rules for Hof Bergmann's cattle buildings: calf igloos take all calves up to 5 months, calf rearing boxes male and steer calves, bull barns intact bulls from 6 months, the farm cow barn Holstein and Swiss Brown cows, the cow barn with pasture and the pastures cows, steers and bulls under 12 months. RLRM bulls, male calves, steers and Hereford now have somewhere to go.

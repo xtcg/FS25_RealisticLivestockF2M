@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0.1-dev.2 (xtcg fork, Hof Bergmann)
+## 1.4.0.1-dev.3 (xtcg fork, Hof Bergmann)
 
 ### Added
 
