@@ -1,6 +1,6 @@
 <modDesc descVersion="110">
     <author>Ritter</author>
-    <version>1.4.0.1-dev.5</version>
+    <version>1.4.0.1-dev.6</version>
     <title>
         <en>Realistic Livestock - Ritter version</en>
         <it>Allevamento Realistico - Versione Ritter</it>
@@ -25,6 +25,13 @@ Documentation: https://rittermod.github.io/FS25_RealisticLivestockRM
 Source code and issue tracker: https://github.com/rittermod/FS25_RealisticLivestockRM
 
 Changelog
+
+1.4.0.1-dev.6 (xtcg fork, Hof Bergmann):
+- Live animals are worth at least 85% of what their meat fetches at the best selling point (70% for old cows, bulls, sows, boars and mutton), so dealer prices follow the meat price and buying to slaughter leaves only a thin margin. Settings in xml/carcassYield.xml.
+- Hof Bergmann's public slaughterhouse gives the same meat per animal as the farm butcher; it only saves time and work.
+- Light animals give meat by weight at the butcher and slaughterhouse (a 120 kg calf no longer counts as half a grown one).
+- Recalibrated cattle, pig and sheep/goat live-market prices to realistic weights and finishing ages. Budget dealer markup 5% instead of 1%.
+- Semen is priced by the sire's breeding index; your own semen sells at about 70% of the dealer's price for the same genetics.
 
 1.4.0.1-dev.5 (xtcg fork, Hof Bergmann):
 - Fixed selling a dewar with K after the player had been in a vehicle.
