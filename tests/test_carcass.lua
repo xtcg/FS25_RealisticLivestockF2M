@@ -73,7 +73,7 @@ check("yield: Limousin bull at its reference (1000 x 0.75 = 750 kg) -> 1.099", n
 check("yield: Holstein bull at its reference (1000 x 0.68 = 680 kg) -> 0.951", near(yield(animal(9, 680, 1)), 0.9507, 0.001))
 check("yield: finish (900 / 663) ^ 0.85 for a heavy Angus -> 1.381", near(yield(animal(1, 900, 1)), 1.3813, 0.001))
 check("yield: finish clamped at 1.3 for a huge Angus", near(yield(animal(1, 5000, 1)), 1.3848, 0.001))
-check("yield: finish clamped at 0.5 for a calf", near(yield(animal(1, 50, 1)), 0.5 * 1.0050 * 1.06, 0.001))
+check("yield: no finish floor, a 50 kg calf yields by its weight", near(yield(animal(1, 50, 1)), (50 / 663) ^ 0.85 * 1.0050 * 1.06, 0.001))
 check("yield: meat gene 1.5 -> +10% (qualitySwing 0.2)", near(yield(animal(1, 663, 1.5)) / yield(animal(1, 663, 1)), 1.1))
 check("yield: goat qualitySwing 0.12 -> +6% at gene 1.5", near(yield(animal(6, 51, 1.5)) / yield(animal(6, 51, 1)), 1.06))
 check("yield: own target weight moves the reference (metabolism)",

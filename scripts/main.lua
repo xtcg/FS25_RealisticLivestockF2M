@@ -72,6 +72,7 @@ source(modDirectory .. "scripts/animals/shop/events/AnimalBuyEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalInseminationEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalInseminationResultEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalMoveEvent.lua")
+source(modDirectory .. "scripts/animal/RLMeatValue.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalSellEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/SemenBuyEvent.lua")
 
