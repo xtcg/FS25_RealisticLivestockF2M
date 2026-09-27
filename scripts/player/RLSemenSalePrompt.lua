@@ -12,7 +12,12 @@ local Log = RmLogging.getLogger("RLRM")
 
 
 --- Register the sell action with the player's other actions. Hidden until a dewar is targeted.
+--- On foot only: the game also calls this when the player enters a vehicle, and keeping
+--- that vehicle-context event id would leave the on-foot action unreachable (update would
+--- toggle the vehicle one), so K did nothing once the player had driven anything.
 function RLSemenSalePrompt.addPlayerActionEvents(playerInputComponent, controlling)
+    if controlling == "VEHICLE" then return end
+
     local _, actionEventId = g_inputBinding:registerActionEvent(InputAction.RL_SELL_SEMEN,
         playerInputComponent, RLSemenSalePrompt.onSell, false, true, false, false, nil, true)
 
@@ -52,7 +57,12 @@ end
 --- Action callback: confirm, then ask the server to sell the targeted dewar.
 function RLSemenSalePrompt.onSell(playerInputComponent)
     local dewar = playerInputComponent.dewar
-    if not canSell(dewar) then return end
+    if not canSell(dewar) then
+        Log:debug("RLSemenSalePrompt: K refused (dewar=%s owner=%s playerFarm=%s)", tostring(dewar),
+            tostring(dewar ~= nil and dewar.getOwnerFarmId ~= nil and dewar:getOwnerFarmId()),
+            tostring(g_localPlayer ~= nil and g_localPlayer.farmId))
+        return
+    end
 
     local value = RLSemenCollection.getSellValue(dewar:getAnimal(), dewar.straws)
     local text = string.format(g_i18n:getText("rl_semen_sellConfirm"), dewar.straws,

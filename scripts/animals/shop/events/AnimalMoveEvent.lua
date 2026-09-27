@@ -183,9 +183,25 @@ function AnimalMoveEvent._getScaledButcherUnits(targetObject, subTypeIndex, anim
 		return nil
 	end
 
+	if AnimalMoveEvent._isAnimalConversionInput(targetObject, fillType) then return nil end
+
 	local configured = unitsByFillType[fillType]
 	local factor = AnimalMoveEvent.getCarcassYieldFactor(animal, targetObject, subTypeIndex)
 	return fillType, configured, configured * factor
+end
+
+
+--- Whether a production point turns this input back into live animals (Hof Bergmann's
+--- insemination system: COW_HOLSTEIN in, MILK_COW out at 1000 units per animal). Such an
+--- input is a head count, not meat, so carcass yield must not scale it - a light cow would
+--- otherwise come out as less than one animal.
+function AnimalMoveEvent._isAnimalConversionInput(targetObject, fillType)
+	for _, spec in ipairs(targetObject.eao_specs or {}) do
+		for _, mapping in ipairs(spec.animals or {}) do
+			if mapping.inputFillTypeIndex == fillType then return true end
+		end
+	end
+	return false
 end
 
 
@@ -408,10 +424,15 @@ function AnimalMoveEvent._canTakeEPPBatch(targetObject, transferList, farmId)
 end
 
 
---- Whether _canTakeEPPBatch checks this target by yield rather than by head.
-function AnimalMoveEvent._isWeighedTarget(targetObject, farmId)
-	return AnimalMoveEvent._isWeighedContractTarget(targetObject, farmId)
-		or (targetObject.eppHasScaledAnimalInputs == true and type(targetObject.eppAnimalInputUnitsByFillType) == "table")
+--- Whether _canTakeEPPBatch checks this target by yield rather than by head. Without a
+--- subtype, any unit-based input counts; with one, only an input carcass yield scales (an
+--- animal-conversion input is counted by head).
+function AnimalMoveEvent._isWeighedTarget(targetObject, farmId, subTypeIndex)
+	if AnimalMoveEvent._isWeighedContractTarget(targetObject, farmId) then return true end
+	if targetObject.eppHasScaledAnimalInputs ~= true or type(targetObject.eppAnimalInputUnitsByFillType) ~= "table" then
+		return false
+	end
+	return subTypeIndex == nil or AnimalMoveEvent._getScaledButcherUnits(targetObject, subTypeIndex, nil) ~= nil
 end
 
 
@@ -662,7 +683,7 @@ function AnimalMoveEvent:run(connection)
 			validatedCount = validatedCount + 1
 
 			-- A target that weighs deliveries checks the batch's summed yield at delivery instead.
-			local slotsNeeded = AnimalMoveEvent._isWeighedTarget(self.targetObject, farmId) and 1 or validatedCount
+			local slotsNeeded = AnimalMoveEvent._isWeighedTarget(self.targetObject, farmId, animal.subTypeIndex) and 1 or validatedCount
 			if AnimalMoveEvent._getTargetFreeSlots(self.targetObject, farmId, animal.subTypeIndex) < slotsNeeded then
 				Log:debug("AnimalMoveEvent:run: not enough space at target (need=%d)", slotsNeeded)
 				connection:sendEvent(AnimalMoveEvent.newServerToClient(AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE))

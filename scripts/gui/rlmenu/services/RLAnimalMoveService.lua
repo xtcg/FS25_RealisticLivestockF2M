@@ -42,8 +42,9 @@ RLAnimalMoveService.ERROR_CODE_MAPPING = {
 --- @param sourceHusbandry table|nil The source husbandry placeable (excluded from results; nil for dealer-buy)
 --- @param farmId number The owning farm ID
 --- @param animalSubTypeIndex number The animal subtype that destinations must support
+--- @param animals table|nil The animals; husbandries whose pen rules take none of them are left out
 --- @return table Array of destination entries ({placeable, name, currentCount, maxCount, freeSlots, isEPP, minAge?, maxAge?})
-function RLAnimalMoveService.getValidDestinations(sourceHusbandry, farmId, animalSubTypeIndex)
+function RLAnimalMoveService.getValidDestinations(sourceHusbandry, farmId, animalSubTypeIndex, animals)
     if farmId == nil or farmId == 0 then
         Log:warning("RLAnimalMoveService.getValidDestinations: invalid farmId=%s", tostring(farmId))
         return {}
@@ -53,7 +54,7 @@ function RLAnimalMoveService.getValidDestinations(sourceHusbandry, farmId, anima
     end
     Log:debug("RLAnimalMoveService.getValidDestinations: farmId=%d subTypeIndex=%d source=%s",
         farmId, animalSubTypeIndex, tostring(sourceHusbandry ~= nil))
-    return RLMoveDestinationHelper.getValidDestinations(sourceHusbandry, farmId, animalSubTypeIndex)
+    return RLMoveDestinationHelper.getValidDestinations(sourceHusbandry, farmId, animalSubTypeIndex, animals)
 end
 
 

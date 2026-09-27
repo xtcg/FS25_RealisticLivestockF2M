@@ -126,3 +126,27 @@ local result = RLMoveDestinationHelper.buildMoveValidationResult(
     { cow("BULL_ANGUS", 20), cow("COW_ANGUS", 20) }, { name = "p", placeable = pen("placeables/constructibles/constructible_cowPasture.xml"), freeSlots = 1, isEPP = false }, 1)
 check("move screen: mature bull rejected as PEN_RULES, the cow takes the one slot",
     #result.valid == 1 and #result.rejected == 1 and result.rejected[1].reason == RLHusbandryProfiles.REJECT_PEN_RULES)
+
+-- Buy and move screens list only pens that take at least one of the selected animals.
+local farmIgloo, farmBarn = pen("placeables/animalHusbandry/calfIglus/calfIglu01.xml"),
+    pen("placeables/animalHusbandry/cowHusbandryOldFarm/cowHusbandryOldFarm.xml")
+for _, p in ipairs({ farmIgloo, farmBarn }) do
+    p.getOwnerFarmId = function() return 1 end
+    p.getSupportsAnimalSubType = function() return true end
+    p.getNumOfAnimals = function() return 0 end
+    p.getMaxNumOfAnimals = function() return 10 end
+    p.getNumOfFreeAnimalSlots = function() return 10 end
+end
+g_currentMission.placeableSystem = { placeables = { farmIgloo, farmBarn } }
+local function destinationNames(animals)
+    local names = {}
+    for _, d in ipairs(RLMoveDestinationHelper.getValidDestinations(nil, 1, BY_NAME.COW_HOLSTEIN, animals)) do
+        names[#names + 1] = d.name
+    end
+    return table.concat(names, " ")
+end
+check("destinations: 8-month heifers are not offered the calf igloo",
+    destinationNames({ cow("COW_HOLSTEIN", 8), cow("COW_HOLSTEIN", 9) }) == farmBarn.getName())
+check("destinations: a 2-month calf among them keeps the igloo listed",
+    destinationNames({ cow("COW_HOLSTEIN", 8), cow("COW_HOLSTEIN", 2) }) == farmIgloo.getName() .. " " .. farmBarn.getName())
+check("destinations: no animals given -> every supporting pen", destinationNames(nil) == farmIgloo.getName() .. " " .. farmBarn.getName())
