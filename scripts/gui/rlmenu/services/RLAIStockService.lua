@@ -240,17 +240,14 @@ end
 -- Semen price (middle-column total-price display)
 -- =============================================================================
 
---- The total semen price for a bull and straw quantity. Returns the FINAL price including
---- PRICE_PER_STRAW, not an intermediate the caller must finish:
+--- The total semen price for a bull and straw quantity, including PRICE_PER_STRAW:
 ---
----   price = getFarmSemenPrice(country, farmId)
----         * quantity
----         * PRICE_PER_STRAW
----         * animal.success
----         * 2.25
----         * product(animal.genetics)
+---   price = quantity * RLSemenCollection.getStrawPrice(animal, getFarmSemenPrice(country, farmId))
 ---
---- @param animal table  Raw Animal with `.birthday.country`, `.farmId`, `.success`, `.genetics`
+--- getStrawPrice prices a straw by the bull's breeding index; RLSemenCollection's dewar sale
+--- value uses the same formula, so selling back always stays below the buy price.
+---
+--- @param animal table  Raw Animal with `.birthday.country`, `.farmId`, `.success`, `.genetics`, `.subTypeIndex`
 --- @param quantity number  Positive integer straw count
 --- @return number price
 function RLAIStockService.getPriceForQuantity(animal, quantity)
@@ -272,20 +269,7 @@ function RLAIStockService.getPriceForQuantity(animal, quantity)
     local country = (animal.birthday ~= nil and animal.birthday.country) or 0
     local farmId  = animal.farmId or 0
 
-    local pricePerStraw = (DewarData ~= nil and DewarData.PRICE_PER_STRAW) or 0.85
-    local success = animal.success or 0
-
-    local price = animalSystem:getFarmSemenPrice(country, farmId)
-        * quantity
-        * pricePerStraw
-        * success
-        * 2.25
-
-    if type(animal.genetics) == "table" then
-        for _, value in pairs(animal.genetics) do
-            price = price * value
-        end
-    end
+    local price = quantity * RLSemenCollection.getStrawPrice(animal, animalSystem:getFarmSemenPrice(country, farmId))
 
     Log:trace("RLAIStockService.getPriceForQuantity: uniqueId=%s quantity=%d price=%.2f",
         tostring(animal.uniqueId), quantity, price)
