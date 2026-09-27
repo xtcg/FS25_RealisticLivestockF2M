@@ -133,7 +133,7 @@ check("index: missing productivity leaves the rest averaged",
     near(index({ genetics = { fertility = 0.5, quality = 0.5, health = 0.5, metabolism = 0.5 } }), 0.5))
 -- The playtest sire: every gene 0.67, 133 straws at conception 0.5
 local ordinary = { collected = true, success = 0.5, genetics = { fertility = 0.67, quality = 0.67, health = 0.67, metabolism = 0.67, productivity = 0.67 } }
-check("ordinary sire, 133 straws = 133*4.65*0.5*0.67^3*1.55*0.7 = 97.4",
+check("ordinary sire, 133 straws = 133*4.65*0.5*0.67^3*1.55*0.7 = 100.9",
     near(RLSemenCollection.getSellValue(ordinary, 133), 133 * 4.65 * 0.5 * 0.67 ^ 3 * 1.55 * 0.7, 0.01))
 
 -- SemenSellEvent

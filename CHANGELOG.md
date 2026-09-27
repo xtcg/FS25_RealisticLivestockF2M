@@ -5,7 +5,7 @@
 ### Changed
 
 - Semen is priced by the sire's breeding index instead of the product of all five genes, which made an ordinary sire's straws almost worthless (every gene at 0.67 left 13% of an average sire's price) and an elite one's up to 16 times it. The index is a weighted mean of the genes a breed is kept for: dairy breeds (Holstein, Swiss Brown, Water Buffalo, goats) milk 40%, fertility 20%, health 20%, meat and feed efficiency 10% each; other breeds meat 35%, feed efficiency 25%, fertility 20%, health and milk 10% each. Price follows the index cubed, so a sire 25% above average costs about twice as much. The dealer's straws cost about what they did on average (about 18).
-- Your own semen now sells at about 70% of what the dealer charges for the same genetics, like a private sale after commission. It is priced like an average AI stud's semen (price factor 1.55 instead of 1), and the sale share rose from 60% to 70%. Bought semen still resells at 70% of its price. 133 straws from an ordinary bull (genes 0.67, conception 50%) now fetch about 97 instead of 10; from an average bull about 320.
+- Your own semen now sells at about 70% of what the dealer charges for the same genetics, like a private sale after commission. It is priced like an average AI stud's semen (price factor 1.55 instead of 1), and the sale share rose from 60% to 70%. Bought semen still resells at 70% of its price. 133 straws from an ordinary bull (genes 0.67, conception 50%) now fetch about 100 instead of 10; from an average bull about 335.
 
 ## 1.4.0.1-dev.5 (xtcg fork, Hof Bergmann)
 
