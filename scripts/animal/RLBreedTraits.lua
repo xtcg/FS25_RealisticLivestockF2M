@@ -14,8 +14,11 @@ local Log = RmLogging.getLogger("RLRM")
 
 RLBreedTraits.CONFIG_FILE = "breedTraits.xml"
 
---- Per-animal trait attributes; every one is a multiplier, 1 = unchanged.
-RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage" }
+--- Per-animal trait attributes. All but matureAgeMonth are multipliers, 1 = unchanged.
+RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrowth", "matureAgeMonth" }
+
+--- Female growth relative to male, where the file sets none (the mod's original rule).
+RLBreedTraits.DEFAULT_FEMALE_GROWTH = 0.6
 
 --- Forage categories a food fill type can count as. Anything else eats at efficiency 1.
 RLBreedTraits.FORAGE_CATEGORIES = { "grass", "hay", "silage" }
@@ -204,10 +207,47 @@ function RLBreedTraits.get(subType, trait)
 end
 
 
+--- Time scale of growth in months: updateWeight's base gain is (target - minWeight) / this per
+--- month, before breed growth, femaleGrowth, age and nutrition change the actual rate. It is also
+--- the age at which the expected weight for age (food, sale value, newly generated animals)
+--- reaches the target. matureAgeMonth when set, else 1.5 x the subtype's reproductionMinAgeMonth
+--- (the mod's original rule).
+--- @param subType table|nil
+--- @return number months, 0 when unknown
+function RLBreedTraits.getMatureAge(subType)
+    if subType == nil then return 0 end
+    local default = (subType.reproductionMinAgeMonth or 0) * 1.5
+    return RLBreedTraits.resolve(RLBreedTraits.getConfig().layers, subType, "matureAgeMonth", default)
+end
+
+
+--- Growth of a female relative to a male of the subtype (femaleGrowth, default 0.6).
+--- @param subType table|nil
+--- @return number
+function RLBreedTraits.getFemaleGrowth(subType)
+    return RLBreedTraits.resolve(RLBreedTraits.getConfig().layers, subType, "femaleGrowth",
+        RLBreedTraits.DEFAULT_FEMALE_GROWTH)
+end
+
+
+--- Weight an animal on the growth line has at `age`: from the subtype's minWeight to
+--- `targetWeight` by getMatureAge, then flat.
+--- @param subType table
+--- @param targetWeight number
+--- @param age number|nil Months; nil counts as grown
+--- @return number
+function RLBreedTraits.getExpectedWeight(subType, targetWeight, age)
+    local minWeight = subType.minWeight or 0
+    local matureAge = RLBreedTraits.getMatureAge(subType)
+    local grown = matureAge > 0 and math.clamp((age or matureAge) / matureAge, 0, 1) or 1
+    return minWeight + (targetWeight - minWeight) * grown
+end
+
+
 --- Food multiplier for an animal's body condition: (weight / expected weight for its age)
---- ^ bodyWeightExponent. The expected weight grows linearly from the subtype's minWeight to the
---- animal's own target weight by the adult age updateWeight uses, so the age curve in the
---- subtype's food input is not counted twice. The ratio is clamped to minBodyRatio..maxBodyRatio.
+--- ^ bodyWeightExponent, the expected weight from getExpectedWeight with the animal's own target,
+--- so the age curve in the subtype's food input is not counted twice. The ratio is clamped to
+--- minBodyRatio..maxBodyRatio.
 --- @param subType table|nil
 --- @param weight number|nil
 --- @param targetWeight number|nil The animal's own target weight
@@ -217,10 +257,7 @@ function RLBreedTraits.getBodyFeedFactor(subType, weight, targetWeight, age)
     if subType == nil or weight == nil or targetWeight == nil or targetWeight <= 0 then return 1 end
 
     local config = RLBreedTraits.getConfig()
-    local minWeight = subType.minWeight or 0
-    local adultMonth = (subType.reproductionMinAgeMonth or 0) * 1.5
-    local grown = adultMonth > 0 and math.clamp((age or adultMonth) / adultMonth, 0, 1) or 1
-    local expected = minWeight + (targetWeight - minWeight) * grown
+    local expected = RLBreedTraits.getExpectedWeight(subType, targetWeight, age)
     if expected <= 0 then return 1 end
 
     local ratio = math.clamp(weight / expected, config.minBodyRatio, config.maxBodyRatio)

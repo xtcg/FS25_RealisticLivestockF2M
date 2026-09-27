@@ -1,4 +1,4 @@
-"""Print the static feeding economics of tests/economics.lua for each cattle breed.
+"""Print the static feeding economics of tests/economics.lua: bulls on four rations, pigs, rams, dairy.
 
     python tests/economics.py                 # current rules and xml/animals.xml
     python tests/economics.py --legacy FILE   # pre-breed-traits rules on an older animals.xml
@@ -24,6 +24,7 @@ def main():
     g.REPO = REPO + "/"
     g.ANIMALS_XML = animals
     g.LEGACY = legacy
+    g.REPORT = True
     for name in ("stubs.lua", "economics.lua"):
         with open(os.path.join(TESTS, name), encoding="utf-8") as f:
             lua.execute(f.read())

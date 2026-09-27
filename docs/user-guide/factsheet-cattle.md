@@ -12,9 +12,9 @@ Cattle are the most diverse livestock in Realistic Livestock RM, with 7 breeds r
 
 | Breed | Type | Target Weight | Milk Range (peak, lactating) | Sell Value |
 |-------|------|--------------|------------------------------|------------|
-| **Holstein** | Dairy | 680 / 1,000 kg | 65 - 750 L/month | Moderate |
+| **Holstein** | Dairy | 680 / 1,000 kg | 75 - 860 L/month | Moderate |
 | **Hereford** | Beef | 600 / 850 kg | 15 - 180 L/month | Above average |
-| **Swiss Brown** | Dual | 650 / 900 kg | 55 - 635 L/month | Above average |
+| **Swiss Brown** | Dual | 650 / 900 kg | 65 - 725 L/month | Above average |
 | **Angus** | Beef | 650 / 850 kg | 15 - 160 L/month | High |
 | **Highland** *(DLC)* | Beef | 500 / 750 kg | 10 - 115 L/month | High, retains value in old age |
 | **Limousin** | Beef | 650 / 1,000 kg | 10 - 135 L/month | Highest |
@@ -38,9 +38,9 @@ Cows produce milk **only while lactating** (10 months after giving birth). Non-l
 
 | Breed | 12 mo | 36 mo (peak) | 120 mo |
 |-------|-------|--------------|-------|
-| **Holstein** | 40 - 445 | **65 - 750** | 35 - 410 |
+| **Holstein** | 45 - 510 | **75 - 860** | 40 - 470 |
 | **Hereford** | 10 - 130 | **15 - 180** | 10 - 85 |
-| **Swiss Brown** | 40 - 450 | **55 - 635** | 25 - 275 |
+| **Swiss Brown** | 45 - 515 | **65 - 725** | 30 - 315 |
 | **Angus** | 10 - 100 | **15 - 160** | 5 - 70 |
 | **Highland** | 5 - 70 | **10 - 115** | 5 - 50 |
 | **Limousin** | 10 - 90 | **10 - 135** | 5 - 50 |
@@ -55,11 +55,11 @@ Cows produce milk **only while lactating** (10 months after giving birth). Non-l
 xychart-beta
     title "Swiss Brown Milk Output (average genetics, lactating)"
     x-axis "Age (months)" [12, 24, 36, 48, 60, 72, 84, 96, 108, 120]
-    y-axis "Litres / month" 0 --> 300
-    line [198, 198, 280, 280, 280, 280, 240, 201, 161, 121]
+    y-axis "Litres / month" 0 --> 350
+    line [226, 226, 320, 320, 320, 320, 274, 229, 184, 138]
 ```
 
-*Chart shows Swiss Brown, the dual-purpose breed at about 85% of Holstein, with average genetics. Beef breeds (Hereford, Angus, Limousin, Highland) give 15-24% of Holstein - see the table above for per-breed ranges. The line is the **age** curve (the cow's lifetime production envelope while lactating); the **lactation-phase** curve within each 10-month nursing window is shown separately in the [Breeding Guide](guide-breeding.md#lactation-phase-curve), and the breed table's "55 - 635" range combines both factors with the genetics multiplier.*
+*Chart shows Swiss Brown, the dual-purpose breed at about 85% of Holstein, with average genetics. Beef breeds (Hereford, Angus, Limousin, Highland) give 13-21% of Holstein - see the table above for per-breed ranges. The line is the **age** curve (the cow's lifetime production envelope while lactating); the **lactation-phase** curve within each 10-month nursing window is shown separately in the [Breeding Guide](guide-breeding.md#lactation-phase-curve), and the breed table's "65 - 725" range combines both factors with the genetics multiplier.*
 
 ---
 
