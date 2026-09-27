@@ -2,8 +2,8 @@
     RLSemenCollection.lua
     Rules for collecting semen from the player's own sires into a dewar, and for selling a
     dewar back. A collected dewar carries the sire's snapshot like a bought one, so its straws
-    inseminate with that sire's genetics, and its sale value follows the same genetics-driven
-    formula the AI dealer charges - a better sire's semen is worth more.
+    inseminate with that sire's genetics, and its sale value follows the same breeding-index
+    formula the AI dealer charges (getStrawPrice) - a better sire's semen is worth more.
 
     One collection per sire per month (tracked on the animal as `semenCollectedAge`). Straws per
     collection scale with the sire's fertility and an age curve built from the same fertile-age
@@ -33,8 +33,32 @@ RLSemenCollection.DEFAULT_MIN_AGE = { COW = 12, SHEEP = 8, PIG = 8, HORSE = 24 }
 --- AnimalReproduction so a sire too old to breed naturally is too old to collect from.
 RLSemenCollection.MAX_FERTILE_AGE = { COW = 132, SHEEP = 72, PIG = 48, HORSE = 300 }
 
---- Share of the dealer's price a dewar sells for. Below 1 so buying and reselling never profits.
-RLSemenCollection.SELL_SHARE = 0.6
+--- Share of the dealer's price a dewar sells for: a breeder selling straws privately keeps
+--- roughly 70-90% of retail after sale commission and storage. Below 1 so buying and reselling
+--- never profits.
+RLSemenCollection.SELL_SHARE = 0.7
+
+--- Dealer price factor for the player's own semen. The dealer's sires come from farms of quality
+--- 1.35 to 1.75 whose price factor is 0.75-1.25 x quality, 1.55 on average; the player's semen is
+--- priced like an average AI stud's, so the same genetics resell at about 70% of the dealer's
+--- price instead of losing the stud premium on top.
+RLSemenCollection.COLLECTED_PRICE_FACTOR = 1.55
+
+--- Breeding index weights. Real sire indices (Net Merit, TPI, beef $indices) are weighted sums of
+--- the traits a breed is kept for: dairy sires are ranked mostly on their daughters' milk, then
+--- fertility and health; meat and wool sires on carcass merit and growth/feed efficiency.
+RLSemenCollection.INDEX_WEIGHTS = {
+    DAIRY = { productivity = 0.40, fertility = 0.20, health = 0.20, quality = 0.10, metabolism = 0.10 },
+    MEAT = { quality = 0.35, metabolism = 0.25, fertility = 0.20, health = 0.10, productivity = 0.10 },
+}
+
+--- Breeds kept for milk; every other breed is weighted as a meat (or wool) breed.
+RLSemenCollection.DAIRY_BREEDS = { HOLSTEIN = true, SWISS_BROWN = true, WATER_BUFFALO = true, GOAT = true }
+
+--- Semen price rises with the cube of the index: a sire 25% above average is worth about twice as
+--- much, one a third below average about a third, much as elite and ordinary bulls differ in the
+--- straw market.
+RLSemenCollection.INDEX_PRICE_EXPONENT = 3
 
 --- Refusal reasons, as i18n keys.
 RLSemenCollection.REFUSAL = {
@@ -185,25 +209,61 @@ function RLSemenCollection.createSnapshot(animal)
 end
 
 
---- What a dewar sells for: the AI dealer's price for its straws (RLAIStockService formula) times
---- SELL_SHARE. Bought semen keeps its breeder's price factor; the player's own semen has none.
+--- A sire's breeding index: the weighted mean of its genes for what its breed is kept for, 1 for
+--- an average sire. Genes the species lacks (productivity for pigs and horses) are left out and
+--- the other weights share their part.
+--- @param sire table Animal or dewar snapshot with `.genetics` and `.subTypeIndex`
+--- @return number index
+function RLSemenCollection.getBreedingIndex(sire)
+    local genetics = sire ~= nil and sire.genetics or nil
+    if genetics == nil then return 1 end
+
+    local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
+    local subType = animalSystem ~= nil and sire.subTypeIndex ~= nil and animalSystem:getSubTypeByIndex(sire.subTypeIndex) or nil
+    local isDairy = subType ~= nil and RLSemenCollection.DAIRY_BREEDS[subType.breed or ""] == true
+    local weights = RLSemenCollection.INDEX_WEIGHTS[isDairy and "DAIRY" or "MEAT"]
+
+    local sum, weightSum = 0, 0
+    for gene, weight in pairs(weights) do
+        local value = genetics[gene]
+        if type(value) == "number" then
+            sum = sum + value * weight
+            weightSum = weightSum + weight
+        end
+    end
+
+    return weightSum > 0 and sum / weightSum or 1
+end
+
+
+--- The dealer's price for one straw of a sire:
+---   priceFactor x PRICE_PER_STRAW x conception rate x breedingIndex ^ INDEX_PRICE_EXPONENT
+--- @param sire table Animal or dewar snapshot with `.success`, `.genetics`, `.subTypeIndex`
+--- @param priceFactor number The breeding farm's semen price factor
+--- @return number price
+function RLSemenCollection.getStrawPrice(sire, priceFactor)
+    local index = RLSemenCollection.getBreedingIndex(sire)
+    return math.max((priceFactor or 1) * DewarData.PRICE_PER_STRAW * ((sire ~= nil and sire.success) or 0)
+        * index ^ RLSemenCollection.INDEX_PRICE_EXPONENT, 0)
+end
+
+
+--- What a dewar sells for: the AI dealer's price for its straws times SELL_SHARE. Bought semen
+--- keeps its breeder's price factor; the player's own semen is priced like an average AI stud's.
 --- @param snapshot table Dewar animal snapshot
 --- @param straws number
 --- @return number value
 function RLSemenCollection.getSellValue(snapshot, straws)
     if snapshot == nil or straws == nil or straws <= 0 then return 0 end
 
-    local farmFactor = 1
-    if not snapshot.collected and g_currentMission.animalSystem.getFarmSemenPrice ~= nil then
-        farmFactor = g_currentMission.animalSystem:getFarmSemenPrice(snapshot.country, snapshot.farmId) or 1
+    local priceFactor = RLSemenCollection.COLLECTED_PRICE_FACTOR
+    if not snapshot.collected then
+        local animalSystem = g_currentMission.animalSystem
+        priceFactor = animalSystem.getFarmSemenPrice ~= nil
+            and animalSystem:getFarmSemenPrice(snapshot.country, snapshot.farmId) or 1
     end
 
-    local value = farmFactor * straws * DewarData.PRICE_PER_STRAW * (snapshot.success or 0) * 2.25
-    for _, gene in pairs(snapshot.genetics or {}) do
-        value = value * gene
-    end
-
-    return math.max(value * RLSemenCollection.SELL_SHARE, 0)
+    return straws * RLSemenCollection.getStrawPrice(snapshot, priceFactor) * RLSemenCollection.SELL_SHARE
 end
 
 
