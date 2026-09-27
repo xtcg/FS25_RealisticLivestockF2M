@@ -1167,7 +1167,7 @@ function Animal:updateWeight(foodFactor)
 
     local baseIncrease = ((targetWeight - minWeight) / adultMonth) / (24 * g_currentMission.environment.daysPerPeriod)
     local increase = baseIncrease * (self.gender == "female" and 0.6 or 1.0) * (1 + ((adultMonth - self.age) / 75)) *
-    math.min(foodFactor * 1.25, 1)
+    self:getGrowthNutrition(foodFactor)
 
     if increase < 0 then
         metabolism = 1 + (1 - metabolism)
@@ -1180,6 +1180,8 @@ function Animal:updateWeight(foodFactor)
     increase = increase * metabolism
 
     if self.isCastrated then increase = increase * 1.15 end
+
+    if increase > 0 then increase = increase * RLBreedTraits.get(subType, "growth") end
 
     if self.clusterSystem ~= nil and self.clusterSystem.owner ~= nil and self.clusterSystem.owner.spec_husbandryMilk ~= nil and self.isLactating then increase =
         increase * 0.75 end
@@ -1218,6 +1220,20 @@ function Animal:updateWeight(foodFactor)
     local minWeightForAge = minWeight * (math.min(self.age, subType.reproductionMinAgeMonth * 1.5) + 0.5) * 0.5
     if self.weight < minWeightForAge then self.health = math.clamp(
         self.health - (((minWeightForAge - self.weight) / minWeightForAge) * 0.2), 0, 100) end
+end
+
+--- How much of its growth rate the pen's food supports: the food factor weighted by how well
+--- the breed uses what the pen last ate (RLBreedTraits forage traits), times the breed traits'
+--- growthNutritionFactor, capped at 1.
+---@param foodFactor number The pen's 0..1 food factor
+---@return number
+function Animal:getGrowthNutrition(foodFactor)
+    local owner = self.clusterSystem ~= nil and self.clusterSystem.owner or nil
+    local foodSpec = owner ~= nil and owner.spec_husbandryFood or nil
+    local shares = foodSpec ~= nil and foodSpec.rlForageShares or nil
+    local efficiency = RLBreedTraits.getForageEfficiency(self:getSubType(), shares)
+
+    return math.min(foodFactor * efficiency * RLBreedTraits.getConfig().growthNutritionFactor, 1)
 end
 
 --- Advance post-birth recovery by one period: bump monthsSinceLastBirth and,
@@ -1614,9 +1630,10 @@ end
 ---@param metabolism number|nil    Genetics metabolism multiplier.
 ---@param baseCurveValue number    `subType.input.food:get(age)` from the caller.
 ---@param foodScale number|nil     Global food-scale setting (`RealisticLivestock_PlaceableHusbandryFood.foodScale`); defaults to 1 when nil.
+---@param feedModifier number|nil  Breed feed trait x body condition (Animal:getFeedModifier); defaults to 1 when nil.
 ---@return number litersPerDay
-function Animal._computeDailyFood(age, isLactating, reproduction, numPregnancies, metabolism, baseCurveValue, foodScale)
-    local litersPerDay = baseCurveValue
+function Animal._computeDailyFood(age, isLactating, reproduction, numPregnancies, metabolism, baseCurveValue, foodScale, feedModifier)
+    local litersPerDay = baseCurveValue * (feedModifier or 1)
 
     if isLactating then litersPerDay = litersPerDay * 1.25 end
 
@@ -1629,6 +1646,15 @@ function Animal._computeDailyFood(age, isLactating, reproduction, numPregnancies
     litersPerDay = litersPerDay * (foodScale or 1)
 
     return litersPerDay
+end
+
+--- Daily food multiplier from the breed's feed trait and the animal's body condition (its weight
+--- against the expected weight for its age), see RLBreedTraits.
+---@return number
+function Animal:getFeedModifier()
+    local subType = self:getSubType()
+    return RLBreedTraits.get(subType, "feed")
+        * RLBreedTraits.getBodyFeedFactor(subType, self.weight, self.targetWeight, self.age)
 end
 
 function Animal:updateInput()
@@ -1648,7 +1674,8 @@ function Animal:updateInput()
                 numPregnancies,
                 self.genetics.metabolism,
                 litersPerDay,
-                RealisticLivestock_PlaceableHusbandryFood.foodScale
+                RealisticLivestock_PlaceableHusbandryFood.foodScale,
+                self:getFeedModifier()
             )
         end
 

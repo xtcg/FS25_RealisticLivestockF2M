@@ -13,10 +13,17 @@
   - The cow barn with pasture takes cows, steers and bulls under 12 months, from 6 months.
   - The pastures take the same animals, calves included.
 - Added xml/carcassYield.xml for the carcass yield settings. A copy in modSettings/FS25_RealisticLivestockRM/ replaces it.
+- Added xml/breedTraits.xml: per-breed feed, growth and forage traits. A copy in modSettings/FS25_RealisticLivestockRM/ replaces it.
+  - Feed: Highland 0.80, Hereford and Water Buffalo 0.90, Limousin 0.95, Holstein 1.10; Berkshire 1.08, Black Pied 0.90; Black Welsh 0.85 up to Swiss Mountain 1.10; goats 0.85.
+  - Growth: Limousin 1.08, Hereford 1.02, Water Buffalo 0.96, Holstein 0.95, Highland 0.90; Landrace pigs 1.05; Steinschaf and Swiss Mountain 1.05, Black Welsh 0.90; goats 0.95.
+  - Forage: Highland grows as if grass were 25% richer (Hereford and Water Buffalo 15%, goats 15%); Holstein does worse on grass and 10% better on silage and TMR.
 
 ### Changed
 
-- Butcher and slaughterhouse deliveries scale with the animal: live weight against a typical slaughter weight (cattle 650 kg, pigs 120 kg, sheep 50 kg, goats 32 kg), times its meat gene.
+- Butcher and slaughterhouse deliveries scale with the animal: its frame (its own target weight x a slaughter maturity for its breed and sex, against 650 kg for cattle, 120 kg pigs, 50 kg sheep, 32 kg goats), how finished it is against that, its breed's carcass factor (Angus and Limousin 1.06, Holstein 0.94, Berkshire 1.08) and its meat gene.
+- New target weights (cow / bull): Holstein 680 / 1,000 kg, Swiss Brown 650 / 900, Hereford 600 / 850, Angus 650 / 850, Limousin 650 / 1,000, Highland 500 / 750, Water Buffalo 550 / 900. Pigs are grown breeding weights: Berkshire 220 / 280, Landrace 240 / 300, Black Pied 180 / 250. Sheep: Black Welsh 45 / 62, Landrace 55 / 75, Steinschaf 80 / 95, Swiss Mountain 75 / 100; goats 60 / 75. Animals in a save move to the new targets; one now above it slims down over a few days.
+- Growth now needs better feed for full speed: min(food factor x 1.10, 1) instead of x 1.25, so silage no longer grows as fast as TMR (grass 44%, hay 72%, silage 88%, TMR 100%).
+- Daily food follows body condition: x (weight / expected weight for its age) ^ 0.35, so a heavy animal eats more than a light one of the same breed and age.
 - A delivery that does not fit the facility's room or the farm's fee budget is refused whole and stays in the trailer.
 
 ### Fixed

@@ -12,10 +12,10 @@ Sheep and goats share a husbandry but have different production types. Sheep pro
 
 | Breed | Target Weight (ewe / ram) | Wool Range (peak) | Sell Value |
 |-------|--------------------------|-------------------|------------|
-| **Black Welsh** | 42 / 57.5 kg | 24 - 166 | Lowest |
-| **Landrace** | 45 / 60 kg | 21 - 149 | Below average |
-| **Steinschaf** | 50 / 67.5 kg | 18 - 123 | Above average |
-| **Swiss Mountain** | 80 / 105 kg | 14 - 96 | Highest |
+| **Black Welsh** | 45 / 62 kg | 24 - 166 | Lowest |
+| **Landrace** | 55 / 75 kg | 21 - 149 | Below average |
+| **Steinschaf** | 80 / 95 kg | 18 - 123 | Above average |
+| **Swiss Mountain** | 75 / 100 kg | 14 - 96 | Highest |
 
 *Black Welsh produce the most wool by far, but Swiss Mountain sell for double the price. Wool range shows the full span from poor to excellent genetics.*
 
@@ -23,7 +23,7 @@ Sheep and goats share a husbandry but have different production types. Sheep pro
 
 | Breed | Target Weight (doe / ram) | Goat Milk Range (peak, lactating) | Sell Value |
 |-------|--------------------------|----------------------------------|------------|
-| **Goat** | 30 / 35 kg | 5 - 57 L/day | High |
+| **Goat** | 60 / 75 kg | 5 - 57 L/day | High |
 
 *Rams are heavier than ewes/does.*
 
@@ -147,18 +147,18 @@ Genetics significantly affect how much each animal eats - some are naturally muc
 
 | Breed | | Birth | Target | Maximum |
 |-------|---|-------|--------|---------|
-| **Black Welsh** | Ewe | 4.2 kg | 42 kg | 135 kg |
-| | Ram | 4.6 kg | 57.5 kg | 150 kg |
-| **Landrace** | Ewe | 4.4 kg | 45 kg | 135 kg |
-| | Ram | 4.7 kg | 60 kg | 150 kg |
-| **Steinschaf** | Ewe | 4.8 kg | 50 kg | 135 kg |
-| | Ram | 5.3 kg | 67.5 kg | 150 kg |
-| **Swiss Mountain** | Ewe | 5.8 kg | 80 kg | 135 kg |
-| | Ram | 6.5 kg | 105 kg | 150 kg |
-| **Goat** | Doe | 3.75 kg | 30 kg | 90 kg |
-| | Ram Goat | 4.0 kg | 35 kg | 115 kg |
+| **Black Welsh** | Ewe | 4.2 kg | 45 kg | 135 kg |
+| | Ram | 4.6 kg | 62 kg | 150 kg |
+| **Landrace** | Ewe | 4.4 kg | 55 kg | 135 kg |
+| | Ram | 4.7 kg | 75 kg | 150 kg |
+| **Steinschaf** | Ewe | 4.8 kg | 80 kg | 135 kg |
+| | Ram | 5.3 kg | 95 kg | 150 kg |
+| **Swiss Mountain** | Ewe | 5.8 kg | 75 kg | 135 kg |
+| | Ram | 6.5 kg | 100 kg | 150 kg |
+| **Goat** | Doe | 3.75 kg | 60 kg | 90 kg |
+| | Ram Goat | 4.0 kg | 75 kg | 115 kg |
 
-*Swiss Mountain sheep are nearly double the weight of Black Welsh. Goats are the lightest. Higher metabolism animals reach target weight faster but eat more.*
+*Swiss Mountain and Steinschaf are the large breeds, Black Welsh the smallest. Higher metabolism animals reach target weight faster but eat more.*
 
 ---
 

@@ -39,57 +39,36 @@ AnimalMoveEvent.EPP_NOT_ACCEPTED = "EPP target did not accept the animal"
 --- worked out on the server, so the server's file is the one that counts. Loaded on first use.
 AnimalMoveEvent.CARCASS_CONFIG_FILE = "carcassYield.xml"
 
---- Used for whatever the file leaves out. Without reference weights every animal falls back
---- to the mean target weight of the subtypes the facility accepts.
+--- Formula settings on the carcassYield element; used for whatever the file leaves out.
 AnimalMoveEvent.CARCASS_CONFIG_DEFAULTS = {
-	qualitySwing = 0.25,
-	minWeightRatio = 0.1,
-	maxWeightRatio = 2.5,
+	sizeExponent = 0.25,
+	minSizeFactor = 0.88,
+	maxSizeFactor = 1.15,
+	finishExponent = 0.85,
+	minFinishFactor = 0.5,
+	maxFinishFactor = 1.3,
 }
 
-local modDirectory = g_currentModDirectory
-local modSettingsDirectory = g_currentModSettingsDirectory
+--- Per-animal settings, looked up subtype, then breed within the animal type, then animal type,
+--- then on the carcassYield element (RLBreedTraits.resolve).
+AnimalMoveEvent.CARCASS_ATTRIBUTES = { "anchorWeight", "referenceWeight", "maleMaturity", "femaleMaturity",
+	"carcassFactor", "qualitySwing" }
+
+--- Used when no layer sets them.
+AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS = { maleMaturity = 1, femaleMaturity = 1, carcassFactor = 1, qualitySwing = 0.2 }
 
 
---- Read a carcass yield config. Reference weights are looked up subtype first, then breed
---- within its animal type, then animal type.
+--- Read a carcass yield config.
 --- @param xmlFile table|nil An XMLFile with a carcassYield root; nil gives the defaults
---- @return table config {qualitySwing, minWeightRatio, maxWeightRatio, subTypes, breeds, types}
+--- @return table config The formula settings plus layers (RLBreedTraits.parseLayers)
 function AnimalMoveEvent.parseCarcassConfig(xmlFile)
-	local defaults = AnimalMoveEvent.CARCASS_CONFIG_DEFAULTS
-	local config = { qualitySwing = defaults.qualitySwing, minWeightRatio = defaults.minWeightRatio,
-		maxWeightRatio = defaults.maxWeightRatio, subTypes = {}, breeds = {}, types = {} }
-	if xmlFile == nil then return config end
-
-	config.qualitySwing = xmlFile:getFloat("carcassYield#qualitySwing", config.qualitySwing)
-	config.minWeightRatio = xmlFile:getFloat("carcassYield#minWeightRatio", config.minWeightRatio)
-	config.maxWeightRatio = xmlFile:getFloat("carcassYield#maxWeightRatio", config.maxWeightRatio)
-
-	local function readWeight(key)
-		local name, weight = xmlFile:getString(key .. "#name"), xmlFile:getFloat(key .. "#referenceWeight")
-		if name == nil or weight == nil or weight <= 0 then
-			Log:warning("AnimalMoveEvent.parseCarcassConfig: %s needs a name and a positive referenceWeight", key)
-			return nil
+	local config = table.clone(AnimalMoveEvent.CARCASS_CONFIG_DEFAULTS)
+	if xmlFile ~= nil then
+		for key, default in pairs(AnimalMoveEvent.CARCASS_CONFIG_DEFAULTS) do
+			config[key] = xmlFile:getFloat("carcassYield#" .. key, default)
 		end
-		return name:upper(), weight
 	end
-
-	xmlFile:iterate("carcassYield.animalType", function(_, typeKey)
-		local typeName, weight = readWeight(typeKey)
-		if typeName == nil then return end
-		config.types[typeName] = weight
-		xmlFile:iterate(typeKey .. ".breed", function(_, breedKey)
-			local breed, breedWeight = readWeight(breedKey)
-			if breed == nil then return end
-			config.breeds[typeName] = config.breeds[typeName] or {}
-			config.breeds[typeName][breed] = breedWeight
-		end)
-	end)
-
-	xmlFile:iterate("carcassYield.subType", function(_, subTypeKey)
-		local subTypeName, weight = readWeight(subTypeKey)
-		if subTypeName ~= nil then config.subTypes[subTypeName] = weight end
-	end)
+	config.layers = RLBreedTraits.parseLayers(xmlFile, "carcassYield", AnimalMoveEvent.CARCASS_ATTRIBUTES)
 
 	return config
 end
@@ -98,45 +77,23 @@ end
 --- The carcass yield config, loaded on the first call.
 --- @return table config See parseCarcassConfig
 function AnimalMoveEvent.getCarcassConfig()
-	if AnimalMoveEvent.carcassConfig ~= nil then return AnimalMoveEvent.carcassConfig end
-
-	local path = modDirectory .. "xml/" .. AnimalMoveEvent.CARCASS_CONFIG_FILE
-	if modSettingsDirectory ~= nil and fileExists(modSettingsDirectory .. AnimalMoveEvent.CARCASS_CONFIG_FILE) then
-		path = modSettingsDirectory .. AnimalMoveEvent.CARCASS_CONFIG_FILE
+	if AnimalMoveEvent.carcassConfig == nil then
+		AnimalMoveEvent.carcassConfig = RLBreedTraits.loadConfig(AnimalMoveEvent.CARCASS_CONFIG_FILE, "carcassYield",
+			AnimalMoveEvent.parseCarcassConfig)
 	end
-
-	local xmlFile = XMLFile.loadIfExists("carcassYield", path)
-	if xmlFile == nil then
-		Log:warning("AnimalMoveEvent.getCarcassConfig: %s not found, using defaults", path)
-	end
-	AnimalMoveEvent.carcassConfig = AnimalMoveEvent.parseCarcassConfig(xmlFile)
-	if xmlFile ~= nil then xmlFile:delete() end
-	Log:info("AnimalMoveEvent.getCarcassConfig: loaded %s (qualitySwing=%.3f)", path, AnimalMoveEvent.carcassConfig.qualitySwing)
-
 	return AnimalMoveEvent.carcassConfig
 end
 
 
---- Reference live weight for an animal at a facility: the config entry for its subtype, breed
---- or type, else the mean target weight of the subtypes the facility maps to the same input
---- fill type.
---- @return number|nil referenceWeight
-function AnimalMoveEvent.getCarcassReferenceWeight(targetObject, subTypeIndex)
+--- Mean target weight of the subtypes a facility maps to the same input fill type as this one;
+--- the subtype's own target weight when the facility has no mapping for it.
+--- @return number|nil
+function AnimalMoveEvent.getFacilityMeanTargetWeight(targetObject, subTypeIndex)
 	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
 	if animalSystem == nil then return nil end
 
-	local config = AnimalMoveEvent.getCarcassConfig()
 	local subType = animalSystem:getSubTypeByIndex(subTypeIndex)
-	local animalType = subType ~= nil and animalSystem:getTypeByIndex(subType.typeIndex) or nil
-	local typeName = animalType ~= nil and animalType.name or nil
-	local breeds = typeName ~= nil and config.breeds[typeName] or nil
-	local listed = (subType ~= nil and subType.name ~= nil and config.subTypes[subType.name])
-		or (breeds ~= nil and subType.breed ~= nil and breeds[subType.breed])
-		or (typeName ~= nil and config.types[typeName])
-		or nil
-	if listed ~= nil then return listed end
-
-	local subTypeToFillType = targetObject.animalSubTypeToFillType
+	local subTypeToFillType = targetObject ~= nil and targetObject.animalSubTypeToFillType or nil
 	local fillType = subTypeToFillType ~= nil and subTypeToFillType[subTypeIndex] or nil
 	if fillType == nil then return subType ~= nil and subType.targetWeight or nil end
 
@@ -151,25 +108,65 @@ function AnimalMoveEvent.getCarcassReferenceWeight(targetObject, subTypeIndex)
 end
 
 
---- Carcass yield of one animal in "typical animals": live weight / reference weight, times
---- 1 + qualitySwing x (meat gene - 1). 1 for an average-gene animal at the reference.
+--- Carcass yield of one animal in "typical animals", the units a facility is configured for
+--- per head:
+---
+---   reference = the animal's own target weight x maleMaturity / femaleMaturity
+---               (or a configured referenceWeight)
+---   size      = clamp((reference / anchorWeight) ^ sizeExponent, minSizeFactor, maxSizeFactor)
+---   finish    = clamp((live weight / reference) ^ finishExponent, minFinishFactor, maxFinishFactor)
+---   yield     = size x finish x carcassFactor x (1 + qualitySwing x (meat gene - 1))
+---
+--- So a larger-framed breed finished to its own reference yields more than a smaller one, but
+--- less than in proportion. A type without an anchorWeight uses the mean target weight of the
+--- subtypes the facility takes as the same fill type.
 ---
 --- The meat gene (0.25-1.75, 1 = average) prices the animal in Animal:getSellPrice. It is read
 --- as carcass merit here because a facility's meat fill type carries no grade to price it by.
 --- @param animal table|nil The live server Animal
---- @param referenceWeight number|nil Typical slaughter live weight for it
+--- @param targetObject table|nil The receiving facility
+--- @param subTypeIndex number|nil
 --- @return number factor
-function AnimalMoveEvent.getCarcassYieldFactor(animal, referenceWeight)
+function AnimalMoveEvent.getCarcassYieldFactor(animal, targetObject, subTypeIndex)
 	if animal == nil then return 1 end
 
 	local config = AnimalMoveEvent.getCarcassConfig()
-	local weightRatio = 1
-	if animal.weight ~= nil and referenceWeight ~= nil and referenceWeight > 0 then
-		weightRatio = math.clamp(animal.weight / referenceWeight, config.minWeightRatio, config.maxWeightRatio)
+	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
+	local subType = animalSystem ~= nil and animalSystem:getSubTypeByIndex(subTypeIndex or animal.subTypeIndex) or nil
+	local defaults = AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS
+
+	local function get(attr)
+		return RLBreedTraits.resolve(config.layers, subType, attr, defaults[attr])
+	end
+
+	local facilityMean
+	local function getFacilityMean()
+		if facilityMean == nil then
+			facilityMean = AnimalMoveEvent.getFacilityMeanTargetWeight(targetObject, subTypeIndex or animal.subTypeIndex) or false
+		end
+		return facilityMean or nil
+	end
+
+	local targetWeight = animal.targetWeight or (subType ~= nil and subType.targetWeight) or nil
+	local maturity = get(animal.gender == "male" and "maleMaturity" or "femaleMaturity")
+	local reference = get("referenceWeight")
+		or (targetWeight ~= nil and targetWeight > 0 and targetWeight * maturity)
+		or getFacilityMean()
+	local anchor = get("anchorWeight") or getFacilityMean() or reference
+
+	local size, finish = 1, 1
+	if reference ~= nil and reference > 0 then
+		if anchor ~= nil and anchor > 0 then
+			size = math.clamp((reference / anchor) ^ config.sizeExponent, config.minSizeFactor, config.maxSizeFactor)
+		end
+		if animal.weight ~= nil then
+			finish = math.clamp((animal.weight / reference) ^ config.finishExponent, config.minFinishFactor,
+				config.maxFinishFactor)
+		end
 	end
 
 	local quality = animal.genetics ~= nil and animal.genetics.quality or 1
-	return weightRatio * (1 + config.qualitySwing * (quality - 1))
+	return size * finish * get("carcassFactor") * (1 + get("qualitySwing") * (quality - 1))
 end
 
 
@@ -187,8 +184,7 @@ function AnimalMoveEvent._getScaledButcherUnits(targetObject, subTypeIndex, anim
 	end
 
 	local configured = unitsByFillType[fillType]
-	local factor = AnimalMoveEvent.getCarcassYieldFactor(animal,
-		AnimalMoveEvent.getCarcassReferenceWeight(targetObject, subTypeIndex))
+	local factor = AnimalMoveEvent.getCarcassYieldFactor(animal, targetObject, subTypeIndex)
 	return fillType, configured, configured * factor
 end
 
@@ -292,8 +288,7 @@ function AnimalMoveEvent._deliverToContractTarget(targetObject, subTypeIndex, an
 		return targetObject:contractProductionAddAnimals(farmId, subTypeIndex, 1) or 0
 	end
 
-	local amount = AnimalMoveEvent.getCarcassYieldFactor(animal,
-		AnimalMoveEvent.getCarcassReferenceWeight(targetObject, subTypeIndex))
+	local amount = AnimalMoveEvent.getCarcassYieldFactor(animal, targetObject, subTypeIndex)
 	if not AnimalMoveEvent._canAffordContractInputs(targetObject, farmId, { [fillType] = amount }) then return 0 end
 
 	local credited = targetObject:contractProductionDeliver(farmId, fillType, amount) or 0
@@ -374,8 +369,7 @@ function AnimalMoveEvent._canTakeEPPBatch(targetObject, transferList, farmId)
 		local fillType, amount, _
 		if isContract then
 			fillType = subTypeToFillType[subTypeIndex]
-			amount = AnimalMoveEvent.getCarcassYieldFactor(liveAnimal,
-				AnimalMoveEvent.getCarcassReferenceWeight(targetObject, subTypeIndex))
+			amount = AnimalMoveEvent.getCarcassYieldFactor(liveAnimal, targetObject, subTypeIndex)
 		else
 			fillType, _, amount = AnimalMoveEvent._getScaledButcherUnits(targetObject, subTypeIndex, liveAnimal)
 		end

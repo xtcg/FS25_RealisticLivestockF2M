@@ -80,8 +80,17 @@ function loadXMLFileFromDisk(path)
         end
     end
 
+    -- As in the engine, a path segment without an index is index 0 ("a.b.c" = "a.b(0).c(0)").
+    local function normalize(path)
+        local parts = {}
+        for part in path:gmatch("[^%.]+") do
+            parts[#parts + 1] = (#parts > 0 and not part:find("%(")) and part .. "(0)" or part
+        end
+        return table.concat(parts, ".")
+    end
     local function get(key)
         local node, attr = key:match("^(.*)#(.*)$")
+        node = normalize(node)
         return nodes[node] ~= nil and nodes[node][attr] or nil
     end
     return {
@@ -94,7 +103,9 @@ function loadXMLFileFromDisk(path)
             return v:lower() == "true"
         end,
         iterate = function(_, key, fn)
-            for i = 0, (counts[key] or 0) - 1 do fn(i, string.format("%s(%d)", key, i)) end
+            local parent, last = key:match("^(.*)%.([^%.]+)$")
+            local base = parent ~= nil and normalize(parent) .. "." .. last or key
+            for i = 0, (counts[base] or 0) - 1 do fn(i, string.format("%s(%d)", base, i)) end
         end,
         delete = function() end,
     }

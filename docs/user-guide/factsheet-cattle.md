@@ -10,13 +10,13 @@ Cattle are the most diverse livestock in Realistic Livestock RM, with 7 breeds r
 
 | Breed | Type | Target Weight | Milk Range (peak, lactating) | Sell Value |
 |-------|------|--------------|------------------------------|------------|
-| **Holstein** | Dairy | 575 / 650 kg | 65 - 750 L/day | Moderate |
-| **Hereford** | Dual | 675 / 750 kg | 55 - 600 L/day | Above average |
-| **Swiss Brown** | Dual | 650 / 850 kg | 50 - 580 L/day | Above average |
-| **Angus** | Beef | 700 / 900 kg | 30 - 365 L/day | High |
-| **Highland** *(DLC)* | Beef | 725 / 950 kg | 30 - 365 L/day | High, retains value in old age |
-| **Limousin** | Beef | 630 / 675 kg | 30 - 320 L/day | Highest |
-| **Water Buffalo** | Special | 425 / 500 kg | 5 - 70 L/day | Low |
+| **Holstein** | Dairy | 680 / 1,000 kg | 65 - 750 L/day | Moderate |
+| **Hereford** | Dual | 600 / 850 kg | 55 - 600 L/day | Above average |
+| **Swiss Brown** | Dual | 650 / 900 kg | 50 - 580 L/day | Above average |
+| **Angus** | Beef | 650 / 850 kg | 30 - 365 L/day | High |
+| **Highland** *(DLC)* | Beef | 500 / 750 kg | 30 - 365 L/day | High, retains value in old age |
+| **Limousin** | Beef | 650 / 1,000 kg | 30 - 320 L/day | Highest |
+| **Water Buffalo** | Special | 550 / 900 kg | 5 - 70 L/day | Low |
 
 *Target weights shown as cow / bull. Milk range shows the full span from poor to excellent genetics. All cows produce milk when lactating - beef breeds just produce less. Highland cattle require the Highlands & Fishing Pack DLC.*
 
@@ -176,19 +176,19 @@ Genetics significantly affect how much each animal eats - some are naturally muc
 | Breed | | Birth | Target | Maximum |
 |-------|---|-------|--------|---------|
 | **Swiss Brown** | Cow | 40 kg | 650 kg | 1,200 kg |
-| | Bull | 40 kg | 850 kg | 1,400 kg |
-| **Holstein** | Cow | 42 kg | 575 kg | 1,200 kg |
-| | Bull | 45 kg | 650 kg | 1,400 kg |
-| **Angus** | Cow | 32 kg | 700 kg | 1,200 kg |
-| | Bull | 35 kg | 900 kg | 1,400 kg |
-| **Limousin** | Cow | 36 kg | 630 kg | 1,200 kg |
-| | Bull | 39 kg | 675 kg | 1,400 kg |
-| **Hereford** | Cow | 33 kg | 675 kg | 1,200 kg |
-| | Bull | 35 kg | 750 kg | 1,400 kg |
-| **Highland** | Cow | 35 kg | 725 kg | 1,200 kg |
-| | Bull | 35 kg | 950 kg | 1,600 kg |
-| **Water Buffalo** | Cow | 35 kg | 425 kg | 1,200 kg |
-| | Bull | 36 kg | 500 kg | 1,400 kg |
+| | Bull | 40 kg | 900 kg | 1,400 kg |
+| **Holstein** | Cow | 42 kg | 680 kg | 1,200 kg |
+| | Bull | 45 kg | 1,000 kg | 1,400 kg |
+| **Angus** | Cow | 32 kg | 650 kg | 1,200 kg |
+| | Bull | 35 kg | 850 kg | 1,400 kg |
+| **Limousin** | Cow | 36 kg | 650 kg | 1,200 kg |
+| | Bull | 39 kg | 1,000 kg | 1,400 kg |
+| **Hereford** | Cow | 33 kg | 600 kg | 1,200 kg |
+| | Bull | 35 kg | 850 kg | 1,400 kg |
+| **Highland** | Cow | 35 kg | 500 kg | 1,200 kg |
+| | Bull | 35 kg | 750 kg | 1,600 kg |
+| **Water Buffalo** | Cow | 35 kg | 550 kg | 1,200 kg |
+| | Bull | 36 kg | 900 kg | 1,400 kg |
 
 *Higher metabolism animals reach target weight faster but eat more. Castrated animals grow faster than intact males.*
 

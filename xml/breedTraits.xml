@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    Breed husbandry traits. Every trait is a multiplier, 1 = unchanged.
+
+    feed     Daily food, on top of the subtype's food curve, metabolism, pregnancy and lactation.
+    growth   Weight gained per hour of growth. Losses are not scaled.
+    grass    How well the breed uses what its pen ate from each forage category below. The pen's
+    hay      food factor is weighted by the share of each category in the last feeding, so a
+    silage   Highland on grass grows as if the grass were 25% richer. Health, milk and the other
+             outputs still use the pen's plain food factor.
+
+    A trait is looked up by subType name first, then by breed within the animal type, then by
+    animal type, then on the root element.
+
+    Root settings:
+    growthNutritionFactor  Growth runs at min(food factor x forage efficiency x this, 1). At 1.10,
+                           grass (0.40) grows at 44%, hay (0.65) 71.5%, silage (0.80) 88% and
+                           TMR (1.00) at full speed.
+    bodyWeightExponent     Daily food is scaled by (weight / expected weight for its age) ^ this,
+    minBodyRatio           the ratio clamped to minBodyRatio..maxBodyRatio. The expected weight
+    maxBodyRatio           grows from the subtype's minWeight to the animal's own target weight.
+
+    A pen with its own meadow that ate nothing from the trough in a feeding counts as on grass.
+
+    To change these without editing the mod, copy this file to
+    modSettings/FS25_RealisticLivestockRM/breedTraits.xml; that copy then replaces this file
+    entirely. In multiplayer the server's file applies.
+-->
+<breedTraits growthNutritionFactor="1.10" bodyWeightExponent="0.35" minBodyRatio="0.5" maxBodyRatio="1.5">
+    <forage>
+        <category name="grass" fillTypes="GRASS_WINDROW"/>
+        <category name="hay" fillTypes="DRYGRASS_WINDROW CLOVER_WINDROW"/>
+        <category name="silage" fillTypes="SILAGE FORAGE FORAGEPLUS ROUNDBALE"/>
+    </forage>
+
+    <animalType name="COW">
+        <breed name="HIGHLAND"      feed="0.80" growth="0.90" grass="1.25" hay="1.15" silage="1.00"/>
+        <breed name="HEREFORD"      feed="0.90" growth="1.02" grass="1.15" hay="1.10" silage="1.00"/>
+        <breed name="WATER_BUFFALO" feed="0.90" growth="0.96" grass="1.15" hay="1.05" silage="1.00"/>
+        <breed name="LIMOUSIN"      feed="0.95" growth="1.08" grass="0.95" hay="1.00" silage="1.05"/>
+        <breed name="ANGUS"         feed="1.00" growth="1.00" grass="1.00" hay="1.00" silage="1.00"/>
+        <breed name="SWISS_BROWN"   feed="1.00" growth="1.00" grass="1.05" hay="1.05" silage="1.00"/>
+        <breed name="HOLSTEIN"      feed="1.10" growth="0.95" grass="0.90" hay="0.95" silage="1.10"/>
+    </animalType>
+
+    <animalType name="PIG">
+        <breed name="BERKSHIRE"  feed="1.08" growth="0.95"/>
+        <breed name="LANDRACE"   feed="1.00" growth="1.05"/>
+        <breed name="BLACK_PIED" feed="0.90" growth="0.95"/>
+    </animalType>
+
+    <animalType name="SHEEP">                                <!-- goats share the SHEEP type -->
+        <breed name="BLACK_WELSH"    feed="0.85" growth="0.90"/>
+        <breed name="LANDRACE"       feed="0.95" growth="1.00"/>
+        <breed name="STEINSCHAF"     feed="1.05" growth="1.05"/>
+        <breed name="SWISS_MOUNTAIN" feed="1.10" growth="1.05"/>
+        <breed name="GOAT"           feed="0.85" growth="0.95" grass="1.15" hay="1.15"/>
+    </animalType>
+
+    <!-- Example of a single subtype:
+    <subType name="BULL_HIGHLAND_CATTLE" growth="0.85"/>
+    -->
+</breedTraits>

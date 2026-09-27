@@ -10,9 +10,9 @@ Pigs are the most prolific breeders in Realistic Livestock RM, with litters of u
 
 | Breed | Type | Target Weight (sow / boar) | Sell Value | Character |
 |-------|------|---------------------------|------------|-----------|
-| **Berkshire** | Premium | 140 / 180 kg | Highest | Most valuable per head |
-| **Landrace** | Standard | 165 / 205 kg | Moderate | Balanced mid-range |
-| **Black Pied** | Economy | 180 / 250 kg | Lowest | Cheapest, heaviest boars |
+| **Berkshire** | Premium | 220 / 280 kg | Highest | Most valuable per head |
+| **Landrace** | Standard | 240 / 300 kg | Moderate | Balanced mid-range |
+| **Black Pied** | Economy | 180 / 250 kg | Lowest | Cheapest to feed |
 
 *Boars are heavier than sows and sell for more. Berkshire pigs eat the most but command the highest prices.*
 
@@ -103,14 +103,14 @@ Genetics significantly affect how much each animal eats - some are naturally muc
 
 | Breed | | Birth | Target | Maximum |
 |-------|---|-------|--------|---------|
-| **Berkshire** | Sow | 1.6 kg | 140 kg | 1,050 kg |
-| | Boar | 1.7 kg | 180 kg | 1,200 kg |
-| **Landrace** | Sow | 1.36 kg | 165 kg | 1,050 kg |
-| | Boar | 1.4 kg | 205 kg | 1,200 kg |
+| **Berkshire** | Sow | 1.6 kg | 220 kg | 1,050 kg |
+| | Boar | 1.7 kg | 280 kg | 1,200 kg |
+| **Landrace** | Sow | 1.36 kg | 240 kg | 1,050 kg |
+| | Boar | 1.4 kg | 300 kg | 1,200 kg |
 | **Black Pied** | Sow | 1.65 kg | 180 kg | 1,050 kg |
 | | Boar | 1.75 kg | 250 kg | 1,200 kg |
 
-*Black Pied boars have the highest target weight at 250 kg. Higher metabolism animals reach target weight faster but eat more. Castrated pigs gain weight faster than intact males.*
+*Target weights are grown breeding stock; finishing pigs go to slaughter at about 120 kg. Higher metabolism animals reach target weight faster but eat more. Castrated pigs gain weight faster than intact males.*
 
 ---
 
