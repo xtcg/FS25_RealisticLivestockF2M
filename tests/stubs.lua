@@ -110,3 +110,18 @@ function loadXMLFileFromDisk(path)
         delete = function() end,
     }
 end
+
+-- Load part of scripts/animal/RealisticLivestock_Animal.lua, from the first line containing
+-- `first` up to (not including) the line containing `last`. The whole file uses GIANTS Lua's
+-- `continue`, which stock Lua cannot parse. Animal is created if missing.
+function loadAnimalSection(first, last)
+    local handle = assert(io.open(REPO .. "scripts/animal/RealisticLivestock_Animal.lua", "r"))
+    local text = handle:read("a")
+    handle:close()
+    local from = assert(text:find(first, 1, true), first)
+    from = text:sub(1, from):match(".*()\n") or 1
+    local to = assert(text:find(last, from, true), last)
+    to = text:sub(1, to):match(".*()\n") or to
+    Animal = Animal or {}
+    assert(load("local Log = RmLogging.getLogger()\n" .. text:sub(from, to), "Animal section " .. first))()
+end

@@ -6,6 +6,8 @@ Sheep and goats share a husbandry but have different production types. Sheep pro
 
 ---
 
+> **Units:** amounts are per game month. The animal's info in game shows them per game day: divide by your days-per-month setting (at 1 day per month the two are the same).
+
 ## Breeds at a Glance
 
 ### Sheep
@@ -23,7 +25,7 @@ Sheep and goats share a husbandry but have different production types. Sheep pro
 
 | Breed | Target Weight (doe / ram) | Goat Milk Range (peak, lactating) | Sell Value |
 |-------|--------------------------|----------------------------------|------------|
-| **Goat** | 60 / 75 kg | 5 - 57 L/day | High |
+| **Goat** | 60 / 75 kg | 5 - 57 L/month | High |
 
 *Rams are heavier than ewes/does.*
 
@@ -35,7 +37,7 @@ Sheep and goats share a husbandry but have different production types. Sheep pro
 
 Both ewes and rams produce wool - identical output per breed. **Wool is only produced when temperature is 12°C or above** (warm weather shearing season). In winter, wool output drops to zero.
 
-### Wool Output Range (units/day, warm weather)
+### Wool Output Range (units/month, warm weather)
 
 | Breed | 6 mo | 18 mo (peak) |
 |-------|------|--------------|
@@ -52,7 +54,7 @@ Both ewes and rams produce wool - identical output per breed. **Wool is only pro
 
 Goats produce milk **only while lactating** (10 months after giving birth). Goat milk is a separate product from cow milk (GOATMILK fill type - requires compatible storage).
 
-### Goat Milk Output Range (L/day, lactating)
+### Goat Milk Output Range (L/month, lactating)
 
 | Age | Range |
 |-----|-------|
@@ -112,7 +114,7 @@ Sheep and goat prices peak at 36 months and stay at that level for older animals
 
 Genetics significantly affect how much each animal eats - some are naturally much more efficient than others. Lactating goats eat noticeably more, and the Food Scale setting also adjusts consumption.
 
-### Food Consumption Range (L/day)
+### Food Consumption Range (L/month)
 
 | Breed | | Newborn | 18+ mo (adult) |
 |-------|---|---------|-----------------|
@@ -129,7 +131,7 @@ Genetics significantly affect how much each animal eats - some are naturally muc
 
 *Black Welsh are the cheapest to feed. Swiss Mountain eat the most. Goats are very efficient. Ranges show the span from the most efficient to the hungriest animals.*
 
-### Water Consumption (L/day, newborn -> adult)
+### Water Consumption (L/month, newborn -> adult)
 
 | Breed | Female | Male |
 |-------|--------|------|

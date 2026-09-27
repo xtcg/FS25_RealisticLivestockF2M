@@ -6,6 +6,8 @@ Chickens are the cheapest and shortest-lived animals in Realistic Livestock RM. 
 
 ---
 
+> **Units:** amounts are per game month. The animal's info in game shows them per game day: divide by your days-per-month setting (at 1 day per month the two are the same).
+
 ## At a Glance
 
 | Stat | Hen | Rooster |
@@ -13,7 +15,7 @@ Chickens are the cheapest and shortest-lived animals in Realistic Livestock RM. 
 | **Target Weight** | 3.25 kg | 4.25 kg |
 | **Max Weight** | 4.5 kg | 5.5 kg |
 | **Birth Weight** | 0.04 kg | 0.045 kg |
-| **Egg Range (peak)** | **1 - 9 eggs/day** | - |
+| **Egg Range (peak)** | **1 - 9 eggs/month** | - |
 | **Buy Price (adult)** | $30 | $30 |
 | **Sell Price (adult)** | $1 - $45 | $1 - $45 |
 
@@ -25,7 +27,7 @@ Chickens are the cheapest and shortest-lived animals in Realistic Livestock RM. 
 
 Hens lay eggs regardless of whether a rooster is present - a rooster is only needed for hatching chicks. Egg production follows an age-based curve.
 
-### Egg Output Range (eggs/day)
+### Egg Output Range (eggs/month)
 
 | Age | Range |
 |-----|-------|
@@ -74,7 +76,7 @@ Chicken prices are low and identical for hens and roosters:
 
 ## Food & Straw
 
-### Food Consumption Range (L/day)
+### Food Consumption Range (L/month)
 
 | Age | Hen | Rooster |
 |-----|-----|---------|
@@ -84,7 +86,7 @@ Chicken prices are low and identical for hens and roosters:
 
 *Roosters eat noticeably less than hens at adult age. Ranges show the span from the most efficient to the hungriest birds.*
 
-### Straw Consumption (L/day)
+### Straw Consumption (L/month)
 
 | Age | Straw (both) |
 |-----|-------------|
@@ -158,6 +160,6 @@ A successful hatch is typically around 5 chicks, and can reach up to 12 from a h
 
 3. **Watch for HPAI.** It has no treatment and sick birds cannot be sold at the dealer - cull each case from the Diseases dialog on the day it shows. LPAI, the common strain, is cheap to treat.
 
-4. **Cheap but productive.** At $3 per chick and up to 9 eggs/day at peak, chickens have the best return-on-investment for small farms. The initial cost is negligible.
+4. **Cheap but productive.** At $3 per chick and up to 9 eggs/month at peak, chickens have the best return-on-investment for small farms. The initial cost is negligible.
 
 5. **Short lifespan warning.** Chickens can start dying of old age at just 5 years - while they're still laying. Sell older hens before they die to recover whatever small value they have.

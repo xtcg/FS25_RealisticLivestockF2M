@@ -6,6 +6,8 @@ Horses are the longest-lived and most valuable animals in Realistic Livestock RM
 
 ---
 
+> **Units:** amounts are per game month. The animal's info in game shows them per game day: divide by your days-per-month setting (at 1 day per month the two are the same).
+
 ## Breeds at a Glance
 
 All horse breeds share identical stats. The only difference is appearance:
@@ -78,7 +80,7 @@ Horses produce **manure only** - no milk, wool, or eggs.
 
 All breeds and both genders consume the same amount.
 
-### Food Consumption Range (L/day)
+### Food Consumption Range (L/month)
 
 | Age | Range |
 |-----|-------|
@@ -87,7 +89,7 @@ All breeds and both genders consume the same amount.
 
 *Genetics cause large variation between individual animals. Most horses eat near the middle of these ranges. Pregnant mares eat and drink somewhat more. The Food Scale setting also adjusts consumption.*
 
-### Water & Straw (L/day)
+### Water & Straw (L/month)
 
 | Age | Water | Straw |
 |-----|-------|-------|

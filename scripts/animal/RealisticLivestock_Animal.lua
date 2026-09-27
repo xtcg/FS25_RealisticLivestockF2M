@@ -1725,6 +1725,17 @@ function Animal.isLactationPalletFillType(fillTypeIndex)
     return name ~= nil and Animal.LACTATION_PALLET_FILL_TYPE_NAMES[name] == true
 end
 
+--- Pallet milk that a disease scales with its milk modifier rather than its pallets one.
+Animal.COW_MILK_PALLET_FILL_TYPE_NAMES = { MILK = true, BUFFALOMILK = true }
+
+--- Whether a pallets-output fill type is cow or buffalo milk (Hof Bergmann's milk cans).
+---@param fillTypeIndex number|nil
+---@return boolean
+function Animal.isCowMilkPalletFillType(fillTypeIndex)
+    local name = fillTypeIndex ~= nil and g_fillTypeManager:getFillTypeNameByIndex(fillTypeIndex) or nil
+    return name ~= nil and Animal.COW_MILK_PALLET_FILL_TYPE_NAMES[name] == true
+end
+
 --- Milk yield through the lactation: 0.8 at birth, rising to 1.3 at 3 months, falling to about
 --- 0.93 at 9 months, and 0 from 10 months on or for an animal not lactating or never a mother.
 ---@return number
@@ -1830,7 +1841,13 @@ function Animal:updateOutput(temp)
             milkCurve, milkFactor, milkProductivity, milkPreDisease = curveLitersPerDay, factor, productivity, litersPerDay
         end
 
-        if multipliers ~= nil then litersPerDay = litersPerDay * multipliers[fillType] end
+        if multipliers ~= nil then
+            -- Cow and buffalo milk cans are the same milk as a tank, so a disease scales them the
+            -- same. Goat milk keeps the pallets modifier: sheep diseases set only that one.
+            local diseaseOutput = fillType
+            if fillType == "pallets" and Animal.isCowMilkPalletFillType(output.fillType) then diseaseOutput = "milk" end
+            litersPerDay = litersPerDay * multipliers[diseaseOutput]
+        end
 
         if isMilk then
             -- litersPerDay is now the FINAL value (post lactation gate AND disease).

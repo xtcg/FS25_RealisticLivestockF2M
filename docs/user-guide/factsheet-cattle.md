@@ -6,17 +6,19 @@ Cattle are the most diverse livestock in Realistic Livestock RM, with 7 breeds r
 
 ---
 
+> **Units:** amounts are per game month. The animal's info in game shows them per game day: divide by your days-per-month setting (at 1 day per month the two are the same).
+
 ## Breeds at a Glance
 
 | Breed | Type | Target Weight | Milk Range (peak, lactating) | Sell Value |
 |-------|------|--------------|------------------------------|------------|
-| **Holstein** | Dairy | 680 / 1,000 kg | 65 - 750 L/day | Moderate |
-| **Hereford** | Beef | 600 / 850 kg | 15 - 180 L/day | Above average |
-| **Swiss Brown** | Dual | 650 / 900 kg | 55 - 635 L/day | Above average |
-| **Angus** | Beef | 650 / 850 kg | 15 - 160 L/day | High |
-| **Highland** *(DLC)* | Beef | 500 / 750 kg | 10 - 115 L/day | High, retains value in old age |
-| **Limousin** | Beef | 650 / 1,000 kg | 10 - 135 L/day | Highest |
-| **Water Buffalo** | Special | 550 / 900 kg | 5 - 70 L/day | Low |
+| **Holstein** | Dairy | 680 / 1,000 kg | 65 - 750 L/month | Moderate |
+| **Hereford** | Beef | 600 / 850 kg | 15 - 180 L/month | Above average |
+| **Swiss Brown** | Dual | 650 / 900 kg | 55 - 635 L/month | Above average |
+| **Angus** | Beef | 650 / 850 kg | 15 - 160 L/month | High |
+| **Highland** *(DLC)* | Beef | 500 / 750 kg | 10 - 115 L/month | High, retains value in old age |
+| **Limousin** | Beef | 650 / 1,000 kg | 10 - 135 L/month | Highest |
+| **Water Buffalo** | Special | 550 / 900 kg | 5 - 70 L/month | Low |
 
 *Target weights shown as cow / bull. Milk range shows the full span from poor to excellent genetics. All cows produce milk when lactating - beef breeds just produce less. Highland cattle require the Highlands & Fishing Pack DLC.*
 
@@ -32,7 +34,7 @@ Cattle are the most diverse livestock in Realistic Livestock RM, with 7 breeds r
 
 Cows produce milk **only while lactating** (10 months after giving birth). Non-lactating cows produce zero milk.
 
-### Milk Output Range (L/day, lactating cow)
+### Milk Output Range (L/month, lactating cow)
 
 | Breed | 12 mo | 36 mo (peak) | 120 mo |
 |-------|-------|--------------|-------|
@@ -53,7 +55,7 @@ Cows produce milk **only while lactating** (10 months after giving birth). Non-l
 xychart-beta
     title "Swiss Brown Milk Output (average genetics, lactating)"
     x-axis "Age (months)" [12, 24, 36, 48, 60, 72, 84, 96, 108, 120]
-    y-axis "Litres / day" 0 --> 300
+    y-axis "Litres / month" 0 --> 300
     line [198, 198, 280, 280, 280, 280, 240, 201, 161, 121]
 ```
 
@@ -120,7 +122,7 @@ Bulls consistently sell for more than cows at all ages. Beef breeds (Angus, Limo
 
 Genetics significantly affect how much each animal eats - some are naturally much more efficient than others. Lactating cows eat noticeably more, and the Food Scale setting also adjusts consumption.
 
-### Food Consumption Range (L/day)
+### Food Consumption Range (L/month)
 
 | Breed | | Newborn | 18+ mo (adult) |
 |-------|---|---------|-----------------|
@@ -141,7 +143,7 @@ Genetics significantly affect how much each animal eats - some are naturally muc
 
 *Highland and Limousin are the most expensive breeds to feed. Ranges show the span from the most efficient to the hungriest animals. Most animals eat near the middle of these ranges.*
 
-### Water Consumption (L/day, newborn -> adult)
+### Water Consumption (L/month, newborn -> adult)
 
 | Breed | Cow | Bull |
 |-------|-----|------|
@@ -155,7 +157,7 @@ Genetics significantly affect how much each animal eats - some are naturally muc
 
 *Lactating cows drink considerably more water than usual.*
 
-### Straw Consumption (L/day, newborn -> adult)
+### Straw Consumption (L/month, newborn -> adult)
 
 | Breed | Cow | Bull |
 |-------|-----|------|
