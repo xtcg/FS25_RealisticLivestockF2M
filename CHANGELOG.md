@@ -2,8 +2,14 @@
 
 ## Unreleased
 
+### Changed
+
+- Live animals are now worth at least what a slaughterhouse would pay for their meat. That value is the meat the animal gives at the farm butcher, at the best current price for it at a selling point, times 0.85: the other 15% is what you earn by slaughtering it yourself. From 30 months for cattle and 12 months for pigs and sheep, old cows and bulls, sows, boars and mutton sell as processing meat at 0.70. So dealer prices for finished and cull animals follow the meat price through the seasons, and buying one to slaughter it leaves only a thin margin. Breeding stock and young animals keep their age price when it is higher. The floor needs the meat fill types (Hof Bergmann); on maps without them nothing changes. Set in xml/carcassYield.xml (slaughterShare, cullShare, cullAgeMonth, slaughterMinAgeMonth, meatFillType).
+- The budget dealer's markup went up from 1% to 5%.
+
 ### Fixed
 
+- A light animal counted as at least half a typical one at the butcher and the slaughterhouse (minFinishFactor 0.5), so a 3-month 120 kg calf gave 222 kg of beef. Meat now follows weight all the way down (minFinishFactor 0): that calf gives 103 kg, a 6-month 220 kg one 173 kg. Animals near slaughter weight are unchanged.
 - Hof Bergmann's public slaughterhouse gave far more meat per animal than the farm butcher: 1000 kg of beef per typical cow against 450, 500 kg of pork per pig against 75, 400 kg of sheep meat per sheep against 50. Buying animals to slaughter them there made money for nothing. Its recipes are now rescaled at load to the butcher's meat per animal (the new meatPerHead in xml/carcassYield.xml), so both give the same meat and the slaughterhouse only saves time and work. Fees stay per animal. Horses keep the slaughterhouse's own recipe, as the butcher takes none.
 
 ## 1.4.0.1-dev.5 (xtcg fork, Hof Bergmann)

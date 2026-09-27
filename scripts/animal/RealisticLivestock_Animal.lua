@@ -1583,9 +1583,18 @@ function Animal:getSellPrice()
         return AnimalHorse.getHorseSellPrice(self, sellPrice, meatFactor, weightFactor)
     end
 
-    return math.max(
+    local price = math.max(
     sellPrice * 0.6 + (sellPrice * 0.4 * weightFactor * (0.75 * self:getHealthFactor())) +
     sellPrice * (self.isLactating and 0.15 or 0) + sellPrice * (self.isPregnant and 0.25 or 0), sellPrice * 0.05)
+
+    -- Never below what a slaughterhouse pays for its meat (RLMeatValue); a disease lowers both.
+    local slaughterValue = RLMeatValue ~= nil and RLMeatValue.getSlaughterValue(self) or 0
+    if slaughterValue > price then
+        for _, disease in pairs(self.diseases) do slaughterValue = disease:modifyValue(slaughterValue) end
+        price = math.max(price, slaughterValue)
+    end
+
+    return price
 end
 
 function Animal:getDailyRidingTime() return AnimalHorse.getDailyRidingTime(self) end

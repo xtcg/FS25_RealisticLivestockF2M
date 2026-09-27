@@ -23,6 +23,18 @@
                    meat as the farm butcher (its unitsPerAnimal x recipe output / input) and only
                    saves time and work. A type without it keeps the facility's own recipe.
 
+    The live sale price has a floor at what a slaughterhouse pays for the animal (RLMeatValue):
+    its meat (yield x meatPerHead) at the best current price for meatFillType, times a share.
+
+    meatFillType   Animal type only: the fill type its meat sells as. None, or one the map lacks,
+                   means no floor.
+    slaughterShare Share of its meat's value an animal fetches live. The rest is the processing
+                   margin you keep by slaughtering yourself.
+    cullShare      The same from cullAgeMonth on: an old cow or bull, sow or boar, or mutton sells
+                   as low-grade processing meat.
+    cullAgeMonth   Age in months from which cullShare applies. None means never.
+    slaughterMinAgeMonth  No floor below this age (the butcher takes none younger).
+
     Each of these is looked up by subType name first, then by breed within the animal type, then
     by animal type, then on the carcassYield element. A type with no anchorWeight uses the mean
     target weight of the subtypes the facility takes as the same fill type.
@@ -31,10 +43,10 @@
     modSettings/FS25_RealisticLivestockRM/carcassYield.xml; that copy then replaces this file
     entirely. In multiplayer the server's file applies.
 -->
-<carcassYield qualitySwing="0.20"
+<carcassYield qualitySwing="0.20" slaughterShare="0.85" cullShare="0.70"
               sizeExponent="0.25" minSizeFactor="0.88" maxSizeFactor="1.15"
-              finishExponent="0.85" minFinishFactor="0.5" maxFinishFactor="1.3">
-    <animalType name="COW" anchorWeight="650" meatPerHead="450" maleMaturity="0.75" femaleMaturity="0.90">
+              finishExponent="0.85" minFinishFactor="0" maxFinishFactor="1.3">
+    <animalType name="COW" anchorWeight="650" meatPerHead="450" meatFillType="BEEFMEAT" cullAgeMonth="30" slaughterMinAgeMonth="6" maleMaturity="0.75" femaleMaturity="0.90">
         <breed name="HOLSTEIN"      maleMaturity="0.68" femaleMaturity="0.85" carcassFactor="0.94"/>
         <breed name="SWISS_BROWN"   maleMaturity="0.74" femaleMaturity="0.85" carcassFactor="0.98"/>
         <breed name="HEREFORD"      maleMaturity="0.76" carcassFactor="1.00"/>
@@ -46,7 +58,7 @@
 
     <!-- Finishing pigs go at about 120 kg whatever the breed; breeding stock grows on to 200-300 kg.
          Black Pied is a smaller frame, so it is finished at a larger share of it. -->
-    <animalType name="PIG" anchorWeight="120" meatPerHead="75" maleMaturity="0.42" femaleMaturity="0.52">
+    <animalType name="PIG" anchorWeight="120" meatPerHead="75" meatFillType="PORKMEAT" cullAgeMonth="12" slaughterMinAgeMonth="6" maleMaturity="0.42" femaleMaturity="0.52">
         <breed name="BERKSHIRE"  carcassFactor="1.08"/>
         <breed name="LANDRACE"   carcassFactor="1.00"/>
         <breed name="BLACK_PIED" maleMaturity="0.48" femaleMaturity="0.67" carcassFactor="0.96"/>
@@ -55,7 +67,7 @@
     <!-- Male lambs and kids go young; ewes and does are culled grown. Goats share the SHEEP type.
          A goat's anchor is 32 kg, but its reference still comes from its own target and sex:
          about 34 kg for a buck kid (75 x 0.45) and 51 kg for a cull doe (60 x 0.85). -->
-    <animalType name="SHEEP" anchorWeight="50" meatPerHead="50" maleMaturity="0.62" femaleMaturity="0.85">
+    <animalType name="SHEEP" anchorWeight="50" meatPerHead="50" meatFillType="SHEEPGOATMEAT" cullAgeMonth="12" slaughterMinAgeMonth="8" maleMaturity="0.62" femaleMaturity="0.85">
         <breed name="BLACK_WELSH"    carcassFactor="1.00"/>
         <breed name="LANDRACE"       carcassFactor="1.00"/>
         <breed name="STEINSCHAF"     carcassFactor="1.02"/>
@@ -67,9 +79,9 @@
          chicken 10 x 60/100, goose 15 x 55/90, rabbit 10 x 40/70. The butcher takes no horses, so the
          slaughterhouse keeps its own horse recipe. -->
     <animalType name="HORSE" anchorWeight="550"/>
-    <animalType name="CHICKEN" anchorWeight="2.5" meatPerHead="6"/>  <!-- ducks share the type on Hof Bergmann -->
-    <animalType name="GOOSE" anchorWeight="6" meatPerHead="9.17"/>
-    <animalType name="RABBIT" anchorWeight="2.8" meatPerHead="5.71"/>
+    <animalType name="CHICKEN" anchorWeight="2.5" meatPerHead="6" meatFillType="POULTRYMEAT" slaughterMinAgeMonth="6"/>  <!-- ducks share the type on Hof Bergmann -->
+    <animalType name="GOOSE" anchorWeight="6" meatPerHead="9.17" meatFillType="GOOSEMEAT" slaughterMinAgeMonth="10"/>
+    <animalType name="RABBIT" anchorWeight="2.8" meatPerHead="5.71" meatFillType="RABBITMEAT" slaughterMinAgeMonth="4"/>
 
     <!-- Example of a single subtype:
     <subType name="BULL_HIGHLAND_CATTLE" maleMaturity="0.80"/>

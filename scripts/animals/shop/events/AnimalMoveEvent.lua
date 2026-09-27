@@ -45,14 +45,14 @@ AnimalMoveEvent.CARCASS_CONFIG_DEFAULTS = {
 	minSizeFactor = 0.88,
 	maxSizeFactor = 1.15,
 	finishExponent = 0.85,
-	minFinishFactor = 0.5,
+	minFinishFactor = 0,
 	maxFinishFactor = 1.3,
 }
 
 --- Per-animal settings, looked up subtype, then breed within the animal type, then animal type,
 --- then on the carcassYield element (RLBreedTraits.resolve).
 AnimalMoveEvent.CARCASS_ATTRIBUTES = { "anchorWeight", "referenceWeight", "maleMaturity", "femaleMaturity",
-	"carcassFactor", "qualitySwing", "meatPerHead" }
+	"carcassFactor", "qualitySwing", "meatPerHead", "slaughterShare", "cullShare", "cullAgeMonth", "slaughterMinAgeMonth" }
 
 --- Used when no layer sets them.
 AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS = { maleMaturity = 1, femaleMaturity = 1, carcassFactor = 1, qualitySwing = 0.2 }
@@ -69,6 +69,15 @@ function AnimalMoveEvent.parseCarcassConfig(xmlFile)
 		end
 	end
 	config.layers = RLBreedTraits.parseLayers(xmlFile, "carcassYield", AnimalMoveEvent.CARCASS_ATTRIBUTES)
+
+	-- Meat fill type name per animal type (RLMeatValue), upper-cased like the layer names.
+	config.meatFillTypes = {}
+	if xmlFile ~= nil then
+		xmlFile:iterate("carcassYield.animalType", function(_, typeKey)
+			local typeName, fillType = xmlFile:getString(typeKey .. "#name"), xmlFile:getString(typeKey .. "#meatFillType")
+			if typeName ~= nil and fillType ~= nil then config.meatFillTypes[typeName:upper()] = fillType:upper() end
+		end)
+	end
 
 	return config
 end
