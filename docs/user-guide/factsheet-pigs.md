@@ -6,6 +6,8 @@ Pigs are the most prolific breeders in Realistic Livestock RM, with litters of u
 
 ---
 
+> **Units:** amounts are per game month. The animal's info in game shows them per game day: divide by your days-per-month setting (at 1 day per month the two are the same).
+
 ## Breeds at a Glance
 
 | Breed | Type | Target Weight (sow / boar) | Sell Value | Character |
@@ -74,7 +76,7 @@ Pigs produce only manure and liquid manure - no milk, wool, or eggs. Their value
 
 Genetics significantly affect how much each animal eats - some are naturally much more efficient than others. The Food Scale setting also adjusts consumption.
 
-### Food Consumption Range (L/day)
+### Food Consumption Range (L/month)
 
 | Breed | | Newborn | 24 mo (adult) |
 |-------|---|---------|---------------|
@@ -87,7 +89,7 @@ Genetics significantly affect how much each animal eats - some are naturally muc
 
 *Berkshire pigs eat the most. Black Pied are the most efficient to feed. Ranges show the span from the most efficient to the hungriest animals. Most animals eat near the middle of these ranges.*
 
-### Water Consumption (L/day, newborn -> adult)
+### Water Consumption (L/month, newborn -> adult)
 
 | Breed | Sow | Boar |
 |-------|-----|------|

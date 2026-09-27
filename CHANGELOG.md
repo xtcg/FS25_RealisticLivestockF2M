@@ -22,6 +22,7 @@
 
 - Butcher and slaughterhouse deliveries scale with the animal: its frame (its own target weight x a slaughter maturity for its breed and sex, against 650 kg for cattle, 120 kg pigs, 50 kg sheep, 32 kg goats), how finished it is against that, its breed's carcass factor (Angus and Limousin 1.06, Holstein 0.94, Berkshire 1.08) and its meat gene.
 - New target weights (cow / bull): Holstein 680 / 1,000 kg, Swiss Brown 650 / 900, Hereford 600 / 850, Angus 650 / 850, Limousin 650 / 1,000, Highland 500 / 750, Water Buffalo 550 / 900. Pigs are grown breeding weights: Berkshire 220 / 280, Landrace 240 / 300, Black Pied 180 / 250. Sheep: Black Welsh 45 / 62, Landrace 55 / 75, Steinschaf 80 / 95, Swiss Mountain 75 / 100; goats 60 / 75. Animals in a save move to the new targets; one now above it slims down over a few days.
+- Black Pied finishing pigs are slaughtered at about 120 kg like the other breeds (slaughter maturity 0.67 sows, 0.48 boars).
 - Growth now needs better feed for full speed: min(food factor x 1.10, 1) instead of x 1.25, so silage no longer grows as fast as TMR (grass 44%, hay 72%, silage 88%, TMR 100%).
 - Milk by breed, relative to Holstein (330 at peak, unchanged): Swiss Brown 280 (was 255), Hereford 80 (265), Angus 70 (160), Limousin 60 (140), Highland 50 (160). Beef cows now give the milk left over after the calf, not a dairy cow's. Water Buffalo and goats are unchanged. Hof Bergmann's milk-can curves (v1.4 and v1.5) match.
 - Daily food follows body condition: x (weight / expected weight for its age) ^ 0.35, so a heavy animal eats more than a light one of the same breed and age.
@@ -33,6 +34,7 @@
 - Fixed Hof Bergmann's bull stable semen.
 - Fixed Hof Bergmann's age limits on cattle buildings being skipped for RLRM moves.
 - Fixed Hof Bergmann's milk-can cattle buildings (constructible cow pasture, cowPasture01, cowHusbandryFarm02) filling cans from dry cows and cows that never calved. Cans now follow the same lactation curve as tank milk.
+- Fixed diseases scaling Hof Bergmann's cow and buffalo milk cans by their pallets modifier instead of the milk one: a cow with foot and mouth gave 90% in cans but 35% in a tank, and CVM's milk bonus never reached cans.
 
 ## 1.4.0.0:
 

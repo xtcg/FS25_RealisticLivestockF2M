@@ -40,14 +40,17 @@
         <breed name="WATER_BUFFALO" maleMaturity="0.72" carcassFactor="0.94"/>
     </animalType>
 
-    <!-- Finishing pigs go at about 120 kg whatever the breed; breeding stock grows on to 200-300 kg. -->
+    <!-- Finishing pigs go at about 120 kg whatever the breed; breeding stock grows on to 200-300 kg.
+         Black Pied is a smaller frame, so it is finished at a larger share of it. -->
     <animalType name="PIG" anchorWeight="120" maleMaturity="0.42" femaleMaturity="0.52">
         <breed name="BERKSHIRE"  carcassFactor="1.08"/>
         <breed name="LANDRACE"   carcassFactor="1.00"/>
-        <breed name="BLACK_PIED" carcassFactor="0.96"/>
+        <breed name="BLACK_PIED" maleMaturity="0.48" femaleMaturity="0.67" carcassFactor="0.96"/>
     </animalType>
 
-    <!-- Male lambs and kids go young; ewes and does are culled grown. Goats share the SHEEP type. -->
+    <!-- Male lambs and kids go young; ewes and does are culled grown. Goats share the SHEEP type.
+         A goat's anchor is 32 kg, but its reference still comes from its own target and sex:
+         about 34 kg for a buck kid (75 x 0.45) and 51 kg for a cull doe (60 x 0.85). -->
     <animalType name="SHEEP" anchorWeight="50" maleMaturity="0.62" femaleMaturity="0.85">
         <breed name="BLACK_WELSH"    carcassFactor="1.00"/>
         <breed name="LANDRACE"       carcassFactor="1.00"/>
