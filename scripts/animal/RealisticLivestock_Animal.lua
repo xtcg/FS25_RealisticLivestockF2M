@@ -190,9 +190,10 @@ function Animal.new(config)
         local minWeight = subType.minWeight
         local maxWeight = subType.maxWeight
 
-        local weightPerMonth = (targetWeight - minWeight) / (subType.reproductionMinAgeMonth * 1.5)
+        local matureAge = RLBreedTraits.getMatureAge(subType)
+        local weightPerMonth = (targetWeight - minWeight) / matureAge
         self.weight = math.clamp(
-        (minWeight + (weightPerMonth * math.clamp(self.age, 0, 20))) * (math.random(85, 115) / 100), minWeight, maxWeight)
+        (minWeight + (weightPerMonth * math.clamp(self.age, 0, math.max(matureAge, 20)))) * (math.random(85, 115) / 100), minWeight, maxWeight)
     end
 
 
@@ -1163,10 +1164,11 @@ function Animal:updateWeight(foodFactor)
     local targetWeight = self.targetWeight
     local weight = self.weight
     local metabolism = self.genetics.metabolism
-    local adultMonth = subType.reproductionMinAgeMonth * 1.5
+    local adultMonth = RLBreedTraits.getMatureAge(subType)
 
     local baseIncrease = ((targetWeight - minWeight) / adultMonth) / (24 * g_currentMission.environment.daysPerPeriod)
-    local increase = baseIncrease * (self.gender == "female" and 0.6 or 1.0) * (1 + ((adultMonth - self.age) / 75)) *
+    local increase = baseIncrease * (self.gender == "female" and RLBreedTraits.getFemaleGrowth(subType) or 1.0) *
+    (1 + ((adultMonth - self.age) / 75)) *
     self:getGrowthNutrition(foodFactor)
 
     if increase < 0 then
@@ -1561,8 +1563,9 @@ function Animal:getSellPrice()
     local sellPrice = subType.sellPrice:get(self.age < 0 and 0 or self.age)
 
     local weight = self.weight
-    local targetWeightForAge = ((self.targetWeight - subType.minWeight) / (subType.reproductionMinAgeMonth * 1.5)) *
-    math.min(self.age + 1.5, subType.reproductionMinAgeMonth * 1.5) * 0.85
+    local matureAge = RLBreedTraits.getMatureAge(subType)
+    local targetWeightForAge = ((self.targetWeight - subType.minWeight) / matureAge) *
+    math.min(self.age + 1.5, matureAge) * 0.85
 
     local weightFactor = 1 + ((weight - targetWeightForAge) / targetWeightForAge)
 

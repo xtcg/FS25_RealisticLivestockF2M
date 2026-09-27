@@ -27,6 +27,10 @@
 - Milk by breed, relative to Holstein (330 at peak, unchanged): Swiss Brown 280 (was 255), Hereford 80 (265), Angus 70 (160), Limousin 60 (140), Highland 50 (160). Beef cows now give the milk left over after the calf, not a dairy cow's. Water Buffalo and goats are unchanged. Hof Bergmann's milk-can curves (v1.4 and v1.5) match.
 - Daily food follows body condition: x (weight / expected weight for its age) ^ 0.35, so a heavy animal eats more than a light one of the same breed and age.
 - A delivery that does not fit the facility's room or the farm's fee budget is refused whole and stays in the trailer.
+- Meat animals reach slaughter weight at realistic ages on full feed (TMR for cattle): Holstein bulls 17 months, Limousin 18, Angus and Hereford 19.5, Swiss Brown 20, Water Buffalo 23, Highland 25; Landrace pigs 5.5, Black Pied 6, Berkshire 6.5; sheep 5 to 5.5. The bigger target weights had made them grow far too fast. Set by the new matureAgeMonth trait in xml/breedTraits.xml; cows and ewes keep the old growth line.
+- Gilts grow at 95% of a boar's rate (new femaleGrowth trait, was 60% like all females), so finishing gilts are ready with the boars. Cattle and sheep females stay at 60%.
+- Food curves rescaled so feed per kg gained keeps the breed order: against Angus, Limousin 0.92, Hereford 0.96, Swiss Brown 1.00, Holstein and Water Buffalo 1.05, Highland 1.15; against Black Pied pigs, Landrace 0.90, Berkshire 1.15; against Landrace sheep, Black Welsh 0.93, Steinschaf 1.05, Swiss Mountain 1.09.
+- Cows' food follows the change in their frame, (new target − birth weight) / (old − birth weight) ^ 0.75: Holstein x1.14, Water Buffalo x1.23, Limousin x1.03, Angus x0.94, Hereford x0.91, Highland x0.74, Swiss Brown unchanged. Holstein milk peaks at 378 (was 330) to keep its milk against feed; Swiss Brown 320 (was 280), about 85% of Holstein. Hof Bergmann's milk-can curves match.
 
 ### Fixed
 

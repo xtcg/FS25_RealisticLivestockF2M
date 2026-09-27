@@ -4,6 +4,10 @@
 
     feed     Daily food, on top of the subtype's food curve, metabolism, pregnancy and lactation.
     growth   Weight gained per hour of growth. Losses are not scaled.
+    femaleGrowth    Growth of a female relative to a male, default 0.6.
+    matureAgeMonth  Age by which an animal on full feed reaches its target weight: the growth line,
+                    and the expected weight for age that food, sale value and newly generated
+                    animals are measured against. Default 1.5 x the subtype's reproduction age.
     grass    How well the breed uses what its pen ate from each forage category below. The pen's
     hay      food factor is weighted by the share of each category in the last feeding, so a
     silage   Highland on grass grows as if the grass were 25% richer. Health, milk and the other
@@ -43,10 +47,11 @@
         <breed name="HOLSTEIN"      feed="1.10" growth="0.95" grass="0.90" hay="0.95" silage="1.10"/>
     </animalType>
 
-    <animalType name="PIG">
-        <breed name="BERKSHIRE"  feed="1.08" growth="0.95"/>
-        <breed name="LANDRACE"   feed="1.00" growth="1.05"/>
-        <breed name="BLACK_PIED" feed="0.90" growth="0.95"/>
+    <!-- Gilts grow almost as fast as boars; the mod's 0.6 for females is for breeding stock. -->
+    <animalType name="PIG" femaleGrowth="0.95">
+        <breed name="BERKSHIRE"  feed="1.08" growth="0.95" matureAgeMonth="17.7"/>  <!-- 118 kg at 6.5 months -->
+        <breed name="LANDRACE"   feed="1.00" growth="1.05" matureAgeMonth="16.3"/>  <!-- 126 kg at 5.5 months -->
+        <breed name="BLACK_PIED" feed="0.90" growth="0.95" matureAgeMonth="13.7"/>  <!-- 120 kg at 6 months -->
     </animalType>
 
     <animalType name="SHEEP">                                <!-- goats share the SHEEP type -->
@@ -56,6 +61,27 @@
         <breed name="SWISS_MOUNTAIN" feed="1.10" growth="1.05"/>
         <breed name="GOAT"           feed="0.85" growth="0.95" grass="1.15" hay="1.15"/>
     </animalType>
+
+    <!--
+        Growth line of animals raised for meat: bulls, rams, and gilts (the boars' is on the PIG
+        breeds above). Each reaches its slaughter reference (target weight x maturity in
+        carcassYield.xml) at a realistic age on full feed: TMR for cattle. Cows and ewes keep the
+        mod's default (1.5 x the age they can first breed). Solved with tests/economics.py.
+    -->
+    <subType name="BULL_HOLSTEIN"        matureAgeMonth="32.0"/>  <!-- 680 kg at 17 months -->
+    <subType name="BULL_LIMOUSIN"        matureAgeMonth="35.7"/>  <!-- 750 kg at 18 months -->
+    <subType name="BULL_ANGUS"           matureAgeMonth="33.4"/>  <!-- 663 kg at 19.5 months -->
+    <subType name="BULL_HEREFORD"        matureAgeMonth="35.9"/>  <!-- 646 kg at 19.5 months -->
+    <subType name="BULL_SWISS_BROWN"     matureAgeMonth="37.8"/>  <!-- 666 kg at 20 months -->
+    <subType name="BULL_WATERBUFFALO"    matureAgeMonth="45.4"/>  <!-- 648 kg at 23 months -->
+    <subType name="BULL_HIGHLAND_CATTLE" matureAgeMonth="40.2"/>  <!-- 585 kg at 25 months -->
+    <subType name="PIG_LANDRACE"         matureAgeMonth="12.2"/>  <!-- gilt: 125 kg at 5.6 months -->
+    <subType name="PIG_BLACK_PIED"       matureAgeMonth="8.9"/>   <!-- gilt: 121 kg at 6.1 months -->
+    <subType name="PIG_BERKSHIRE"        matureAgeMonth="13.1"/>  <!-- gilt: 114 kg at 6.6 months -->
+    <subType name="RAM_LANDRACE"         matureAgeMonth="9.1"/>   <!-- 46.5 kg at 5 months -->
+    <subType name="RAM_STEINSCHAF"       matureAgeMonth="9.6"/>   <!-- 59 kg at 5 months -->
+    <subType name="RAM_SWISS_MOUNTAIN"   matureAgeMonth="10.7"/>  <!-- 62 kg at 5.5 months -->
+    <subType name="RAM_BLACK_WELSH"      matureAgeMonth="9.1"/>   <!-- 38.4 kg at 5.5 months -->
 
     <!-- Example of a single subtype:
     <subType name="BULL_HIGHLAND_CATTLE" growth="0.85"/>
