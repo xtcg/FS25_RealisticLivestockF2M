@@ -120,7 +120,8 @@ end
 
 
 --- Output factor over the fertile life: half at the first month, full from 1.5x that age,
---- then down to 30% at the last fertile month.
+--- then falling from 70% of the cutoff age (maxAge) toward 30% just before it. Output itself
+--- stops at the cutoff: getAgeOutputFactor is 0 from maxAge on.
 function RLSemenCollection.getAgeFactor(age, minAge, maxAge)
     if minAge == nil or maxAge == nil or maxAge <= minAge then return 1 end
 
@@ -153,7 +154,10 @@ function RLSemenCollection.getStrawYield(animal)
     if base == nil then return 0 end
 
     local ageFactor = RLSemenCollection.getAgeOutputFactor(animal)
-    local straws = math.floor(base * (animal.genetics.fertility or 1) * ageFactor + 0.5)
+    local fertility = animal.genetics.fertility or 1
+    if ageFactor <= 0 or fertility <= 0 then return 0 end
+
+    local straws = math.floor(base * fertility * ageFactor + 0.5)
 
     return math.clamp(straws, 1, DewarData.CAPACITY)
 end

@@ -93,6 +93,9 @@ check("bull in its first month -> 150", yield(mkAnimal(1, 12, 1)) == 150)
 check("fertility 1.5 at peak -> 450", yield(mkAnimal(1, 30, 1.5)) == 450)
 check("bull at 120 months declines -> 154", yield(mkAnimal(1, 120, 1)) == 154)
 check("ram at peak -> 100", yield(mkAnimal(5, 10, 1)) == 100)
+check("yield: too young -> 0", yield(mkAnimal(1, 11, 1)) == 0)
+check("yield: at the cutoff age -> 0", yield(mkAnimal(1, 132, 1)) == 0)
+check("yield: infertile -> 0", yield(mkAnimal(1, 30, 0)) == 0)
 
 -- Age share the bull stable's BULLSPERM output follows too (same curve as the straw yield)
 local share = RLSemenCollection.getAgeOutputFactor
@@ -100,7 +103,7 @@ check("stable: HB BULL under 12 months gives nothing", share(mkAnimal(4, 11, 1))
 check("stable: half at 12 months, full from 18", near(share(mkAnimal(4, 12, 1)), 0.5) and share(mkAnimal(4, 18, 1)) == 1)
 check("stable: full until 70% of 132 months", share(mkAnimal(4, 92, 1)) == 1)
 check("stable: 120 months declines like the straw yield", near(share(mkAnimal(4, 120, 1)), 154 / 300, 0.002))
-check("stable: nothing from the last fertile month", share(mkAnimal(4, 132, 1)) == 0 and share(mkAnimal(4, 131, 1)) > 0.3)
+check("stable: nothing from the cutoff age, over 30% the month before", share(mkAnimal(4, 132, 1)) == 0 and share(mkAnimal(4, 131, 1)) > 0.3)
 check("stable: fertility 1.5 still at full at 135 months, producing at 190", share(mkAnimal(4, 135, 1.5)) == 1 and share(mkAnimal(4, 190, 1.5)) > 0.3)
 
 -- Sale value

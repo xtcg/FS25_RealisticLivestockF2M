@@ -120,7 +120,7 @@ Unfortunately, each animal type loads its own set of 3D models from the map's co
 
 The pasture bull still gets individual tracking, a name, and genetics - it just doesn't participate in the cattle breeding and reproduction system.
 
-**Bull sperm from the bull stable.** Hof Bergmann models bull sperm (BULLSPERM) as a milk output on the BULL subtype. RLRM routes it past the lactation gate: each intact bull in the stable produces semen scaled by its fertility gene and the same age curve as collecting semen into a dewar - nothing before 12 months, half at 12, full from 18, falling from 70% of its last fertile month (132 months x fertility) to 30% at it, then nothing. A bull gives its month's semen either to the stable or to a dewar, whichever comes first. The stable fills 18 L cryo barrels, which sell at the GenetiX station or feed the insemination area (1 L plus a Holstein makes a milk cow).
+**Bull sperm from the bull stable.** Hof Bergmann models bull sperm (BULLSPERM) as a milk output on the BULL subtype. RLRM routes it past the lactation gate: each intact bull in the stable produces semen scaled by its fertility gene and the same age curve as collecting semen into a dewar - nothing before 12 months, half at 12, full from 18, falling from 70% of its fertility cutoff age (132 months x fertility) toward 30% just before it, and nothing from the cutoff on. A bull gives its month's semen either to the stable or to a dewar, whichever comes first. The stable fills 18 L cryo barrels, which sell at the GenetiX station or feed the insemination area (1 L plus a Holstein makes a milk cow).
 
 ### Dogs Are Companion Animals
 
