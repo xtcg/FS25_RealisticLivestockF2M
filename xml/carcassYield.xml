@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    Carcass yield for deliveries to production butchers and contract slaughterhouses
+    (Hof Bergmann's farm butcher and public slaughterhouse).
+
+    An animal counts as  live weight / referenceWeight x (1 + qualitySwing x (meat gene - 1))
+    typical animals, so one of reference weight and average genes gets exactly what the
+    facility is configured for per head.
+
+    qualitySwing    Yield change per unit of the meat gene (0.25 - 1.75, 1 = average).
+                    0.25 gives -18.75% .. +18.75%.
+    minWeightRatio  Bounds on live weight / referenceWeight.
+    maxWeightRatio
+
+    referenceWeight is a typical slaughter live weight in kg. It is looked up by subType name
+    first, then by breed within the animal type, then by animal type. An animal with none
+    falls back to the mean target weight of the subtypes the facility accepts.
+
+    To change these without editing the mod, copy this file to
+    modSettings/FS25_RealisticLivestockRM/carcassYield.xml; that copy then replaces this file
+    entirely. In multiplayer the server's file applies.
+-->
+<carcassYield qualitySwing="0.25" minWeightRatio="0.1" maxWeightRatio="2.5">
+    <animalType name="COW" referenceWeight="650"/>      <!-- finished steer / young bull -->
+    <animalType name="PIG" referenceWeight="120"/>      <!-- finishing pig -->
+    <animalType name="SHEEP" referenceWeight="50">      <!-- lamb -->
+        <breed name="GOAT" referenceWeight="32"/>       <!-- goats share the SHEEP type -->
+    </animalType>
+    <animalType name="HORSE" referenceWeight="550"/>
+    <animalType name="CHICKEN" referenceWeight="2.5"/>  <!-- ducks share the type on Hof Bergmann -->
+    <animalType name="GOOSE" referenceWeight="6"/>
+    <animalType name="RABBIT" referenceWeight="2.8"/>
+
+    <!-- Example of a single subtype:
+    <subType name="BULL_HIGHLAND_CATTLE" referenceWeight="800"/>
+    -->
+</carcassYield>
