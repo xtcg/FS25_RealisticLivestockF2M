@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0.1-dev.1 (xtcg fork, Hof Bergmann)
+## 1.4.0.1-dev.2 (xtcg fork, Hof Bergmann)
 
 ### Added
 
@@ -16,7 +16,7 @@
 
 ### Changed
 
-- Butcher and slaughterhouse deliveries scale with the animal: live weight against a typical slaughter weight (cattle 750 kg, pigs 120 kg, sheep 50 kg, goats 32 kg), times its meat gene.
+- Butcher and slaughterhouse deliveries scale with the animal: live weight against a typical slaughter weight (cattle 650 kg, pigs 120 kg, sheep 50 kg, goats 32 kg), times its meat gene.
 - A delivery that does not fit the facility's room or the farm's fee budget is refused whole and stays in the trailer.
 
 ### Fixed
