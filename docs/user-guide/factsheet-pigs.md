@@ -28,12 +28,12 @@ Pig prices peak at 24 months and stay at that level for older animals (unlike ca
 
 | Breed | | Newborn | 6 mo | 24 mo (peak) |
 |-------|---|---------|------|--------------|
-| **Berkshire** | Sow | 45 | 450 | 1,600 |
-| | Boar | 60 | 525 | 1,850 |
-| **Landrace** | Sow | 40 | 400 | 1,400 |
-| | Boar | 50 | 475 | 1,650 |
-| **Black Pied** | Sow | 35 | 375 | 1,200 |
-| | Boar | 45 | 450 | 1,500 |
+| **Berkshire** | Sow | 45 | 215 | 1,600 |
+| | Boar | 60 | 240 | 1,850 |
+| **Landrace** | Sow | 40 | 190 | 1,400 |
+| | Boar | 50 | 210 | 1,650 |
+| **Black Pied** | Sow | 35 | 170 | 1,200 |
+| | Boar | 45 | 190 | 1,500 |
 
 *These are typical prices for an average, healthy animal. Actual prices vary widely - well-bred healthy animals sell for significantly more, poor-quality animals can sell for far less, and a sick animal is worth less while sick.*
 
@@ -55,6 +55,8 @@ Pig prices peak at 24 months and stay at that level for older animals (unlike ca
 | **Berkshire** | 65 | 1,200 | 75 | 1,500 |
 | **Landrace** | 55 | 1,100 | 65 | 1,400 |
 | **Black Pied** | 45 | 1,000 | 55 | 1,200 |
+
+*Finishing pigs are normally bought much younger: at 6 months dealer prices are about 200-270 depending on breed and sex. The adult figures above are breeding-stock prices.*
 
 ---
 
