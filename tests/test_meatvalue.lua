@@ -58,7 +58,7 @@ end)())
 -- Slaughter value of the reported bull: 516 kg, gene 1 -> 0.845 typical x 270 kg = 228 kg beef.
 local function bull(age, weight, fields)
     local a = { subTypeIndex = 1, age = age, weight = weight, gender = "male", targetWeight = 1000,
-        genetics = { quality = 1 }, diseases = {} }
+        genetics = { quality = 1, metabolism = 1 }, diseases = {} }
     for k, v in pairs(fields or {}) do a[k] = v end
     return a
 end

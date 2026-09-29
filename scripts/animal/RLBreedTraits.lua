@@ -14,8 +14,10 @@ local Log = RmLogging.getLogger("RLRM")
 
 RLBreedTraits.CONFIG_FILE = "breedTraits.xml"
 
---- Per-animal trait attributes. All but matureAgeMonth are multipliers, 1 = unchanged.
-RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrowth", "matureAgeMonth" }
+--- Per-animal trait attributes. All but matureAgeMonth, priceTargetWeight and priceMatureAgeMonth are
+--- multipliers, 1 = unchanged.
+RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrowth", "matureAgeMonth",
+    "priceTargetWeight", "priceMatureAgeMonth" }
 
 --- Female growth relative to male, where the file sets none (the mod's original rule).
 RLBreedTraits.DEFAULT_FEMALE_GROWTH = 0.6
@@ -274,6 +276,48 @@ function RLBreedTraits.getGrownWeight(subType, gender, targetWeight, age, metabo
         month = month + step
     end
     return weight
+end
+
+
+--- The reference line live prices measure weight against: target weight and mature age (months)
+--- from priceTargetWeight / priceMatureAgeMonth; nil for a subtype that sets neither, whose price
+--- then uses its own target weight and mature age.
+--- @param subType table|nil
+--- @return number|nil priceTargetWeight
+--- @return number|nil priceMatureAge
+function RLBreedTraits.getPriceModel(subType)
+    if subType == nil then return nil end
+    local layers = RLBreedTraits.getConfig().layers
+    local target = RLBreedTraits.resolve(layers, subType, "priceTargetWeight", nil)
+    local matureAge = RLBreedTraits.resolve(layers, subType, "priceMatureAgeMonth", nil)
+    if target == nil or matureAge == nil or target <= 0 or matureAge <= 0 then return nil end
+    return target, matureAge
+end
+
+
+--- An animal's weight on the live-price reference line: its share of the full-feed growth line at
+--- its age, applied to the price line's weight for that age (from birth weight to priceTargetWeight
+--- by priceMatureAgeMonth, then flat, as animals with no weight of their own once got theirs). An
+--- animal on the growth line weighs what the price line says for its age, so a change to target
+--- weights, maturity or growth does not move its price. Unchanged for a subtype with no price line.
+--- @param subType table
+--- @param gender string|nil
+--- @param targetWeight number The animal's own target weight
+--- @param age number Months
+--- @param metabolism number|nil
+--- @param weight number The animal's weight
+--- @return number
+function RLBreedTraits.toPriceWeight(subType, gender, targetWeight, age, metabolism, weight)
+    local priceTarget, priceMatureAge = RLBreedTraits.getPriceModel(subType)
+    if priceTarget == nil then return weight end
+
+    local line = RLBreedTraits.getGrownWeight(subType, gender, targetWeight, age, metabolism)
+    if line <= 0 then return weight end
+
+    local minWeight = subType.minWeight or 0
+    local priceLine = minWeight + (priceTarget - minWeight) / priceMatureAge *
+        math.clamp(age, 0, math.max(priceMatureAge, 20))
+    return weight * priceLine / line
 end
 
 

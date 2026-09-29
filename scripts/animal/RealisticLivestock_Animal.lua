@@ -1558,7 +1558,20 @@ function Animal:getSellPrice()
 
     local weight = self.weight
     local matureAge = RLBreedTraits.getMatureAge(subType)
-    local targetWeightForAge = ((self.targetWeight - subType.minWeight) / matureAge) *
+    local baseTarget = subType.targetWeight
+    local ownTarget = self.targetWeight
+
+    -- Cattle are priced on their own reference line, not the target weights and growth lines the
+    -- pens use, so that setting those to real weights leaves prices where they were calibrated.
+    local priceTarget, priceMatureAge = RLBreedTraits.getPriceModel(subType)
+    if priceTarget ~= nil then
+        weight = RLBreedTraits.toPriceWeight(subType, self.gender, self.targetWeight, self.age, self.genetics.metabolism, weight)
+        matureAge = priceMatureAge
+        baseTarget = priceTarget
+        ownTarget = priceTarget + (((priceTarget * self.genetics.metabolism) - priceTarget) / 2.5)
+    end
+
+    local targetWeightForAge = ((ownTarget - subType.minWeight) / matureAge) *
     math.min(self.age + 1.5, matureAge) * 0.85
 
     local weightFactor = 1 + ((weight - targetWeightForAge) / targetWeightForAge)
@@ -1567,7 +1580,7 @@ function Animal:getSellPrice()
 
     sellPrice = sellPrice + (sellPrice * 0.25 * (meatFactor - 1))
 
-    sellPrice = math.max(sellPrice + (((sellPrice * 0.6) / subType.targetWeight) * weight * (-1 + meatFactor)), 0.5)
+    sellPrice = math.max(sellPrice + (((sellPrice * 0.6) / baseTarget) * weight * (-1 + meatFactor)), 0.5)
 
     if self.isCastrated then sellPrice = sellPrice + sellPrice * 0.15 end
 
