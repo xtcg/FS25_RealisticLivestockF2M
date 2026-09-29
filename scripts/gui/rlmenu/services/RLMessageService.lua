@@ -38,42 +38,25 @@ function RLMessageService.parseDate(dateStr)
     return tonumber(y), tonumber(m), tonumber(d)
 end
 
---- Substitute the tokens in a localized message template from message.args, resolving an
---- rl_*-prefixed arg through g_i18n first. The space-split approach is fragile for
---- punctuation-heavy templates, but every existing translation was authored against this
---- exact behaviour, so diverging would silently break translated text.
---- TODO: rework the substitution once translations can be regenerated.
+--- Replace positional %s placeholders independently of whitespace and punctuation.
+--- Use a callback so percent signs in names/money remain literal replacement text.
 --- @param template string Localized template string (output of g_i18n:getText)
 --- @param args table|nil Argument list from the raw message record
 --- @return string Substituted text
 local function substituteTokens(template, args)
     Log:trace("RLMessageService.substituteTokens: template='%s'", tostring(template))
-    local tokens = string.split(template, " ")
-    local argI = 1
-
-    -- ipairs (not pairs) because the token table is a contiguous array and
-    -- substitution order must match the positional %s argument sequence.
-    for i, token in ipairs(tokens) do
-        if token == "%s" then
-            local arg = (args and args[argI]) or ""
-            if string.contains(arg, "rl_") then
-                tokens[i] = g_i18n:getText(arg)
-            else
-                tokens[i] = arg
-            end
-            argI = argI + 1
-        elseif token == "'%s'" then
-            local arg = (args and args[argI]) or ""
-            if string.contains(arg, "rl_") then
-                tokens[i] = "'" .. g_i18n:getText(arg) .. "'"
-            else
-                tokens[i] = "'" .. arg .. "'"
-            end
-            argI = argI + 1
+    local argI = 0
+    local text = template:gsub("%%s", function()
+        argI = argI + 1
+        local arg = args and args[argI]
+        if arg == nil then return "" end
+        arg = tostring(arg)
+        if arg:sub(1, 3) == "rl_" and g_i18n:hasText(arg) then
+            return g_i18n:getText(arg)
         end
-    end
-
-    return table.concat(tokens, " ")
+        return arg
+    end)
+    return text
 end
 
 --- Format one message record into a display-ready row; an unknown id falls back to a
