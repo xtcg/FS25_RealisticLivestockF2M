@@ -79,7 +79,7 @@ check("birth mean: heifer's first calf 93%", near(B.getMean(HOL_COW, ctx), 42.02
 ctx.firstBirth, ctx.litterSize = false, 2
 check("birth mean: twin 85%", near(B.getMean(HOL_COW, ctx), 42.02 * 0.85, 0.01))
 ctx.litterSize, ctx.metabolism = 1, 1.5
-check("birth mean: metabolism 1.5 -> +5%", near(B.getMean(HOL_COW, ctx), 42.02 * 1.05, 0.01))
+check("birth mean: metabolism 1.5 -> +2.5%", near(B.getMean(HOL_COW, ctx), 42.02 * 1.025, 0.01))
 ctx.metabolism, ctx.sireBreed = 1, "ANGUS"
 check("birth mean: Angus sire on a Holstein cow, mean of both breeds", near(B.getMean(HOL_COW, ctx), (42.02 + 31.98) / 2, 0.01))
 check("birth mean: cross works whichever breed the calf takes", near(B.getMean(ANG_BULL, ctx), (44.97 + 34.22) / 2, 0.01))
@@ -109,11 +109,20 @@ mean = sum / n
 sd = math.sqrt(sumSq / n - mean * mean)
 check("draw: piglets average 1.40 kg with CV ~20%", near(mean, 1.399, 0.01) and sd / mean > 0.185 and sd / mean < 0.202)
 
--- Stillbirth chance
-check("survival: health 0.87 and up survive an average birth", B.getSurvivalChance(0.87, 0) == 1)
-check("survival: health 0.6 -> 69%", near(B.getSurvivalChance(0.6, 0), 0.69))
-check("survival: a very light young (-2.5 SD) loses a quarter per SD past -1.5", near(B.getSurvivalChance(1, -2.5), 1.15 * 0.75))
-check("survival: a very heavy young (+2.5 SD) is a hard birth", near(B.getSurvivalChance(0.8, 2.5), 0.8 * 1.15 * 0.95))
+-- Birth survival: a species baseline, modest health modifier, and species-specific weight risk.
+check("survival: average calf baseline is 97%", near(B.getSurvivalChance(HOL_COW, 1, 0), 0.97))
+check("survival: calf health 0.5 / 1.5 changes baseline by -/+10%",
+    near(B.getSurvivalChance(HOL_COW, 0.5, 0), 0.97 * 0.90)
+    and near(B.getSurvivalChance(HOL_COW, 1.5, 0), 0.97 * 1.10))
+check("survival: very light calf (-2.5 SD) gets cattle low-weight penalty",
+    near(B.getSurvivalChance(HOL_COW, 1, -2.5), 0.97 * 0.93))
+check("survival: very heavy calf (+2.5 SD) gets cattle dystocia penalty",
+    near(B.getSurvivalChance(HOL_COW, 1, 2.5), 0.97 * (1 - 0.12 * 1.2)))
+check("survival: average piglet baseline is 94%", near(B.getSurvivalChance(GILT, 1, 0), 0.94))
+check("survival: 1 SD-light piglet already gets a small penalty",
+    near(B.getSurvivalChance(GILT, 1, -1.0), 0.94 * 0.98))
+check("survival: heavy piglet has no high-weight penalty",
+    near(B.getSurvivalChance(GILT, 1, 2.5), 0.94))
 
 -- minWeight follows the breed mean at load; unconfigured species keep theirs.
 B.syncMinWeights(g_currentMission.animalSystem)
