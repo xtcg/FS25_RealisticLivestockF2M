@@ -73,10 +73,10 @@
     -->
     <subType name="BULL_HOLSTEIN"        matureAgeMonth="32.0"/>  <!-- 680 kg at 17 months -->
     <subType name="BULL_LIMOUSIN"        matureAgeMonth="35.7"/>  <!-- 750 kg at 18 months -->
-    <subType name="BULL_ANGUS"           matureAgeMonth="33.4"/>  <!-- 663 kg at 19.5 months -->
-    <subType name="BULL_HEREFORD"        matureAgeMonth="35.9"/>  <!-- 646 kg at 19.5 months -->
-    <subType name="BULL_SWISS_BROWN"     matureAgeMonth="37.8"/>  <!-- 666 kg at 20 months -->
-    <subType name="BULL_WATERBUFFALO"    matureAgeMonth="45.4"/>  <!-- 648 kg at 23 months -->
+    <subType name="BULL_ANGUS"           matureAgeMonth="33.4" feed="1.12"/>  <!-- 741 kg at 19.5 months -->
+    <subType name="BULL_HEREFORD"        matureAgeMonth="35.9" feed="0.95"/>  <!-- 684 kg at 19.5 months -->
+    <subType name="BULL_SWISS_BROWN"     matureAgeMonth="37.8" feed="1.06"/>  <!-- 703 kg at 20 months -->
+    <subType name="BULL_WATERBUFFALO"    matureAgeMonth="45.4" feed="0.85"/>  <!-- 613 kg at 23 months -->
     <subType name="BULL_HIGHLAND_CATTLE" matureAgeMonth="40.2"/>  <!-- 585 kg at 25 months -->
     <subType name="PIG_LANDRACE"         matureAgeMonth="12.2"/>  <!-- gilt: 125 kg at 5.6 months -->
     <subType name="PIG_BLACK_PIED"       matureAgeMonth="8.9"/>   <!-- gilt: 121 kg at 6.1 months -->

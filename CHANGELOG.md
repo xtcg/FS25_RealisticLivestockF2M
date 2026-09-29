@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased (xtcg fork, Hof Bergmann)
+
+### Changed
+
+- Cattle target weights moved closer to real mature weights. Bulls: Angus 850 -> 950 kg (the bull was low against a 650 kg cow), Hereford 850 -> 900, Swiss Brown 900 -> 950, Water Buffalo (river type) 900 -> 850. Limousin cow 650 -> 690. Slaughter age stays the same, so a finished Angus bull is now about 741 kg at 19.5 months (was 664), Hereford 684, Swiss Brown 703, Water Buffalo 613. The bulls' feed trait was retuned (Angus 1.12, Hereford 0.95, Swiss Brown 1.06, Water Buffalo 0.85; bulls only, cows keep the breed's) so feed per kg gain keeps its breed order.
+
 ## 1.4.0.1-dev.6 (xtcg fork, Hof Bergmann)
 
 ### Changed
