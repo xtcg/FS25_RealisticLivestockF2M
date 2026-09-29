@@ -3,14 +3,14 @@
 AnimalMoveEvent = { MOVE_SUCCESS = 0, MOVE_ERROR_INVALID_CLUSTER = 4, MOVE_ERROR_NOT_ENOUGH_SPACE = 6 }
 
 TYPES = { [1] = { name = "COW" }, [2] = { name = "PIG" }, [3] = { name = "DUCKWILD" }, [4] = { name = "SHEEP" } }
-SUBS = { [1] = { typeIndex = 1, targetWeight = 850, name = "BULL_ANGUS", breed = "ANGUS", gender = "male" },
-         [2] = { typeIndex = 1, targetWeight = 680, name = "COW_HOLSTEIN", breed = "HOLSTEIN", gender = "female" },
+SUBS = { [1] = { typeIndex = 1, targetWeight = 1000, name = "BULL_ANGUS", breed = "ANGUS", gender = "male" },
+         [2] = { typeIndex = 1, targetWeight = 730, name = "COW_HOLSTEIN", breed = "HOLSTEIN", gender = "female" },
          [3] = { typeIndex = 2, targetWeight = 240, name = "PIG_LANDRACE", breed = "LANDRACE", gender = "female" },
          [4] = { typeIndex = 3, targetWeight = 3.5 }, [5] = { typeIndex = 3, targetWeight = 2.5 },
          [6] = { typeIndex = 4, targetWeight = 60, name = "GOAT", breed = "GOAT", gender = "female" },
          [7] = { typeIndex = 4, targetWeight = 55, name = "SHEEP_LANDRACE", breed = "LANDRACE", gender = "female" },
-         [8] = { typeIndex = 1, targetWeight = 1000, name = "BULL_LIMOUSIN", breed = "LIMOUSIN", gender = "male" },
-         [9] = { typeIndex = 1, targetWeight = 1000, name = "BULL_HOLSTEIN", breed = "HOLSTEIN", gender = "male" } }
+         [8] = { typeIndex = 1, targetWeight = 1200, name = "BULL_LIMOUSIN", breed = "LIMOUSIN", gender = "male" },
+         [9] = { typeIndex = 1, targetWeight = 1100, name = "BULL_HOLSTEIN", breed = "HOLSTEIN", gender = "male" } }
 MONEY = {}
 g_currentMission = {
     animalSystem = { getSubTypeByIndex = function(_, i) return SUBS[i] end, getTypeByIndex = function(_, i) return TYPES[i] end },
@@ -28,7 +28,7 @@ loadMod("scripts/animals/shop/events/AnimalMoveEvent.lua")
 local config = AnimalMoveEvent.getCarcassConfig()
 check("config: shipped xml/carcassYield.xml is read",
     near(config.layers.root.qualitySwing, 0.2) and config.layers.types.COW.anchorWeight == 650
-    and near(config.layers.breeds.COW.HOLSTEIN.maleMaturity, 0.68) and config.layers.breeds.SHEEP.GOAT.anchorWeight == 32
+    and near(config.layers.breeds.COW.HOLSTEIN.maleMaturity, 0.618) and config.layers.breeds.SHEEP.GOAT.anchorWeight == 32
     and near(config.maxFinishFactor, 1.3) and near(config.sizeExponent, 0.25))
 
 -- The animal's own target weight defaults to its subtype's (no metabolism gene in these tests).
@@ -67,17 +67,17 @@ local function butcherUnits(a)
     return f.level, #list, f
 end
 
-check("yield: Angus bull at its reference (850 x 0.78 = 663 kg) -> size 1.005 x carcass 1.06 = 1.065",
+check("yield: Angus bull at its reference (1000 x 0.663 = 663 kg) -> size 1.005 x carcass 1.06 = 1.065",
     near(yield(animal(1, 663, 1)), 1.0653, 0.001))
-check("yield: Limousin bull at its reference (1000 x 0.75 = 750 kg) -> 1.099", near(yield(animal(8, 750, 1)), 1.0986, 0.001))
-check("yield: Holstein bull at its reference (1000 x 0.68 = 680 kg) -> 0.951", near(yield(animal(9, 680, 1)), 0.9507, 0.001))
+check("yield: Limousin bull at its reference (1200 x 0.625 = 750 kg) -> 1.099", near(yield(animal(8, 750, 1)), 1.0986, 0.001))
+check("yield: Holstein bull at its reference (1100 x 0.618 = 680 kg) -> 0.951", near(yield(animal(9, 680, 1)), 0.9507, 0.001))
 check("yield: finish (900 / 663) ^ 0.85 for a heavy Angus -> 1.381", near(yield(animal(1, 900, 1)), 1.3813, 0.001))
 check("yield: finish clamped at 1.3 for a huge Angus", near(yield(animal(1, 5000, 1)), 1.3848, 0.001))
 check("yield: no finish floor, a 50 kg calf yields by its weight", near(yield(animal(1, 50, 1)), (50 / 663) ^ 0.85 * 1.0050 * 1.06, 0.001))
 check("yield: meat gene 1.5 -> +10% (qualitySwing 0.2)", near(yield(animal(1, 663, 1.5)) / yield(animal(1, 663, 1)), 1.1))
 check("yield: goat qualitySwing 0.12 -> +6% at gene 1.5", near(yield(animal(6, 51, 1.5)) / yield(animal(6, 51, 1)), 1.06))
 check("yield: own target weight moves the reference (metabolism)",
-    yield(animal(1, 800, 1, 1000)) < yield(animal(1, 800, 1)))
+    yield(animal(1, 800, 1, 1200)) < yield(animal(1, 800, 1)))
 check("yield: 1 without an animal; no weight -> size x carcass only",
     AnimalMoveEvent.getCarcassYieldFactor(nil) == 1 and near(yield({ subTypeIndex = 1, gender = "male" }), 1.0050 * 1.06, 0.001))
 
@@ -94,7 +94,7 @@ AnimalMoveEvent._deliverToEPPTarget(insemination, { entry(animal(2, 450, 1)) }, 
 check("insemination: a light Holstein is still 1000 units (not carcass-scaled)", insemination.level == 1000)
 check("insemination: counted by head, not by yield",
     not AnimalMoveEvent._isWeighedTarget(insemination, nil, 2) and AnimalMoveEvent._isWeighedTarget(butcher(1), nil, 2))
-check("butcher: Holstein cull cow at 578 kg, gene 1.5 -> 753.1", near(butcherUnits(animal(2, 578, 1.5)), 753.07, 0.05))
+check("butcher: Holstein cull cow at 621 kg, gene 1.5 -> 767.1", near(butcherUnits(animal(2, 621, 1.5)), 767.07, 0.05))
 check("butcher: 120 kg Landrace gilt -> 117.2", near(butcherUnits(animal(3, 120, 1)), 117.21, 0.05))
 check("butcher: unlisted type anchors on the facility mean target weight -> 10.39",
     near(butcherUnits(animal(4, 3.5, 1)), 10.39, 0.01))
@@ -294,8 +294,8 @@ check("contract recipes: a fill type taken by two animal types is left alone",
 check("contract recipes: a placeable without the contract spec is ignored",
     AnimalMoveEvent.alignContractRecipes({}) == 0 and AnimalMoveEvent.alignContractRecipes(nil) == 0)
 
--- The reported Swiss Brown bull: 516 kg, average meat gene, target 900 kg -> 0.79 typical animals.
-SUBS[10] = { typeIndex = 1, targetWeight = 900, name = "BULL_SWISS_BROWN", breed = "SWISS_BROWN", gender = "male" }
+-- The reported Swiss Brown bull: 516 kg, average meat gene, target 1000 kg -> 0.79 typical animals.
+SUBS[10] = { typeIndex = 1, targetWeight = 1000, name = "BULL_SWISS_BROWN", breed = "SWISS_BROWN", gender = "male" }
 local bull = yield(animal(10, 516, 1))
 check("Swiss Brown bull 516 kg: 0.79 typical animals, 356 kg of beef at either facility",
     near(bull, 0.794, 0.002) and near(bull * 750 * 900 / 1500, bull * 450))

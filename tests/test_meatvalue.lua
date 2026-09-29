@@ -3,7 +3,7 @@
 AnimalMoveEvent = { MOVE_SUCCESS = 0 }
 
 TYPES = { [1] = { name = "COW" }, [2] = { name = "HORSE" } }
-SUBS = { [1] = { typeIndex = 1, targetWeight = 900, minWeight = 40, reproductionMinAgeMonth = 12,
+SUBS = { [1] = { typeIndex = 1, targetWeight = 1000, minWeight = 40, reproductionMinAgeMonth = 12,
                  name = "BULL_SWISS_BROWN", breed = "SWISS_BROWN", gender = "male" },
          [2] = { typeIndex = 2, targetWeight = 600, name = "STALLION_GRAY", gender = "male" } }
 local BEEFMEAT = 40
@@ -57,7 +57,7 @@ end)())
 
 -- Slaughter value of the reported bull: 516 kg, gene 1 -> 0.794 typical x 450 kg = 357 kg beef.
 local function bull(age, weight, fields)
-    local a = { subTypeIndex = 1, age = age, weight = weight, gender = "male", targetWeight = 900,
+    local a = { subTypeIndex = 1, age = age, weight = weight, gender = "male", targetWeight = 1000,
         genetics = { quality = 1 }, diseases = {} }
     for k, v in pairs(fields or {}) do a[k] = v end
     return a
