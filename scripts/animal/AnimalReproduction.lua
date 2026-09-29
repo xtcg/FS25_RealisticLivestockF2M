@@ -862,7 +862,8 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
     for i, child in pairs(pregnancies) do
 
         local genetics = child.genetics
-        local weight, z, meanWeight = RLBirthWeight.draw(child:getSubType(), {
+        local childSubType = child:getSubType()
+        local weight, z, meanWeight = RLBirthWeight.draw(childSubType, {
             dam = animal,
             damBreed = subType ~= nil and subType.breed or nil,
             sireBreed = animal.impregnatedBy ~= nil and animal.impregnatedBy.breed or nil,
@@ -873,7 +874,7 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
         Log:trace("  child %d birth weight %.3f (mean %.3f, z=%.2f, litter=%d, firstBirth=%s)",
             i, weight, meanWeight, z, litterSize, tostring(firstBirth))
 
-        if animal.deathEnabled and math.random() >= RLBirthWeight.getSurvivalChance(genetics.health, z) then
+        if animal.deathEnabled and math.random() >= RLBirthWeight.getSurvivalChance(childSubType, genetics.health, z) then
 
             childNum = childNum - 1
             animalsToSell = animalsToSell - 1
