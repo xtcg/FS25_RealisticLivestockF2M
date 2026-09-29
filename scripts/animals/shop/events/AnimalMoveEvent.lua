@@ -52,7 +52,9 @@ AnimalMoveEvent.CARCASS_CONFIG_DEFAULTS = {
 --- Per-animal settings, looked up subtype, then breed within the animal type, then animal type,
 --- then on the carcassYield element (RLBreedTraits.resolve).
 AnimalMoveEvent.CARCASS_ATTRIBUTES = { "anchorWeight", "referenceWeight", "maleMaturity", "femaleMaturity",
-	"carcassFactor", "qualitySwing", "meatPerHead", "dressingRate", "saleableRate", "slaughterShare", "cullShare", "cullAgeMonth", "slaughterMinAgeMonth" }
+	"carcassFactor", "qualitySwing", "meatPerHead", "dressingRate", "saleableRate",
+	"slaughterFee", "processingFeePerKg", "maxSlaughterMargin", "cullFloorFactor", "referencePrice",
+	"marketPassThrough", "marketFactorMin", "marketFactorMax", "slaughterShare", "cullShare", "cullAgeMonth", "slaughterMinAgeMonth" }
 
 --- Used when no layer sets them.
 AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS = { maleMaturity = 1, femaleMaturity = 1, carcassFactor = 1, qualitySwing = 0.2 }
@@ -260,6 +262,18 @@ function AnimalMoveEvent.getMeatPerHead(typeName)
 end
 
 
+--- Extra fee per kg of meat a contract slaughterhouse charges for fine cutting and packing, from
+--- carcassYield animalType#processingFeePerKg; nil when the type sets none.
+--- @param typeName string|nil
+--- @return number|nil
+function AnimalMoveEvent.getProcessingFeePerKg(typeName)
+	if typeName == nil then return nil end
+	local layer = AnimalMoveEvent.getCarcassConfig().layers.types[typeName:upper()]
+	local value = layer ~= nil and layer.processingFeePerKg or nil
+	return value ~= nil and value > 0 and value or nil
+end
+
+
 --- Meat one input unit of a unit-based butcher becomes: its production's primary meat output over
 --- the input amount (Hof Bergmann's farm butcher turns 1500 BEEF into 900 BEEFMEAT, 0.6).
 --- @param targetObject table The butcher (a production point)
@@ -291,7 +305,7 @@ end
 
 --- Rescale a contract facility's animal recipes (Hof Bergmann's public slaughterhouse) so one
 --- input unit - one typical animal, as delivery credits it - gives meatPerHead of meat, the same
---- as the farm butcher. The shipped recipes give 1000 kg of beef, 500 kg of pork or 400 kg of
+--- as the farm butcher, and adds the type's processingFeePerKg to the batch fee. The shipped recipes give 1000 kg of beef, 500 kg of pork or 400 kg of
 --- sheep meat per animal, two to eight times the butcher. Every output of the recipe is scaled
 --- by the same factor, and fees are left alone, so they stay per typical animal.
 ---
@@ -341,6 +355,13 @@ function AnimalMoveEvent.alignContractRecipes(placeable)
 			local scale = meatPerHead * input.amount / shipped[recipe.primaryOutputFillTypeIndex]
 			for outputFillType, output in pairs(recipe.outputs) do
 				output.amount = shipped[outputFillType] * scale
+			end
+
+			-- Fine cutting and packing, charged per kg of meat on top of the shipped fee for a batch.
+			local perKg = AnimalMoveEvent.getProcessingFeePerKg(typeName)
+			if perKg ~= nil and recipe.feeInputFillTypeIndex ~= nil then
+				if recipe.rlShippedFeePerBatch == nil then recipe.rlShippedFeePerBatch = recipe.feePerBatch or 0 end
+				recipe.feePerBatch = recipe.rlShippedFeePerBatch + perKg * meatPerHead * input.amount
 			end
 			patched = patched + 1
 			Log:debug("AnimalMoveEvent.alignContractRecipes: recipe %s (%s) %.1f -> %.1f per animal",

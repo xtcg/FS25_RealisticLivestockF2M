@@ -278,7 +278,7 @@ local BEEFMEAT, PORKMEAT, POULTRYMEAT, SHEEPMEAT, WASTE = 30, 31, 32, 33, 34
 local function contractRecipes(subTypeToFillType)
     local function recipe(id, input, output, amount, extra)
         local r = { id = id, inputs = { [input] = { amount = 1 } }, outputs = { [output] = { amount = amount } },
-            primaryOutputFillTypeIndex = output }
+            primaryOutputFillTypeIndex = output, feePerBatch = 100, feeInputFillTypeIndex = input }
         if extra ~= nil then r.outputs[WASTE] = { amount = extra } end
         return r
     end
@@ -294,12 +294,14 @@ check("contract recipes: beef, pork and sheep rescaled; a type without meatPerHe
     AnimalMoveEvent.alignContractRecipes(target) == 3)
 check("contract recipes: 1 cow -> 270 kg, 1 pig -> 75 kg, like the farm butcher",
     near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[2].outputs[PORKMEAT].amount, 75))
+check("contract recipes: cattle fine cutting adds 1.05 per kg to the batch fee (100 + 1.05 x 270), pork keeps 100",
+    near(recipes[1].feePerBatch, 383.5) and recipes[2].feePerBatch == 100)
 check("contract recipes: DUCKWILD (no meatPerHead) keeps 100", recipes[3].outputs[POULTRYMEAT].amount == 100)
 check("contract recipes: sheep 400 -> 50 kg, its other output scaled by the same factor",
     near(recipes[4].outputs[SHEEPMEAT].amount, 50) and near(recipes[4].outputs[WASTE].amount, 10))
 AnimalMoveEvent.alignContractRecipes(target)
 check("contract recipes: a second run does not scale again",
-    near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[4].outputs[WASTE].amount, 10))
+    near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[4].outputs[WASTE].amount, 10) and near(recipes[1].feePerBatch, 383.5))
 
 target, recipes = contractRecipes({ [1] = BEEF, [3] = BEEF })
 check("contract recipes: a fill type taken by two animal types is left alone",

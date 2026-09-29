@@ -34,15 +34,16 @@ local function price(name, side, age)
     return curve(assert(subTypes[name], name)[side], age)
 end
 
--- Bulls: commodity-age live-market anchors after the realistic growth calibration.
+-- Bulls: commodity-age live-market anchors: the values of the realistic growth calibration scaled per breed so that
+-- slaughtering by contract earns 12% over selling live over the year at one beef price (9.44/kg) (xml/carcassYield.xml, docs RLRM_牛肉链收益校准.md).
 local BULLS = {
-    { "BULL_HOLSTEIN", 18, 2050 },
+    { "BULL_HOLSTEIN", 18, 2046 },
     { "BULL_SWISS_BROWN", 18, 1850 },
-    { "BULL_HEREFORD", 18, 1950 },
-    { "BULL_ANGUS", 18, 2150 },
-    { "BULL_LIMOUSIN", 18, 2450 },
-    { "BULL_HIGHLAND_CATTLE", 18, 1550 },
-    { "BULL_WATERBUFFALO", 18, 1500 },
+    { "BULL_HEREFORD", 18, 1875 },
+    { "BULL_ANGUS", 18, 2019 },
+    { "BULL_LIMOUSIN", 18, 2223 },
+    { "BULL_HIGHLAND_CATTLE", 18, 1419 },
+    { "BULL_WATERBUFFALO", 18, 1385 },
 }
 for _, row in ipairs(BULLS) do
     check("market cattle: " .. row[1] .. " sell anchor", near(price(row[1], "sell", row[2]), row[3]))
