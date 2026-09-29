@@ -3,6 +3,7 @@
 
         meat  = carcass yield (typical animals, AnimalMoveEvent.getCarcassYieldFactor) x meatPerHead
         value = meat x best current price for the type's meatFillType x share
+                (cattle: what slaughtering by contract earns after the fees, less slaughterMargin)
 
     share is what a slaughterhouse pays for the animal live, as a part of its meat's value:
     slaughterShare, or cullShare from cullAgeMonth on (old cows and bulls, sows and boars, mutton).
@@ -98,15 +99,25 @@ function RLMeatValue.getMeatKg(animal, subType)
 end
 
 
+--- Whether the animal is old enough to sell as processing meat (cullAgeMonth).
+--- @param animal table
+--- @param subType table|nil
+--- @return boolean
+function RLMeatValue.isCull(animal, subType)
+    local layers = AnimalMoveEvent.getCarcassConfig().layers
+    local cullAge = RLBreedTraits.resolve(layers, subType, "cullAgeMonth", nil)
+    return cullAge ~= nil and (animal.age or 0) >= cullAge
+end
+
+
 --- The part of its meat's value an animal fetches live: cullShare from cullAgeMonth on, else
---- slaughterShare.
+--- slaughterShare. Used for the types that set no processingFeePerKg.
 --- @param animal table
 --- @param subType table|nil
 --- @return number
 function RLMeatValue.getShare(animal, subType)
     local layers = AnimalMoveEvent.getCarcassConfig().layers
-    local cullAge = RLBreedTraits.resolve(layers, subType, "cullAgeMonth", nil)
-    if cullAge ~= nil and (animal.age or 0) >= cullAge then
+    if RLMeatValue.isCull(animal, subType) then
         return RLBreedTraits.resolve(layers, subType, "cullShare", 0)
     end
     return RLBreedTraits.resolve(layers, subType, "slaughterShare", 0)
@@ -114,6 +125,12 @@ end
 
 
 --- What a slaughterhouse pays for the animal live, before disease; 0 when it has no floor.
+---
+--- A type with processingFeePerKg is priced from what slaughtering it yourself earns:
+---   net   = meat kg x price - (slaughterFee per typical animal + processingFeePerKg x meat kg)
+---   value = net / (1 + slaughterMargin), x cullFloorFactor from cullAgeMonth on
+--- so a farm that has the animal slaughtered by contract earns slaughterMargin over selling it live,
+--- and the floor follows the meat price through the seasons. Other types: meat x price x share.
 --- @param animal table
 --- @return number value
 --- @return number meatKg
@@ -123,14 +140,28 @@ function RLMeatValue.getSlaughterValue(animal)
     local subType = animalSystem ~= nil and animalSystem:getSubTypeByIndex(animal.subTypeIndex) or nil
     if subType == nil then return 0, 0, 0 end
 
-    local fillType = RLMeatValue.getMeatFillType(RLBreedTraits.getTypeName(subType))
+    local typeName = RLBreedTraits.getTypeName(subType)
+    local fillType = RLMeatValue.getMeatFillType(typeName)
     if fillType == nil then return 0, 0, 0 end
 
     local meatKg = RLMeatValue.getMeatKg(animal, subType)
     if meatKg <= 0 then return 0, 0, 0 end
 
     local price = RLMeatValue.getMeatPrice(fillType)
-    return meatKg * price * RLMeatValue.getShare(animal, subType), meatKg, price
+    local layers = AnimalMoveEvent.getCarcassConfig().layers
+    local perKg = RLBreedTraits.resolve(layers, subType, "processingFeePerKg", nil)
+    if perKg == nil then
+        return meatKg * price * RLMeatValue.getShare(animal, subType), meatKg, price
+    end
+
+    local meatPerHead = AnimalMoveEvent.getMeatPerHead(typeName)
+    local typical = meatPerHead ~= nil and meatKg / meatPerHead or 1
+    local fee = RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) * typical + perKg * meatKg
+    local value = math.max(meatKg * price - fee, 0) / (1 + RLBreedTraits.resolve(layers, subType, "slaughterMargin", 0))
+    if RLMeatValue.isCull(animal, subType) then
+        value = value * RLBreedTraits.resolve(layers, subType, "cullFloorFactor", 1)
+    end
+    return value, meatKg, price
 end
 
 

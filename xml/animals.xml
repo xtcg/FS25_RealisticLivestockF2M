@@ -127,18 +127,18 @@
 			</visuals>
 			<reproduction supported="false" minAgeMonth="12"/>
 			<buyPrice>
-				<key ageMonth="0" value="275"/>
-				<key ageMonth="12" value="1800"/>
-				<key ageMonth="18" value="2450"/>
-				<key ageMonth="24" value="2900"/>
+				<key ageMonth="0" value="248"/>
+				<key ageMonth="12" value="1620"/>
+				<key ageMonth="18" value="2205"/>
+				<key ageMonth="24" value="2610"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="220"/>
-				<key ageMonth="12" value="1350"/>
-				<key ageMonth="18" value="1850"/>
-				<key ageMonth="24" value="2250"/>
-				<key ageMonth="36" value="2800"/>
-				<key ageMonth="60" value="1850"/>
+				<key ageMonth="0" value="198"/>
+				<key ageMonth="12" value="1215"/>
+				<key ageMonth="18" value="1665"/>
+				<key ageMonth="24" value="2025"/>
+				<key ageMonth="36" value="2520"/>
+				<key ageMonth="60" value="1665"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="40"/>
@@ -282,18 +282,18 @@
 			</visuals>
 			<reproduction supported="false" minAgeMonth="12"/>
 			<buyPrice>
-				<key ageMonth="0" value="250"/>
-				<key ageMonth="12" value="1750"/>
-				<key ageMonth="18" value="2500"/>
-				<key ageMonth="24" value="2950"/>
+				<key ageMonth="0" value="224"/>
+				<key ageMonth="12" value="1572"/>
+				<key ageMonth="18" value="2245"/>
+				<key ageMonth="24" value="2649"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="200"/>
-				<key ageMonth="12" value="1400"/>
-				<key ageMonth="18" value="2050"/>
-				<key ageMonth="24" value="2350"/>
-				<key ageMonth="36" value="2600"/>
-				<key ageMonth="60" value="1600"/>
+				<key ageMonth="0" value="180"/>
+				<key ageMonth="12" value="1257"/>
+				<key ageMonth="18" value="1841"/>
+				<key ageMonth="24" value="2110"/>
+				<key ageMonth="36" value="2335"/>
+				<key ageMonth="60" value="1437"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="40"/>
@@ -438,18 +438,18 @@
 			</visuals>
 			<reproduction supported="false" minAgeMonth="12"/>
 			<buyPrice>
-				<key ageMonth="0" value="325"/>
-				<key ageMonth="12" value="1950"/>
-				<key ageMonth="18" value="2750"/>
-				<key ageMonth="24" value="3350"/>
+				<key ageMonth="0" value="275"/>
+				<key ageMonth="12" value="1650"/>
+				<key ageMonth="18" value="2326"/>
+				<key ageMonth="24" value="2834"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="245"/>
-				<key ageMonth="12" value="1500"/>
-				<key ageMonth="18" value="2150"/>
-				<key ageMonth="24" value="2650"/>
-				<key ageMonth="36" value="4100"/>
-				<key ageMonth="60" value="2500"/>
+				<key ageMonth="0" value="207"/>
+				<key ageMonth="12" value="1269"/>
+				<key ageMonth="18" value="1819"/>
+				<key ageMonth="24" value="2242"/>
+				<key ageMonth="36" value="3469"/>
+				<key ageMonth="60" value="2115"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="40"/>
@@ -593,18 +593,18 @@
 			</visuals>
 			<reproduction supported="false" minAgeMonth="12"/>
 			<buyPrice>
-				<key ageMonth="0" value="375"/>
-				<key ageMonth="12" value="2100"/>
-				<key ageMonth="18" value="3250"/>
-				<key ageMonth="24" value="3850"/>
+				<key ageMonth="0" value="306"/>
+				<key ageMonth="12" value="1716"/>
+				<key ageMonth="18" value="2655"/>
+				<key ageMonth="24" value="3145"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="275"/>
-				<key ageMonth="12" value="1600"/>
-				<key ageMonth="18" value="2450"/>
-				<key ageMonth="24" value="3000"/>
-				<key ageMonth="36" value="4400"/>
-				<key ageMonth="60" value="2700"/>
+				<key ageMonth="0" value="225"/>
+				<key ageMonth="12" value="1307"/>
+				<key ageMonth="18" value="2002"/>
+				<key ageMonth="24" value="2451"/>
+				<key ageMonth="36" value="3595"/>
+				<key ageMonth="60" value="2206"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="40"/>
@@ -748,18 +748,18 @@
 			</visuals>
 			<reproduction supported="false" minAgeMonth="12"/>
 			<buyPrice>
-				<key ageMonth="0" value="275"/>
-				<key ageMonth="12" value="1800"/>
-				<key ageMonth="18" value="2500"/>
-				<key ageMonth="24" value="3000"/>
+				<key ageMonth="0" value="238"/>
+				<key ageMonth="12" value="1559"/>
+				<key ageMonth="18" value="2165"/>
+				<key ageMonth="24" value="2598"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="225"/>
-				<key ageMonth="12" value="1400"/>
-				<key ageMonth="18" value="1950"/>
-				<key ageMonth="24" value="2400"/>
-				<key ageMonth="36" value="3000"/>
-				<key ageMonth="60" value="1900"/>
+				<key ageMonth="0" value="195"/>
+				<key ageMonth="12" value="1212"/>
+				<key ageMonth="18" value="1689"/>
+				<key ageMonth="24" value="2078"/>
+				<key ageMonth="36" value="2598"/>
+				<key ageMonth="60" value="1645"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="40"/>
@@ -902,18 +902,18 @@
 			</visuals>
 			<reproduction supported="false" minAgeMonth="12"/>
 			<buyPrice>
-				<key ageMonth="0" value="350"/>
-				<key ageMonth="12" value="1450"/>
-				<key ageMonth="18" value="2050"/>
-				<key ageMonth="24" value="2600"/>
+				<key ageMonth="0" value="288"/>
+				<key ageMonth="12" value="1195"/>
+				<key ageMonth="18" value="1689"/>
+				<key ageMonth="24" value="2142"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="280"/>
-				<key ageMonth="12" value="1100"/>
-				<key ageMonth="18" value="1550"/>
-				<key ageMonth="24" value="1900"/>
-				<key ageMonth="36" value="4000"/>
-				<key ageMonth="60" value="3000"/>
+				<key ageMonth="0" value="231"/>
+				<key ageMonth="12" value="906"/>
+				<key ageMonth="18" value="1277"/>
+				<key ageMonth="24" value="1566"/>
+				<key ageMonth="36" value="3296"/>
+				<key ageMonth="60" value="2472"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="40"/>
@@ -1051,18 +1051,18 @@
 			</visuals>
 			<reproduction minAgeMonth="12" supported="false"/>
 			<buyPrice>
-				<key ageMonth="0" value="250"/>
-				<key ageMonth="12" value="1350"/>
-				<key ageMonth="18" value="1950"/>
-				<key ageMonth="24" value="2500"/>
+				<key ageMonth="0" value="208"/>
+				<key ageMonth="12" value="1123"/>
+				<key ageMonth="18" value="1622"/>
+				<key ageMonth="24" value="2080"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="200"/>
-				<key ageMonth="12" value="1000"/>
-				<key ageMonth="18" value="1500"/>
-				<key ageMonth="24" value="1950"/>
-				<key ageMonth="36" value="2300"/>
-				<key ageMonth="60" value="1500"/>
+				<key ageMonth="0" value="166"/>
+				<key ageMonth="12" value="832"/>
+				<key ageMonth="18" value="1248"/>
+				<key ageMonth="24" value="1622"/>
+				<key ageMonth="36" value="1914"/>
+				<key ageMonth="60" value="1248"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="40"/>

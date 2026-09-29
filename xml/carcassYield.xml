@@ -29,12 +29,25 @@
                    typical animal, whatever unitsPerAnimal and recipe the map ships. A type without it
                    keeps the facility's own recipe.
 
-    The live sale price has a floor at what a slaughterhouse pays for the animal (RLMeatValue):
-    its meat (yield x meatPerHead) at the best current price for meatFillType, times a share.
+    processingFeePerKg  Animal type only: fine cutting and packing to the map's sellable meat, charged per kg
+                   on top of the slaughterhouse's own fee (cattle 1.05). It is added to the contract
+                   slaughterhouse's fee per batch at load, so it is paid through the same order and fee
+                   budget; the map is not edited. A type without it is not charged.
+    slaughterFee   Animal type only: the map's fee per typical animal (cattle 100), used to price the floor.
+
+    The live sale price has a floor at what slaughtering the animal pays (RLMeatValue). For a type with
+    processingFeePerKg:
+        value = (meat kg x best current meat price - slaughterFee x yield - processingFeePerKg x meat kg)
+                / (1 + slaughterMargin)
+    so having it slaughtered by contract earns slaughterMargin (the transport and arranging you do) over
+    selling it live, and the floor follows the meat price through the seasons. Other types use
+    meat x price x slaughterShare.
 
     meatFillType   Animal type only: the fill type its meat sells as. None, or one the map lacks,
                    means no floor.
-    slaughterShare Share of its meat's value an animal fetches live. The rest is the processing
+    slaughterMargin  The margin the floor leaves for slaughtering by contract (0.12 = 12% over live).
+    cullFloorFactor  From cullAgeMonth on the floor is multiplied by this (an old cow or bull).
+    slaughterShare Share of its meat's value an animal fetches live (types without processingFeePerKg). The rest is the processing
                    margin you keep by slaughtering yourself.
     cullShare      The same from cullAgeMonth on: an old cow or bull, sow or boar, or mutton sells
                    as low-grade processing meat.
@@ -49,10 +62,10 @@
     modSettings/FS25_RealisticLivestockRM/carcassYield.xml; that copy then replaces this file
     entirely. In multiplayer the server's file applies.
 -->
-<carcassYield qualitySwing="0.20" slaughterShare="0.85" cullShare="0.70"
+<carcassYield qualitySwing="0.20" slaughterShare="0.85" cullShare="0.70" slaughterMargin="0.12" cullFloorFactor="0.82"
               sizeExponent="0.25" minSizeFactor="0.88" maxSizeFactor="1.15"
               finishExponent="0.85" minFinishFactor="0" maxFinishFactor="1.3">
-    <animalType name="COW" anchorWeight="600" dressingRate="0.60" saleableRate="0.75" meatFillType="BEEFMEAT" cullAgeMonth="30" slaughterMinAgeMonth="6" maleMaturity="0.75" femaleMaturity="0.90">
+    <animalType name="COW" anchorWeight="600" dressingRate="0.60" saleableRate="0.75" slaughterFee="100" processingFeePerKg="1.05" meatFillType="BEEFMEAT" cullAgeMonth="30" slaughterMinAgeMonth="6" maleMaturity="0.75" femaleMaturity="0.90">
         <breed name="HOLSTEIN"      maleMaturity="0.59" femaleMaturity="0.85" carcassFactor="0.94"/>
         <breed name="SWISS_BROWN"   maleMaturity="0.62" femaleMaturity="0.85" carcassFactor="0.98"/>
         <breed name="HEREFORD"      maleMaturity="0.60" carcassFactor="1.00"/>

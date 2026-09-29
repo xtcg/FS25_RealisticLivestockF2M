@@ -62,10 +62,15 @@ local function bull(age, weight, fields)
     for k, v in pairs(fields or {}) do a[k] = v end
     return a
 end
+-- Cattle floor: (meat kg x price - fee 100 per typical animal - 1.05 per kg) / 1.12, x 0.82 from 30 months.
+local function floorOf(kg, price, cull)
+    local net = math.max(kg * price - (100 * kg / 270 + 1.05 * kg), 0) / 1.12
+    return cull and net * 0.82 or net
+end
 local value, kg, perKg = RLMeatValue.getSlaughterValue(bull(20, 516))
-check("value: 516 kg bull -> 228 kg beef x 6.648 x 0.85 = 1290", near(kg, 228.2, 0.5) and near(perKg, 6.648)
-    and near(value, 228.2 * 6.648 * 0.85, 3))
-check("value: from 30 months cullShare 0.70", near(RLMeatValue.getSlaughterValue(bull(30, 516)), 228.2 * 6.648 * 0.70, 3))
+check("value: 516 kg bull -> 228 kg beef, floor (228 x 6.648 - fees 324) / 1.12 = 1065", near(kg, 228.2, 0.5) and near(perKg, 6.648)
+    and near(value, floorOf(228.2282, 6.648), 3))
+check("value: from 30 months cullFloorFactor 0.82", near(RLMeatValue.getSlaughterValue(bull(30, 516)), floorOf(228.2282, 6.648, true), 3))
 check("value: under slaughterMinAgeMonth (6) -> no floor", RLMeatValue.getSlaughterValue(bull(5, 200)) == 0)
 check("value: a 6-month 220 kg calf by its weight (no finish floor) -> 111 kg",
     near(select(2, RLMeatValue.getSlaughterValue(bull(6, 220))), 110.6, 1))
@@ -77,7 +82,7 @@ FILLTYPES.BEEFMEAT = BEEFMEAT
 
 -- Animal:getSellPrice takes the higher of the age curve and the slaughter value.
 loadAnimalSection("function Animal:getSellPrice()", "function Animal:getDailyRidingTime()")
-local CURVE = 1000
+local CURVE = 700
 SUBS[1].sellPrice = { get = function() return CURVE end }
 local function live(age, weight, fields)
     local a = bull(age, weight, fields)
@@ -88,7 +93,7 @@ local function live(age, weight, fields)
 end
 RLMeatValue.resetPriceCache()
 local sell = live(20, 516):getSellPrice()
-check("sell: curve 1000 < slaughter value -> 1290", near(sell, 228.2 * 6.648 * 0.85, 3))
+check("sell: curve 700 < slaughter value -> 1065", near(sell, floorOf(228.2282, 6.648), 3))
 CURVE = 5000
 STATIONS = {}
 RLMeatValue.resetPriceCache()
@@ -96,15 +101,17 @@ local curveOnly = live(20, 516):getSellPrice()
 STATIONS = { station(6.648) }
 RLMeatValue.resetPriceCache()
 check("sell: a curve price above the slaughter value is kept",
-    curveOnly > 228.2 * 6.648 * 0.85 and near(live(20, 516):getSellPrice(), curveOnly))
-CURVE = 1000
+    curveOnly > floorOf(228.2282, 6.648) and near(live(20, 516):getSellPrice(), curveOnly))
+CURVE = 700
 local sick = live(20, 516, { diseases = { { modifyValue = function(_, v) return v * 0.5 end } } })
-check("sell: disease scales the floor too", near(sick:getSellPrice(), 228.2 * 6.648 * 0.85 * 0.5, 3))
+check("sell: disease scales the floor too", near(sick:getSellPrice(), floorOf(228.2282, 6.648) * 0.5, 3))
 
--- Buying a finished bull to slaughter leaves at most 1 - share x markup of the meat's value.
-local meatRevenue = 228.2 * 6.648
-check("arbitrage: standard dealer (1.075) -> under 9% gross", (meatRevenue - sell * 1.075) / meatRevenue < 0.09)
-check("arbitrage: budget dealer (1.05) -> under 11% gross", (meatRevenue - sell * 1.05) / meatRevenue < 0.11)
+-- Having a bull slaughtered by contract earns slaughterMargin (12%) over its floor price; buying it
+-- from the dealer at the markup leaves what is left of that.
+local meatNet = 228.2282 * 6.648 - (100 * 228.2282 / 270 + 1.05 * 228.2282)
+check("margin: slaughtering by contract earns 12% over the live floor", near(meatNet / sell, 1.12, 0.001))
+check("arbitrage: standard dealer (1.075) -> under 5% net", (meatNet - sell * 1.075) / (sell * 1.075) < 0.05)
+check("arbitrage: budget dealer (1.05) -> under 7% net", (meatNet - sell * 1.05) / (sell * 1.05) < 0.07)
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end
