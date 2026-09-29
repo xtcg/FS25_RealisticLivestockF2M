@@ -173,22 +173,24 @@ function RLMeatValue.getShare(animal, subType)
 end
 
 
---- How the beef market moves the live price of a bull. The net revenue of one typical animal
+--- How the meat market moves the live price of a meat animal (a bull, a finishing pig, a ram lamb). The net revenue of one typical animal
 --- slaughtered by contract (meat x price - slaughterFee - processingFeePerKg x meat) at the current
 --- best meat price over the same at the annual mean price (getAnnualMeanPrice, or referencePrice
 --- when set), passed through at marketPassThrough and bounded by marketFactorMin..marketFactorMax:
 ---   factor = 1 + marketPassThrough x (net now / net at the mean - 1)
 --- It is 1 in an average month. At a pass-through under 1 the live price moves less than the meat,
 --- so slaughtering by contract pays less in a cheap-beef month and more in a dear one, and about
---- the calibrated margin over the year. Only male animals of a type with processingFeePerKg (cows
---- are priced by their milk); 1 otherwise or when no meat price is known.
+--- the calibrated margin over the year. Only animals of a type with processingFeePerKg, and only males
+--- unless the type sets marketFemales (cows, ewes and laying birds are priced by what they produce);
+--- 1 otherwise or when no meat price is known.
 --- @param subType table|nil
 --- @param gender string|nil
 --- @return number
 function RLMeatValue.getMarketFactor(subType, gender)
-    if subType == nil or gender ~= "male" then return 1 end
+    if subType == nil then return 1 end
 
     local layers = AnimalMoveEvent.getCarcassConfig().layers
+    if gender ~= "male" and RLBreedTraits.resolve(layers, subType, "marketFemales", 0) <= 0 then return 1 end
     local perKg = RLBreedTraits.resolve(layers, subType, "processingFeePerKg", nil)
     local typeName = RLBreedTraits.getTypeName(subType)
     local meatPerHead = typeName ~= nil and AnimalMoveEvent.getMeatPerHead(typeName) or nil
