@@ -1595,7 +1595,7 @@ function Animal:getSellPrice()
     sellPrice * 0.6 + (sellPrice * 0.4 * weightFactor * (0.75 * self:getHealthFactor())) +
     sellPrice * (self.isLactating and 0.15 or 0) + sellPrice * (self.isPregnant and 0.25 or 0), sellPrice * 0.05)
 
-    -- A bull's price follows the beef market through the seasons (RLMeatValue.getMarketFactor).
+    -- A meat animal's price follows its meat market through the seasons (RLMeatValue.getMarketFactor).
     if RLMeatValue ~= nil then price = price * RLMeatValue.getMarketFactor(subType, self.gender) end
 
     -- Never below what a slaughterhouse pays for its meat (RLMeatValue); a disease lowers both.

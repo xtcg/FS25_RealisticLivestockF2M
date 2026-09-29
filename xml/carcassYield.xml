@@ -21,28 +21,33 @@
     dressingRate   Animal type only: share of the live weight that is carcass (cattle 0.60).
     saleableRate   Animal type only: share of the carcass that is sold on as the map's meat products
                    (cattle 0.75). anchorWeight x dressingRate x saleableRate is the meat one typical
-                   animal gives: a 600 kg standard cow -> 360 kg carcass -> 270 kg of meat.
-    meatPerHead    Animal type only: kg of meat one typical animal gives, when the type does not give
-                   the two rates (pigs, sheep). It is what every facility is set to: a contract
+                   animal gives: a 600 kg standard cow -> 360 kg carcass -> 270 kg of meat, a 125 kg
+                   pig -> 75 kg, a 50 kg lamb -> 19.2 kg, a 3 kg bird -> 1.89 kg.
+    meatPerHead    Animal type only: kg of meat one typical animal gives, instead of the two rates.
+                   The meat of a typical animal is what every facility is set to: a contract
                    slaughterhouse's recipe (Hof Bergmann's public one) is rescaled to it at load, and
                    a unit-based farm butcher is credited units x its recipe ratio = meatPerHead per
                    typical animal, whatever unitsPerAnimal and recipe the map ships. A type without it
                    keeps the facility's own recipe.
 
     processingFeePerKg  Animal type only: fine cutting and packing to the map's sellable meat, charged per kg
-                   on top of the slaughterhouse's own fee (cattle 1.05). It is added to the contract
+                   on top of the slaughterhouse's own fee (cattle 1.05, pigs 0.60, sheep 1.20; poultry and
+                   rabbits 0, sold whole). It is added to the contract
                    slaughterhouse's fee per batch at load, so it is paid through the same order and fee
                    budget; the map is not edited. A type without it is not charged.
-    slaughterFee   Animal type only: the map's fee per typical animal (cattle 100), used to price the floor.
-    A bull's live price is its curve price x a market factor (RLMeatValue.getMarketFactor):
+    slaughterFee   Animal type only: the map's fee per typical animal (cattle 100, pig 50, sheep 40,
+                   poultry and rabbit 5), used to price the floor.
+    A meat animal's live price is its curve price x a market factor (RLMeatValue.getMarketFactor):
         net(price) = meat of a typical animal x price - slaughterFee - processingFeePerKg x that meat
         factor     = 1 + marketPassThrough x (net(current best meat price) / net(annual mean price) - 1)
     kept between marketFactorMin and marketFactorMax. The annual mean price is read from the map: the
     best selling point's price x the mean of the meat's 12 seasonal factors x the difficulty
     multiplier. So the factor is 1 in an average month, and at a pass-through under 1 the live price
     moves less than the meat: slaughtering by contract pays about 0% in the cheapest month, about +12%
-    over the year and about +22% at the peak (cattle 0.6). Male animals only; cows follow their milk.
-    marketPassThrough  Share of the meat market's move passed to the live price (cattle 0.6).
+    over the year and about +22% at the peak (cattle 0.6). Male animals only unless marketFemales is 1
+    (pigs, rabbits: both sexes are fattened); cows, ewes, does and laying birds follow their own curve.
+    marketPassThrough  Share of the meat market's move passed to the live price (0.6).
+    marketFemales      1: the market factor applies to females too.
     referencePrice     Optional: a fixed annual mean meat price per kg instead of the map's.
 
     The live sale price has a floor at what slaughtering the animal pays (RLMeatValue). For a type with
@@ -85,32 +90,37 @@
         <breed name="WATER_BUFFALO" maleMaturity="0.625" carcassFactor="0.94"/>
     </animalType>
 
-    <!-- Finishing pigs go at about 120 kg whatever the breed; breeding stock grows on to 200-300 kg.
-         Black Pied is a smaller frame, so it is finished at a larger share of it. -->
-    <animalType name="PIG" anchorWeight="120" meatPerHead="75" meatFillType="PORKMEAT" cullAgeMonth="12" slaughterMinAgeMonth="6" maleMaturity="0.42" femaleMaturity="0.52">
-        <breed name="BERKSHIRE"  carcassFactor="1.08"/>
-        <breed name="LANDRACE"   carcassFactor="1.00"/>
-        <breed name="BLACK_PIED" maleMaturity="0.48" femaleMaturity="0.67" carcassFactor="0.96"/>
+    <!-- Finishing pigs: a 125 kg pig x 0.80 to the carcass x 0.75 to sellable pork = 75 kg. Gilts are finished
+         like barrows, so the pork market moves their live price too (marketFemales). Finished at 6 months
+         (6.5 Berkshire), the map's youngest age for the butcher. Maturity = finishing weight / mature weight. -->
+    <animalType name="PIG" anchorWeight="125" dressingRate="0.80" saleableRate="0.75" slaughterFee="50" processingFeePerKg="0.60" marketPassThrough="0.6" marketFactorMin="0.5" marketFactorMax="1.5" marketFemales="1" meatFillType="PORKMEAT" cullAgeMonth="12" slaughterMinAgeMonth="6">
+        <breed name="LANDRACE"   maleMaturity="0.39"  femaleMaturity="0.446" carcassFactor="1.00"/>  <!-- 125 kg -->
+        <breed name="BERKSHIRE"  maleMaturity="0.40"  femaleMaturity="0.50"  carcassFactor="1.08"/>  <!-- 120 kg -->
+        <breed name="BLACK_PIED" maleMaturity="0.444" femaleMaturity="0.60"  carcassFactor="0.96"/>  <!-- 120 kg -->
     </animalType>
 
-    <!-- Male lambs and kids go young; ewes and does are culled grown. Goats share the SHEEP type.
-         A goat's anchor is 32 kg, but its reference still comes from its own target and sex:
-         about 34 kg for a buck kid (75 x 0.45) and 51 kg for a cull doe (60 x 0.85). -->
-    <animalType name="SHEEP" anchorWeight="50" meatPerHead="50" meatFillType="SHEEPGOATMEAT" cullAgeMonth="12" slaughterMinAgeMonth="8" maleMaturity="0.62" femaleMaturity="0.85">
-        <breed name="BLACK_WELSH"    carcassFactor="1.00"/>
-        <breed name="LANDRACE"       carcassFactor="1.00"/>
-        <breed name="STEINSCHAF"     carcassFactor="1.02"/>
-        <breed name="SWISS_MOUNTAIN" carcassFactor="1.04"/>
-        <breed name="GOAT" anchorWeight="32" maleMaturity="0.45" carcassFactor="0.94" qualitySwing="0.12"/>
+    <!-- Lambs: a 50 kg lamb x 0.48 to the carcass x 0.80 to sellable lamb = 19.2 kg. Ram lambs and buck kids are
+         finished at 8 months, the map's youngest age for the butcher; ewes and does are culled grown. Goats share
+         the SHEEP type and its anchor, so a 35 kg kid gives 19.2 x (35/50)^0.25 x 0.94 = 16.5 kg. -->
+    <animalType name="SHEEP" anchorWeight="50" dressingRate="0.48" saleableRate="0.80" slaughterFee="40" processingFeePerKg="1.20" marketPassThrough="0.6" marketFactorMin="0.5" marketFactorMax="1.5" meatFillType="SHEEPGOATMEAT" cullAgeMonth="12" slaughterMinAgeMonth="8" femaleMaturity="0.85">
+        <breed name="LANDRACE"       maleMaturity="0.40"  carcassFactor="1.00"/>  <!-- 50 kg -->
+        <breed name="STEINSCHAF"     maleMaturity="0.507" carcassFactor="1.02"/>  <!-- 38 kg -->
+        <breed name="SWISS_MOUNTAIN" maleMaturity="0.417" carcassFactor="1.04"/>  <!-- 50 kg -->
+        <breed name="BLACK_WELSH"    maleMaturity="0.529" carcassFactor="1.00"/>  <!-- 36 kg -->
+        <breed name="GOAT"           maleMaturity="0.389" carcassFactor="0.94" qualitySwing="0.12"/>  <!-- 35 kg -->
     </animalType>
 
-    <!-- meatPerHead is the farm butcher's: cow 750 x 900/1500, pig 120 x 150/240, sheep 80 x 100/160,
-         chicken 10 x 60/100, goose 15 x 55/90, rabbit 10 x 40/70. The butcher takes no horses, so the
-         slaughterhouse keeps its own horse recipe. -->
+    <!-- Poultry and rabbits are sold whole: dressed bird or rabbit x 0.90 sellable. The map's fee of 5 per head
+         covers the slaughter; no cutting fee. Cockerels, drakes and ganders are the meat animals (hens, ducks and
+         geese lay); both sexes of rabbit are fattened. The butcher's youngest ages are the map's.
+         The butcher takes no horses, so the slaughterhouse keeps its own horse recipe. -->
     <animalType name="HORSE" anchorWeight="550"/>
-    <animalType name="CHICKEN" anchorWeight="2.5" meatPerHead="6" meatFillType="POULTRYMEAT" slaughterMinAgeMonth="6"/>  <!-- ducks share the type on Hof Bergmann -->
-    <animalType name="GOOSE" anchorWeight="6" meatPerHead="9.17" meatFillType="GOOSEMEAT" slaughterMinAgeMonth="10"/>
-    <animalType name="RABBIT" anchorWeight="2.8" meatPerHead="5.71" meatFillType="RABBITMEAT" slaughterMinAgeMonth="4"/>
+    <animalType name="CHICKEN" anchorWeight="3.0" dressingRate="0.70" saleableRate="0.90" slaughterFee="5" processingFeePerKg="0" marketPassThrough="0.6" marketFactorMin="0.5" marketFactorMax="1.5" meatFillType="POULTRYMEAT" cullAgeMonth="18" slaughterMinAgeMonth="6" maleMaturity="0.753" femaleMaturity="0.90">  <!-- ducks share the type on Hof Bergmann -->
+        <!-- a cockerel 3.2 kg at 6 months, a spent hen at 90% of grown -->
+        <breed name="DUCK" maleMaturity="0.905"/>  <!-- 3.8 kg drake at 6 months -->
+    </animalType>
+    <animalType name="GOOSE" anchorWeight="7.0" dressingRate="0.70" saleableRate="0.90" slaughterFee="5" processingFeePerKg="0" marketPassThrough="0.6" marketFactorMin="0.5" marketFactorMax="1.5" meatFillType="GOOSEMEAT" cullAgeMonth="24" slaughterMinAgeMonth="10" maleMaturity="0.90" femaleMaturity="0.90"/>  <!-- 7.2 kg gander at 10 months -->
+    <animalType name="RABBIT" anchorWeight="3.0" dressingRate="0.58" saleableRate="0.90" slaughterFee="5" processingFeePerKg="0" marketPassThrough="0.6" marketFactorMin="0.5" marketFactorMax="1.5" marketFemales="1" meatFillType="RABBITMEAT" cullAgeMonth="12" slaughterMinAgeMonth="4" maleMaturity="0.652" femaleMaturity="0.60"/>  <!-- 3 kg at 4 months -->
 
     <!-- Example of a single subtype:
     <subType name="BULL_HIGHLAND_CATTLE" maleMaturity="0.80"/>

@@ -1,7 +1,8 @@
--- Bulls on the beef chain (xml/carcassYield.xml, docs RLRM_牛肉链收益校准.md): a dealer's bull of finishing
--- age, average genes, sells live for about its contract-slaughter net at the annual mean beef price / 1.12,
--- and the market factor moves it through the year. Runs the real Animal:getSellPrice, RLMeatValue and
--- carcass yield on the shipped xml.
+-- Bulls, pigs, lambs, kids, poultry and rabbits on the meat chain (xml/carcassYield.xml, docs
+-- RLRM_猪羊禽兔屠宰与售价校准.md): a dealer's animal of finishing age, average genes, sells live for its
+-- contract-slaughter net at the annual mean meat price / 1.12, and the market factor moves it through
+-- the year. Runs the real Animal:getSellPrice, RLMeatValue and carcass yield on the shipped xml, plus
+-- Hof Bergmann's bridge subtypes (v1.5).
 
 -- tests/test_livestockprices.lua runs this file again on NORMAL and EASY with the real RLLivestockPrices:
 -- the game multiplies the meat price, the mod the live prices and fees, so every margin is the same and
@@ -17,18 +18,18 @@ XMLFile = { loadIfExists = function(_, path) return loadXMLFileFromDisk(path) en
 fileExists = function() return false end
 g_currentModDirectory = REPO
 
--- Annual mean best-station beef price the bulls are calibrated at, and the map's seasonal factors
--- (Hof Bergmann, mean 1.000833).
-local PRICE = { BEEFMEAT = 9.44 }
+-- Annual mean best-station price per kg each species is calibrated at, and the map's seasonal factors
+-- (Hof Bergmann: the same 12 for every meat, mean 1.000833).
+local PRICE = { BEEFMEAT = 9.44, PORKMEAT = 4.31, SHEEPGOATMEAT = 14.95, POULTRYMEAT = 9.06, GOOSEMEAT = 10.21, RABBITMEAT = 10.34 }
 local HB_FACTORS = { 1.00, 1.07, 0.99, 0.94, 0.85, 0.81, 0.86, 0.99, 1.08, 1.13, 1.21, 1.08 }
 local SEASONAL = 1.000833
-local FILL = { BEEFMEAT = 40 }
+local FILL = { BEEFMEAT = 40, PORKMEAT = 41, SHEEPGOATMEAT = 42, POULTRYMEAT = 43, GOOSEMEAT = 44, RABBITMEAT = 45 }
 g_fillTypeManager = { getFillTypeIndexByName = function(_, name) return FILL[name] end,
     getFillTypeByIndex = function(_, index)
         for _, i in pairs(FILL) do if i == index then return { pricePerLiter = 1, economy = { factors = HB_FACTORS } } end end
     end }
 
--- Subtypes from the mod's animals.xml.
+-- Subtypes: the mod's animals.xml, then the bridge's new and overridden ones on top.
 TYPES, SUBS = {}, {}
 local byName, typeIndex = {}, {}
 local function curveOf(xml, key)
@@ -71,6 +72,8 @@ local function readAnimals(path)
     end)
 end
 readAnimals(REPO .. "xml/animals.xml")
+readAnimals(REPO .. "mod_support/FS25_HofBergmann/v1.5/animals.xml")
+byName.RABBIT.gender = "female"  -- the map sets no gender on RABBIT: the loader reads it as female
 
 -- One selling point per meat: its base price is the annual mean / the seasonal mean, it pays `now`.
 local NOW = {}
@@ -121,12 +124,18 @@ local function net(sub, kg, price)
         - RLBreedTraits.resolve(layers, sub, "processingFeePerKg", 0) * kg) * M
 end
 
-local MEAT_OF = { COW = "BEEFMEAT" }
--- Subtype, finishing age, meat kg of a finished bull (RLRM_牛产肉公式与品种参数.md).
+local MEAT_OF = { COW = "BEEFMEAT", PIG = "PORKMEAT", SHEEP = "SHEEPGOATMEAT", CHICKEN = "POULTRYMEAT", GOOSE = "GOOSEMEAT", RABBIT = "RABBITMEAT" }
+-- Subtype, finishing age (the map butcher's youngest age), meat kg of a finished animal.
 local FINISHED = {
     { "BULL_HOLSTEIN", 17, 259 }, { "BULL_SWISS_BROWN", 20, 267 }, { "BULL_ANGUS", 19.5, 286 },
     { "BULL_LIMOUSIN", 18, 298 }, { "BULL_HEREFORD", 19.5, 267 }, { "BULL_HIGHLAND_CATTLE", 25, 258 },
     { "BULL_WATERBUFFALO", 23, 236 },
+    { "BOAR_LANDRACE", 6, 75.0 }, { "BOAR_BERKSHIRE", 6.5, 80.2 }, { "BOAR_BLACK_PIED", 6, 71.3 },
+    { "PIG_LANDRACE", 6, 75.0 }, { "PIG_BERKSHIRE", 6.5, 80.2 }, { "PIG_BLACK_PIED", 6, 71.3 },
+    { "RAM_LANDRACE", 8, 19.2 }, { "RAM_STEINSCHAF", 8, 18.3 }, { "RAM_SWISS_MOUNTAIN", 8, 20.0 },
+    { "RAM_BLACK_WELSH", 8, 17.7 }, { "RAM_GOAT", 8, 16.5 },
+    { "CHICKEN_ROOSTER", 6, 1.92 }, { "DUCK_MALE", 6, 2.01 }, { "GOOSE_MALE", 10, 4.44 },
+    { "RABBIT_MALE", 4, 1.57 }, { "RABBIT", 4, 1.57 },
 }
 
 for _, row in ipairs(FINISHED) do
@@ -152,8 +161,8 @@ for _, row in ipairs(FINISHED) do
         netSum, liveSum = netSum + n, liveSum + live
     end
     -- Bulls were calibrated on the reference animal (PR #21), not the dealer's growth-line weight: +12.7 to
-    -- +14.3% here, so the band is wide.
-    local band = 0.025
+    -- +14.3% here, so they get a wider band.
+    local band = TYPES[sub.typeIndex].name == "COW" and 0.025 or 0.015
     check(string.format(LABEL .. "%s: contract slaughter +%.1f%% over the year (12 +/- %.1f)", row[1], (netSum / liveSum - 1) * 100, band * 100),
         near(netSum / liveSum, 1.12, band))
     check(string.format(LABEL .. "%s: cheapest month %+.1f%%, peak %+.1f%%, never over +25%%", row[1], margins[6] * 100, margins[11] * 100),
@@ -169,6 +178,16 @@ for _, row in ipairs(FINISHED) do
     check(string.format(LABEL .. "%s: great demand capped at +25%% (%+.1f%%)", row[1], (net(sub, kg, price * 1.21 * 1.4 / SEASONAL) / live - 1) * 100),
         net(sub, kg, price * 1.21 * 1.4 / SEASONAL) / live - 1 <= 0.25 + 1e-6)
 end
+
+-- Which sexes follow the meat market: gilts and does (marketFemales) do, ewes and hens do not.
+local function swing(name, age)
+    local sub = byName[name]
+    market(nil, 0.81); local low = RLMeatValue.getMarketFactor(sub, sub.gender)
+    market(nil, 1.21); local high = RLMeatValue.getMarketFactor(sub, sub.gender)
+    return high - low
+end
+check(LABEL .. "market: a gilt and a doe rabbit follow the meat market", swing("PIG_LANDRACE") > 0.2 and swing("RABBIT") > 0.2)
+check(LABEL .. "market: a ewe, a doe goat and a hen do not", swing("SHEEP_LANDRACE") == 0 and swing("GOAT") == 0 and swing("CHICKEN") == 0)
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end
