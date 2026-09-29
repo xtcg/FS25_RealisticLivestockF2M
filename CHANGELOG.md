@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (xtcg fork, Hof Bergmann)
+## 1.4.0.1-dev.7 (xtcg fork, Hof Bergmann)
 
 ### Changed
 
