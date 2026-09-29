@@ -191,7 +191,8 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
             ["productivity"] = xmlFile:getFloat(key .. ".impregnatedBy#productivity", nil),
             ["quality"] = xmlFile:getFloat(key .. ".impregnatedBy#quality", nil),
             ["health"] = xmlFile:getFloat(key .. ".impregnatedBy#health", nil),
-            ["fertility"] = xmlFile:getFloat(key .. ".impregnatedBy#fertility", nil)
+            ["fertility"] = xmlFile:getFloat(key .. ".impregnatedBy#fertility", nil),
+            ["breed"] = xmlFile:getString(key .. ".impregnatedBy#breed", nil)
         }
 
     end
@@ -540,6 +541,7 @@ function AnimalPersistence.saveToXMLFile(animal, xmlFile, key)
         xmlFile:setFloat(key .. ".impregnatedBy#health", animal.impregnatedBy.health)
         xmlFile:setFloat(key .. ".impregnatedBy#fertility", animal.impregnatedBy.fertility)
         if animal.impregnatedBy.productivity ~= nil then xmlFile:setFloat(key .. ".impregnatedBy#productivity", animal.impregnatedBy.productivity) end
+        if animal.impregnatedBy.breed ~= nil then xmlFile:setString(key .. ".impregnatedBy#breed", animal.impregnatedBy.breed) end
     end
 
     if animal.genetics ~= nil then

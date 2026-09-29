@@ -64,6 +64,7 @@ local function resolveInsemination(animal, month, year)
             ["health"] = insemination.genetics.health,
             ["fertility"] = insemination.genetics.fertility,
             ["productivity"] = insemination.genetics.productivity,
+            ["breed"] = AnimalReproduction.getSubTypeBreed(insemination.subTypeIndex),
         })
 
         Log:trace("  insemination success, pregnancy created (fertility=%s)", tostring(fertility))
@@ -341,6 +342,13 @@ end
 ---   of caller, covering both the eligible-father selection branch (where the selected pig/horse male
 ---   has genetics.productivity == nil) and resolveInsemination's explicit-father path (where AI-straw
 ---   semen for pigs/horses has insemination.genetics.productivity == nil) uniformly.
+--- Breed of a subtype index, or nil.
+function AnimalReproduction.getSubTypeBreed(subTypeIndex)
+    local subType = subTypeIndex ~= nil and g_currentMission.animalSystem:getSubTypeByIndex(subTypeIndex) or nil
+    return subType ~= nil and subType.breed or nil
+end
+
+
 function AnimalReproduction.createPregnancy(animal, childNum, month, year, father)
 
     local fertility = animal.genetics.fertility
@@ -418,6 +426,7 @@ function AnimalReproduction.createPregnancy(animal, childNum, month, year, fathe
             father.health = selectedFather.genetics.health
             father.fertility = selectedFather.genetics.fertility
             father.productivity = selectedFather.genetics.productivity
+            father.breed = selectedFather:getSubType() ~= nil and selectedFather:getSubType().breed or nil
             father.animal = selectedFather
 
             Log:trace("createPregnancy: selected father %s (subType=%s) genetics m=%s q=%s h=%s f=%s p=%s",
@@ -771,6 +780,10 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
     end
     animalsToSell = clampedSell
 
+    -- Read before this birth marks her as a parent.
+    local firstBirth = animal.isParent ~= true
+    local litterSize = #pregnancies
+
     animal.monthsSinceLastBirth = 0
 
     if childNum > 0 then
@@ -849,19 +862,18 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
     for i, child in pairs(pregnancies) do
 
         local genetics = child.genetics
-        local weightChance = math.random() * genetics.metabolism
-        local minWeight = child:getSubType().minWeight
-        local weight = minWeight + 0.5
+        local weight, z, meanWeight = RLBirthWeight.draw(child:getSubType(), {
+            dam = animal,
+            damBreed = subType ~= nil and subType.breed or nil,
+            sireBreed = animal.impregnatedBy ~= nil and animal.impregnatedBy.breed or nil,
+            litterSize = litterSize,
+            firstBirth = firstBirth,
+            metabolism = genetics.metabolism,
+        })
+        Log:trace("  child %d birth weight %.3f (mean %.3f, z=%.2f, litter=%d, firstBirth=%s)",
+            i, weight, meanWeight, z, litterSize, tostring(firstBirth))
 
-        if weightChance < 0.05 then
-            weight = weight * (math.random(70, 90) / 100)
-        elseif weightChance <= 0.95 then
-            weight = weight * (math.random(90, 110) / 100)
-        else
-            weight = weight * (math.random(110, 130) / 100)
-        end
-
-        if animal.deathEnabled and math.random() >= genetics.health * (weight / minWeight) * 1.15 then
+        if animal.deathEnabled and math.random() >= RLBirthWeight.getSurvivalChance(genetics.health, z) then
 
             childNum = childNum - 1
             animalsToSell = animalsToSell - 1
@@ -871,7 +883,7 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
             child.isDead = true
 
-            Log:trace("  child %d died at birth (weight=%.1f minWeight=%.1f)", i, weight, minWeight)
+            Log:trace("  child %d died at birth (weight=%.3f mean=%.3f z=%.2f)", i, weight, meanWeight, z)
 
             continue
 

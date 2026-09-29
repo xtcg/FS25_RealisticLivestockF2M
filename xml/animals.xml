@@ -99,7 +99,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BULL_SWISS_BROWN" fillTypeName="BULL_SWISS_BROWN" gender="male" minWeight="40.0" targetWeight="900.0" maxWeight="1400.0" breed="SWISS_BROWN">
+		<subType subType="BULL_SWISS_BROWN" fillTypeName="BULL_SWISS_BROWN" gender="male" minWeight="42.8" targetWeight="900.0" maxWeight="1400.0" breed="SWISS_BROWN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="5" image="$dataS/character/animals/domesticated/cow/store_cowSwissBrownBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionBullFeed</description>
@@ -410,7 +410,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BULL_ANGUS" fillTypeName="BULL_ANGUS" gender="male" minWeight="35.0" targetWeight="850.0" maxWeight="1400.0" breed="ANGUS">
+		<subType subType="BULL_ANGUS" fillTypeName="BULL_ANGUS" gender="male" minWeight="34.2" targetWeight="850.0" maxWeight="1400.0" breed="ANGUS">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_cowAngusBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionBullFeed</description>
@@ -482,7 +482,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="COW_LIMOUSIN" fillTypeName="COW_LIMOUSIN" gender="female" minWeight="36.0" targetWeight="650.0" maxWeight="1200.0" breed="LIMOUSIN">
+		<subType subType="COW_LIMOUSIN" fillTypeName="COW_LIMOUSIN" gender="female" minWeight="38.0" targetWeight="650.0" maxWeight="1200.0" breed="LIMOUSIN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="8" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_cowLimousinBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionCowProfit</description>
@@ -565,7 +565,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BULL_LIMOUSIN" fillTypeName="BULL_LIMOUSIN" gender="male" minWeight="39.0" targetWeight="1000.0" maxWeight="1400.0" breed="LIMOUSIN">
+		<subType subType="BULL_LIMOUSIN" fillTypeName="BULL_LIMOUSIN" gender="male" minWeight="40.7" targetWeight="1000.0" maxWeight="1400.0" breed="LIMOUSIN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="8" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_cowLimousinBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionBullFeed</description>
@@ -637,7 +637,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="COW_HEREFORD" fillTypeName="COW_HEREFORD" gender="female" minWeight="33.0" targetWeight="600.0" maxWeight="1200.0" breed="HEREFORD">
+		<subType subType="COW_HEREFORD" fillTypeName="COW_HEREFORD" gender="female" minWeight="34.0" targetWeight="600.0" maxWeight="1200.0" breed="HEREFORD">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="18" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_cowLimousinBaby.png" monitor="0|0|0|0|0|0|0|0|0|1|0|1" canBeBought="true" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionCowProfit</description>
@@ -720,7 +720,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BULL_HEREFORD" fillTypeName="BULL_HEREFORD" gender="male" minWeight="35.0" targetWeight="850.0" maxWeight="1400.0" breed="HEREFORD">
+		<subType subType="BULL_HEREFORD" fillTypeName="BULL_HEREFORD" gender="male" minWeight="36.4" targetWeight="850.0" maxWeight="1400.0" breed="HEREFORD">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="18" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_cowLimousinBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionBullFeed</description>
@@ -792,7 +792,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="COW_HIGHLAND_CATTLE" fillTypeName="COW_HIGHLAND_CATTLE" gender="female" minWeight="35.0" targetWeight="500.0" maxWeight="1200.0" statsBreeding="breedCowsCount" breed="HIGHLAND" requiredDLC="highlandsFishingPack">
+		<subType subType="COW_HIGHLAND_CATTLE" fillTypeName="COW_HIGHLAND_CATTLE" gender="female" minWeight="27.0" targetWeight="500.0" maxWeight="1200.0" statsBreeding="breedCowsCount" breed="HIGHLAND" requiredDLC="highlandsFishingPack">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="19" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_highlandCattleBaby.png" canBeBought="true">
 					<description>$l10n_animal_descriptionCowProfit</description>
@@ -874,7 +874,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BULL_HIGHLAND_CATTLE" fillTypeName="BULL_HIGHLAND_CATTLE" gender="male" minWeight="35.0" targetWeight="750.0" maxWeight="1600.0" statsBreeding="breedCowsCount" breed="HIGHLAND" requiredDLC="highlandsFishingPack">
+		<subType subType="BULL_HIGHLAND_CATTLE" fillTypeName="BULL_HIGHLAND_CATTLE" gender="male" minWeight="28.9" targetWeight="750.0" maxWeight="1600.0" statsBreeding="breedCowsCount" breed="HIGHLAND" requiredDLC="highlandsFishingPack">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="19" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_highlandCattleBaby.png" canBeBought="true">
 					<description>$l10n_animal_descriptionBullFeed</description>
@@ -945,7 +945,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="COW_WATERBUFFALO" fillTypeName="COW_WATERBUFFALO" gender="female" statsBreeding="breedWaterBuffaloCount" minWeight="35.0" targetWeight="550.0" maxWeight="1200.0" breed="WATER_BUFFALO">
+		<subType subType="COW_WATERBUFFALO" fillTypeName="COW_WATERBUFFALO" gender="female" statsBreeding="breedWaterBuffaloCount" minWeight="34.0" targetWeight="550.0" maxWeight="1200.0" breed="WATER_BUFFALO">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="13" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/waterBuffalo/store_waterBuffaloBaby.png" monitor="0|0|0|0|0|0|0|0|0|1|0|1" canBeBought="true" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionBuffaloMilk</description>
@@ -1023,7 +1023,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BULL_WATERBUFFALO" fillTypeName="BULL_WATERBUFFALO" gender="male" statsBreeding="breedWaterBuffaloCount" minWeight="36.0" targetWeight="900.0" maxWeight="1400.0" breed="WATER_BUFFALO">
+		<subType subType="BULL_WATERBUFFALO" fillTypeName="BULL_WATERBUFFALO" gender="male" statsBreeding="breedWaterBuffaloCount" minWeight="36.4" targetWeight="900.0" maxWeight="1400.0" breed="WATER_BUFFALO">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="13" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/waterBuffalo/store_waterBuffaloBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionBuffaloFeed</description>
@@ -1111,7 +1111,7 @@
 			<key ageMonth="96" value="540"/>
 			<key ageMonth="96" value="0"/>
 		</fertility>
-		<subType subType="PIG_LANDRACE" fillTypeName="PIG_LANDRACE" gender="female" minWeight="1.36" targetWeight="240.0" maxWeight="1050.0" breed="LANDRACE">
+		<subType subType="PIG_LANDRACE" fillTypeName="PIG_LANDRACE" gender="female" minWeight="1.40" targetWeight="240.0" maxWeight="1050.0" breed="LANDRACE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/pig/store_pigLandraceBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionPigProfit</description>
@@ -1178,7 +1178,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BOAR_LANDRACE" fillTypeName="BOAR_LANDRACE" gender="male" minWeight="1.4" targetWeight="300.0" maxWeight="1200.0" breed="LANDRACE">
+		<subType subType="BOAR_LANDRACE" fillTypeName="BOAR_LANDRACE" gender="male" minWeight="1.45" targetWeight="300.0" maxWeight="1200.0" breed="LANDRACE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/pig/store_pigLandraceBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionBoarFeed</description>
@@ -1242,7 +1242,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="PIG_BLACK_PIED" fillTypeName="PIG_BLACK_PIED" gender="female" minWeight="1.65" targetWeight="180.0" maxWeight="1050.0" breed="BLACK_PIED">
+		<subType subType="PIG_BLACK_PIED" fillTypeName="PIG_BLACK_PIED" gender="female" minWeight="1.30" targetWeight="180.0" maxWeight="1050.0" breed="BLACK_PIED">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/pig/store_pigBlackPiedBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionPigProfit</description>
@@ -1309,7 +1309,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BOAR_BLACK_PIED" fillTypeName="BOAR_BLACK_PIED" gender="male" minWeight="1.75" targetWeight="250.0" maxWeight="1200.0" breed="BLACK_PIED">
+		<subType subType="BOAR_BLACK_PIED" fillTypeName="BOAR_BLACK_PIED" gender="male" minWeight="1.35" targetWeight="250.0" maxWeight="1200.0" breed="BLACK_PIED">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/pig/store_pigBlackPiedBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionBoarFeed</description>
@@ -1373,7 +1373,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="PIG_BERKSHIRE" fillTypeName="PIG_BERKSHIRE" gender="female" minWeight="1.6" targetWeight="220.0" maxWeight="1050.0" breed="BERKSHIRE">
+		<subType subType="PIG_BERKSHIRE" fillTypeName="PIG_BERKSHIRE" gender="female" minWeight="1.30" targetWeight="220.0" maxWeight="1050.0" breed="BERKSHIRE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/pig/store_pigBerkshireBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionPigProfit</description>
@@ -1440,7 +1440,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BOAR_BERKSHIRE" fillTypeName="BOAR_BERKSHIRE" gender="male" minWeight="1.7" targetWeight="280.0" maxWeight="1200.0" breed="BERKSHIRE">
+		<subType subType="BOAR_BERKSHIRE" fillTypeName="BOAR_BERKSHIRE" gender="male" minWeight="1.35" targetWeight="280.0" maxWeight="1200.0" breed="BERKSHIRE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/pig/store_pigBerkshireBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionBoarFeed</description>
@@ -1521,7 +1521,7 @@
 			<key ageMonth="120" value="130"/>
 			<key ageMonth="120" value="0"/>
 		</fertility>
-		<subType subType="SHEEP_LANDRACE" fillTypeName="SHEEP_LANDRACE" gender="female" minWeight="4.4" targetWeight="55.0" maxWeight="135.0" breed="LANDRACE">
+		<subType subType="SHEEP_LANDRACE" fillTypeName="SHEEP_LANDRACE" gender="female" minWeight="4.40" targetWeight="55.0" maxWeight="135.0" breed="LANDRACE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/sheep/store_sheepLandraceBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionSheepProfit</description>
@@ -1591,7 +1591,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_LANDRACE" fillTypeName="RAM_LANDRACE" gender="male" minWeight="4.7" targetWeight="75.0" maxWeight="150.0" breed="LANDRACE">
+		<subType subType="RAM_LANDRACE" fillTypeName="RAM_LANDRACE" gender="male" minWeight="4.71" targetWeight="75.0" maxWeight="150.0" breed="LANDRACE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/sheep/store_sheepLandraceBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -1658,7 +1658,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="SHEEP_STEINSCHAF" fillTypeName="SHEEP_STEINSCHAF" gender="female" minWeight="4.8" targetWeight="80.0" maxWeight="135.0" breed="STEINSCHAF">
+		<subType subType="SHEEP_STEINSCHAF" fillTypeName="SHEEP_STEINSCHAF" gender="female" minWeight="4.80" targetWeight="80.0" maxWeight="135.0" breed="STEINSCHAF">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/sheep/store_sheepSteinschafBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionSheepProfit</description>
@@ -1728,7 +1728,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_STEINSCHAF" fillTypeName="RAM_STEINSCHAF" gender="male" minWeight="5.3" targetWeight="95.0" maxWeight="150.0" breed="STEINSCHAF">
+		<subType subType="RAM_STEINSCHAF" fillTypeName="RAM_STEINSCHAF" gender="male" minWeight="5.14" targetWeight="95.0" maxWeight="150.0" breed="STEINSCHAF">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/sheep/store_sheepSteinschafBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -1795,7 +1795,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="SHEEP_SWISS_MOUNTAIN" fillTypeName="SHEEP_SWISS_MOUNTAIN" gender="female" minWeight="5.8" targetWeight="75.0" maxWeight="135.0" breed="SWISS_MOUNTAIN">
+		<subType subType="SHEEP_SWISS_MOUNTAIN" fillTypeName="SHEEP_SWISS_MOUNTAIN" gender="female" minWeight="5.30" targetWeight="75.0" maxWeight="135.0" breed="SWISS_MOUNTAIN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/sheep/store_sheepSwissMountainBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionSheepProfit</description>
@@ -1865,7 +1865,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_SWISS_MOUNTAIN" fillTypeName="RAM_SWISS_MOUNTAIN" gender="male" minWeight="6.5" targetWeight="100.0" maxWeight="150.0" breed="SWISS_MOUNTAIN">
+		<subType subType="RAM_SWISS_MOUNTAIN" fillTypeName="RAM_SWISS_MOUNTAIN" gender="male" minWeight="5.67" targetWeight="100.0" maxWeight="150.0" breed="SWISS_MOUNTAIN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/sheep/store_sheepSwissMountainBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -1932,7 +1932,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="SHEEP_BLACK_WELSH" fillTypeName="SHEEP_BLACK_WELSH" gender="female" minWeight="4.2" targetWeight="45.0" maxWeight="135.0" breed="BLACK_WELSH">
+		<subType subType="SHEEP_BLACK_WELSH" fillTypeName="SHEEP_BLACK_WELSH" gender="female" minWeight="3.60" targetWeight="45.0" maxWeight="135.0" breed="BLACK_WELSH">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="10" image="$dataS/character/animals/domesticated/sheep/store_sheepBlackWelshBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionSheepProfit</description>
@@ -2002,7 +2002,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_BLACK_WELSH" fillTypeName="RAM_BLACK_WELSH" gender="male" minWeight="4.6" targetWeight="62.0" maxWeight="150.0" breed="BLACK_WELSH">
+		<subType subType="RAM_BLACK_WELSH" fillTypeName="RAM_BLACK_WELSH" gender="male" minWeight="3.85" targetWeight="62.0" maxWeight="150.0" breed="BLACK_WELSH">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="10" image="$dataS/character/animals/domesticated/sheep/store_sheepBlackWelshBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -2069,7 +2069,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="GOAT" fillTypeName="GOAT" statsBreeding="breedGoatsCount" gender="female" minWeight="3.75" targetWeight="60.0" maxWeight="90.0" breed="GOAT">
+		<subType subType="GOAT" fillTypeName="GOAT" statsBreeding="breedGoatsCount" gender="female" minWeight="3.50" targetWeight="60.0" maxWeight="90.0" breed="GOAT">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="13" image="$dataS/character/animals/domesticated/goat/store_goatBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionGoatProfit</description>
@@ -2137,7 +2137,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_GOAT" fillTypeName="RAM_GOAT" statsBreeding="breedGoatsCount" gender="male" minWeight="4.0" targetWeight="75.0" maxWeight="115.0" breed="GOAT">
+		<subType subType="RAM_GOAT" fillTypeName="RAM_GOAT" statsBreeding="breedGoatsCount" gender="male" minWeight="3.74" targetWeight="75.0" maxWeight="115.0" breed="GOAT">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="13" image="$dataS/character/animals/domesticated/goat/store_goatBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -2213,7 +2213,7 @@
 			<key ageMonth="264" value="150"/>
 			<key ageMonth="264" value="0"/>
 		</fertility>
-		<subType subType="HORSE_GRAY" fillTypeName="HORSE_GRAY" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="GRAY">
+		<subType subType="HORSE_GRAY" fillTypeName="HORSE_GRAY" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="GRAY">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/horse/store_horseGray.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2260,7 +2260,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_GRAY" fillTypeName="STALLION_GRAY" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="GRAY">
+		<subType subType="STALLION_GRAY" fillTypeName="STALLION_GRAY" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="GRAY">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/horse/store_horseGray.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2307,7 +2307,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_PINTO" fillTypeName="HORSE_PINTO" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="PINTO">
+		<subType subType="HORSE_PINTO" fillTypeName="HORSE_PINTO" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="PINTO">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="2" image="$dataS/character/animals/domesticated/horse/store_horsePinto.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2354,7 +2354,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_PINTO" fillTypeName="STALLION_PINTO" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="PINTO">
+		<subType subType="STALLION_PINTO" fillTypeName="STALLION_PINTO" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="PINTO">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="2" image="$dataS/character/animals/domesticated/horse/store_horsePinto.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2401,7 +2401,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_PALOMINO" fillTypeName="HORSE_PALOMINO" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="PALOMINO">
+		<subType subType="HORSE_PALOMINO" fillTypeName="HORSE_PALOMINO" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="PALOMINO">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="3" image="$dataS/character/animals/domesticated/horse/store_horsePalomino.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2448,7 +2448,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_PALOMINO" fillTypeName="STALLION_PALOMINO" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="PALOMINO">
+		<subType subType="STALLION_PALOMINO" fillTypeName="STALLION_PALOMINO" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="PALOMINO">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="3" image="$dataS/character/animals/domesticated/horse/store_horsePalomino.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2495,7 +2495,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_CHESTNUT" fillTypeName="HORSE_CHESTNUT" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="CHESTNUT">
+		<subType subType="HORSE_CHESTNUT" fillTypeName="HORSE_CHESTNUT" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="CHESTNUT">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/horse/store_horseChestnut.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2542,7 +2542,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_CHESTNUT" fillTypeName="STALLION_CHESTNUT" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="CHESTNUT">
+		<subType subType="STALLION_CHESTNUT" fillTypeName="STALLION_CHESTNUT" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="CHESTNUT">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/horse/store_horseChestnut.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2589,7 +2589,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_BAY" fillTypeName="HORSE_BAY" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="BAY">
+		<subType subType="HORSE_BAY" fillTypeName="HORSE_BAY" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="BAY">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="5" image="$dataS/character/animals/domesticated/horse/store_horseBay.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2636,7 +2636,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_BAY" fillTypeName="STALLION_BAY" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="BAY">
+		<subType subType="STALLION_BAY" fillTypeName="STALLION_BAY" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="BAY">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="5" image="$dataS/character/animals/domesticated/horse/store_horseBay.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2683,7 +2683,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_BLACK" fillTypeName="HORSE_BLACK" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="BLACK">
+		<subType subType="HORSE_BLACK" fillTypeName="HORSE_BLACK" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="BLACK">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="6" image="$dataS/character/animals/domesticated/horse/store_horseBlack.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2730,7 +2730,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_BLACK" fillTypeName="STALLION_BLACK" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="BLACK">
+		<subType subType="STALLION_BLACK" fillTypeName="STALLION_BLACK" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="BLACK">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="6" image="$dataS/character/animals/domesticated/horse/store_horseBlack.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2777,7 +2777,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_SEAL_BROWN" fillTypeName="HORSE_SEAL_BROWN" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="SEAL_BROWN">
+		<subType subType="HORSE_SEAL_BROWN" fillTypeName="HORSE_SEAL_BROWN" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="SEAL_BROWN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/horse/store_horseSealBrown.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2824,7 +2824,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_SEAL_BROWN" fillTypeName="STALLION_SEAL_BROWN" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="SEAL_BROWN">
+		<subType subType="STALLION_SEAL_BROWN" fillTypeName="STALLION_SEAL_BROWN" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="SEAL_BROWN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/horse/store_horseSealBrown.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2871,7 +2871,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_DUN" fillTypeName="HORSE_DUN" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="DUN">
+		<subType subType="HORSE_DUN" fillTypeName="HORSE_DUN" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="DUN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="8" image="$dataS/character/animals/domesticated/horse/store_horseDun.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2918,7 +2918,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_DUN" fillTypeName="STALLION_DUN" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="DUN">
+		<subType subType="STALLION_DUN" fillTypeName="STALLION_DUN" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="DUN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="8" image="$dataS/character/animals/domesticated/horse/store_horseDun.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2982,7 +2982,7 @@
 			<key ageMonth="60" value="100"/>
 			<key ageMonth="60" value="0"/>
 		</fertility>
-		<subType subType="CHICKEN" fillTypeName="CHICKEN" gender="female" minWeight="0.04" targetWeight="3.25" maxWeight="4.5" breed="CHICKEN">
+		<subType subType="CHICKEN" fillTypeName="CHICKEN" gender="female" minWeight="0.040" targetWeight="3.25" maxWeight="4.5" breed="CHICKEN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="3" image="$dataS/character/animals/domesticated/chicken/store_chickenChick.png" canBeBought="true">
 					<description>$l10n_animal_descriptionChickenProfit</description>
@@ -3039,7 +3039,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="CHICKEN_ROOSTER" fillTypeName="CHICKEN_ROOSTER" gender="male" minWeight="0.045" targetWeight="4.25" maxWeight="5.5" breed="CHICKEN">
+		<subType subType="CHICKEN_ROOSTER" fillTypeName="CHICKEN_ROOSTER" gender="male" minWeight="0.042" targetWeight="4.25" maxWeight="5.5" breed="CHICKEN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="3" image="$dataS/character/animals/domesticated/chicken/store_chickenChick.png" canBeBought="true">
 					<description>$l10n_animal_descriptionChickenRooster</description>

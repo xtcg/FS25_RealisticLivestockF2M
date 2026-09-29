@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Newborns' weight follows the breed's target weight instead of the subtype's fixed minWeight plus 0.5 kg. The mean is birthWeightRatio x the target weight of the breed's female, set per breed in xml/breedTraits.xml: calves 5-6.5% of the cow (Holstein 42 / 45 kg, Swiss Brown 40 / 43, Limousin 38 / 41, Hereford and Water Buffalo 34 / 36, Angus 32 / 34, Highland 27 / 29), piglets 1.30-1.45 kg, lambs and kids 3.5-5.7 kg, foals 50 / 52 kg, chicks 40 g. The old flat 0.5 kg made chicks 13 times too heavy and piglets 37% too heavy. Each configured subtype's minWeight is set to its birth weight, so growth starts there.
+- A birth's mean is scaled for the litter (calf twins 85%, lambs 85% / 72% / 65% for twins, triplets and more, piglets 2% lighter for each piglet over 12), the dam's first birth (93% for cattle, sheep and horses), the dam's condition (a thin dam has lighter young, down to 85%), a cross (the mean of both breeds) and the young's metabolism gene (+-7.5% at the extremes).
+- Birth weight is drawn from a normal distribution around that mean (coefficient of variation 10% for calves and foals, 12% lambs, 20% piglets, 8% chicks), truncated at 2.5 standard deviations, instead of three flat bands.
+- A newborn's chance to survive its birth depends on its health gene and how far it is from the mean weight: very light young (more than 1.5 SD under) and very heavy ones (a hard birth, more than 2 SD over) die more often. Young of average weight survive as before. Piglets and chicks no longer get near-certain survival from the old 0.5 kg bonus.
+
+### Fixed
+
+- Cull animals over 60 months were refused by Hof Bergmann's farm butcher and public slaughterhouse, by hand and by the herdsman. The map sets their maximum age to 60, which it means as "no limit" because base-game animals never pass 60; RLRM animals keep ageing. A maximum of 60 is now open-ended, and the move screens show it as "6+ mo". Real limits below 60 still apply.
+
 ## 1.4.0.1-dev.6 (xtcg fork, Hof Bergmann)
 
 ### Changed

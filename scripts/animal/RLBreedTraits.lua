@@ -14,8 +14,11 @@ local Log = RmLogging.getLogger("RLRM")
 
 RLBreedTraits.CONFIG_FILE = "breedTraits.xml"
 
---- Per-animal trait attributes. All but matureAgeMonth are multipliers, 1 = unchanged.
-RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrowth", "matureAgeMonth" }
+--- Per-animal trait attributes. All but matureAgeMonth are multipliers, 1 = unchanged. The
+--- birth attributes after them are read by RLBirthWeight.
+RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrowth", "matureAgeMonth",
+    "birthWeightRatio", "maleBirthFactor", "birthWeightCV", "firstBirthFactor",
+    "litter2", "litter3", "litter4", "litterBase", "litterStep", "litterMin", "litterMax" }
 
 --- Female growth relative to male, where the file sets none (the mod's original rule).
 RLBreedTraits.DEFAULT_FEMALE_GROWTH = 0.6
