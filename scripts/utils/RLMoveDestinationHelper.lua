@@ -112,9 +112,9 @@ end
 
 --- Split animals into valid and rejected against one destination entry, in input order.
 ---
---- The EPP age gate applies only when the entry is an EPP advertising BOTH bounds - a single
---- missing bound skips it. `destination.name` and `.freeSlots` are indexed unconditionally,
---- so the caller guards a nil destination.
+--- EPP destinations carry a normalized age window: minAge defaults to 0 and maxAge may be nil
+--- for an open upper bound (including Hof Bergmann's sentinel maximumAge=60). `destination.name`
+--- and `.freeSlots` are indexed unconditionally, so the caller guards a nil destination.
 ---@param animals table Array of animals to validate (each may carry age, name, uniqueId)
 ---@param destination table Destination entry from getValidDestinations
 ---@param animalTypeIndex number Animal type index (logged only)
