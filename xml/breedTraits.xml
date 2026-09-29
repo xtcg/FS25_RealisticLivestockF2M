@@ -44,6 +44,12 @@
                       metabolism gene, 1 + 0.10 x (metabolism - 1).
     birthWeightCV     The weight is drawn from a normal distribution with this coefficient of
                       variation around the mean, truncated at 2.5 standard deviations.
+    birthSurvivalBase Baseline chance to survive birth for an average-weight, average-health young.
+    birthHealthEffect Health gene modifier: survival x (1 + effect x (health - 1)).
+    birthLowWeightSD  Low-weight risk starts this many SD below the birth mean.
+    birthLowWeightPenalty  Survival lost per further SD below that threshold.
+    birthHighWeightSD High-weight/dystocia risk starts this many SD above the mean.
+    birthHighWeightPenalty Survival lost per further SD above that threshold; set 0 to disable.
     A subtype with no birthWeightRatio (the map's ducks, geese, pets) keeps its minWeight.
 
     To change these without editing the mod, copy this file to
@@ -51,7 +57,9 @@
     entirely. In multiplayer the server's file applies.
 -->
 <breedTraits growthNutritionFactor="1.10" bodyWeightExponent="0.35" minBodyRatio="0.5" maxBodyRatio="1.5"
-             birthWeightCV="0.10">
+             birthWeightCV="0.10" birthSurvivalBase="0.97" birthHealthEffect="0.20"
+             birthLowWeightSD="1.5" birthLowWeightPenalty="0.10"
+             birthHighWeightSD="2.0" birthHighWeightPenalty="0">
     <forage>
         <category name="grass" fillTypes="GRASS_WINDROW"/>
         <category name="hay" fillTypes="DRYGRASS_WINDROW CLOVER_WINDROW"/>
@@ -60,7 +68,10 @@
 
     <!-- Calves: 5-6.5% of the cow, bull calves ~7% heavier, twins 85% each, heifers' first 93%. -->
     <animalType name="COW" maleBirthFactor="1.07" birthWeightCV="0.10" firstBirthFactor="0.93"
-                litter2="0.85" litter3="0.75" litter4="0.70">
+                litter2="0.85" litter3="0.75" litter4="0.70"
+                birthSurvivalBase="0.97" birthHealthEffect="0.20"
+                birthLowWeightSD="1.8" birthLowWeightPenalty="0.10"
+                birthHighWeightSD="1.3" birthHighWeightPenalty="0.12">
         <breed name="HIGHLAND"      feed="0.80" growth="0.90" grass="1.25" hay="1.15" silage="1.00" birthWeightRatio="0.054"/>   <!-- 27 / 29 kg -->
         <breed name="HEREFORD"      feed="0.90" growth="1.02" grass="1.15" hay="1.10" silage="1.00" birthWeightRatio="0.0567"/>  <!-- 34 / 36 kg -->
         <breed name="WATER_BUFFALO" feed="0.90" growth="0.96" grass="1.15" hay="1.05" silage="1.00" birthWeightRatio="0.0618"/>  <!-- 34 / 36 kg -->
@@ -73,7 +84,10 @@
     <!-- Gilts grow almost as fast as boars; the mod's 0.6 for females is for breeding stock. -->
     <!-- Piglets: ~1.3-1.4 kg in a litter of 12, 2% lighter per extra piglet, wide spread within a litter. -->
     <animalType name="PIG" femaleGrowth="0.95" maleBirthFactor="1.035" birthWeightCV="0.20"
-                litterBase="12" litterStep="0.02" litterMin="0.80" litterMax="1.15">
+                litterBase="12" litterStep="0.02" litterMin="0.80" litterMax="1.15"
+                birthSurvivalBase="0.94" birthHealthEffect="0.20"
+                birthLowWeightSD="0.9" birthLowWeightPenalty="0.20"
+                birthHighWeightSD="2.5" birthHighWeightPenalty="0">
         <breed name="BERKSHIRE"  feed="1.08" growth="0.95" matureAgeMonth="17.7" birthWeightRatio="0.00591"/>  <!-- 118 kg at 6.5 months; born 1.30 / 1.35 kg -->
         <breed name="LANDRACE"   feed="1.00" growth="1.05" matureAgeMonth="16.3" birthWeightRatio="0.00583"/>  <!-- 126 kg at 5.5 months; born 1.40 / 1.45 kg -->
         <breed name="BLACK_PIED" feed="0.90" growth="0.95" matureAgeMonth="13.7" birthWeightRatio="0.00722"/>  <!-- 120 kg at 6 months; born 1.30 / 1.35 kg -->
@@ -81,7 +95,10 @@
 
     <!-- Lambs and kids (goats share the SHEEP type): single 6-8% of the ewe, twins 85%, triplets 72%. -->
     <animalType name="SHEEP" maleBirthFactor="1.07" birthWeightCV="0.12" firstBirthFactor="0.93"
-                litter2="0.85" litter3="0.72" litter4="0.65">
+                litter2="0.85" litter3="0.72" litter4="0.65"
+                birthSurvivalBase="0.97" birthHealthEffect="0.20"
+                birthLowWeightSD="1.2" birthLowWeightPenalty="0.15"
+                birthHighWeightSD="1.8" birthHighWeightPenalty="0.05">
         <breed name="BLACK_WELSH"    feed="0.85" growth="0.90" birthWeightRatio="0.080"/>   <!-- 3.6 / 3.9 kg -->
         <breed name="LANDRACE"       feed="0.95" growth="1.00" birthWeightRatio="0.080"/>   <!-- 4.4 / 4.7 kg -->
         <breed name="STEINSCHAF"     feed="1.05" growth="1.05" birthWeightRatio="0.060"/>   <!-- 4.8 / 5.1 kg -->
@@ -91,10 +108,16 @@
 
     <!-- Foals: 10% of the mare, twins 80% each. -->
     <animalType name="HORSE" birthWeightRatio="0.10" maleBirthFactor="1.04" birthWeightCV="0.10"
-                firstBirthFactor="0.93" litter2="0.80"/>
+                firstBirthFactor="0.93" litter2="0.80"
+                birthSurvivalBase="0.97" birthHealthEffect="0.20"
+                birthLowWeightSD="1.5" birthLowWeightPenalty="0.10"
+                birthHighWeightSD="1.3" birthHighWeightPenalty="0.10"/>
 
     <!-- Chicks: about 40 g, ~65% of the egg. -->
-    <animalType name="CHICKEN" birthWeightCV="0.08">
+    <animalType name="CHICKEN" birthWeightCV="0.08"
+                birthSurvivalBase="0.96" birthHealthEffect="0.15"
+                birthLowWeightSD="1.5" birthLowWeightPenalty="0.10"
+                birthHighWeightSD="2.5" birthHighWeightPenalty="0">
         <breed name="CHICKEN" birthWeightRatio="0.0123" maleBirthFactor="1.05"/>  <!-- 40 / 42 g -->
     </animalType>
 
