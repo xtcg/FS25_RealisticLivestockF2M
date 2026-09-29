@@ -14,8 +14,10 @@ local Log = RmLogging.getLogger("RLRM")
 
 RLBreedTraits.CONFIG_FILE = "breedTraits.xml"
 
---- Per-animal trait attributes. All but matureAgeMonth are multipliers, 1 = unchanged.
-RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrowth", "matureAgeMonth" }
+--- Per-animal trait attributes. All but matureAgeMonth, priceTargetWeight and priceMatureAgeMonth are
+--- multipliers, 1 = unchanged.
+RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrowth", "matureAgeMonth",
+    "priceTargetWeight", "priceMatureAgeMonth" }
 
 --- Female growth relative to male, where the file sets none (the mod's original rule).
 RLBreedTraits.DEFAULT_FEMALE_GROWTH = 0.6
@@ -241,6 +243,81 @@ function RLBreedTraits.getExpectedWeight(subType, targetWeight, age)
     local matureAge = RLBreedTraits.getMatureAge(subType)
     local grown = matureAge > 0 and math.clamp((age or matureAge) / matureAge, 0, 1) or 1
     return minWeight + (targetWeight - minWeight) * grown
+end
+
+
+--- Weight an animal raised on full feed has at `age`: the same monthly gain as Animal:updateWeight
+--- (base gain x sex x (1 + (mature age - age) / 75) x metabolism x breed growth), starting at the
+--- subtype's minWeight and never above `targetWeight`. Used for animals that appear with no weight
+--- of their own (the dealer's stock, a new game's herds), so that a bull of finishing age arrives at
+--- about the weight one raised in the pen reaches, not on the slower expected-weight line above.
+--- @param subType table
+--- @param gender string|nil "female" grows at getFemaleGrowth
+--- @param targetWeight number The animal's own target weight
+--- @param age number Months
+--- @param metabolism number|nil Metabolism gene, default 1
+--- @return number
+function RLBreedTraits.getGrownWeight(subType, gender, targetWeight, age, metabolism)
+    local minWeight = subType.minWeight or 0
+    local matureAge = RLBreedTraits.getMatureAge(subType)
+    if matureAge <= 0 or targetWeight <= minWeight then return minWeight end
+
+    metabolism = metabolism or 1
+    local baseGain = (targetWeight - minWeight) / matureAge
+    local sex = gender == "female" and RLBreedTraits.getFemaleGrowth(subType) or 1
+    local growth = RLBreedTraits.get(subType, "growth")
+
+    local weight, month = minWeight, 0
+    while month < age do
+        local step = math.min(1, age - month)
+        local gain = baseGain * sex * (1 + (matureAge - month) / 75)
+        gain = gain > 0 and gain * metabolism * growth or gain * (2 - metabolism)
+        weight = math.min(math.max(weight + gain * step, minWeight), targetWeight)
+        month = month + step
+    end
+    return weight
+end
+
+
+--- The reference line live prices measure weight against: target weight and mature age (months)
+--- from priceTargetWeight / priceMatureAgeMonth; nil for a subtype that sets neither, whose price
+--- then uses its own target weight and mature age.
+--- @param subType table|nil
+--- @return number|nil priceTargetWeight
+--- @return number|nil priceMatureAge
+function RLBreedTraits.getPriceModel(subType)
+    if subType == nil then return nil end
+    local layers = RLBreedTraits.getConfig().layers
+    local target = RLBreedTraits.resolve(layers, subType, "priceTargetWeight", nil)
+    local matureAge = RLBreedTraits.resolve(layers, subType, "priceMatureAgeMonth", nil)
+    if target == nil or matureAge == nil or target <= 0 or matureAge <= 0 then return nil end
+    return target, matureAge
+end
+
+
+--- An animal's weight on the live-price reference line: its share of the full-feed growth line at
+--- its age, applied to the price line's weight for that age (from birth weight to priceTargetWeight
+--- by priceMatureAgeMonth, then flat, as animals with no weight of their own once got theirs). An
+--- animal on the growth line weighs what the price line says for its age, so a change to target
+--- weights, maturity or growth does not move its price. Unchanged for a subtype with no price line.
+--- @param subType table
+--- @param gender string|nil
+--- @param targetWeight number The animal's own target weight
+--- @param age number Months
+--- @param metabolism number|nil
+--- @param weight number The animal's weight
+--- @return number
+function RLBreedTraits.toPriceWeight(subType, gender, targetWeight, age, metabolism, weight)
+    local priceTarget, priceMatureAge = RLBreedTraits.getPriceModel(subType)
+    if priceTarget == nil then return weight end
+
+    local line = RLBreedTraits.getGrownWeight(subType, gender, targetWeight, age, metabolism)
+    if line <= 0 then return weight end
+
+    local minWeight = subType.minWeight or 0
+    local priceLine = minWeight + (priceTarget - minWeight) / priceMatureAge *
+        math.clamp(age, 0, math.max(priceMatureAge, 20))
+    return weight * priceLine / line
 end
 
 

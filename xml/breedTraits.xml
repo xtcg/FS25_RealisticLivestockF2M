@@ -71,13 +71,13 @@
         carcassYield.xml) at a realistic age on full feed: TMR for cattle. Cows and ewes keep the
         mod's default (1.5 x the age they can first breed). Solved with tests/economics.py.
     -->
-    <subType name="BULL_HOLSTEIN"        matureAgeMonth="40.2"/>  <!-- 649 kg at 17 months -->
-    <subType name="BULL_LIMOUSIN"        matureAgeMonth="55.0"/>  <!-- 702 kg at 18 months -->
-    <subType name="BULL_ANGUS"           matureAgeMonth="52.2"/>  <!-- 601 kg at 19.5 months -->
-    <subType name="BULL_HEREFORD"        matureAgeMonth="54.2"/>  <!-- 571 kg at 19.5 months -->
-    <subType name="BULL_SWISS_BROWN"     matureAgeMonth="51.5"/>  <!-- 620 kg at 20 months -->
-    <subType name="BULL_WATERBUFFALO"    matureAgeMonth="60.3"/>  <!-- 450 kg at 23 months -->
-    <subType name="BULL_HIGHLAND_CATTLE" matureAgeMonth="63.3"/>  <!-- 480 kg at 25 months -->
+    <subType name="BULL_HOLSTEIN"        matureAgeMonth="40.2" priceTargetWeight="1000" priceMatureAgeMonth="32"/>  <!-- 649 kg at 17 months -->
+    <subType name="BULL_LIMOUSIN"        matureAgeMonth="55.0" priceTargetWeight="1000" priceMatureAgeMonth="35.7"/>  <!-- 702 kg at 18 months -->
+    <subType name="BULL_ANGUS"           matureAgeMonth="52.2" priceTargetWeight="850" priceMatureAgeMonth="33.4"/>  <!-- 601 kg at 19.5 months -->
+    <subType name="BULL_HEREFORD"        matureAgeMonth="54.2" priceTargetWeight="850" priceMatureAgeMonth="35.9"/>  <!-- 571 kg at 19.5 months -->
+    <subType name="BULL_SWISS_BROWN"     matureAgeMonth="51.5" priceTargetWeight="900" priceMatureAgeMonth="37.8"/>  <!-- 620 kg at 20 months -->
+    <subType name="BULL_WATERBUFFALO"    matureAgeMonth="60.3" priceTargetWeight="900" priceMatureAgeMonth="45.4"/>  <!-- 450 kg at 23 months -->
+    <subType name="BULL_HIGHLAND_CATTLE" matureAgeMonth="63.3" priceTargetWeight="750" priceMatureAgeMonth="40.2"/>  <!-- 480 kg at 25 months -->
     <subType name="PIG_LANDRACE"         matureAgeMonth="12.2"/>  <!-- gilt: 125 kg at 5.6 months -->
     <subType name="PIG_BLACK_PIED"       matureAgeMonth="8.9"/>   <!-- gilt: 121 kg at 6.1 months -->
     <subType name="PIG_BERKSHIRE"        matureAgeMonth="13.1"/>  <!-- gilt: 114 kg at 6.6 months -->
@@ -85,6 +85,21 @@
     <subType name="RAM_STEINSCHAF"       matureAgeMonth="9.6"/>   <!-- 59 kg at 5 months -->
     <subType name="RAM_SWISS_MOUNTAIN"   matureAgeMonth="10.7"/>  <!-- 62 kg at 5.5 months -->
     <subType name="RAM_BLACK_WELSH"      matureAgeMonth="9.1"/>   <!-- 38.4 kg at 5.5 months -->
+
+    <!--
+        Live-price model. Animal:getSellPrice measures an animal's weight against a reference line
+        (priceTargetWeight over priceMatureAgeMonth, the values the calibrated prices were made with) so
+        that prices do not move when target weights or growth lines are set to real weights. The
+        animal's weight is put on that line as its share of the full-feed growth line
+        (RLBreedTraits.toPriceWeight): a dealer's animal or one on full feed is priced by age as before.
+    -->
+    <subType name="COW_SWISS_BROWN" priceTargetWeight="650" priceMatureAgeMonth="18"/>
+    <subType name="COW_HOLSTEIN" priceTargetWeight="680" priceMatureAgeMonth="18"/>
+    <subType name="COW_ANGUS" priceTargetWeight="650" priceMatureAgeMonth="18"/>
+    <subType name="COW_LIMOUSIN" priceTargetWeight="650" priceMatureAgeMonth="18"/>
+    <subType name="COW_HEREFORD" priceTargetWeight="600" priceMatureAgeMonth="18"/>
+    <subType name="COW_HIGHLAND_CATTLE" priceTargetWeight="500" priceMatureAgeMonth="18"/>
+    <subType name="COW_WATERBUFFALO" priceTargetWeight="550" priceMatureAgeMonth="18"/>
 
     <!-- Example of a single subtype:
     <subType name="BULL_HIGHLAND_CATTLE" growth="0.85"/>

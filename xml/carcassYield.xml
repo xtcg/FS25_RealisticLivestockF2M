@@ -18,10 +18,16 @@
     referenceWeight  Optional: a fixed reference in kg, used instead of target weight x maturity.
     carcassFactor  Breed carcass merit (dressing, muscling, meat value).
     qualitySwing   Yield change per unit of the meat gene (0.25 - 1.75, 1 = average).
-    meatPerHead    Animal type only: kg of meat one typical animal gives. A contract slaughterhouse's
-                   recipe (Hof Bergmann's public one) is rescaled to it at load, so it gives the same
-                   meat as the farm butcher (its unitsPerAnimal x recipe output / input) and only
-                   saves time and work. A type without it keeps the facility's own recipe.
+    dressingRate   Animal type only: share of the live weight that is carcass (cattle 0.60).
+    saleableRate   Animal type only: share of the carcass that is sold on as the map's meat products
+                   (cattle 0.75). anchorWeight x dressingRate x saleableRate is the meat one typical
+                   animal gives: a 600 kg standard cow -> 360 kg carcass -> 270 kg of meat.
+    meatPerHead    Animal type only: kg of meat one typical animal gives, when the type does not give
+                   the two rates (pigs, sheep). It is what every facility is set to: a contract
+                   slaughterhouse's recipe (Hof Bergmann's public one) is rescaled to it at load, and
+                   a unit-based farm butcher is credited units x its recipe ratio = meatPerHead per
+                   typical animal, whatever unitsPerAnimal and recipe the map ships. A type without it
+                   keeps the facility's own recipe.
 
     The live sale price has a floor at what a slaughterhouse pays for the animal (RLMeatValue):
     its meat (yield x meatPerHead) at the best current price for meatFillType, times a share.
@@ -46,7 +52,7 @@
 <carcassYield qualitySwing="0.20" slaughterShare="0.85" cullShare="0.70"
               sizeExponent="0.25" minSizeFactor="0.88" maxSizeFactor="1.15"
               finishExponent="0.85" minFinishFactor="0" maxFinishFactor="1.3">
-    <animalType name="COW" anchorWeight="650" meatPerHead="450" meatFillType="BEEFMEAT" cullAgeMonth="30" slaughterMinAgeMonth="6" maleMaturity="0.75" femaleMaturity="0.90">
+    <animalType name="COW" anchorWeight="600" dressingRate="0.60" saleableRate="0.75" meatFillType="BEEFMEAT" cullAgeMonth="30" slaughterMinAgeMonth="6" maleMaturity="0.75" femaleMaturity="0.90">
         <breed name="HOLSTEIN"      maleMaturity="0.59" femaleMaturity="0.85" carcassFactor="0.94"/>
         <breed name="SWISS_BROWN"   maleMaturity="0.62" femaleMaturity="0.85" carcassFactor="0.98"/>
         <breed name="HEREFORD"      maleMaturity="0.60" carcassFactor="1.00"/>
