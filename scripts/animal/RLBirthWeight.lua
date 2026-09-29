@@ -13,7 +13,7 @@
       - the dam's first birth: firstBirthFactor
       - the dam's condition: (weight / expected weight for her age) ^ 0.5, clamped 0.85..1.05
       - a cross: the mean of the dam's and the sire's breed for the young's sex
-      - the young's metabolism gene: 1 + 0.10 x (metabolism - 1)
+      - the young's metabolism gene: 1 + 0.05 x (metabolism - 1)
 
     The weight is drawn from a normal distribution around that mean with the type's
     birthWeightCV, truncated at 2.5 standard deviations.
@@ -37,6 +37,12 @@ RLBirthWeight.DEFAULTS = {
     litterStep = 0,
     litterMin = 0,
     litterMax = 10,
+    birthSurvivalBase = 0.97,
+    birthHealthEffect = 0.20,
+    birthLowWeightSD = 1.5,
+    birthLowWeightPenalty = 0.10,
+    birthHighWeightSD = 2.0,
+    birthHighWeightPenalty = 0,
 }
 
 --- Draws further out than this many standard deviations are redrawn.
@@ -48,16 +54,7 @@ RLBirthWeight.DAM_CONDITION_MIN = 0.85
 RLBirthWeight.DAM_CONDITION_MAX = 1.05
 
 --- Share of the metabolism gene's distance from 1 that moves the mean.
-RLBirthWeight.METABOLISM_EFFECT = 0.10
-
---- Stillbirth: base survival is health gene x SURVIVAL_BASE (health 0.87 and up always survive
---- an average birth, as before). A young lighter than LIGHT_Z standard deviations loses
---- LIGHT_PENALTY of that per further SD; one heavier than HEAVY_Z (a hard birth) HEAVY_PENALTY.
-RLBirthWeight.SURVIVAL_BASE = 1.15
-RLBirthWeight.LIGHT_Z = -1.5
-RLBirthWeight.LIGHT_PENALTY = 0.25
-RLBirthWeight.HEAVY_Z = 2
-RLBirthWeight.HEAVY_PENALTY = 0.10
+RLBirthWeight.METABOLISM_EFFECT = 0.05
 
 
 local function getLayers()
@@ -201,19 +198,36 @@ function RLBirthWeight.draw(childSubType, ctx, random)
 end
 
 
---- Chance a young survives its birth, from its health gene and how far its weight is from the
---- mean.
---- @param health number Health gene
---- @param z number From draw
+--- Chance a young survives its birth. The species/breed/subtype supplies a baseline plus
+--- asymmetric low- and high-weight risk. Health genetics are deliberately a modest modifier,
+--- not the baseline itself: healthEffect 0.20 makes a gene of 0.5/1.5 change survival by -/+10%.
+--- High-weight penalty is zero for species such as pigs where larger newborns are not treated
+--- as dystocia risk by this simplified model.
+--- @param subType table|nil Child subtype used for layered breedTraits lookup
+--- @param health number|nil Health gene, 1 = average
+--- @param z number Standard deviations of birth weight from this birth's mean
 --- @return number 0..1
-function RLBirthWeight.getSurvivalChance(health, z)
-    local size = 1
-    if z < RLBirthWeight.LIGHT_Z then
-        size = 1 - RLBirthWeight.LIGHT_PENALTY * (RLBirthWeight.LIGHT_Z - z)
-    elseif z > RLBirthWeight.HEAVY_Z then
-        size = 1 - RLBirthWeight.HEAVY_PENALTY * (z - RLBirthWeight.HEAVY_Z)
+function RLBirthWeight.getSurvivalChance(subType, health, z)
+    health = health or 1
+    z = z or 0
+
+    local base = RLBirthWeight.get(subType, "birthSurvivalBase")
+    local healthEffect = RLBirthWeight.get(subType, "birthHealthEffect")
+    local lowSD = RLBirthWeight.get(subType, "birthLowWeightSD")
+    local lowPenalty = RLBirthWeight.get(subType, "birthLowWeightPenalty")
+    local highSD = RLBirthWeight.get(subType, "birthHighWeightSD")
+    local highPenalty = RLBirthWeight.get(subType, "birthHighWeightPenalty")
+
+    local weightFactor = 1
+    if lowSD ~= nil and lowPenalty ~= nil and z < -lowSD then
+        weightFactor = weightFactor * math.max(0, 1 - lowPenalty * ((-z) - lowSD))
     end
-    return math.clamp((health or 1) * RLBirthWeight.SURVIVAL_BASE * size, 0, 1)
+    if highSD ~= nil and highPenalty ~= nil and highPenalty > 0 and z > highSD then
+        weightFactor = weightFactor * math.max(0, 1 - highPenalty * (z - highSD))
+    end
+
+    local healthFactor = math.max(0, 1 + healthEffect * (health - 1))
+    return math.clamp(base * healthFactor * weightFactor, 0, 1)
 end
 
 
