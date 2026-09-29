@@ -80,15 +80,19 @@ end
 
 --- Annual mean price per unit of a fill type at the best selling point: each station's own price
 --- (pricePerLiter x its priceScale) x the mean of the fill type's 12 seasonal factors x the
---- difficulty price multiplier, the highest over the stations getMeatPrice reads. The seasonal
+--- difficulty price multiplier (RLLivestockPrices.getPriceMultiplier), the highest over the stations getMeatPrice reads. The seasonal
 --- curve is a closed Catmull-Rom spline through the 12 factors, so its mean over a year is the
 --- factors' mean. Random price noise and great demand average out and are left out. Falls back to
 --- the fill type's own price when no selling point takes it.
 --- @param fillTypeIndex number
 --- @return number price 0 when nothing prices it
 function RLMeatValue.getAnnualMeanPrice(fillTypeIndex)
+    -- The difficulty (or, for a livestock fill type, the reference difficulty in xml/livestockPrices.xml)
+    -- is applied on return, so a change of difficulty in game is picked up.
+    local multiplier = RLLivestockPrices ~= nil and RLLivestockPrices.getPriceMultiplier(fillTypeIndex)
+        or (EconomyManager ~= nil and EconomyManager.getPriceMultiplier ~= nil and EconomyManager.getPriceMultiplier()) or 1
     local cached = annualCache[fillTypeIndex]
-    if cached ~= nil then return cached end
+    if cached ~= nil then return cached * multiplier end
 
     local fillType = g_fillTypeManager ~= nil and g_fillTypeManager.getFillTypeByIndex ~= nil
         and g_fillTypeManager:getFillTypeByIndex(fillTypeIndex) or nil
@@ -99,7 +103,6 @@ function RLMeatValue.getAnnualMeanPrice(fillTypeIndex)
         if type(factor) == "number" then total, count = total + factor, count + 1 end
     end
     local seasonal = count > 0 and total / count or 1
-    local multiplier = EconomyManager ~= nil and EconomyManager.getPriceMultiplier ~= nil and EconomyManager.getPriceMultiplier() or 1
 
     local best = 0
     local storageSystem = g_currentMission ~= nil and g_currentMission.storageSystem or nil
@@ -116,12 +119,12 @@ function RLMeatValue.getAnnualMeanPrice(fillTypeIndex)
     if not fromStation and fillType ~= nil then best = fillType.pricePerLiter or 0 end
 
     -- Cached only when a station priced it: before the map's stations are loaded it is the fallback.
-    local price = best * seasonal * multiplier
+    local price = best * seasonal
     if price > 0 and fromStation then
         annualCache[fillTypeIndex] = price
         Log:debug("RLMeatValue.getAnnualMeanPrice: fillType=%s %.3f/l (seasonal mean %.4f)", tostring(fillTypeIndex), price, seasonal)
     end
-    return price
+    return price * multiplier
 end
 
 
@@ -202,8 +205,7 @@ function RLMeatValue.getMarketFactor(subType, gender)
         or RLMeatValue.getAnnualMeanPrice(fillType)
     if price <= 0 or referencePrice <= 0 then return 1 end
 
-    local fee = (RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) + perKg * meatPerHead)
-        * RLLivestockPrices.getFeeScale()
+    local fee = RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) + perKg * meatPerHead
     local reference = meatPerHead * referencePrice - fee
     if reference <= 0 then return 1 end
 
@@ -246,8 +248,7 @@ function RLMeatValue.getSlaughterValue(animal)
 
     local meatPerHead = AnimalMoveEvent.getMeatPerHead(typeName)
     local typical = meatPerHead ~= nil and meatKg / meatPerHead or 1
-    local fee = (RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) * typical + perKg * meatKg)
-        * RLLivestockPrices.getFeeScale()
+    local fee = RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) * typical + perKg * meatKg
     local value = math.max(meatKg * price - fee, 0) / (1 + RLBreedTraits.resolve(layers, subType, "maxSlaughterMargin", 0))
     if RLMeatValue.isCull(animal, subType) then
         value = value * RLBreedTraits.resolve(layers, subType, "cullFloorFactor", 1)

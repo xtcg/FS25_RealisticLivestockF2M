@@ -1,7 +1,13 @@
 --[[
-    Livestock price scale (xml/livestockPrices.xml): one factor for the live-animal prices, semen,
-    the base prices of the fill types animals give, and the contract slaughter fees, so the whole
-    livestock economy can be set against the map's (difficulty-scaled) crop and feed prices.
+    Livestock products at a fixed difficulty (xml/livestockPrices.xml).
+
+    The economic difficulty multiplies every fill type's selling price (EASY x3, NORMAL x1.8, HARD x1).
+    The mod's animals never read it: the dealer and the live price curves are the same on every
+    difficulty. Only what animals give (meat, milk, eggs, wool) and the live-price floor that follows
+    the meat price move with it. So the listed fill types are sold at the reference difficulty's
+    multiplier whatever the game's difficulty is: on HARD with reference EASY, meat, milk and the other
+    livestock products sell exactly as on EASY, and so do the live animals, whose floor and market
+    factor read those prices. Crops, feed and every cost keep the game's difficulty.
 ]]
 
 RLLivestockPrices = {}
@@ -9,35 +15,28 @@ RLLivestockPrices = {}
 local Log = RmLogging.getLogger("RLRM")
 
 RLLivestockPrices.CONFIG_FILE = "livestockPrices.xml"
+RLLivestockPrices.DIFFICULTIES = { EASY = 1, NORMAL = 2, HARD = 3 }
 
 
---- Read a livestock price config.
---- @param xmlFile table|nil An XMLFile with a livestockPrices root; nil gives scale 1
---- @return table config {scale, feeScale, fillTypes = {NAME, ...}, basePrices = {NAME = price}}
+--- Read a config.
+--- @param xmlFile table|nil An XMLFile with a livestockPrices root; nil turns it off
+--- @return table config {difficulty = 1..3 or nil, fillTypes = {NAME = true}}
 function RLLivestockPrices.parseConfig(xmlFile)
-    local config = { scale = 1, fillTypes = {}, basePrices = {} }
-    if xmlFile ~= nil then
-        config.scale = xmlFile:getFloat("livestockPrices#scale", 1)
-        config.feeScale = xmlFile:getFloat("livestockPrices#feeScale")
-        xmlFile:iterate("livestockPrices.basePrice", function(_, key)
-            local name, price = xmlFile:getString(key .. "#fillType"), xmlFile:getFloat(key .. "#price")
-            if name ~= nil and price ~= nil and price > 0 then
-                config.basePrices[name:upper()] = price
-            else
-                Log:warning("RLLivestockPrices: %s needs a fillType and a price above 0, ignored", key)
-            end
-        end)
-        xmlFile:iterate("livestockPrices.fillTypes", function(_, key)
-            for name in (xmlFile:getString(key .. "#names", "") or ""):gmatch("%S+") do
-                config.fillTypes[#config.fillTypes + 1] = name:upper()
-            end
-        end)
+    local config = { fillTypes = {} }
+    if xmlFile == nil then return config end
+
+    local name = xmlFile:getString("livestockPrices#difficulty")
+    if name ~= nil and name:upper() ~= "GAME" then
+        config.difficulty = RLLivestockPrices.DIFFICULTIES[name:upper()]
+        if config.difficulty == nil then
+            Log:warning("RLLivestockPrices: difficulty '%s' is not EASY, NORMAL, HARD or GAME; using the game's", name)
+        end
     end
-    if config.scale == nil or config.scale <= 0 then
-        Log:warning("RLLivestockPrices: scale must be above 0, using 1")
-        config.scale = 1
-    end
-    if config.feeScale == nil or config.feeScale < 0 then config.feeScale = config.scale end
+    xmlFile:iterate("livestockPrices.fillTypes", function(_, key)
+        for fillType in (xmlFile:getString(key .. "#names", "") or ""):gmatch("%S+") do
+            config.fillTypes[fillType:upper()] = true
+        end
+    end)
     return config
 end
 
@@ -52,69 +51,63 @@ function RLLivestockPrices.getConfig()
 end
 
 
---- Factor on live-animal prices, semen and the listed fill types.
+--- Whether a fill type is sold at the reference difficulty.
+--- @param fillTypeIndex number|nil
+--- @return boolean
+function RLLivestockPrices.isListed(fillTypeIndex)
+    if fillTypeIndex == nil or g_fillTypeManager == nil then return false end
+    local name = g_fillTypeManager:getFillTypeNameByIndex(fillTypeIndex)
+    return name ~= nil and RLLivestockPrices.getConfig().fillTypes[name:upper()] == true
+end
+
+
+--- The game's own difficulty price multiplier.
+local function gameMultiplier()
+    return EconomyManager ~= nil and EconomyManager.getPriceMultiplier ~= nil and EconomyManager.getPriceMultiplier() or 1
+end
+
+
+--- What a fill type's price is multiplied by for the difficulty: the reference difficulty's multiplier
+--- for a listed fill type, the game's for any other.
+--- @param fillTypeIndex number|nil
 --- @return number
-function RLLivestockPrices.getScale()
-    return RLLivestockPrices.getConfig().scale
+function RLLivestockPrices.getPriceMultiplier(fillTypeIndex)
+    local difficulty = RLLivestockPrices.getConfig().difficulty
+    if difficulty ~= nil and RLLivestockPrices.isListed(fillTypeIndex) and EconomyManager ~= nil
+        and EconomyManager.PRICE_MULTIPLIER ~= nil and EconomyManager.PRICE_MULTIPLIER[difficulty] ~= nil then
+        return EconomyManager.PRICE_MULTIPLIER[difficulty]
+    end
+    return gameMultiplier()
 end
 
 
---- Factor on contract slaughter fees.
+--- The extra factor a listed fill type's price gets on top of the game's multiplier (3 on HARD with
+--- reference EASY; 1 when the game is on the reference difficulty or the fill type is not listed).
+--- @param fillTypeIndex number|nil
 --- @return number
-function RLLivestockPrices.getFeeScale()
-    return RLLivestockPrices.getConfig().feeScale
+function RLLivestockPrices.getFactor(fillTypeIndex)
+    local game = gameMultiplier()
+    if game == nil or game <= 0 then return 1 end
+    return RLLivestockPrices.getPriceMultiplier(fillTypeIndex) / game
 end
 
 
---- Set the configured base prices (basePrice, in place of the map's; the price history restarts from
---- them), then multiply the base price and price history of each listed fill type by the scale, once
---- per fill type object. Runs after the map's and other mods' fill types are loaded and before any
---- selling point reads a price.
---- @param fillTypeManager table
---- @return number scaled Number of fill types changed
-function RLLivestockPrices.applyToFillTypes(fillTypeManager)
-    local config = RLLivestockPrices.getConfig()
-    local scale = config.scale
-    if fillTypeManager == nil then return 0 end
-
-    for name, price in pairs(config.basePrices or {}) do
-        local fillType = fillTypeManager:getFillTypeByName(name)
-        if fillType ~= nil and fillType.rlLivestockBasePrice == nil then
-            Log:info("RLLivestockPrices: %s base price %.3f -> %.3f", name, fillType.pricePerLiter or 0, price)
-            fillType.pricePerLiter = price
-            local economy = fillType.economy
-            if economy ~= nil and economy.history ~= nil then
-                for period in pairs(economy.history) do
-                    economy.history[period] = ((economy.factors ~= nil and economy.factors[period]) or 1) * price
-                end
-            end
-            fillType.rlLivestockBasePrice = price
-        end
-    end
-    if scale == 1 then return 0 end
-
-    local scaled, missing = 0, {}
-    for _, name in ipairs(config.fillTypes) do
-        local fillType = fillTypeManager:getFillTypeByName(name)
-        if fillType == nil then
-            missing[#missing + 1] = name
-        elseif fillType.rlLivestockPriceScale == nil then
-            fillType.pricePerLiter = (fillType.pricePerLiter or 0) * scale
-            local history = fillType.economy ~= nil and fillType.economy.history or nil
-            for period, price in pairs(history or {}) do history[period] = price * scale end
-            fillType.rlLivestockPriceScale = scale
-            scaled = scaled + 1
-        end
-    end
-
-    Log:info("RLLivestockPrices: %d livestock fill type price(s) x%.2f%s", scaled, scale,
-        #missing > 0 and (" (not on this map: " .. table.concat(missing, " ") .. ")") or "")
-    return scaled
+-- Selling points: the server's effective price (what a sale pays and what clients are sent).
+if SellingStation ~= nil and SellingStation.getEffectiveFillTypePrice ~= nil then
+    SellingStation.getEffectiveFillTypePrice = Utils.overwrittenFunction(SellingStation.getEffectiveFillTypePrice,
+        function(self, superFunc, fillType, ...)
+            local price = superFunc(self, fillType, ...)
+            if not self.isServer or type(price) ~= "number" then return price end
+            return price * RLLivestockPrices.getFactor(fillType)
+        end)
 end
 
-
-if FillTypeManager ~= nil and FillTypeManager.loadModFillTypes ~= nil then
-    FillTypeManager.loadModFillTypes = Utils.appendedFunction(FillTypeManager.loadModFillTypes, function(self)
-        RLLivestockPrices.applyToFillTypes(self)
-    end)
+-- The economy's price per litre (Hof Bergmann's farm shop sells at it, bales are valued by it).
+if EconomyManager ~= nil and EconomyManager.getPricePerLiter ~= nil then
+    EconomyManager.getPricePerLiter = Utils.overwrittenFunction(EconomyManager.getPricePerLiter,
+        function(self, superFunc, fillTypeIndex, useMultiplier, ...)
+            local price = superFunc(self, fillTypeIndex, useMultiplier, ...)
+            if useMultiplier == false or type(price) ~= "number" then return price end
+            return price * RLLivestockPrices.getFactor(fillTypeIndex)
+        end)
 end

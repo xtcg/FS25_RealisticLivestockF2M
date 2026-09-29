@@ -480,7 +480,7 @@ function RealisticLivestock:updateReproduction(spec, cluster, numNewAnimals, fre
     totalOffspring = totalOffspring - animalsToSell
 
     if animalsToSell > 0 then
-        local animalPrice = subType.sellPrice:get(0) * 0.4 * RLLivestockPrices.getScale()
+        local animalPrice = subType.sellPrice:get(0) * 0.4
         local totalAnimalPrice = animalPrice * animalsToSell
         local farm = g_farmManager:getFarmById(farmIndex)
         msgText = msgText .. ", " .. animalsToSell .. " sold due to overcrowding for £" .. math.floor(totalAnimalPrice)
@@ -811,7 +811,7 @@ function RealisticLivestock.calculateRandomMonthlyAnimalDeaths(spec, cluster, is
         if animalsCanBeSold then
             local subType = g_currentMission.animalSystem:getSubTypeByIndex(cluster:getSubTypeIndex())
             local farmIndex = spec:getOwnerFarmId()
-            local animalPrice = subType.sellPrice:get(cluster.age) * 0.2 * RLLivestockPrices.getScale()
+            local animalPrice = subType.sellPrice:get(cluster.age) * 0.2
             totalAnimalPrice = animalPrice * numAnimalsToDispose
             local farm = g_farmManager:getFarmById(farmIndex)
 

@@ -1,48 +1,28 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <!--
-    Livestock price scale. The economic difficulty multiplies every fill type's price (EASY x3,
-    NORMAL x1.8, HARD x1), but the mod's live-animal prices never read it, so on HARD the animals,
-    meat and milk were calibrated for one scale and the map sells at another. This file scales the
-    whole livestock economy together, on top of the difficulty:
+    Livestock products at a fixed difficulty.
 
-    scale      Multiplies
-               - every animal's live price (Animal:getSellPrice, which is also what the dealer's
-                 buy price is made from with its markup) and the fixed sales for overcrowding and
-                 disposal;
-               - the dealer's semen straws and what your own dewars sell for;
-               - the base price (pricePerLiter, and the price history the graphs start from) of
-                 every fill type listed below, after the map's and other mods' fill types are loaded,
-                 so every selling point, great demand and the annual mean the live prices follow
-                 move with it.
-    feeScale   Multiplies the contract slaughterhouse's fee (the map's fee per animal and the mod's
-               cutting fee per kg, xml/carcassYield.xml) and the fees the live-price floor and
-               market factor price in. Default: scale, so the calibration in carcassYield.xml
-               (slaughtering by contract +12% over the year, never over +25%) holds at any scale.
+    The economic difficulty multiplies every fill type's selling price: EASY x3, NORMAL x1.8, HARD x1.
+    The mod's animals never read it (the dealer and the live price curves are the same on every
+    difficulty), but what they give does: on HARD meat, milk and eggs sell at a third of EASY, and so
+    does a finished animal whose live price is held up by its meat.
 
-    <basePrice fillType="..." price="..."/> sets a fill type's base price per litre (kg for meat) before
-    the scale, in place of the map's; its seasonal factors stay the map's. The meat prices here are the
-    ones the live-price curves are calibrated at (docs RLRM_牛肉链收益校准.md, RLRM_猪羊禽兔屠宰与售价校准.md):
-    the annual mean at the tavern and farm shop (price scale 1) is the calibration price, so slaughtering
-    by contract earns about 12% over the year there, and about 25% at the supermarket (1.1).
-    Hof Bergmann ships beef at 1.8, pork 1.5, lamb 2.3, poultry 1.3, goose 2.1, rabbit 1.8.
+    difficulty  The difficulty the listed fill types are sold at, whatever the game is set to: EASY,
+                NORMAL or HARD. GAME uses the game's (turns this off). With EASY a game on HARD sells
+                them exactly as on EASY - selling points, great demand, the farm shop - and live
+                animals are priced as on EASY too, since their meat floor and market factor read
+                those prices. Crops, feed, bedding, fees and every other cost keep the game's
+                difficulty. Contract slaughter fees are not difficulty-scaled on any difficulty.
 
     The list holds the products animals give and the goods made only from them, so that processing
-    them still pays: a dairy's cheese must stay worth more than its milk. Goods also made from crops
-    (fabric from cotton as well as wool, cakes) are left out; a fill type the map lacks is skipped.
-    Transport fees, feed, bedding and other costs are not scaled.
+    still pays (a dairy's cheese stays worth more than its milk). Goods also made from crops (fabric
+    from cotton as well as wool, cakes) are left out; a fill type the map lacks is ignored.
 
-    scale 1 turns the file off. To change it without editing the mod, copy this file to
+    To change it without editing the mod, copy this file to
     modSettings/FS25_RealisticLivestockRM/livestockPrices.xml; that copy then replaces this file
-    entirely. In multiplayer the server's file applies and every client must have the same one.
+    entirely. In multiplayer the server's file applies.
 -->
-<livestockPrices scale="3">
-    <basePrice fillType="BEEFMEAT"      price="9.43"/>
-    <basePrice fillType="PORKMEAT"      price="4.30"/>
-    <basePrice fillType="SHEEPGOATMEAT" price="14.94"/>
-    <basePrice fillType="POULTRYMEAT"   price="9.05"/>
-    <basePrice fillType="GOOSEMEAT"     price="10.20"/>
-    <basePrice fillType="RABBITMEAT"    price="10.34"/>
-
+<livestockPrices difficulty="EASY">
     <!-- meat -->
     <fillTypes names="BEEFMEAT PORKMEAT SHEEPGOATMEAT POULTRYMEAT GOOSEMEAT RABBITMEAT HORSEMEAT"/>
     <!-- milk and dairy -->

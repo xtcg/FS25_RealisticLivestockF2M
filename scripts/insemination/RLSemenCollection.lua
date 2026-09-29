@@ -238,14 +238,13 @@ end
 
 --- The dealer's price for one straw of a sire:
 ---   priceFactor x PRICE_PER_STRAW x conception rate x breedingIndex ^ INDEX_PRICE_EXPONENT
----   x the livestock price scale (xml/livestockPrices.xml)
 --- @param sire table Animal or dewar snapshot with `.success`, `.genetics`, `.subTypeIndex`
 --- @param priceFactor number The breeding farm's semen price factor
 --- @return number price
 function RLSemenCollection.getStrawPrice(sire, priceFactor)
     local index = RLSemenCollection.getBreedingIndex(sire)
     return math.max((priceFactor or 1) * DewarData.PRICE_PER_STRAW * ((sire ~= nil and sire.success) or 0)
-        * index ^ RLSemenCollection.INDEX_PRICE_EXPONENT * RLLivestockPrices.getScale(), 0)
+        * index ^ RLSemenCollection.INDEX_PRICE_EXPONENT, 0)
 end
 
 

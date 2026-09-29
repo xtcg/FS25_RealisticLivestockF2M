@@ -1554,8 +1554,7 @@ function Animal:changeDirt(delta) AnimalHorse.changeDirt(self, delta) end
 
 function Animal:getSellPrice()
     local subType = self:getSubType()
-    -- The livestock price scale (xml/livestockPrices.xml) moves every animal's price, the dealer's too.
-    local sellPrice = subType.sellPrice:get(self.age < 0 and 0 or self.age) * RLLivestockPrices.getScale()
+    local sellPrice = subType.sellPrice:get(self.age < 0 and 0 or self.age)
 
     local weight = self.weight
     local matureAge = RLBreedTraits.getMatureAge(subType)
