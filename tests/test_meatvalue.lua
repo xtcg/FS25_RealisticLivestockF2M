@@ -100,35 +100,35 @@ RLMeatValue.resetPriceCache()
 local curveOnly = live(20, 516):getSellPrice()
 STATIONS = { station(6.648) }
 RLMeatValue.resetPriceCache()
-local function marketFactor(price) return (270 * price - 100 - 1.05 * 270) / (270 * 8.645 - 100 - 1.05 * 270) end
+local function marketFactor(price) return (270 * price - 100 - 1.05 * 270) / (270 * 7.03 - 100 - 1.05 * 270) end
 check("sell: a curve price above the slaughter value is kept, scaled by the beef market",
     curveOnly > floorOf(228.2282, 6.648) and near(live(20, 516):getSellPrice(), curveOnly * marketFactor(6.648), 0.5))
 CURVE = 700
 local sick = live(20, 516, { diseases = { { modifyValue = function(_, v) return v * 0.5 end } } })
 check("sell: disease scales the floor too", near(sick:getSellPrice(), floorOf(228.2282, 6.648) * 0.5, 3))
 
--- The live price follows the beef market: 1 at the reference price 8.645, lower in cheap-beef months.
+-- The live price follows the beef market: 1 at the reference price 7.03 (the annual mean), lower in cheap-beef months.
 CURVE = 5000
 local function liveAt(price)
     STATIONS = { station(price) }
     RLMeatValue.resetPriceCache()
     return live(20, 516):getSellPrice()
 end
-local atReference, atMean, atLow = liveAt(8.645), liveAt(7.03), liveAt(5.69)
+local atReference, atMean, atLow = liveAt(7.03), liveAt(6.4), liveAt(5.0)
 STATIONS = {}
 RLMeatValue.resetPriceCache()
 local noMarket = live(20, 516):getSellPrice()
-check("market: at the reference price 8.645 the live price is the curve price", near(atReference, noMarket, 0.5))
-check("market: a cheap-beef month lowers it (7.03 -> x0.78, 5.69 -> x0.59)",
-    near(atMean / atReference, marketFactor(7.03), 0.001) and near(atLow / atReference, marketFactor(5.69), 0.001)
+check("market: at the reference price 7.03 the live price is the curve price", near(atReference, noMarket, 0.5))
+check("market: a cheap-beef month lowers it (6.4 -> x0.89, 5.0 -> x0.68)",
+    near(atMean / atReference, marketFactor(6.4), 0.001) and near(atLow / atReference, marketFactor(5.0), 0.001)
     and atLow < atMean and atMean < atReference)
-check("market: a dear month raises it, bounded at x1.6", liveAt(10.6) > atReference and near(liveAt(15) / atReference, 1.6, 0.001))
+check("market: a dear month raises it, bounded at x1.6", liveAt(8.645) > atReference and near(liveAt(15) / atReference, 1.6, 0.001))
 local function cowAt(price)
     STATIONS = { station(price) }
     RLMeatValue.resetPriceCache()
     return live(20, 516, { gender = "female" }):getSellPrice()
 end
-check("market: a cow is priced by its milk, not the beef market", near(cowAt(8.645), cowAt(5.69), 0.5))
+check("market: a cow is priced by its milk, not the beef market", near(cowAt(7.03), cowAt(5.0), 0.5))
 CURVE = 700
 STATIONS = { station(6.648) }
 RLMeatValue.resetPriceCache()

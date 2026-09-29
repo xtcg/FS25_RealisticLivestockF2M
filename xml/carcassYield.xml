@@ -35,7 +35,7 @@
                    budget; the map is not edited. A type without it is not charged.
     slaughterFee   Animal type only: the map's fee per typical animal (cattle 100), used to price the floor.
     referencePrice Animal type only: the meat price per kg the bulls' live-price curves were calibrated at
-                   (cattle 8.645). A bull's live price is its curve price x the market factor: the net
+                   (cattle 7.03, the annual mean). A bull's live price is its curve price x the market factor: the net
                    revenue of a typical animal at the current best meat price over that at referencePrice
                    (meat kg x price - slaughterFee - processingFeePerKg x meat kg), kept between
                    marketFactorMin and marketFactorMax. So cheap-beef months lower the live price and dear
@@ -73,7 +73,7 @@
 <carcassYield qualitySwing="0.20" slaughterShare="0.85" cullShare="0.70" slaughterMargin="0.12" cullFloorFactor="0.82" marketFactorMin="0.4" marketFactorMax="1.6"
               sizeExponent="0.25" minSizeFactor="0.88" maxSizeFactor="1.15"
               finishExponent="0.85" minFinishFactor="0" maxFinishFactor="1.3">
-    <animalType name="COW" anchorWeight="600" dressingRate="0.60" saleableRate="0.75" slaughterFee="100" processingFeePerKg="1.05" referencePrice="8.645" meatFillType="BEEFMEAT" cullAgeMonth="30" slaughterMinAgeMonth="6" maleMaturity="0.75" femaleMaturity="0.90">
+    <animalType name="COW" anchorWeight="600" dressingRate="0.60" saleableRate="0.75" slaughterFee="100" processingFeePerKg="1.05" referencePrice="7.03" meatFillType="BEEFMEAT" cullAgeMonth="30" slaughterMinAgeMonth="6" maleMaturity="0.75" femaleMaturity="0.90">
         <breed name="HOLSTEIN"      maleMaturity="0.59" femaleMaturity="0.85" carcassFactor="0.94"/>
         <breed name="SWISS_BROWN"   maleMaturity="0.62" femaleMaturity="0.85" carcassFactor="0.98"/>
         <breed name="HEREFORD"      maleMaturity="0.60" carcassFactor="1.00"/>
