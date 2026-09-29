@@ -321,11 +321,14 @@ function AnimalMoveEvent.alignContractRecipes(placeable)
 		return 0
 	end
 
-	-- Animal type behind each input fill type; a fill type shared by two types is left alone.
+	-- Animal type behind each input fill type; a fill type shared by two types is left alone. Only
+	-- types with a meat per head count: Hof Bergmann 1.5 Beta2 also maps its MILKCOW type (the
+	-- insemination system's placeholder cow, no carcass config) to BEEF, which must not stop the
+	-- cattle recipe from being aligned.
 	local typeByFillType = {}
 	for subTypeIndex, fillType in pairs(subTypeToFillType) do
 		local typeName = RLBreedTraits.getTypeName(animalSystem:getSubTypeByIndex(subTypeIndex))
-		if typeName ~= nil then
+		if typeName ~= nil and AnimalMoveEvent.getMeatPerHead(typeName) ~= nil then
 			local known = typeByFillType[fillType]
 			if known == nil then
 				typeByFillType[fillType] = typeName

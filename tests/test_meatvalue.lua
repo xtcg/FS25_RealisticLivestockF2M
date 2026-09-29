@@ -71,9 +71,9 @@ local function bull(age, weight, fields)
     for k, v in pairs(fields or {}) do a[k] = v end
     return a
 end
--- Cattle floor: (meat kg x price - fee 100 per typical animal - 1.05 per kg) / 1.25 (maxSlaughterMargin),
+-- Cattle floor: (meat kg x price - fee 100 per typical animal - 0.37 per kg) / 1.25 (maxSlaughterMargin),
 -- x 0.82 from 30 months.
-local function netOf(kg, price) return kg * price - (100 * kg / 270 + 1.05 * kg) end
+local function netOf(kg, price) return kg * price - (100 * kg / 270 + 0.37 * kg) end
 local function floorOf(kg, price, cull)
     local value = math.max(netOf(kg, price), 0) / 1.25
     return cull and value * 0.82 or value
@@ -120,7 +120,7 @@ local function market(now, mean)
     STATIONS = { station(now, { originalFillTypePrices = { [BEEFMEAT] = mean or now } }) }
     RLMeatValue.resetPriceCache()
 end
-local TYPICAL_NET = function(price) return 270 * price - 100 - 1.05 * 270 end
+local TYPICAL_NET = function(price) return 270 * price - 100 - 0.37 * 270 end
 local function marketFactor(now, mean)
     return math.clamp(1 + 0.6 * (TYPICAL_NET(now) / TYPICAL_NET(mean) - 1), 0.5, 1.5)
 end
@@ -134,31 +134,31 @@ check("sell: disease scales the floor too", near(sick:getSellPrice(), floorOf(22
 -- The live price follows the beef market at pass-through 0.6: 1 at the annual mean.
 CURVE = 5000
 local function liveAt(now, mean) market(now, mean); return live(20, 516):getSellPrice() end
-local atMean = liveAt(9.44, 9.44)
+local atMean = liveAt(8.4, 8.4)
 STATIONS = {}
 RLMeatValue.resetPriceCache()
 check("market: in an average month the live price is the curve price (factor 1)",
     near(atMean, live(20, 516):getSellPrice(), 0.5))
-check("market: cheapest month (x0.81) -> x" .. string.format("%.3f", marketFactor(9.44 * 0.81, 9.44)),
-    near(liveAt(9.44 * 0.81, 9.44) / atMean, marketFactor(9.44 * 0.81, 9.44), 0.001) and liveAt(9.44 * 0.81, 9.44) < atMean)
-check("market: peak month (x1.21) -> x" .. string.format("%.3f", marketFactor(9.44 * 1.21, 9.44)),
-    near(liveAt(9.44 * 1.21, 9.44) / atMean, marketFactor(9.44 * 1.21, 9.44), 0.001))
+check("market: cheapest month (x0.81) -> x" .. string.format("%.3f", marketFactor(8.4 * 0.81, 8.4)),
+    near(liveAt(8.4 * 0.81, 8.4) / atMean, marketFactor(8.4 * 0.81, 8.4), 0.001) and liveAt(8.4 * 0.81, 8.4) < atMean)
+check("market: peak month (x1.21) -> x" .. string.format("%.3f", marketFactor(8.4 * 1.21, 8.4)),
+    near(liveAt(8.4 * 1.21, 8.4) / atMean, marketFactor(8.4 * 1.21, 8.4), 0.001))
 CURVE = 50000
-local high = liveAt(9.44, 9.44)
-check("market: bounded at x1.5 and x0.5", near(liveAt(40, 9.44) / high, 1.5, 0.001) and near(liveAt(2, 9.44) / high, 0.5, 0.001))
+local high = liveAt(8.4, 8.4)
+check("market: bounded at x1.5 and x0.5", near(liveAt(40, 8.4) / high, 1.5, 0.001) and near(liveAt(2, 8.4) / high, 0.5, 0.001))
 CURVE = 5000
-local function cowAt(now) market(now, 9.44); return live(20, 516, { gender = "female" }):getSellPrice() end
-check("market: a cow is priced by its milk, not the beef market", near(cowAt(9.44 * 1.21), cowAt(9.44 * 0.81), 0.5))
+local function cowAt(now) market(now, 8.4); return live(20, 516, { gender = "female" }):getSellPrice() end
+check("market: a cow is priced by its milk, not the beef market", near(cowAt(8.4 * 1.21), cowAt(8.4 * 0.81), 0.5))
 
 -- A finished bull calibrated at 12% over the year: V = net at the mean / 1.12. Slaughtering by contract
 -- then pays about 0% in the cheapest month, +12% on average and about +22% at the peak, never over 25%.
 local KG = 270
-local V = TYPICAL_NET(9.44) / 1.12
-CURVE = 5000 * V / liveAt(9.44, 9.44)
+local V = TYPICAL_NET(8.4) / 1.12
+CURVE = 5000 * V / liveAt(8.4, 8.4)
 local margins, netSum, liveSum = {}, 0, 0
 for period, factor in ipairs(HB_FACTORS) do
-    local now = 9.44 * factor / 1.000833
-    local price = liveAt(now, 9.44)
+    local now = 8.4 * factor / 1.000833
+    local price = liveAt(now, 8.4)
     local net = TYPICAL_NET(now)
     margins[period] = net / price - 1
     netSum, liveSum = netSum + net, liveSum + price
@@ -168,11 +168,11 @@ check(string.format("margin: +%.1f%% over the year at the map's seasonal factors
 check(string.format("margin: cheapest month %+.1f%% (-5..+5), peak %+.1f%% (+15..+25)", margins[6] * 100, margins[11] * 100),
     margins[6] > -0.05 and margins[6] < 0.05 and margins[11] > 0.15 and margins[11] < 0.25)
 local worst = 0
-for _, now in ipairs({ 9.44 * 0.81, 9.44, 9.44 * 1.21, 9.44 * 1.21 * 1.4, 9.44 * 3 }) do
-    worst = math.max(worst, netOf(228.2282, now) / liveAt(now, 9.44) - 1)
+for _, now in ipairs({ 8.4 * 0.81, 8.4, 8.4 * 1.21, 8.4 * 1.21 * 1.4, 8.4 * 3 }) do
+    worst = math.max(worst, netOf(228.2282, now) / liveAt(now, 8.4) - 1)
 end
 check(string.format("margin: never over maxSlaughterMargin 25%% (great demand x1.4 included; worst %+.1f%%)", worst * 100),
-    worst <= 0.25 + 1e-6 and near(netOf(228.2282, 9.44 * 3) / liveAt(9.44 * 3, 9.44), 1.25, 0.001))
+    worst <= 0.25 + 1e-6 and near(netOf(228.2282, 8.4 * 3) / liveAt(8.4 * 3, 8.4), 1.25, 0.001))
 CURVE = 700
 market(6.648)
 
