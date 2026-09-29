@@ -18,7 +18,9 @@ RLBreedTraits.CONFIG_FILE = "breedTraits.xml"
 --- birth attributes after them are read by RLBirthWeight.
 RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrowth", "matureAgeMonth",
     "birthWeightRatio", "maleBirthFactor", "birthWeightCV", "firstBirthFactor",
-    "litter2", "litter3", "litter4", "litterBase", "litterStep", "litterMin", "litterMax" }
+    "litter2", "litter3", "litter4", "litterBase", "litterStep", "litterMin", "litterMax",
+    "birthSurvivalBase", "birthHealthEffect", "birthLowWeightSD", "birthLowWeightPenalty",
+    "birthHighWeightSD", "birthHighWeightPenalty" }
 
 --- Female growth relative to male, where the file sets none (the mod's original rule).
 RLBreedTraits.DEFAULT_FEMALE_GROWTH = 0.6
