@@ -53,7 +53,8 @@ AnimalMoveEvent.CARCASS_CONFIG_DEFAULTS = {
 --- then on the carcassYield element (RLBreedTraits.resolve).
 AnimalMoveEvent.CARCASS_ATTRIBUTES = { "anchorWeight", "referenceWeight", "maleMaturity", "femaleMaturity",
 	"carcassFactor", "qualitySwing", "meatPerHead", "dressingRate", "saleableRate",
-	"slaughterFee", "processingFeePerKg", "slaughterMargin", "cullFloorFactor", "slaughterShare", "cullShare", "cullAgeMonth", "slaughterMinAgeMonth" }
+	"slaughterFee", "processingFeePerKg", "slaughterMargin", "cullFloorFactor", "referencePrice",
+	"marketFactorMin", "marketFactorMax", "slaughterShare", "cullShare", "cullAgeMonth", "slaughterMinAgeMonth" }
 
 --- Used when no layer sets them.
 AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS = { maleMaturity = 1, femaleMaturity = 1, carcassFactor = 1, qualitySwing = 0.2 }

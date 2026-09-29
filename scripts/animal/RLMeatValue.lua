@@ -124,6 +124,40 @@ function RLMeatValue.getShare(animal, subType)
 end
 
 
+--- How the beef market moves the live price of a bull: the net revenue of one typical animal at the
+--- current best meat price over its net revenue at the price the live curves were calibrated at
+--- (carcassYield referencePrice), bounded by marketFactorMin..marketFactorMax. It is 1 at the
+--- reference price, below 1 in a month of cheap beef and above it in a dear one, so the live price
+--- keeps its margin over slaughtering by contract through the seasons. Only male animals of a type
+--- with processingFeePerKg and referencePrice (dairy cows are priced by their milk); 1 otherwise or
+--- when no meat price is known.
+--- @param subType table|nil
+--- @param gender string|nil
+--- @return number
+function RLMeatValue.getMarketFactor(subType, gender)
+    if subType == nil or gender ~= "male" then return 1 end
+
+    local layers = AnimalMoveEvent.getCarcassConfig().layers
+    local perKg = RLBreedTraits.resolve(layers, subType, "processingFeePerKg", nil)
+    local referencePrice = RLBreedTraits.resolve(layers, subType, "referencePrice", nil)
+    local typeName = RLBreedTraits.getTypeName(subType)
+    local meatPerHead = typeName ~= nil and AnimalMoveEvent.getMeatPerHead(typeName) or nil
+    local fillType = typeName ~= nil and RLMeatValue.getMeatFillType(typeName) or nil
+    if perKg == nil or referencePrice == nil or meatPerHead == nil or fillType == nil then return 1 end
+
+    local price = RLMeatValue.getMeatPrice(fillType)
+    if price <= 0 then return 1 end
+
+    local fee = RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) + perKg * meatPerHead
+    local reference = meatPerHead * referencePrice - fee
+    if reference <= 0 then return 1 end
+
+    local factor = (meatPerHead * price - fee) / reference
+    return math.clamp(factor, RLBreedTraits.resolve(layers, subType, "marketFactorMin", 0),
+        RLBreedTraits.resolve(layers, subType, "marketFactorMax", 10))
+end
+
+
 --- What a slaughterhouse pays for the animal live, before disease; 0 when it has no floor.
 ---
 --- A type with processingFeePerKg is priced from what slaughtering it yourself earns:
