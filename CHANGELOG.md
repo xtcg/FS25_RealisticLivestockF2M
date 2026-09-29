@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased (xtcg fork, Hof Bergmann)
+
+### Changed
+
+- Cattle target weights set from real mature weights (upper-middle of breed-society and extension figures), cows / bulls in kg: Holstein 730 / 1100, Swiss Brown 670 / 1000, Angus 610 / 1000, Limousin 780 / 1200, Hereford 660 / 950, Highland 500 / 780, Water Buffalo (river type) 590 / 720. Before: 680 / 1000, 650 / 900, 650 / 850, 650 / 1000, 600 / 850, 500 / 750, 550 / 900. Angus was the low one: its bull was only 1.31 x its cow.
+- Cattle slaughter references (target weight x male maturity) now sit at real finishing weights, about 55-62% of a mature bull: Holstein 649 kg (maturity 0.59), Limousin 702 (0.585), Angus 601 (0.60), Hereford 571 (0.60), Swiss Brown 620 (0.62), Water Buffalo 450 (0.625), Highland 480 (0.615). They were 680 / 750 / 663 / 646 / 666 / 648 / 585 kg. Finishing ages are unchanged (17-25 months) and matureAgeMonth was solved again for each, so bulls still reach the reference at those ages. A bull yields the same beef per head at its reference; meat per kg of live weight is higher for the lighter ones (size factor 0.91-1.02 of typical instead of about 1).
+- Feed to finish a bull stays within 5% of before (5,500-6,300 per head), on the breeds' own feed traits: the per-breed bull feed overrides are gone. tests/test_economics.lua now compares cattle by feed per finished bull instead of per kg gain, because per-kg feed depends on the finishing weight (Water Buffalo and Highland finish lighter, so more feed per kg gain).
+- A cull cow's reference follows her new target, so cull Holstein cows now reach their reference at about 621 kg (was 578).
+
 ## 1.4.0.1-dev.6 (xtcg fork, Hof Bergmann)
 
 ### Changed

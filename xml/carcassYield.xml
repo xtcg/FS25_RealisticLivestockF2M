@@ -47,13 +47,13 @@
               sizeExponent="0.25" minSizeFactor="0.88" maxSizeFactor="1.15"
               finishExponent="0.85" minFinishFactor="0" maxFinishFactor="1.3">
     <animalType name="COW" anchorWeight="650" meatPerHead="450" meatFillType="BEEFMEAT" cullAgeMonth="30" slaughterMinAgeMonth="6" maleMaturity="0.75" femaleMaturity="0.90">
-        <breed name="HOLSTEIN"      maleMaturity="0.68" femaleMaturity="0.85" carcassFactor="0.94"/>
-        <breed name="SWISS_BROWN"   maleMaturity="0.74" femaleMaturity="0.85" carcassFactor="0.98"/>
-        <breed name="HEREFORD"      maleMaturity="0.76" carcassFactor="1.00"/>
-        <breed name="ANGUS"         maleMaturity="0.78" carcassFactor="1.06"/>
-        <breed name="LIMOUSIN"      maleMaturity="0.75" carcassFactor="1.06"/>
-        <breed name="HIGHLAND"      maleMaturity="0.78" carcassFactor="1.01"/>
-        <breed name="WATER_BUFFALO" maleMaturity="0.72" carcassFactor="0.94"/>
+        <breed name="HOLSTEIN"      maleMaturity="0.59" femaleMaturity="0.85" carcassFactor="0.94"/>
+        <breed name="SWISS_BROWN"   maleMaturity="0.62" femaleMaturity="0.85" carcassFactor="0.98"/>
+        <breed name="HEREFORD"      maleMaturity="0.60" carcassFactor="1.00"/>
+        <breed name="ANGUS"         maleMaturity="0.60" carcassFactor="1.06"/>
+        <breed name="LIMOUSIN"      maleMaturity="0.585" carcassFactor="1.06"/>
+        <breed name="HIGHLAND"      maleMaturity="0.615" carcassFactor="1.01"/>
+        <breed name="WATER_BUFFALO" maleMaturity="0.625" carcassFactor="0.94"/>
     </animalType>
 
     <!-- Finishing pigs go at about 120 kg whatever the breed; breeding stock grows on to 200-300 kg.
