@@ -1640,22 +1640,7 @@ function AnimalSystem:createNewSaleAnimal(animalTypeIndex)
     -- buyableSubTypes filter above already excludes).
     local age = self:_pickSaleAnimalAge(subType, averageBuyAge, maxBuyAge)
     if age == nil then return nil end
-    local viableReproductionMonths = age - (subType.reproductionMinAgeMonth + subType.reproductionDurationMonth)
-    local isParent, isPregnant, monthsSinceLastBirth = false, false, 12
     local animalGender = subType.gender
-
-
-    if viableReproductionMonths >= 0 and math.random(0, 100) <= viableReproductionMonths then
-        isParent = true
-        monthsSinceLastBirth = math.random(0, viableReproductionMonths)
-    end
-
-    -- Guard against pregnancy for non-reproductive subtypes (e.g. BULL, DOG).
-    -- Without this, gender auto-detection mismatches can create pregnant males.
-    if subType.supportsReproduction and animalGender == "female" and age - subType.reproductionMinAgeMonth >= 0 and math.random() >= 0.95 then
-        isPregnant = true
-        Log:debug("createNewSaleAnimal: pregnant %s(%d) age=%d", subType.name or "?", subTypeIndex, age)
-    end
 
 
 
@@ -1689,6 +1674,33 @@ function AnimalSystem:createNewSaleAnimal(animalTypeIndex)
         warnedReshapeReturnedNil = true
         Log:warning("createNewSaleAnimal: reshapeGenetics returned nil (preset=%s); keeping raw genetics",
             tostring(presetIndex))
+    end
+
+
+    -- Past its maximum sale age (xml/breedTraits.xml) a breeder sells an animal only when it is elite;
+    -- any other animal drawn that old is drawn again within the limit. Needs the genetics, so it and the
+    -- age-dependent parent and pregnancy rolls below come after the draw.
+    local maxSaleAge = RLBreedTraits.getMaxSaleAge(subType, animalGender)
+    if maxSaleAge ~= nil and age > maxSaleAge and not RLBreedTraits.isEliteForSale(genetics) then
+        local capped = self:_pickSaleAnimalAge(subType, averageBuyAge, math.min(maxBuyAge, maxSaleAge))
+        Log:trace("createNewSaleAnimal: %s age %d over the sale limit %d, not elite -> %s",
+            subType.name or "?", age, maxSaleAge, tostring(capped))
+        if capped ~= nil then age = capped end
+    end
+
+    local viableReproductionMonths = age - (subType.reproductionMinAgeMonth + subType.reproductionDurationMonth)
+    local isParent, isPregnant, monthsSinceLastBirth = false, false, 12
+
+    if viableReproductionMonths >= 0 and math.random(0, 100) <= viableReproductionMonths then
+        isParent = true
+        monthsSinceLastBirth = math.random(0, viableReproductionMonths)
+    end
+
+    -- Guard against pregnancy for non-reproductive subtypes (e.g. BULL, DOG).
+    -- Without this, gender auto-detection mismatches can create pregnant males.
+    if subType.supportsReproduction and animalGender == "female" and age - subType.reproductionMinAgeMonth >= 0 and math.random() >= 0.95 then
+        isPregnant = true
+        Log:debug("createNewSaleAnimal: pregnant %s(%d) age=%d", subType.name or "?", subTypeIndex, age)
     end
 
 

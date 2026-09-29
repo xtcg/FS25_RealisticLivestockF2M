@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased (xtcg fork, Hof Bergmann)
+
+### Changed
+
+- The dealer no longer offers animals heavier than their own target weight. Stock without a weight of its own (the dealer's, a new game's herds) is on the full-feed growth line +/-15% but capped at the animal's target, so a grown animal is at its mature weight instead of up to 15% over it (RLBreedTraits.getNewAnimalWeight).
+- The dealer sells young stock. Each animal type and sex has a maximum sale age (xml/breedTraits.xml maleMaxSaleAgeMonth / femaleMaxSaleAgeMonth): bulls 24 months (Highland and Water Buffalo 30), cows 48, pigs 12, rams and bucks 18, ewes and does 30, poultry 12, geese 14, rabbits 8 / 12; horses keep their own range. An animal drawn older is offered only when its genetics are elite (mean of its genes at least 1.45, about the best 11%, root eliteSaleGenetics); any other is drawn again within the limit. Bulls past 24 months fall from about 10% of the dealer's bulls to about 1%, cows past 4 years from about 5% to 0.5%, and all of them are elite.
+
 ## 1.4.0.1-dev.7 (xtcg fork, Hof Bergmann)
 
 ### Changed

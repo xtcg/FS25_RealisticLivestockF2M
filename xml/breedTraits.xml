@@ -29,21 +29,33 @@
 
     A pen with its own meadow that ate nothing from the trough in a feeding counts as on grass.
 
+    Dealer stock:
+    maleMaxSaleAgeMonth    Oldest age the dealer normally offers a male / female of the subtype at. A
+    femaleMaxSaleAgeMonth  breeder sells young stock - store and finishing animals, heifers, gilts,
+                           shearlings - and keeps or culls grown ones, so an animal drawn older than this
+                           is offered only when its genetics are elite; any other is drawn again within
+                           the limit. None set: only the animal type's maxBuyAge applies (horses).
+    eliteSaleGenetics      (root) The mean of its genes an animal needs to be offered past that age.
+                           1.45 is about the best 11% of the dealer's draw.
+    Animals the dealer generates are also never heavier than their own target weight.
+
     To change these without editing the mod, copy this file to
     modSettings/FS25_RealisticLivestockRM/breedTraits.xml; that copy then replaces this file
     entirely. In multiplayer the server's file applies.
 -->
-<breedTraits growthNutritionFactor="1.10" bodyWeightExponent="0.35" minBodyRatio="0.5" maxBodyRatio="1.5">
+<breedTraits growthNutritionFactor="1.10" bodyWeightExponent="0.35" minBodyRatio="0.5" maxBodyRatio="1.5" eliteSaleGenetics="1.45">
     <forage>
         <category name="grass" fillTypes="GRASS_WINDROW"/>
         <category name="hay" fillTypes="DRYGRASS_WINDROW CLOVER_WINDROW"/>
         <category name="silage" fillTypes="SILAGE FORAGE FORAGEPLUS ROUNDBALE"/>
     </forage>
 
-    <animalType name="COW">
-        <breed name="HIGHLAND"      feed="0.80" growth="0.90" grass="1.25" hay="1.15" silage="1.00"/>
+    <!-- Bulls up to 2 years (store, finishing and young sires; Highland and buffalo finish later),
+         cows up to 4 years (heifers and young cows); older only when elite. -->
+    <animalType name="COW" maleMaxSaleAgeMonth="24" femaleMaxSaleAgeMonth="48">
+        <breed name="HIGHLAND"      maleMaxSaleAgeMonth="30" feed="0.80" growth="0.90" grass="1.25" hay="1.15" silage="1.00"/>
         <breed name="HEREFORD"      feed="0.90" growth="1.02" grass="1.15" hay="1.10" silage="1.00"/>
-        <breed name="WATER_BUFFALO" feed="0.90" growth="0.96" grass="1.15" hay="1.05" silage="1.00"/>
+        <breed name="WATER_BUFFALO" maleMaxSaleAgeMonth="30" feed="0.90" growth="0.96" grass="1.15" hay="1.05" silage="1.00"/>
         <breed name="LIMOUSIN"      feed="0.95" growth="1.08" grass="0.95" hay="1.00" silage="1.05"/>
         <breed name="ANGUS"         feed="1.00" growth="1.00" grass="1.00" hay="1.00" silage="1.00"/>
         <breed name="SWISS_BROWN"   feed="1.00" growth="1.00" grass="1.05" hay="1.05" silage="1.00"/>
@@ -51,19 +63,24 @@
     </animalType>
 
     <!-- Gilts grow almost as fast as boars; the mod's 0.6 for females is for breeding stock. -->
-    <animalType name="PIG" femaleGrowth="0.95">
+    <animalType name="PIG" femaleGrowth="0.95" maleMaxSaleAgeMonth="12" femaleMaxSaleAgeMonth="12">
         <breed name="BERKSHIRE"  feed="1.08" growth="0.95" matureAgeMonth="17.7"/>  <!-- 118 kg at 6.5 months -->
         <breed name="LANDRACE"   feed="1.00" growth="1.05" matureAgeMonth="16.3"/>  <!-- 126 kg at 5.5 months -->
         <breed name="BLACK_PIED" feed="0.90" growth="0.95" matureAgeMonth="13.7"/>  <!-- 120 kg at 6 months -->
     </animalType>
 
-    <animalType name="SHEEP">                                <!-- goats share the SHEEP type -->
+    <animalType name="SHEEP" maleMaxSaleAgeMonth="18" femaleMaxSaleAgeMonth="30">  <!-- goats share the SHEEP type -->
         <breed name="BLACK_WELSH"    feed="0.85" growth="0.90"/>
         <breed name="LANDRACE"       feed="0.95" growth="1.00"/>
         <breed name="STEINSCHAF"     feed="1.05" growth="1.05"/>
         <breed name="SWISS_MOUNTAIN" feed="1.10" growth="1.05"/>
         <breed name="GOAT"           feed="0.85" growth="0.95" grass="1.15" hay="1.15"/>
     </animalType>
+
+    <!-- Poultry and rabbits: young stock only (point-of-lay hens, young breeders). -->
+    <animalType name="CHICKEN" maleMaxSaleAgeMonth="12" femaleMaxSaleAgeMonth="12"/>  <!-- ducks share the type on Hof Bergmann -->
+    <animalType name="GOOSE" maleMaxSaleAgeMonth="14" femaleMaxSaleAgeMonth="14"/>
+    <animalType name="RABBIT" maleMaxSaleAgeMonth="8" femaleMaxSaleAgeMonth="12"/>
 
     <!--
         Growth line of animals raised for meat: bulls, rams, and gilts (the boars' is on the PIG
