@@ -28,7 +28,7 @@ loadMod("scripts/animals/shop/events/AnimalMoveEvent.lua")
 local config = AnimalMoveEvent.getCarcassConfig()
 check("config: shipped xml/carcassYield.xml is read",
     near(config.layers.root.qualitySwing, 0.2) and config.layers.types.COW.anchorWeight == 650
-    and near(config.layers.breeds.COW.HOLSTEIN.maleMaturity, 0.618) and config.layers.breeds.SHEEP.GOAT.anchorWeight == 32
+    and near(config.layers.breeds.COW.HOLSTEIN.maleMaturity, 0.59) and config.layers.breeds.SHEEP.GOAT.anchorWeight == 32
     and near(config.maxFinishFactor, 1.3) and near(config.sizeExponent, 0.25))
 
 -- The animal's own target weight defaults to its subtype's (no metabolism gene in these tests).
@@ -67,22 +67,22 @@ local function butcherUnits(a)
     return f.level, #list, f
 end
 
-check("yield: Angus bull at its reference (1000 x 0.663 = 663 kg) -> size 1.005 x carcass 1.06 = 1.065",
-    near(yield(animal(1, 663, 1)), 1.0653, 0.001))
-check("yield: Limousin bull at its reference (1200 x 0.625 = 750 kg) -> 1.099", near(yield(animal(8, 750, 1)), 1.0986, 0.001))
-check("yield: Holstein bull at its reference (1100 x 0.618 = 680 kg) -> 0.951", near(yield(animal(9, 680, 1)), 0.9507, 0.001))
-check("yield: finish (900 / 663) ^ 0.85 for a heavy Angus -> 1.381", near(yield(animal(1, 900, 1)), 1.3813, 0.001))
-check("yield: finish clamped at 1.3 for a huge Angus", near(yield(animal(1, 5000, 1)), 1.3848, 0.001))
-check("yield: no finish floor, a 50 kg calf yields by its weight", near(yield(animal(1, 50, 1)), (50 / 663) ^ 0.85 * 1.0050 * 1.06, 0.001))
-check("yield: meat gene 1.5 -> +10% (qualitySwing 0.2)", near(yield(animal(1, 663, 1.5)) / yield(animal(1, 663, 1)), 1.1))
+check("yield: Angus bull at its reference (1000 x 0.60 = 600 kg) -> size 0.980 x carcass 1.06 = 1.039",
+    near(yield(animal(1, 600, 1)), 1.0390, 0.001))
+check("yield: Limousin bull at its reference (1200 x 0.585 = 702 kg) -> 1.081", near(yield(animal(8, 702, 1)), 1.0806, 0.001))
+check("yield: Holstein bull at its reference (1100 x 0.59 = 649 kg) -> 0.940", near(yield(animal(9, 649, 1)), 0.9396, 0.001))
+check("yield: finish (750 / 600) ^ 0.85 for a heavy Angus -> 1.256", near(yield(animal(1, 750, 1)), 1.2564, 0.001))
+check("yield: finish clamped at 1.3 for a huge Angus", near(yield(animal(1, 5000, 1)), 1.3507, 0.001))
+check("yield: no finish floor, a 50 kg calf yields by its weight", near(yield(animal(1, 50, 1)), (50 / 600) ^ 0.85 * 0.9802 * 1.06, 0.001))
+check("yield: meat gene 1.5 -> +10% (qualitySwing 0.2)", near(yield(animal(1, 600, 1.5)) / yield(animal(1, 600, 1)), 1.1))
 check("yield: goat qualitySwing 0.12 -> +6% at gene 1.5", near(yield(animal(6, 51, 1.5)) / yield(animal(6, 51, 1)), 1.06))
 check("yield: own target weight moves the reference (metabolism)",
     yield(animal(1, 800, 1, 1200)) < yield(animal(1, 800, 1)))
 check("yield: 1 without an animal; no weight -> size x carcass only",
-    AnimalMoveEvent.getCarcassYieldFactor(nil) == 1 and near(yield({ subTypeIndex = 1, gender = "male" }), 1.0050 * 1.06, 0.001))
+    AnimalMoveEvent.getCarcassYieldFactor(nil) == 1 and near(yield({ subTypeIndex = 1, gender = "male" }), 0.9802 * 1.06, 0.001))
 
-local units, count, f = butcherUnits(animal(1, 663, 1))
-check("butcher: Angus bull at its reference -> 750 x 1.065 = 798.9", near(units, 798.95, 0.05) and count == 1)
+local units, count, f = butcherUnits(animal(1, 600, 1))
+check("butcher: Angus bull at its reference -> 750 x 1.039 = 779.2", near(units, 779.25, 0.05) and count == 1)
 check("butcher: configured units restored", f.eppAnimalInputUnitsByFillType[BEEF] == 750)
 
 -- Hof Bergmann's insemination system: the same unit-based input, but it turns 1000 units back
@@ -297,8 +297,8 @@ check("contract recipes: a placeable without the contract spec is ignored",
 -- The reported Swiss Brown bull: 516 kg, average meat gene, target 1000 kg -> 0.79 typical animals.
 SUBS[10] = { typeIndex = 1, targetWeight = 1000, name = "BULL_SWISS_BROWN", breed = "SWISS_BROWN", gender = "male" }
 local bull = yield(animal(10, 516, 1))
-check("Swiss Brown bull 516 kg: 0.79 typical animals, 356 kg of beef at either facility",
-    near(bull, 0.794, 0.002) and near(bull * 750 * 900 / 1500, bull * 450))
+check("Swiss Brown bull 516 kg: 0.83 typical animals, 373 kg of beef at either facility",
+    near(bull, 0.8285, 0.002) and near(bull * 750 * 900 / 1500, bull * 450))
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") then check("no script error: " .. line, false) end

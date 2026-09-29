@@ -71,13 +71,13 @@
         carcassYield.xml) at a realistic age on full feed: TMR for cattle. Cows and ewes keep the
         mod's default (1.5 x the age they can first breed). Solved with tests/economics.py.
     -->
-    <subType name="BULL_HOLSTEIN"        matureAgeMonth="37.0"/>  <!-- 680 kg at 17 months -->
-    <subType name="BULL_LIMOUSIN"        matureAgeMonth="48.6"/>  <!-- 750 kg at 18 months -->
-    <subType name="BULL_ANGUS"           matureAgeMonth="43.9" feed="0.97"/>  <!-- 663 kg at 19.5 months -->
-    <subType name="BULL_HEREFORD"        matureAgeMonth="43.2"/>  <!-- 646 kg at 19.5 months -->
-    <subType name="BULL_SWISS_BROWN"     matureAgeMonth="44.7"/>  <!-- 666 kg at 20 months -->
-    <subType name="BULL_WATERBUFFALO"    matureAgeMonth="31.4" feed="0.93"/>  <!-- 648 kg at 23 months -->
-    <subType name="BULL_HIGHLAND_CATTLE" matureAgeMonth="43.0"/>  <!-- 585 kg at 25 months -->
+    <subType name="BULL_HOLSTEIN"        matureAgeMonth="40.2"/>  <!-- 649 kg at 17 months -->
+    <subType name="BULL_LIMOUSIN"        matureAgeMonth="55.0"/>  <!-- 702 kg at 18 months -->
+    <subType name="BULL_ANGUS"           matureAgeMonth="52.2"/>  <!-- 601 kg at 19.5 months -->
+    <subType name="BULL_HEREFORD"        matureAgeMonth="54.2"/>  <!-- 571 kg at 19.5 months -->
+    <subType name="BULL_SWISS_BROWN"     matureAgeMonth="51.5"/>  <!-- 620 kg at 20 months -->
+    <subType name="BULL_WATERBUFFALO"    matureAgeMonth="60.3"/>  <!-- 450 kg at 23 months -->
+    <subType name="BULL_HIGHLAND_CATTLE" matureAgeMonth="63.3"/>  <!-- 480 kg at 25 months -->
     <subType name="PIG_LANDRACE"         matureAgeMonth="12.2"/>  <!-- gilt: 125 kg at 5.6 months -->
     <subType name="PIG_BLACK_PIED"       matureAgeMonth="8.9"/>   <!-- gilt: 121 kg at 6.1 months -->
     <subType name="PIG_BERKSHIRE"        matureAgeMonth="13.1"/>  <!-- gilt: 114 kg at 6.6 months -->
