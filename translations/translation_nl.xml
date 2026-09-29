@@ -159,8 +159,10 @@
         <text name="rl_ui_moveSelectDestination" text="Bestemming kiezen"/>
         <text name="rl_ui_moveNoDestinations" text="Geen bestemmingen beschikbaar voor dit dierentype."/>
         <text name="rl_ui_moveEPPAgeFormat" text="leeftijd %d-%d mnd" tag="format"/>
+        <text name="rl_ui_moveEPPMinAgeFormat" text="leeftijd %d+ mnd" tag="format"/>
         <text name="rl_ui_moveValidSummary" text="%d dier(en) worden verplaatst" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="%d dier(en) overgeslagen: voldoet niet aan leeftijdseis (%d-%d maanden)" tag="format"/>
+        <text name="rl_ui_moveRejectedMinAge" text="%d dier(en) overgeslagen: jonger dan de minimumleeftijd (%d maanden)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="%d dier(en) overgeslagen: niet genoeg ruimte op bestemming" tag="format"/>
         <text name="rl_ui_moveRejectedPenRules" text="%d animal(s) skipped: not allowed in this pen (breed, sex, castration or age)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="Er kunnen geen dieren naar deze bestemming worden verplaatst."/>

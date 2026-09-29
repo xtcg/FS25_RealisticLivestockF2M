@@ -108,15 +108,14 @@ function AIAnimalMoveEvent:run(connection)
             -- for delivered animals only - duplication over loss.
             local typeIndex = self.sourceObject.getAnimalTypeIndex ~= nil and self.sourceObject:getAnimalTypeIndex() or nil
             local typeData = (typeIndex ~= nil and type(targetPP.animalsTypeData) == "table") and targetPP.animalsTypeData[typeIndex] or nil
-            local minAge = (typeData ~= nil and typeData.minimumAge) or 0
-            local maxAge = (typeData ~= nil and typeData.maximumAge) or 999
+            local ageWindow = RLEppAge.format(RLEppAge.getWindow(typeData))
 
             local eligible = {}
             local skippedAge = 0
             local skippedSick = 0
             for _, entry in ipairs(transferList) do
                 local age = (entry.animal ~= nil and entry.animal.age) or 0
-                if age >= minAge and age <= maxAge then
+                if RLEppAge.check(age, typeData) then
                     if RLDiseaseSaleGate.check(entry.animal) then
                         eligible[#eligible + 1] = entry
                     else
@@ -126,13 +125,13 @@ function AIAnimalMoveEvent:run(connection)
                     end
                 else
                     skippedAge = skippedAge + 1
-                    Log:trace("AIAnimalMoveEvent:run: EPP age backstop skipping uniqueId=%s age=%s (window %d-%d)",
-                        tostring(entry.animal ~= nil and entry.animal.uniqueId), tostring(age), minAge, maxAge)
+                    Log:trace("AIAnimalMoveEvent:run: EPP age backstop skipping uniqueId=%s age=%s (window %s)",
+                        tostring(entry.animal ~= nil and entry.animal.uniqueId), tostring(age), ageWindow)
                 end
             end
             if skippedAge > 0 or skippedSick > 0 then
-                Log:debug("AIAnimalMoveEvent:run: EPP backstop removed %d age + %d sick of %d resolved animal(s) (window %d-%d)",
-                    skippedAge, skippedSick, #transferList, minAge, maxAge)
+                Log:debug("AIAnimalMoveEvent:run: EPP backstop removed %d age + %d sick of %d resolved animal(s) (window %s)",
+                    skippedAge, skippedSick, #transferList, ageWindow)
             end
 
             local okTarget, errTarget, deliveredList = AnimalMoveEvent._dispatchTargetDelivery(targetPP, eligible, nil)

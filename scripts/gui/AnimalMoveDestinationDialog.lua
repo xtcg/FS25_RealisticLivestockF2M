@@ -105,8 +105,12 @@ function AnimalMoveDestinationDialog:populateCellForItemInSection(list, section,
     nameElement:setText(entry.name)
     capacityElement:setText(string.format("%d/%d", entry.currentCount, entry.maxCount))
 
-    if entry.isEPP and entry.minAge ~= nil and entry.maxAge ~= nil then
-        constraintElement:setText(string.format(g_i18n:getText("rl_ui_moveEPPAgeFormat"), entry.minAge, entry.maxAge))
+    if entry.isEPP and entry.minAge ~= nil then
+        if entry.maxAge ~= nil then
+            constraintElement:setText(string.format(g_i18n:getText("rl_ui_moveEPPAgeFormat"), entry.minAge, entry.maxAge))
+        else
+            constraintElement:setText(string.format(g_i18n:getText("rl_ui_moveEPPMinAgeFormat"), entry.minAge))
+        end
         constraintElement:setVisible(true)
     else
         constraintElement:setVisible(false)

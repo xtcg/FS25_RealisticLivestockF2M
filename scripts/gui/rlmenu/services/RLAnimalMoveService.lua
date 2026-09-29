@@ -164,13 +164,11 @@ function RLAnimalMoveService.filterMovableAnimals(source, target, animals, owner
                     Log:debug("RLAnimalMoveService.filterMovableAnimals: '%s' rejected, sick (butcher destination)", tostring(label))
                     rejected = true
                 elseif eppTypeData ~= nil then
-                    local age = animal.age or 0
-                    local minAge = eppTypeData.minimumAge or 0
-                    local maxAge = eppTypeData.maximumAge or 60
-                    if age < minAge or age > maxAge then
+                    if not RLEppAge.check(animal.age, eppTypeData) then
                         if firstErrorCode == nil then firstErrorCode = AnimalMoveEvent.MOVE_ERROR_ANIMAL_NOT_SUPPORTED end
-                        Log:debug("RLAnimalMoveService.filterMovableAnimals: '%s' rejected by EPP age (age=%d, allowed=%d-%d)",
-                            tostring(label), age, minAge, maxAge)
+                        Log:debug("RLAnimalMoveService.filterMovableAnimals: '%s' rejected by EPP age (age=%d, allowed=%s)",
+                            tostring(label), animal.age or 0,
+                            RLEppAge.format(RLEppAge.getWindow(eppTypeData)))
                         rejected = true
                     end
                 end

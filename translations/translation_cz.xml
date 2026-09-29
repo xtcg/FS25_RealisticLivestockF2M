@@ -172,8 +172,10 @@
         <text name="rl_ui_moveSelectDestination" text="Vyberte cíl"/>
         <text name="rl_ui_moveNoDestinations" text="Pro tento typ zvířete nejsou dostupné žádné cíle."/>
         <text name="rl_ui_moveEPPAgeFormat" text="věk %d-%d měs." tag="format"/>
+        <text name="rl_ui_moveEPPMinAgeFormat" text="věk %d+ měs." tag="format"/>
         <text name="rl_ui_moveValidSummary" text="%d zvíře(ta) bude přesunuto" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="%d zvíře(ta) přeskočeno: nesplňuje věkové požadavky (%d-%d měsíců)" tag="format"/>
+        <text name="rl_ui_moveRejectedMinAge" text="%d zvíře(ta) přeskočeno: mladší než minimální věk (%d měsíců)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="%d zvíře(ta) přeskočeno: na cílovém místě není dost místa" tag="format"/>
         <text name="rl_ui_moveRejectedPenRules" text="%d animal(s) skipped: not allowed in this pen (breed, sex, castration or age)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="Žádná zvířata nelze přesunout na toto cílové místo."/>

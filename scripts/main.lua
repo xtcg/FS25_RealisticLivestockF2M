@@ -25,6 +25,7 @@ source(modDirectory .. "scripts/gui/MPLoadingScreen.lua")
 -- SECTION 2b: Utilities
 source(modDirectory .. "scripts/utils/RmSafeUtils.lua")
 source(modDirectory .. "scripts/utils/RLAnimalUtil.lua")
+source(modDirectory .. "scripts/utils/RLEppAge.lua")
 source(modDirectory .. "scripts/utils/RLPermissionHelper.lua")
 source(modDirectory .. "scripts/utils/RLScaleHelper.lua")
 source(modDirectory .. "scripts/utils/RLAnimalDisplayHelper.lua")
