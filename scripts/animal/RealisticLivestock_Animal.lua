@@ -1554,7 +1554,8 @@ function Animal:changeDirt(delta) AnimalHorse.changeDirt(self, delta) end
 
 function Animal:getSellPrice()
     local subType = self:getSubType()
-    local sellPrice = subType.sellPrice:get(self.age < 0 and 0 or self.age)
+    -- Every animal's price, the dealer's too, follows the difficulty like meat and milk (RLLivestockPrices).
+    local sellPrice = subType.sellPrice:get(self.age < 0 and 0 or self.age) * RLLivestockPrices.getMultiplier()
 
     local weight = self.weight
     local matureAge = RLBreedTraits.getMatureAge(subType)

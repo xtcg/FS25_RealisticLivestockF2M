@@ -1,128 +1,79 @@
--- Livestock products at a fixed difficulty (RLLivestockPrices, xml/livestockPrices.xml): on HARD with
--- reference EASY the listed fill types sell as on EASY, and live animals are priced as on EASY.
+-- Livestock prices follow the difficulty (RLLivestockPrices): HARD is the calibration level (x1), NORMAL
+-- x1.8 and EASY x3, like the game's own meat and milk prices, with the same margins.
 
 XMLFile = { loadIfExists = function(_, path) return loadXMLFileFromDisk(path) end }
 fileExists = function() return false end
 g_currentModDirectory = REPO
 
--- The game's difficulty and multipliers (EconomyManager, v1.23.1).
 local DIFFICULTY = 3
 EconomyManager = { PRICE_MULTIPLIER = { 3, 1.8, 1 } }
 function EconomyManager.getPriceMultiplier() return EconomyManager.PRICE_MULTIPLIER[DIFFICULTY] end
-function EconomyManager:getPricePerLiter(fillTypeIndex, useMultiplier)
-    local price = ECONOMY_PRICE[fillTypeIndex] or 0
-    return useMultiplier == false and price or price * EconomyManager.getPriceMultiplier()
-end
-ECONOMY_PRICE = {}
+Utils = { appendedFunction = function(old, new) return function(...) old(...); new(...) end end }
+FSBaseMission = { setEconomicDifficulty = function(self, difficulty) DIFFICULTY = difficulty end }
 
--- A selling point as the game computes it: base price x season x the difficulty multiplier.
-SellingStation = {}
-function SellingStation:getEffectiveFillTypePrice(fillType)
-    if not self.isServer then return self.fillTypePrices[fillType] end
-    return self.fillTypePrices[fillType] * (SEASON or 1) * EconomyManager.getPriceMultiplier()
+AnimalMoveEvent = { MOVE_SUCCESS = 0 }
+TYPES = { [1] = { name = "COW" }, [2] = { name = "CHICKEN" } }
+SUBS = { [1] = { typeIndex = 1, name = "BULL_ANGUS", breed = "ANGUS", gender = "male" },
+         [2] = { typeIndex = 2, name = "CHICKEN_ROOSTER", breed = "CHICKEN", gender = "male" } }
+local BEEF, POULTRY, BEEFMEAT, POULTRYMEAT = 20, 22, 30, 32
+local function recipe(input, output, amount, fee)
+    return { inputs = { [input] = { amount = 1 } }, outputs = { [output] = { amount = amount } },
+        primaryOutputFillTypeIndex = output, feePerBatch = fee, feeInputFillTypeIndex = input }
 end
-Utils = { overwrittenFunction = function(old, new)
-    return function(self, ...) return new(self, old, ...) end
-end }
-
-local BEEFMEAT, MILK, WHEAT = 40, 41, 42
-local NAMES = { [BEEFMEAT] = "BEEFMEAT", [MILK] = "MILK", [WHEAT] = "WHEAT" }
-g_fillTypeManager = {
-    getFillTypeNameByIndex = function(_, i) return NAMES[i] end,
-    getFillTypeIndexByName = function(_, name) for i, n in pairs(NAMES) do if n == name then return i end end end,
-    getFillTypeByIndex = function(_, i)
-        if i == BEEFMEAT then return { pricePerLiter = 1.8, economy = { factors = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } } } end
-    end,
-}
+local recipes = { recipe(BEEF, BEEFMEAT, 1000, 100), recipe(POULTRY, POULTRYMEAT, 100, 5) }
+local slaughterhouse = { spec_contractProductionService = { serviceId = "slaughterhouse", recipes = recipes },
+    animalSubTypeToFillType = { [1] = BEEF, [2] = POULTRY } }
+g_currentMission = { missionInfo = {},
+    animalSystem = { getSubTypeByIndex = function(_, i) return SUBS[i] end, getTypeByIndex = function(_, i) return TYPES[i] end },
+    placeableSystem = { placeables = { slaughterhouse, {} } } }
 
 loadMod("scripts/animal/RLBreedTraits.lua")
+loadMod("scripts/animals/shop/events/AnimalMoveEvent.lua")
 loadMod("scripts/animal/RLLivestockPrices.lua")
 
-local config = RLLivestockPrices.getConfig()
-check("config: shipped reference difficulty EASY", config.difficulty == 1)
-check("config: meat, milk, dairy goods, eggs, wool and semen are listed",
-    config.fillTypes.BEEFMEAT and config.fillTypes.PORKMEAT and config.fillTypes.POULTRYMEAT and config.fillTypes.MILK
-    and config.fillTypes.CHEESE and config.fillTypes.BUFFALOMOZZARELLA and config.fillTypes.EGG_HB
-    and config.fillTypes.SHEEPWOOL_SHEARED and config.fillTypes.BULLSPERM)
-check("config: crops, feed, manure and goods also made from crops are not",
-    not config.fillTypes.WHEAT and not config.fillTypes.SILAGE and not config.fillTypes.MANURE
-    and not config.fillTypes.FABRIC and not config.fillTypes.CALFMILK)
-check("config: no file or GAME -> the game's difficulty", RLLivestockPrices.parseConfig(nil).difficulty == nil)
-
--- Multipliers.
-DIFFICULTY = 3
-check("HARD: beef and milk at EASY's x3, wheat at HARD's x1",
-    RLLivestockPrices.getPriceMultiplier(BEEFMEAT) == 3 and RLLivestockPrices.getPriceMultiplier(MILK) == 3
-    and RLLivestockPrices.getPriceMultiplier(WHEAT) == 1 and RLLivestockPrices.getFactor(WHEAT) == 1)
+check("multiplier: HARD x1 (the calibration level)", RLLivestockPrices.getMultiplier() == 1)
 DIFFICULTY = 2
-check("NORMAL: beef x3 (factor 3 / 1.8), wheat x1.8", near(RLLivestockPrices.getFactor(BEEFMEAT), 3 / 1.8)
-    and near(RLLivestockPrices.getPriceMultiplier(WHEAT), 1.8))
+check("multiplier: NORMAL x1.8", near(RLLivestockPrices.getMultiplier(), 1.8))
 DIFFICULTY = 1
-check("EASY: nothing changes", RLLivestockPrices.getFactor(BEEFMEAT) == 1 and RLLivestockPrices.getFactor(WHEAT) == 1)
+check("multiplier: EASY x3", near(RLLivestockPrices.getMultiplier(), 3))
 
--- Selling points and the economy price.
-local function station(isServer)
-    return setmetatable({ isServer = isServer, fillTypePrices = { [BEEFMEAT] = 1.8, [WHEAT] = 0.337 } },
-        { __index = SellingStation })
-end
-local server = station(true)
-DIFFICULTY = 1
-local easyBeef = server:getEffectiveFillTypePrice(BEEFMEAT)
+-- Contract slaughter fees: patched at load, re-applied when the difficulty changes in game.
 DIFFICULTY = 3
-check("station: beef on HARD pays what it pays on EASY (5.4)", near(server:getEffectiveFillTypePrice(BEEFMEAT), easyBeef)
-    and near(easyBeef, 5.4))
-check("station: wheat on HARD keeps HARD's price", near(server:getEffectiveFillTypePrice(WHEAT), 0.337))
-check("station: a client shows the price the server sent, unchanged", station(false):getEffectiveFillTypePrice(BEEFMEAT) == 1.8)
-ECONOMY_PRICE = { [BEEFMEAT] = 1.8, [WHEAT] = 0.337 }
-check("economy price: beef x3 on HARD (farm shop), wheat x1, unmultiplied stays unmultiplied",
-    near(EconomyManager:getPricePerLiter(BEEFMEAT), 5.4) and near(EconomyManager:getPricePerLiter(WHEAT), 0.337)
-    and near(EconomyManager:getPricePerLiter(BEEFMEAT, false), 1.8))
+AnimalMoveEvent.alignContractRecipes(slaughterhouse)
+check("fees HARD: cattle 100 + 1.05 x 270 = 383.5, poultry the map's 5",
+    near(recipes[1].feePerBatch, 383.5) and near(recipes[2].feePerBatch, 5))
+FSBaseMission.setEconomicDifficulty(g_currentMission, 1)
+check("fees EASY after a change in game: x3 (1150.5, 15)", near(recipes[1].feePerBatch, 1150.5) and near(recipes[2].feePerBatch, 15))
+FSBaseMission.setEconomicDifficulty(g_currentMission, 2)
+check("fees NORMAL: x1.8 (690.3, 9)", near(recipes[1].feePerBatch, 690.3) and near(recipes[2].feePerBatch, 9))
+FSBaseMission.setEconomicDifficulty(g_currentMission, 3)
+check("fees back on HARD: the shipped fees again", near(recipes[1].feePerBatch, 383.5) and near(recipes[2].feePerBatch, 5)
+    and near(recipes[1].outputs[BEEFMEAT].amount, 270))
 
--- A bull: live price on HARD with reference EASY is its live price on EASY, at any beef price.
-AnimalMoveEvent = { MOVE_SUCCESS = 0 }
-TYPES = { [1] = { name = "COW" } }
-SUBS = { [1] = { typeIndex = 1, targetWeight = 1000, minWeight = 40, reproductionMinAgeMonth = 12,
-    name = "BULL_SWISS_BROWN", breed = "SWISS_BROWN", gender = "male", sellPrice = { get = function() return 1900 end } } }
-STATIONS = {}
-g_currentMission = {
-    animalSystem = { getSubTypeByIndex = function(_, i) return SUBS[i] end, getTypeByIndex = function(_, i) return TYPES[i] end },
-    storageSystem = { getUnloadingStations = function() return STATIONS end },
-    economyManager = EconomyManager,
-}
-loadMod("scripts/animals/shop/events/AnimalMoveEvent.lua")
-loadMod("scripts/animal/RLMeatValue.lua")
-loadAnimalSection("function Animal:getSellPrice()", "function Animal:getDailyRidingTime()")
-local bull = setmetatable({ subTypeIndex = 1, age = 20, weight = 620, gender = "male", targetWeight = 1000,
-    genetics = { quality = 1, metabolism = 1 }, diseases = {}, isCastrated = false }, { __index = Animal })
-bull.getSubType = function() return SUBS[1] end
-bull.isHorse = function() return false end
-bull.getHealthFactor = function() return 1 end
-
-local function livePrice(difficulty, reference, mapBeef, season)
-    DIFFICULTY, SEASON = difficulty, season
-    RLLivestockPrices.config.difficulty = reference
-    local s = station(true)
-    s.isSellingPoint, s.acceptedFillTypes = true, { [BEEFMEAT] = true }
-    s.fillTypePrices[BEEFMEAT] = mapBeef
-    s.originalFillTypePrices = { [BEEFMEAT] = mapBeef }
-    STATIONS = { s }
-    RLMeatValue.resetPriceCache()
-    return bull:getSellPrice(), RLMeatValue.getMeatPrice(BEEFMEAT)
-end
-for _, mapBeef in ipairs({ 1.8, 9.43 }) do
-    for _, season in ipairs({ 0.81, 1.0, 1.21 }) do
-        local easy, easyMeat = livePrice(1, nil, mapBeef, season)
-        local hard, hardMeat = livePrice(3, 1, mapBeef, season)
-        local plainHard = livePrice(3, nil, mapBeef, season)
-        check(string.format("bull: map beef %.2f, season x%.2f: HARD = EASY (%.0f = %.0f, beef %.2f = %.2f; plain HARD %.0f)",
-            mapBeef, season, hard, easy, hardMeat, easyMeat, plainHard), near(hard, easy, 0.01) and near(hardMeat, easyMeat))
-    end
-end
-local easy = livePrice(1, nil, 9.43, 1.21)
-local plainHard = livePrice(3, nil, 9.43, 1.21)
-check("bull: on plain HARD the same bull sells for less (meat floor at a third)", plainHard < easy * 0.9)
-SEASON = nil
+-- Semen: the dealer's straw (and so a dewar's sale value) x the multiplier.
+DewarData = { CAPACITY = 1000, PRICE_PER_STRAW = 4.65 }
+loadMod("scripts/insemination/RLSemenCollection.lua")
+local sire = { success = 0.6, genetics = { metabolism = 1, quality = 1, health = 1, fertility = 1, productivity = 1 }, subTypeIndex = 1 }
+local hard = RLSemenCollection.getStrawPrice(sire, 1)
+DIFFICULTY = 1
+check("semen: a straw on EASY is 3 x HARD's", hard > 0 and near(RLSemenCollection.getStrawPrice(sire, 1), 3 * hard))
+DIFFICULTY = 3
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end
 end
+
+-- The whole chain on NORMAL and EASY: meat (the game's multiplier), live prices and fees (the mod's)
+-- move together, so every margin is the calibrated one and every live price is x1.8 / x3 of HARD's.
+MEATCHAIN_LIVE = {}
+for _, multiplier in ipairs({ 1, 1.8, 3 }) do
+    MEATCHAIN_MULTIPLIER = multiplier
+    loadMod("tests/test_meatchain.lua")
+end
+local worst = 0
+for name, price in pairs(MEATCHAIN_LIVE) do
+    local multiplier, sub = name:match("^x([%d%.]+) (.+)$")
+    if multiplier ~= nil then worst = math.max(worst, math.abs(price / (MEATCHAIN_LIVE[sub] * tonumber(multiplier)) - 1)) end
+end
+check(string.format("live prices: every finished animal x1.8 on NORMAL and x3 on EASY of its HARD price (worst %.4f%%)", worst * 100),
+    worst < 1e-6 and next(MEATCHAIN_LIVE) ~= nil)

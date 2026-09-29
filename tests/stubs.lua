@@ -126,8 +126,6 @@ function loadAnimalSection(first, last)
     assert(load("local Log = RmLogging.getLogger()\n" .. text:sub(from, to), "Animal section " .. first))()
 end
 
--- Livestock products at the game's own difficulty (xml/livestockPrices.xml off), so a test sees the
--- plain difficulty multiplier; tests/test_livestockprices.lua loads the real module over it.
-RLLivestockPrices = { getPriceMultiplier = function()
-    return EconomyManager ~= nil and EconomyManager.getPriceMultiplier ~= nil and EconomyManager.getPriceMultiplier() or 1
-end, getFactor = function() return 1 end }
+-- Livestock prices at the calibration level (HARD, x1), so a test sees the calibrated prices;
+-- tests/test_livestockprices.lua loads the real module over it.
+RLLivestockPrices = { getMultiplier = function() return 1 end }

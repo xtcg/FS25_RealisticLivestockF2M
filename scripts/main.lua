@@ -40,7 +40,7 @@ source(modDirectory .. "scripts/core/RLMapCountry.lua")
 
 -- SECTION 2e: Breed traits (xml/breedTraits.xml; its layered lookup is shared with the carcass yield config)
 source(modDirectory .. "scripts/animal/RLBreedTraits.lua")
--- Livestock price scale (xml/livestockPrices.xml): live prices, semen, livestock fill types, slaughter fees
+-- Livestock prices follow the difficulty multiplier: live prices, semen, contract slaughter fees
 source(modDirectory .. "scripts/animal/RLLivestockPrices.lua")
 
 -- SECTION 3: Animal Husbandry - Cluster System

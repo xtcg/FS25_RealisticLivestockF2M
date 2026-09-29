@@ -4,6 +4,15 @@
 -- the year. Runs the real Animal:getSellPrice, RLMeatValue and carcass yield on the shipped xml, plus
 -- Hof Bergmann's bridge subtypes (v1.5).
 
+-- tests/test_livestockprices.lua runs this file again on NORMAL and EASY with the real RLLivestockPrices:
+-- the game multiplies the meat price, the mod the live prices and fees, so every margin is the same and
+-- every live price is x1.8 / x3 of HARD's.
+local M = MEATCHAIN_MULTIPLIER or 1
+local LABEL = M ~= 1 and string.format("x%g ", M) or ""
+if M ~= 1 then
+    EconomyManager = { getPriceMultiplier = function() return M end }
+end
+
 AnimalMoveEvent = { MOVE_SUCCESS = 0 }
 XMLFile = { loadIfExists = function(_, path) return loadXMLFileFromDisk(path) end }
 fileExists = function() return false end
@@ -85,9 +94,13 @@ loadMod("scripts/animal/RLBreedTraits.lua")
 loadMod("scripts/animals/shop/events/AnimalMoveEvent.lua")
 loadMod("scripts/animal/RLMeatValue.lua")
 loadAnimalSection("function Animal:getSellPrice()", "function Animal:getDailyRidingTime()")
+if M ~= 1 then
+    g_currentMission.missionInfo = {}
+    loadMod("scripts/animal/RLLivestockPrices.lua")
+end
 
 local function market(meat, factor)
-    for name in pairs(FILL) do NOW[name] = PRICE[name] * factor / SEASONAL end
+    for name in pairs(FILL) do NOW[name] = PRICE[name] * factor / SEASONAL * M end
     RLMeatValue.resetPriceCache()
 end
 
@@ -107,8 +120,8 @@ local function net(sub, kg, price)
     local layers = AnimalMoveEvent.getCarcassConfig().layers
     local typeName = TYPES[sub.typeIndex].name
     local typical = kg / AnimalMoveEvent.getMeatPerHead(typeName)
-    return kg * price - RLBreedTraits.resolve(layers, sub, "slaughterFee", 0) * typical
-        - RLBreedTraits.resolve(layers, sub, "processingFeePerKg", 0) * kg
+    return (kg * price - RLBreedTraits.resolve(layers, sub, "slaughterFee", 0) * typical
+        - RLBreedTraits.resolve(layers, sub, "processingFeePerKg", 0) * kg) * M
 end
 
 local MEAT_OF = { COW = "BEEFMEAT", PIG = "PORKMEAT", SHEEP = "SHEEPGOATMEAT", CHICKEN = "POULTRYMEAT", GOOSE = "GOOSEMEAT", RABBIT = "RABBITMEAT" }
@@ -134,9 +147,9 @@ for _, row in ipairs(FINISHED) do
     local reference = sub.targetWeight * RLBreedTraits.resolve(AnimalMoveEvent.getCarcassConfig().layers, sub,
         sub.gender == "male" and "maleMaturity" or "femaleMaturity", 1)
 
-    check(string.format("%s: at %.1f months weighs %.2f, its reference %.2f", row[1], row[2], animal.weight, reference),
+    check(string.format(LABEL .. "%s: at %.1f months weighs %.2f, its reference %.2f", row[1], row[2], animal.weight, reference),
         near(animal.weight / reference, 1, 0.03))
-    check(string.format("%s: %.2f kg of meat (%.2f)", row[1], row[3], kg), near(kg, row[3], row[3] * 0.03))
+    check(string.format(LABEL .. "%s: %.2f kg of meat (%.2f)", row[1], row[3], kg), near(kg, row[3], row[3] * 0.03))
 
     -- Over the year: sum of nets / sum of live prices at each month's price.
     local netSum, liveSum, margins = 0, 0, {}
@@ -150,15 +163,19 @@ for _, row in ipairs(FINISHED) do
     -- Bulls were calibrated on the reference animal (PR #21), not the dealer's growth-line weight: +12.7 to
     -- +14.3% here, so they get a wider band.
     local band = TYPES[sub.typeIndex].name == "COW" and 0.025 or 0.015
-    check(string.format("%s: contract slaughter +%.1f%% over the year (12 +/- %.1f)", row[1], (netSum / liveSum - 1) * 100, band * 100),
+    check(string.format(LABEL .. "%s: contract slaughter +%.1f%% over the year (12 +/- %.1f)", row[1], (netSum / liveSum - 1) * 100, band * 100),
         near(netSum / liveSum, 1.12, band))
-    check(string.format("%s: cheapest month %+.1f%%, peak %+.1f%%, never over +25%%", row[1], margins[6] * 100, margins[11] * 100),
+    check(string.format(LABEL .. "%s: cheapest month %+.1f%%, peak %+.1f%%, never over +25%%", row[1], margins[6] * 100, margins[11] * 100),
         margins[6] < margins[1] and margins[11] > margins[1] and margins[11] <= 0.25 + 1e-6 and margins[6] > -0.10)
 
     -- Great demand x1.4 at the peak: the floor caps the gain at maxSlaughterMargin.
     market(meat, 1.21 * 1.4)
     local live = animal:getSellPrice()
-    check(string.format("%s: great demand capped at +25%% (%+.1f%%)", row[1], (net(sub, kg, price * 1.21 * 1.4 / SEASONAL) / live - 1) * 100),
+    market(meat, 1)
+    MEATCHAIN_LIVE = MEATCHAIN_LIVE or {}
+    MEATCHAIN_LIVE[LABEL .. row[1]] = animal:getSellPrice()
+    market(meat, 1.21 * 1.4)
+    check(string.format(LABEL .. "%s: great demand capped at +25%% (%+.1f%%)", row[1], (net(sub, kg, price * 1.21 * 1.4 / SEASONAL) / live - 1) * 100),
         net(sub, kg, price * 1.21 * 1.4 / SEASONAL) / live - 1 <= 0.25 + 1e-6)
 end
 
@@ -169,8 +186,8 @@ local function swing(name, age)
     market(nil, 1.21); local high = RLMeatValue.getMarketFactor(sub, sub.gender)
     return high - low
 end
-check("market: a gilt and a doe rabbit follow the meat market", swing("PIG_LANDRACE") > 0.2 and swing("RABBIT") > 0.2)
-check("market: a ewe, a doe goat and a hen do not", swing("SHEEP_LANDRACE") == 0 and swing("GOAT") == 0 and swing("CHICKEN") == 0)
+check(LABEL .. "market: a gilt and a doe rabbit follow the meat market", swing("PIG_LANDRACE") > 0.2 and swing("RABBIT") > 0.2)
+check(LABEL .. "market: a ewe, a doe goat and a hen do not", swing("SHEEP_LANDRACE") == 0 and swing("GOAT") == 0 and swing("CHICKEN") == 0)
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end
