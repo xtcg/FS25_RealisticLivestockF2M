@@ -244,6 +244,39 @@ function RLBreedTraits.getExpectedWeight(subType, targetWeight, age)
 end
 
 
+--- Weight an animal raised on full feed has at `age`: the same monthly gain as Animal:updateWeight
+--- (base gain x sex x (1 + (mature age - age) / 75) x metabolism x breed growth), starting at the
+--- subtype's minWeight and never above `targetWeight`. Used for animals that appear with no weight
+--- of their own (the dealer's stock, a new game's herds), so that a bull of finishing age arrives at
+--- about the weight one raised in the pen reaches, not on the slower expected-weight line above.
+--- @param subType table
+--- @param gender string|nil "female" grows at getFemaleGrowth
+--- @param targetWeight number The animal's own target weight
+--- @param age number Months
+--- @param metabolism number|nil Metabolism gene, default 1
+--- @return number
+function RLBreedTraits.getGrownWeight(subType, gender, targetWeight, age, metabolism)
+    local minWeight = subType.minWeight or 0
+    local matureAge = RLBreedTraits.getMatureAge(subType)
+    if matureAge <= 0 or targetWeight <= minWeight then return minWeight end
+
+    metabolism = metabolism or 1
+    local baseGain = (targetWeight - minWeight) / matureAge
+    local sex = gender == "female" and RLBreedTraits.getFemaleGrowth(subType) or 1
+    local growth = RLBreedTraits.get(subType, "growth")
+
+    local weight, month = minWeight, 0
+    while month < age do
+        local step = math.min(1, age - month)
+        local gain = baseGain * sex * (1 + (matureAge - month) / 75)
+        gain = gain > 0 and gain * metabolism * growth or gain * (2 - metabolism)
+        weight = math.min(math.max(weight + gain * step, minWeight), targetWeight)
+        month = month + step
+    end
+    return weight
+end
+
+
 --- Food multiplier for an animal's body condition: (weight / expected weight for its age)
 --- ^ bodyWeightExponent, the expected weight from getExpectedWeight with the animal's own target,
 --- so the age curve in the subtype's food input is not counted twice. The ratio is clamped to

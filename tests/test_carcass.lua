@@ -27,9 +27,14 @@ loadMod("scripts/animals/shop/events/AnimalMoveEvent.lua")
 
 local config = AnimalMoveEvent.getCarcassConfig()
 check("config: shipped xml/carcassYield.xml is read",
-    near(config.layers.root.qualitySwing, 0.2) and config.layers.types.COW.anchorWeight == 650
+    near(config.layers.root.qualitySwing, 0.2) and config.layers.types.COW.anchorWeight == 600
     and near(config.layers.breeds.COW.HOLSTEIN.maleMaturity, 0.59) and config.layers.breeds.SHEEP.GOAT.anchorWeight == 32
     and near(config.maxFinishFactor, 1.3) and near(config.sizeExponent, 0.25))
+
+-- The chain: a 600 kg standard animal x 0.60 to the carcass x 0.75 to what the map sells = 270 kg.
+check("meat per head: cattle 270 kg from anchor 600 x dressing 0.60 x saleable 0.75; pigs and sheep keep theirs",
+    near(AnimalMoveEvent.getMeatPerHead("COW"), 270) and AnimalMoveEvent.getMeatPerHead("PIG") == 75
+    and AnimalMoveEvent.getMeatPerHead("SHEEP") == 50 and AnimalMoveEvent.getMeatPerHead("DUCKWILD") == nil)
 
 -- The animal's own target weight defaults to its subtype's (no metabolism gene in these tests).
 local function animal(sub, weight, quality, targetWeight)
@@ -42,11 +47,19 @@ local function entry(a) return { animal = { subTypeIndex = a.subTypeIndex }, sou
 -- Stand-in for the map's unit-based butcher addCluster (PlaceableExtendedProductionAnimalUnits):
 -- whole animals of unitsPerAnimal each, read live from eppAnimalInputUnitsByFillType.
 local BEEF, PIGS, POULTRY, SHEEPGOAT = 20, 21, 22, 23
+-- The farm butcher's recipes: units in -> meat out (BEEF 1500 -> 900, PIGS 240 -> 150, SHEEPGOAT 160 -> 100).
+local MEAT = { BEEFMEAT = 30, PORKMEAT = 31, POULTRYMEAT = 32, SHEEPGOATMEAT = 33 }
+g_fillTypeManager = { getFillTypeIndexByName = function(_, name) return MEAT[name] end }
+local function production(input, inputAmount, output, outputAmount)
+    return { inputs = { { type = input, amount = inputAmount } }, outputs = { { type = output, amount = outputAmount } } }
+end
 local function butcher(capacity, fill)
     local f = { isServer = true, animalsTypeData = {}, level = fill or 0, cap = capacity,
         animalSubTypeToFillType = { [1] = BEEF, [2] = BEEF, [3] = PIGS, [4] = POULTRY, [5] = POULTRY,
-            [6] = SHEEPGOAT, [7] = SHEEPGOAT },
+            [6] = SHEEPGOAT, [7] = SHEEPGOAT, [8] = BEEF, [9] = BEEF, [10] = BEEF },
         eppAnimalInputUnitsByFillType = { [BEEF] = 750, [PIGS] = 120, [POULTRY] = 10, [SHEEPGOAT] = 80 },
+        productions = { production(BEEF, 1500, MEAT.BEEFMEAT, 900), production(PIGS, 240, MEAT.PORKMEAT, 150),
+            production(SHEEPGOAT, 160, MEAT.SHEEPGOATMEAT, 100) },
         eppHasScaledAnimalInputs = true }
     function f:getCapacity() return self.cap end
     function f:getFillLevel() return self.level end
@@ -67,22 +80,22 @@ local function butcherUnits(a)
     return f.level, #list, f
 end
 
-check("yield: Angus bull at its reference (1000 x 0.60 = 600 kg) -> size 0.980 x carcass 1.06 = 1.039",
-    near(yield(animal(1, 600, 1)), 1.0390, 0.001))
-check("yield: Limousin bull at its reference (1200 x 0.585 = 702 kg) -> 1.081", near(yield(animal(8, 702, 1)), 1.0806, 0.001))
-check("yield: Holstein bull at its reference (1100 x 0.59 = 649 kg) -> 0.940", near(yield(animal(9, 649, 1)), 0.9396, 0.001))
-check("yield: finish (750 / 600) ^ 0.85 for a heavy Angus -> 1.256", near(yield(animal(1, 750, 1)), 1.2564, 0.001))
-check("yield: finish clamped at 1.3 for a huge Angus", near(yield(animal(1, 5000, 1)), 1.3507, 0.001))
-check("yield: no finish floor, a 50 kg calf yields by its weight", near(yield(animal(1, 50, 1)), (50 / 600) ^ 0.85 * 0.9802 * 1.06, 0.001))
+check("yield: Angus bull at its reference (1000 x 0.60 = 600 kg) -> size 1.000 x carcass 1.06 = 1.06",
+    near(yield(animal(1, 600, 1)), 1.06, 0.001))
+check("yield: Limousin bull at its reference (1200 x 0.585 = 702 kg) -> 1.102", near(yield(animal(8, 702, 1)), 1.1024, 0.001))
+check("yield: Holstein bull at its reference (1100 x 0.59 = 649 kg) -> 0.959", near(yield(animal(9, 649, 1)), 0.9586, 0.001))
+check("yield: finish (750 / 600) ^ 0.85 for a heavy Angus -> 1.282", near(yield(animal(1, 750, 1)), 1.2818, 0.001))
+check("yield: finish clamped at 1.3 for a huge Angus", near(yield(animal(1, 5000, 1)), 1.378, 0.001))
+check("yield: no finish floor, a 50 kg calf yields by its weight", near(yield(animal(1, 50, 1)), (50 / 600) ^ 0.85 * 1.06, 0.001))
 check("yield: meat gene 1.5 -> +10% (qualitySwing 0.2)", near(yield(animal(1, 600, 1.5)) / yield(animal(1, 600, 1)), 1.1))
 check("yield: goat qualitySwing 0.12 -> +6% at gene 1.5", near(yield(animal(6, 51, 1.5)) / yield(animal(6, 51, 1)), 1.06))
 check("yield: own target weight moves the reference (metabolism)",
     yield(animal(1, 800, 1, 1200)) < yield(animal(1, 800, 1)))
 check("yield: 1 without an animal; no weight -> size x carcass only",
-    AnimalMoveEvent.getCarcassYieldFactor(nil) == 1 and near(yield({ subTypeIndex = 1, gender = "male" }), 0.9802 * 1.06, 0.001))
+    AnimalMoveEvent.getCarcassYieldFactor(nil) == 1 and near(yield({ subTypeIndex = 1, gender = "male" }), 1.06, 0.001))
 
 local units, count, f = butcherUnits(animal(1, 600, 1))
-check("butcher: Angus bull at its reference -> 750 x 1.039 = 779.2", near(units, 779.25, 0.05) and count == 1)
+check("butcher: Angus bull at its reference -> 450 x 1.06 = 477", near(units, 477, 0.05) and count == 1)
 check("butcher: configured units restored", f.eppAnimalInputUnitsByFillType[BEEF] == 750)
 
 -- Hof Bergmann's insemination system: the same unit-based input, but it turns 1000 units back
@@ -94,7 +107,7 @@ AnimalMoveEvent._deliverToEPPTarget(insemination, { entry(animal(2, 450, 1)) }, 
 check("insemination: a light Holstein is still 1000 units (not carcass-scaled)", insemination.level == 1000)
 check("insemination: counted by head, not by yield",
     not AnimalMoveEvent._isWeighedTarget(insemination, nil, 2) and AnimalMoveEvent._isWeighedTarget(butcher(1), nil, 2))
-check("butcher: Holstein cull cow at 621 kg, gene 1.5 -> 767.1", near(butcherUnits(animal(2, 621, 1.5)), 767.07, 0.05))
+check("butcher: Holstein cull cow at 621 kg, gene 1.5 -> 469.5", near(butcherUnits(animal(2, 621, 1.5)), 469.55, 0.05))
 check("butcher: 120 kg Landrace gilt -> 117.2", near(butcherUnits(animal(3, 120, 1)), 117.21, 0.05))
 check("butcher: unlisted type anchors on the facility mean target weight -> 10.39",
     near(butcherUnits(animal(4, 3.5, 1)), 10.39, 0.01))
@@ -279,14 +292,14 @@ end
 local target, recipes = contractRecipes()
 check("contract recipes: beef, pork and sheep rescaled; a type without meatPerHead left alone",
     AnimalMoveEvent.alignContractRecipes(target) == 3)
-check("contract recipes: 1 cow -> 450 kg, 1 pig -> 75 kg, like the farm butcher",
-    near(recipes[1].outputs[BEEFMEAT].amount, 450) and near(recipes[2].outputs[PORKMEAT].amount, 75))
+check("contract recipes: 1 cow -> 270 kg, 1 pig -> 75 kg, like the farm butcher",
+    near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[2].outputs[PORKMEAT].amount, 75))
 check("contract recipes: DUCKWILD (no meatPerHead) keeps 100", recipes[3].outputs[POULTRYMEAT].amount == 100)
 check("contract recipes: sheep 400 -> 50 kg, its other output scaled by the same factor",
     near(recipes[4].outputs[SHEEPMEAT].amount, 50) and near(recipes[4].outputs[WASTE].amount, 10))
 AnimalMoveEvent.alignContractRecipes(target)
 check("contract recipes: a second run does not scale again",
-    near(recipes[1].outputs[BEEFMEAT].amount, 450) and near(recipes[4].outputs[WASTE].amount, 10))
+    near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[4].outputs[WASTE].amount, 10))
 
 target, recipes = contractRecipes({ [1] = BEEF, [3] = BEEF })
 check("contract recipes: a fill type taken by two animal types is left alone",
@@ -297,8 +310,8 @@ check("contract recipes: a placeable without the contract spec is ignored",
 -- The reported Swiss Brown bull: 516 kg, average meat gene, target 1000 kg -> 0.79 typical animals.
 SUBS[10] = { typeIndex = 1, targetWeight = 1000, name = "BULL_SWISS_BROWN", breed = "SWISS_BROWN", gender = "male" }
 local bull = yield(animal(10, 516, 1))
-check("Swiss Brown bull 516 kg: 0.83 typical animals, 373 kg of beef at either facility",
-    near(bull, 0.8285, 0.002) and near(bull * 750 * 900 / 1500, bull * 450))
+check("Swiss Brown bull 516 kg: 0.85 typical animals, 228 kg of beef at either facility",
+    near(bull, 0.8453, 0.002) and near(butcherUnits(animal(10, 516, 1)) * 0.6, bull * 270, 0.05))
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") then check("no script error: " .. line, false) end

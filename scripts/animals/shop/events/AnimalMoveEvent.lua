@@ -52,7 +52,7 @@ AnimalMoveEvent.CARCASS_CONFIG_DEFAULTS = {
 --- Per-animal settings, looked up subtype, then breed within the animal type, then animal type,
 --- then on the carcassYield element (RLBreedTraits.resolve).
 AnimalMoveEvent.CARCASS_ATTRIBUTES = { "anchorWeight", "referenceWeight", "maleMaturity", "femaleMaturity",
-	"carcassFactor", "qualitySwing", "meatPerHead", "slaughterShare", "cullShare", "cullAgeMonth", "slaughterMinAgeMonth" }
+	"carcassFactor", "qualitySwing", "meatPerHead", "dressingRate", "saleableRate", "slaughterShare", "cullShare", "cullAgeMonth", "slaughterMinAgeMonth" }
 
 --- Used when no layer sets them.
 AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS = { maleMaturity = 1, femaleMaturity = 1, carcassFactor = 1, qualitySwing = 0.2 }
@@ -196,7 +196,17 @@ function AnimalMoveEvent._getScaledButcherUnits(targetObject, subTypeIndex, anim
 
 	local configured = unitsByFillType[fillType]
 	local factor = AnimalMoveEvent.getCarcassYieldFactor(animal, targetObject, subTypeIndex)
-	return fillType, configured, configured * factor
+
+	-- A typical animal gives meatPerHead whatever the map's units per animal and recipe are: the
+	-- units are set so that units x the butcher's recipe ratio = meatPerHead.
+	local units = configured
+	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
+	local typeName = animalSystem ~= nil and RLBreedTraits.getTypeName(animalSystem:getSubTypeByIndex(subTypeIndex)) or nil
+	local meatPerHead = typeName ~= nil and AnimalMoveEvent.getMeatPerHead(typeName) or nil
+	local ratio = meatPerHead ~= nil and AnimalMoveEvent._getButcherRecipeRatio(targetObject, fillType, typeName) or nil
+	if ratio ~= nil then units = meatPerHead / ratio end
+
+	return fillType, configured, units * factor
 end
 
 
@@ -231,16 +241,51 @@ function AnimalMoveEvent._applyCarcassYield(targetObject, subTypeIndex, animal)
 end
 
 
---- Meat one typical animal of a type gives, in the output fill type's units (kg), from
---- carcassYield animalType#meatPerHead. Read per animal type only: a facility's recipe is shared
---- by every breed that goes in as the same fill type.
+--- Meat one typical animal of a type gives, in the output fill type's units (kg): carcassYield
+--- animalType#meatPerHead, or when that is not set anchorWeight x dressingRate x saleableRate (a
+--- 600 kg standard animal x 0.60 to the carcass x 0.75 to what the map sells = 270 kg). Read per
+--- animal type only: a facility's recipe is shared by every breed that goes in as the same fill type.
 --- @param typeName string|nil
 --- @return number|nil meatPerHead nil when the type sets none
 function AnimalMoveEvent.getMeatPerHead(typeName)
 	if typeName == nil then return nil end
 	local layer = AnimalMoveEvent.getCarcassConfig().layers.types[typeName:upper()]
-	local value = layer ~= nil and layer.meatPerHead or nil
+	if layer == nil then return nil end
+
+	local value = layer.meatPerHead
+	if value == nil and layer.anchorWeight ~= nil and layer.dressingRate ~= nil and layer.saleableRate ~= nil then
+		value = layer.anchorWeight * layer.dressingRate * layer.saleableRate
+	end
 	return value ~= nil and value > 0 and value or nil
+end
+
+
+--- Meat one input unit of a unit-based butcher becomes: its production's primary meat output over
+--- the input amount (Hof Bergmann's farm butcher turns 1500 BEEF into 900 BEEFMEAT, 0.6).
+--- @param targetObject table The butcher (a production point)
+--- @param fillType number The animal input fill type
+--- @param typeName string Animal type, for its meat fill type
+--- @return number|nil ratio nil when the butcher's recipe cannot be read
+function AnimalMoveEvent._getButcherRecipeRatio(targetObject, fillType, typeName)
+	local meatName = AnimalMoveEvent.getCarcassConfig().meatFillTypes[typeName:upper()]
+	local meatFillType = meatName ~= nil and g_fillTypeManager ~= nil and g_fillTypeManager:getFillTypeIndexByName(meatName) or nil
+	if meatFillType == nil or type(targetObject.productions) ~= "table" then return nil end
+
+	for _, production in ipairs(targetObject.productions) do
+		local input, inputs = nil, 0
+		for _, candidate in ipairs(production.inputs or {}) do
+			inputs = inputs + 1
+			if (candidate.type or candidate.fillType) == fillType then input = candidate end
+		end
+		if input ~= nil and inputs == 1 and (input.amount or 0) > 0 then
+			for _, output in ipairs(production.outputs or {}) do
+				if (output.type or output.fillType) == meatFillType and (output.amount or 0) > 0 then
+					return output.amount / input.amount
+				end
+			end
+		end
+	end
+	return nil
 end
 
 

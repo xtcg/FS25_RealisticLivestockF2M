@@ -186,18 +186,12 @@ function Animal.new(config)
     end
 
 
-    if self.weight == nil then
-        local minWeight = subType.minWeight
-        local maxWeight = subType.maxWeight
-
-        local matureAge = RLBreedTraits.getMatureAge(subType)
-        local weightPerMonth = (targetWeight - minWeight) / matureAge
-        self.weight = math.clamp(
-        (minWeight + (weightPerMonth * math.clamp(self.age, 0, math.max(matureAge, 20)))) * (math.random(85, 115) / 100), minWeight, maxWeight)
-    end
-
-
     self.targetWeight = targetWeight + (((targetWeight * self.genetics.metabolism) - targetWeight) / 2.5)
+
+    if self.weight == nil then
+        local grown = RLBreedTraits.getGrownWeight(subType, self.gender, self.targetWeight, self.age, self.genetics.metabolism)
+        self.weight = math.clamp(grown * (math.random(85, 115) / 100), subType.minWeight, subType.maxWeight)
+    end
 
     local farmId = cfg.farmId
     self.farmId = farmId or nil

@@ -48,3 +48,22 @@ local _, holstein = Economics.find("COW_HOLSTEIN")
 local _, swiss = Economics.find("COW_SWISS_BROWN")
 check("dairy: Holstein peak 378, Swiss Brown 320", near(Economics.curve(holstein.milk, 60), 378)
     and near(Economics.curve(swiss.milk, 60), 320))
+
+-- Animals that appear with no weight (the dealer's stock, a new game's herds) are on the same
+-- growth line as one raised on full feed: a bull of finishing age weighs about its reference.
+for _, entry in ipairs(AGES) do
+    if entry[1]:find("^BULL_") then
+        local i, sub = Economics.find(entry[1])
+        local reference = Economics.reference(sub)
+        local weight = RLBreedTraits.getGrownWeight(sub, sub.gender, sub.targetWeight, entry[3], 1)
+        check(string.format("dealer: %s at %.1f months weighs %.0f kg, reference %.0f", entry[1], entry[3], weight, reference),
+            near(weight / reference, 1, 0.04))
+    end
+end
+local _, angusBull = Economics.find("BULL_ANGUS")
+check("dealer: a calf starts at its minimum weight and a grown bull stops at its target",
+    near(RLBreedTraits.getGrownWeight(angusBull, "male", 1000, 0, 1), angusBull.minWeight)
+    and near(RLBreedTraits.getGrownWeight(angusBull, "male", 1000, 120, 1), 1000))
+check("dealer: a heavier metabolism grows faster, a female slower",
+    RLBreedTraits.getGrownWeight(angusBull, "male", 1000, 12, 1.5) > RLBreedTraits.getGrownWeight(angusBull, "male", 1000, 12, 1)
+    and RLBreedTraits.getGrownWeight(angusBull, "female", 1000, 12, 1) < RLBreedTraits.getGrownWeight(angusBull, "male", 1000, 12, 1))
