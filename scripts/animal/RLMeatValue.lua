@@ -87,8 +87,10 @@ end
 --- @param fillTypeIndex number
 --- @return number price 0 when nothing prices it
 function RLMeatValue.getAnnualMeanPrice(fillTypeIndex)
+    -- The difficulty multiplier is applied on return, so a change of difficulty in game is picked up.
+    local multiplier = EconomyManager ~= nil and EconomyManager.getPriceMultiplier ~= nil and EconomyManager.getPriceMultiplier() or 1
     local cached = annualCache[fillTypeIndex]
-    if cached ~= nil then return cached end
+    if cached ~= nil then return cached * multiplier end
 
     local fillType = g_fillTypeManager ~= nil and g_fillTypeManager.getFillTypeByIndex ~= nil
         and g_fillTypeManager:getFillTypeByIndex(fillTypeIndex) or nil
@@ -99,7 +101,6 @@ function RLMeatValue.getAnnualMeanPrice(fillTypeIndex)
         if type(factor) == "number" then total, count = total + factor, count + 1 end
     end
     local seasonal = count > 0 and total / count or 1
-    local multiplier = EconomyManager ~= nil and EconomyManager.getPriceMultiplier ~= nil and EconomyManager.getPriceMultiplier() or 1
 
     local best = 0
     local storageSystem = g_currentMission ~= nil and g_currentMission.storageSystem or nil
@@ -116,12 +117,12 @@ function RLMeatValue.getAnnualMeanPrice(fillTypeIndex)
     if not fromStation and fillType ~= nil then best = fillType.pricePerLiter or 0 end
 
     -- Cached only when a station priced it: before the map's stations are loaded it is the fallback.
-    local price = best * seasonal * multiplier
+    local price = best * seasonal
     if price > 0 and fromStation then
         annualCache[fillTypeIndex] = price
         Log:debug("RLMeatValue.getAnnualMeanPrice: fillType=%s %.3f/l (seasonal mean %.4f)", tostring(fillTypeIndex), price, seasonal)
     end
-    return price
+    return price * multiplier
 end
 
 
@@ -173,22 +174,24 @@ function RLMeatValue.getShare(animal, subType)
 end
 
 
---- How the beef market moves the live price of a bull. The net revenue of one typical animal
+--- How the meat market moves the live price of a meat animal (a bull, a finishing pig, a ram lamb). The net revenue of one typical animal
 --- slaughtered by contract (meat x price - slaughterFee - processingFeePerKg x meat) at the current
 --- best meat price over the same at the annual mean price (getAnnualMeanPrice, or referencePrice
 --- when set), passed through at marketPassThrough and bounded by marketFactorMin..marketFactorMax:
 ---   factor = 1 + marketPassThrough x (net now / net at the mean - 1)
 --- It is 1 in an average month. At a pass-through under 1 the live price moves less than the meat,
 --- so slaughtering by contract pays less in a cheap-beef month and more in a dear one, and about
---- the calibrated margin over the year. Only male animals of a type with processingFeePerKg (cows
---- are priced by their milk); 1 otherwise or when no meat price is known.
+--- the calibrated margin over the year. Only animals of a type with processingFeePerKg, and only males
+--- unless the type sets marketFemales (cows, ewes and laying birds are priced by what they produce);
+--- 1 otherwise or when no meat price is known.
 --- @param subType table|nil
 --- @param gender string|nil
 --- @return number
 function RLMeatValue.getMarketFactor(subType, gender)
-    if subType == nil or gender ~= "male" then return 1 end
+    if subType == nil then return 1 end
 
     local layers = AnimalMoveEvent.getCarcassConfig().layers
+    if gender ~= "male" and RLBreedTraits.resolve(layers, subType, "marketFemales", 0) <= 0 then return 1 end
     local perKg = RLBreedTraits.resolve(layers, subType, "processingFeePerKg", nil)
     local typeName = RLBreedTraits.getTypeName(subType)
     local meatPerHead = typeName ~= nil and AnimalMoveEvent.getMeatPerHead(typeName) or nil
@@ -200,7 +203,9 @@ function RLMeatValue.getMarketFactor(subType, gender)
         or RLMeatValue.getAnnualMeanPrice(fillType)
     if price <= 0 or referencePrice <= 0 then return 1 end
 
-    local fee = RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) + perKg * meatPerHead
+    -- Fees follow the difficulty like the meat price and the live price (RLLivestockPrices).
+    local fee = (RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) + perKg * meatPerHead)
+        * RLLivestockPrices.getMultiplier()
     local reference = meatPerHead * referencePrice - fee
     if reference <= 0 then return 1 end
 
@@ -243,7 +248,8 @@ function RLMeatValue.getSlaughterValue(animal)
 
     local meatPerHead = AnimalMoveEvent.getMeatPerHead(typeName)
     local typical = meatPerHead ~= nil and meatKg / meatPerHead or 1
-    local fee = RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) * typical + perKg * meatKg
+    local fee = (RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) * typical + perKg * meatKg)
+        * RLLivestockPrices.getMultiplier()
     local value = math.max(meatKg * price - fee, 0) / (1 + RLBreedTraits.resolve(layers, subType, "maxSlaughterMargin", 0))
     if RLMeatValue.isCull(animal, subType) then
         value = value * RLBreedTraits.resolve(layers, subType, "cullFloorFactor", 1)

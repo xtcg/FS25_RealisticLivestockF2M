@@ -125,3 +125,7 @@ function loadAnimalSection(first, last)
     Animal = Animal or {}
     assert(load("local Log = RmLogging.getLogger()\n" .. text:sub(from, to), "Animal section " .. first))()
 end
+
+-- Livestock prices at the calibration level (HARD, x1), so a test sees the calibrated prices;
+-- tests/test_livestockprices.lua loads the real module over it.
+RLLivestockPrices = { getMultiplier = function() return 1 end }
