@@ -34,7 +34,7 @@ check("traits: 1 for a breed or type the file leaves out", RLBreedTraits.get(bul
 check("mature age: 1.5 x reproduction age where the file sets none", near(RLBreedTraits.getMatureAge(holstein), 18)
     and RLBreedTraits.getMatureAge(nil) == 0)
 check("mature age: subtype over breed", near(RLBreedTraits.getMatureAge(limousinBull), 55.0)
-    and near(RLBreedTraits.getMatureAge(landraceBoar), 20.1) and near(RLBreedTraits.getMatureAge(landraceGilt), 15.9))
+    and near(RLBreedTraits.getMatureAge(landraceBoar), 16.3) and near(RLBreedTraits.getMatureAge(landraceGilt), 12.2))
 check("female growth: 0.95 for pigs, 0.6 elsewhere", near(RLBreedTraits.getFemaleGrowth(landraceGilt), 0.95)
     and near(RLBreedTraits.getFemaleGrowth(holstein), 0.6) and near(RLBreedTraits.getFemaleGrowth(goat), 0.6))
 check("expected weight: linear to the target by the mature age, then flat",

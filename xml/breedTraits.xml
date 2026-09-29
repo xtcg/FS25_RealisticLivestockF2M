@@ -52,9 +52,9 @@
 
     <!-- Gilts grow almost as fast as boars; the mod's 0.6 for females is for breeding stock. -->
     <animalType name="PIG" femaleGrowth="0.95">
-        <breed name="BERKSHIRE"  feed="1.08" growth="0.95" matureAgeMonth="18.9"/>  <!-- boar: 120 kg at 6.5 months -->
-        <breed name="LANDRACE"   feed="1.00" growth="1.05" matureAgeMonth="20.1"/>  <!-- boar: 125 kg at 6 months -->
-        <breed name="BLACK_PIED" feed="0.90" growth="0.95" matureAgeMonth="15.1"/>  <!-- boar: 120 kg at 6 months -->
+        <breed name="BERKSHIRE"  feed="1.08" growth="0.95" matureAgeMonth="17.7"/>  <!-- 118 kg at 6.5 months -->
+        <breed name="LANDRACE"   feed="1.00" growth="1.05" matureAgeMonth="16.3"/>  <!-- 126 kg at 5.5 months -->
+        <breed name="BLACK_PIED" feed="0.90" growth="0.95" matureAgeMonth="13.7"/>  <!-- 120 kg at 6 months -->
     </animalType>
 
     <animalType name="SHEEP">                                <!-- goats share the SHEEP type -->
@@ -66,12 +66,10 @@
     </animalType>
 
     <!--
-        Growth line of animals raised for meat: bulls, rams, buck kids, cockerels, drakes, ganders,
-        rabbits and gilts (the boars' is on the PIG breeds above). Each reaches its slaughter reference
-        (target weight x maturity in carcassYield.xml) at a realistic age on full feed: TMR for cattle.
-        Pigs, lambs, kids and birds are finished at the map butcher's youngest age (Hof Bergmann: pigs 6,
-        sheep and goats 8, poultry 6, geese 10, rabbits 4 months). Cows, ewes, does and laying birds keep
-        the mod's default (1.5 x the age they can first breed). Solved with tests/economics.py.
+        Growth line of animals raised for meat: bulls, rams, and gilts (the boars' is on the PIG
+        breeds above). Each reaches its slaughter reference (target weight x maturity in
+        carcassYield.xml) at a realistic age on full feed: TMR for cattle. Cows and ewes keep the
+        mod's default (1.5 x the age they can first breed). Solved with tests/economics.py.
     -->
     <subType name="BULL_HOLSTEIN"        matureAgeMonth="40.2" priceTargetWeight="1000" priceMatureAgeMonth="32"/>  <!-- 649 kg at 17 months -->
     <subType name="BULL_LIMOUSIN"        matureAgeMonth="55.0" priceTargetWeight="1000" priceMatureAgeMonth="35.7"/>  <!-- 702 kg at 18 months -->
@@ -80,19 +78,13 @@
     <subType name="BULL_SWISS_BROWN"     matureAgeMonth="51.5" priceTargetWeight="900" priceMatureAgeMonth="37.8"/>  <!-- 620 kg at 20 months -->
     <subType name="BULL_WATERBUFFALO"    matureAgeMonth="60.3" priceTargetWeight="900" priceMatureAgeMonth="45.4"/>  <!-- 450 kg at 23 months -->
     <subType name="BULL_HIGHLAND_CATTLE" matureAgeMonth="63.3" priceTargetWeight="750" priceMatureAgeMonth="40.2"/>  <!-- 480 kg at 25 months -->
-    <subType name="PIG_LANDRACE"         matureAgeMonth="15.9"/>  <!-- gilt: 125 kg at 6 months -->
-    <subType name="PIG_BLACK_PIED"       matureAgeMonth="10.0"/>  <!-- gilt: 120 kg at 6 months -->
-    <subType name="PIG_BERKSHIRE"        matureAgeMonth="13.5"/>  <!-- gilt: 120 kg at 6.5 months -->
-    <subType name="RAM_LANDRACE"         matureAgeMonth="28.3"/>  <!-- 50 kg at 8 months -->
-    <subType name="RAM_STEINSCHAF"       matureAgeMonth="22.4"/>  <!-- 38 kg at 8 months -->
-    <subType name="RAM_SWISS_MOUNTAIN"   matureAgeMonth="29.5"/>  <!-- 50 kg at 8 months -->
-    <subType name="RAM_BLACK_WELSH"      matureAgeMonth="17.2"/>  <!-- 36 kg at 8 months -->
-    <subType name="RAM_GOAT"             matureAgeMonth="27.9"/>  <!-- buck kid: 35 kg at 8 months -->
-    <subType name="CHICKEN_ROOSTER"      matureAgeMonth="8.7"/>   <!-- cockerel: 3.2 kg at 6 months -->
-    <subType name="DUCK_MALE"            matureAgeMonth="7.3"/>   <!-- drake: 3.8 kg at 6 months (Hof Bergmann) -->
-    <subType name="GOOSE_MALE"           matureAgeMonth="12.4"/>  <!-- gander: 7.2 kg at 10 months (Hof Bergmann) -->
-    <subType name="RABBIT_MALE"          matureAgeMonth="6.6"/>   <!-- 3 kg at 4 months (Hof Bergmann) -->
-    <subType name="RABBIT"               matureAgeMonth="7.3" femaleGrowth="1.0"/>  <!-- doe: 3 kg at 4 months -->
+    <subType name="PIG_LANDRACE"         matureAgeMonth="12.2"/>  <!-- gilt: 125 kg at 5.6 months -->
+    <subType name="PIG_BLACK_PIED"       matureAgeMonth="8.9"/>   <!-- gilt: 121 kg at 6.1 months -->
+    <subType name="PIG_BERKSHIRE"        matureAgeMonth="13.1"/>  <!-- gilt: 114 kg at 6.6 months -->
+    <subType name="RAM_LANDRACE"         matureAgeMonth="9.1"/>   <!-- 46.5 kg at 5 months -->
+    <subType name="RAM_STEINSCHAF"       matureAgeMonth="9.6"/>   <!-- 59 kg at 5 months -->
+    <subType name="RAM_SWISS_MOUNTAIN"   matureAgeMonth="10.7"/>  <!-- 62 kg at 5.5 months -->
+    <subType name="RAM_BLACK_WELSH"      matureAgeMonth="9.1"/>   <!-- 38.4 kg at 5.5 months -->
 
     <!--
         Live-price model. Animal:getSellPrice measures an animal's weight against a reference line

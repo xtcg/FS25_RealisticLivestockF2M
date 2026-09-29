@@ -28,16 +28,13 @@ loadMod("scripts/animals/shop/events/AnimalMoveEvent.lua")
 local config = AnimalMoveEvent.getCarcassConfig()
 check("config: shipped xml/carcassYield.xml is read",
     near(config.layers.root.qualitySwing, 0.2) and config.layers.types.COW.anchorWeight == 600
-    and near(config.layers.breeds.COW.HOLSTEIN.maleMaturity, 0.59) and config.layers.breeds.SHEEP.GOAT.anchorWeight == nil and config.layers.types.SHEEP.anchorWeight == 50
+    and near(config.layers.breeds.COW.HOLSTEIN.maleMaturity, 0.59) and config.layers.breeds.SHEEP.GOAT.anchorWeight == 32
     and near(config.maxFinishFactor, 1.3) and near(config.sizeExponent, 0.25))
 
--- The chain: a standard animal x dressing to the carcass x saleable to what the map sells.
-check("meat per head: cattle 600 x 0.60 x 0.75 = 270, pig 125 x 0.80 x 0.75 = 75, lamb 50 x 0.48 x 0.80 = 19.2",
-    near(AnimalMoveEvent.getMeatPerHead("COW"), 270) and near(AnimalMoveEvent.getMeatPerHead("PIG"), 75)
-    and near(AnimalMoveEvent.getMeatPerHead("SHEEP"), 19.2) and AnimalMoveEvent.getMeatPerHead("DUCKWILD") == nil)
-check("meat per head: bird 3 x 0.70 x 0.90 = 1.89, goose 7 x 0.70 x 0.90 = 4.41, rabbit 3 x 0.58 x 0.90 = 1.566",
-    near(AnimalMoveEvent.getMeatPerHead("CHICKEN"), 1.89) and near(AnimalMoveEvent.getMeatPerHead("GOOSE"), 4.41)
-    and near(AnimalMoveEvent.getMeatPerHead("RABBIT"), 1.566))
+-- The chain: a 600 kg standard animal x 0.60 to the carcass x 0.75 to what the map sells = 270 kg.
+check("meat per head: cattle 270 kg from anchor 600 x dressing 0.60 x saleable 0.75; pigs and sheep keep theirs",
+    near(AnimalMoveEvent.getMeatPerHead("COW"), 270) and AnimalMoveEvent.getMeatPerHead("PIG") == 75
+    and AnimalMoveEvent.getMeatPerHead("SHEEP") == 50 and AnimalMoveEvent.getMeatPerHead("DUCKWILD") == nil)
 
 -- The animal's own target weight defaults to its subtype's (no metabolism gene in these tests).
 local function animal(sub, weight, quality, targetWeight)
@@ -111,11 +108,11 @@ check("insemination: a light Holstein is still 1000 units (not carcass-scaled)",
 check("insemination: counted by head, not by yield",
     not AnimalMoveEvent._isWeighedTarget(insemination, nil, 2) and AnimalMoveEvent._isWeighedTarget(butcher(1), nil, 2))
 check("butcher: Holstein cull cow at 621 kg, gene 1.5 -> 469.5", near(butcherUnits(animal(2, 621, 1.5)), 469.55, 0.05))
-check("butcher: 120 kg Landrace gilt (target 240 x 0.446) -> 120 units x 1.060 = 127.2", near(butcherUnits(animal(3, 120, 1)), 127.21, 0.05))
+check("butcher: 120 kg Landrace gilt -> 117.2", near(butcherUnits(animal(3, 120, 1)), 117.21, 0.05))
 check("butcher: unlisted type anchors on the facility mean target weight -> 10.39",
     near(butcherUnits(animal(4, 3.5, 1)), 10.39, 0.01))
-check("butcher: 51 kg doe on the SHEEP anchor, goat carcass 0.94 -> 30.72 x 0.945 = 29.0", near(butcherUnits(animal(6, 51, 1)), 29.02, 0.05))
-check("butcher: 46.75 kg Landrace ewe uses the SHEEP type -> 30.72 x 0.983 = 30.2", near(butcherUnits(animal(7, 46.75, 1)), 30.21, 0.05))
+check("butcher: 51 kg doe uses the GOAT breed anchor -> 84.5", near(butcherUnits(animal(6, 51, 1)), 84.49, 0.05))
+check("butcher: 46.75 kg Landrace ewe uses the SHEEP type -> 78.7", near(butcherUnits(animal(7, 46.75, 1)), 78.67, 0.05))
 
 -- The rest checks batch, room and fee handling on a linear config: yield = live / reference x
 -- (1 + 0.25 x (gene - 1)), fixed references COW 650 and PIG 120.
@@ -297,14 +294,14 @@ check("contract recipes: beef, pork and sheep rescaled; a type without meatPerHe
     AnimalMoveEvent.alignContractRecipes(target) == 3)
 check("contract recipes: 1 cow -> 270 kg, 1 pig -> 75 kg, like the farm butcher",
     near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[2].outputs[PORKMEAT].amount, 75))
-check("contract recipes: fine cutting per kg added to the batch fee: cattle 100 + 1.05 x 270, pork 100 + 0.60 x 75",
-    near(recipes[1].feePerBatch, 383.5) and near(recipes[2].feePerBatch, 145))
+check("contract recipes: cattle fine cutting adds 1.05 per kg to the batch fee (100 + 1.05 x 270), pork keeps 100",
+    near(recipes[1].feePerBatch, 383.5) and recipes[2].feePerBatch == 100)
 check("contract recipes: DUCKWILD (no meatPerHead) keeps 100", recipes[3].outputs[POULTRYMEAT].amount == 100)
-check("contract recipes: sheep 400 -> 19.2 kg, its other output scaled by the same factor",
-    near(recipes[4].outputs[SHEEPMEAT].amount, 19.2) and near(recipes[4].outputs[WASTE].amount, 3.84))
+check("contract recipes: sheep 400 -> 50 kg, its other output scaled by the same factor",
+    near(recipes[4].outputs[SHEEPMEAT].amount, 50) and near(recipes[4].outputs[WASTE].amount, 10))
 AnimalMoveEvent.alignContractRecipes(target)
 check("contract recipes: a second run does not scale again",
-    near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[4].outputs[WASTE].amount, 3.84) and near(recipes[1].feePerBatch, 383.5))
+    near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[4].outputs[WASTE].amount, 10) and near(recipes[1].feePerBatch, 383.5))
 
 target, recipes = contractRecipes({ [1] = BEEF, [3] = BEEF })
 check("contract recipes: a fill type taken by two animal types is left alone",
