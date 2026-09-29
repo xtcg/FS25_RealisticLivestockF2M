@@ -202,7 +202,8 @@ function RLMeatValue.getMarketFactor(subType, gender)
         or RLMeatValue.getAnnualMeanPrice(fillType)
     if price <= 0 or referencePrice <= 0 then return 1 end
 
-    local fee = RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) + perKg * meatPerHead
+    local fee = (RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) + perKg * meatPerHead)
+        * RLLivestockPrices.getFeeScale()
     local reference = meatPerHead * referencePrice - fee
     if reference <= 0 then return 1 end
 
@@ -245,7 +246,8 @@ function RLMeatValue.getSlaughterValue(animal)
 
     local meatPerHead = AnimalMoveEvent.getMeatPerHead(typeName)
     local typical = meatPerHead ~= nil and meatKg / meatPerHead or 1
-    local fee = RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) * typical + perKg * meatKg
+    local fee = (RLBreedTraits.resolve(layers, subType, "slaughterFee", 0) * typical + perKg * meatKg)
+        * RLLivestockPrices.getFeeScale()
     local value = math.max(meatKg * price - fee, 0) / (1 + RLBreedTraits.resolve(layers, subType, "maxSlaughterMargin", 0))
     if RLMeatValue.isCull(animal, subType) then
         value = value * RLBreedTraits.resolve(layers, subType, "cullFloorFactor", 1)

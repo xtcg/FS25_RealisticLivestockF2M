@@ -357,11 +357,13 @@ function AnimalMoveEvent.alignContractRecipes(placeable)
 				output.amount = shipped[outputFillType] * scale
 			end
 
-			-- Fine cutting and packing, charged per kg of meat on top of the shipped fee for a batch.
-			local perKg = AnimalMoveEvent.getProcessingFeePerKg(typeName)
-			if perKg ~= nil and recipe.feeInputFillTypeIndex ~= nil then
+			-- Fine cutting and packing, charged per kg of meat on top of the shipped fee for a batch;
+			-- both x the livestock fee scale (xml/livestockPrices.xml).
+			local perKg = AnimalMoveEvent.getProcessingFeePerKg(typeName) or 0
+			local feeScale = RLLivestockPrices ~= nil and RLLivestockPrices.getFeeScale() or 1
+			if (perKg > 0 or feeScale ~= 1) and recipe.feeInputFillTypeIndex ~= nil then
 				if recipe.rlShippedFeePerBatch == nil then recipe.rlShippedFeePerBatch = recipe.feePerBatch or 0 end
-				recipe.feePerBatch = recipe.rlShippedFeePerBatch + perKg * meatPerHead * input.amount
+				recipe.feePerBatch = (recipe.rlShippedFeePerBatch + perKg * meatPerHead * input.amount) * feeScale
 			end
 			patched = patched + 1
 			Log:debug("AnimalMoveEvent.alignContractRecipes: recipe %s (%s) %.1f -> %.1f per animal",
