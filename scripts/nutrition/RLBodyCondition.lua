@@ -59,12 +59,16 @@ function RLBodyCondition.isEligible(animal)
 end
 
 
---- Current game hour as a number that only grows: monotonic day x 24 + hour.
+--- Hours the console's rlBcFastForward has run on top of game time (RLBodyConditionConsole).
+RLBodyCondition.debugTickOffset = 0
+
+--- Current game hour as a number that only grows: monotonic day x 24 + hour (+ any hours the
+--- console fast-forward simulated this session).
 --- @return number|nil
 function RLBodyCondition.getTickId()
     local environment = g_currentMission ~= nil and g_currentMission.environment or nil
     if environment == nil or environment.currentMonotonicDay == nil then return nil end
-    return environment.currentMonotonicDay * 24 + (environment.currentHour or 0)
+    return environment.currentMonotonicDay * 24 + (environment.currentHour or 0) + RLBodyCondition.debugTickOffset
 end
 
 

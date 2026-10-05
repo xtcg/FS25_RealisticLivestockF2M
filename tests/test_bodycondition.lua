@@ -533,3 +533,51 @@ do
     check("milk: an animal not covered gives its milk unchanged", RLBodyCondition.applyMilk(goat, 50, 50, 1) == 50
         and not RLBodyCondition.isMilkManaged(goat))
 end
+
+-- Console test commands ----------------------------------------------------------------------
+
+do
+    loadMod("scripts/console/RLBodyConditionConsole.lua")
+    local printed = {}
+    local realPrint = print
+    print = function(text) printed[#printed + 1] = text end
+
+    local pen = makePen()
+    local cows = { makeAnimal("COW_HOLSTEIN", { age = 60, isParent = true, weight = 730, uniqueId = "1" }),
+        makeAnimal("BULL_ANGUS", { age = 12, weight = 380, uniqueId = "2" }) }
+    for _, animal in ipairs(cows) do
+        animal.clusterSystem = { owner = pen }
+        animal.updateInput, animal.setDirty = function() end, function() end
+    end
+    function pen:getAnimalTypeIndex() return AnimalType.COW end
+    function pen:getClusters() return cows end
+    function pen:hourChanged()
+        feed(self, RATIONS.hay)
+        for _, animal in ipairs(cows) do RLBodyCondition.step(animal) end
+    end
+    g_currentMission.husbandrySystem = { placeables = { pen } }
+
+    local before = cows[1].weight
+    local message = RLBodyConditionConsole:set("bcs", "4", "1")
+    local state = cows[1].bodyCondition
+    check("console: rlBcSet sets one animal's BCS and moves its weight by the reserve",
+        message:find("1 animal") ~= nil and near(state.reserve, 0.75, 1e-9)
+        and near(cows[1].weight - before, state.capacityKg * (0.75 - config.initialReserve), 1e-6) and cows[2].bodyCondition == nil)
+    RLBodyConditionConsole:set("finish", "80", "all")
+    check("console: rlBcSet finish reads the finish curve backwards", near(cows[2].bodyCondition.reserve, 0.60, 1e-9))
+
+    local tick = RLBodyCondition.getTickId()
+    local result = RLBodyConditionConsole:fastForward("48")
+    check("console: rlBcFastForward runs one budget step per simulated hour",
+        RLBodyCondition.getTickId() == tick + 48 and cows[1].bodyCondition.lastTick == tick + 48 and result:find("48 hours") ~= nil
+        and cows[1].bodyCondition.reserve < 0.75)
+
+    printed = {}
+    RLBodyConditionConsole:report("animals")
+    local text = table.concat(printed, "\n")
+    check("console: rlBcReport shows the ledger and each animal",
+        text:find("feed ledger tick") ~= nil and text:find("BCS") ~= nil and text:find("F ") ~= nil and #printed >= 5)
+
+    print = realPrint
+    RLBodyCondition.debugTickOffset = 0
+end
