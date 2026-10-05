@@ -3,6 +3,7 @@ RealisticLivestock_PlaceableHusbandryPallets = {}
 
 function RealisticLivestock_PlaceableHusbandryPallets.registerOverwrittenFunctions(placeable)
 	SpecializationUtil.registerOverwrittenFunction(placeable, "updateInputAndOutput", PlaceableHusbandryPallets.updateInputAndOutput)
+	SpecializationUtil.registerOverwrittenFunction(placeable, "updateOutput", RealisticLivestock_PlaceableHusbandryPallets.updateOutput)
 end
 
 PlaceableHusbandryPallets.registerOverwrittenFunctions = Utils.appendedFunction(PlaceableHusbandryPallets.registerOverwrittenFunctions, RealisticLivestock_PlaceableHusbandryPallets.registerOverwrittenFunctions)
@@ -39,6 +40,9 @@ function PlaceableHusbandryPallets:updateInputAndOutput(superFunc, animals)
         spec.litersPerHour[fillType] = 0
     end
 
+    -- Cow and buffalo milk cans whose liters went through the body condition budget.
+    spec.rlManagedLitersPerHour = {}
+
     spec.activeFillTypes = {}
 
     for _, animal in pairs(animals) do
@@ -55,6 +59,9 @@ function PlaceableHusbandryPallets:updateInputAndOutput(superFunc, animals)
                     local output = animal:getOutput("pallets")
                     spec.litersPerHour[pallets.fillType] = spec.litersPerHour[pallets.fillType] + output
                     table.addElement(spec.activeFillTypes, pallets.fillType)
+                    if Animal.isCowMilkPalletFillType(pallets.fillType) and RLBodyCondition.isMilkManaged(animal) then
+                        spec.rlManagedLitersPerHour[pallets.fillType] = (spec.rlManagedLitersPerHour[pallets.fillType] or 0) + output
+                    end
                     if output > 0 then
                         Log:trace("Pallets: subType='%s' fillType=%s output=%.4f litersPerHour=%.4f",
                             tostring(subType.name),
@@ -78,4 +85,42 @@ function PlaceableHusbandryPallets:updateInputAndOutput(superFunc, animals)
 
     end
 
+end
+
+
+--- Milk cans from cattle under the body condition rules: like the tank milk
+--- (RealisticLivestock_PlaceableHusbandryMilk.depositSplit), the base spawner only gets the other
+--- animals' share of litersPerHour, and the budgeted share is queued here without the feed factors.
+function RealisticLivestock_PlaceableHusbandryPallets:updateOutput(superFunc, foodFactor, productionFactor, globalProductionFactor)
+    local spec = self.spec_husbandryPallets
+    local managed = spec ~= nil and spec.rlManagedLitersPerHour or nil
+
+    if not self.isServer or managed == nil or next(managed) == nil then
+        superFunc(self, foodFactor, productionFactor, globalProductionFactor)
+        return
+    end
+
+    local saved = {}
+    for fillTypeIndex, liters in pairs(managed) do
+        local total = spec.litersPerHour[fillTypeIndex]
+        if total ~= nil then
+            saved[fillTypeIndex] = total
+            spec.litersPerHour[fillTypeIndex] = math.max(total - liters, 0)
+        end
+    end
+
+    superFunc(self, foodFactor, productionFactor, globalProductionFactor)
+
+    for fillTypeIndex, total in pairs(saved) do spec.litersPerHour[fillTypeIndex] = total end
+
+    local timeAdjustment = g_currentMission.environment.timeAdjustment
+    local factor = RLBodyCondition.getNonFeedProductionFactor(foodFactor, productionFactor, true)
+    local queued = false
+    for fillTypeIndex, liters in pairs(managed) do
+        if saved[fillTypeIndex] ~= nil and liters > 0 and spec.pendingLiters[fillTypeIndex] ~= nil then
+            spec.pendingLiters[fillTypeIndex] = spec.pendingLiters[fillTypeIndex] + liters * factor * timeAdjustment
+            queued = true
+        end
+    end
+    if queued then self:updatePallets() end
 end

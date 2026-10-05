@@ -53,6 +53,9 @@ function PlaceableHusbandryMilk:updateInputAndOutput(superFunc, animals)
         spec.litersPerHour[fillType] = 0
     end
 
+    -- Liters of litersPerHour that went through the body condition budget (updateOutput below).
+    spec.rlManagedLitersPerHour = {}
+
     spec.activeFillTypes = {}
 
     -- Milk diagnostics: pre-compute the registered litersPerHour keys once so a
@@ -82,6 +85,10 @@ function PlaceableHusbandryMilk:updateInputAndOutput(superFunc, animals)
                 if spec.litersPerHour[milk.fillType] ~= nil then
                     spec.litersPerHour[milk.fillType] = spec.litersPerHour[milk.fillType] + milkPerHour
                     table.addElement(spec.activeFillTypes, milk.fillType)
+
+                    if not Animal.isSemenFillType(milk.fillType) and RLBodyCondition.isMilkManaged(animal) then
+                        spec.rlManagedLitersPerHour[milk.fillType] = (spec.rlManagedLitersPerHour[milk.fillType] or 0) + milkPerHour
+                    end
 
                     -- A sire whose semen this building stores has had this month's semen: no dewar
                     -- collection until next month (RLSemenCollection). Marked here, where output
@@ -202,6 +209,50 @@ function RealisticLivestock_PlaceableHusbandryMilk:updateOutput(superFunc, foodF
         end)
     end
 
+    if self.isServer and spec ~= nil and spec.hasMilkProduction then
+        RealisticLivestock_PlaceableHusbandryMilk.depositSplit(self, spec, superFunc, foodFactor, productionFactor,
+            globalProductionFactor)
+    else
+        superFunc(self, foodFactor, productionFactor, globalProductionFactor)
+    end
+
+end
+
+
+--- The base deposit scales a pen's milk by its food factor and the slow global production
+--- factor. Milk from cattle under the body condition rules is already what their budget paid for,
+--- feed and water included, so the base deposit only gets the other animals' share of
+--- litersPerHour; the budgeted share is deposited here, scaled only by the production factors
+--- that are not feed (straw, a full store: productionFactor / foodFactor).
+function RealisticLivestock_PlaceableHusbandryMilk.depositSplit(self, spec, superFunc, foodFactor, productionFactor, globalProductionFactor)
+    local managed = spec.rlManagedLitersPerHour
+    if managed == nil or next(managed) == nil then
+        superFunc(self, foodFactor, productionFactor, globalProductionFactor)
+        return
+    end
+
+    local saved = {}
+    for fillTypeIndex, liters in pairs(managed) do
+        local total = spec.litersPerHour[fillTypeIndex]
+        if total ~= nil then
+            saved[fillTypeIndex] = total
+            spec.litersPerHour[fillTypeIndex] = math.max(total - liters, 0)
+        end
+    end
+
     superFunc(self, foodFactor, productionFactor, globalProductionFactor)
 
+    for fillTypeIndex, total in pairs(saved) do spec.litersPerHour[fillTypeIndex] = total end
+
+    local timeAdjustment = g_currentMission.environment.timeAdjustment
+    for fillTypeIndex, liters in pairs(managed) do
+        if saved[fillTypeIndex] ~= nil and liters > 0 then
+            local hasRoom = self:getHusbandryFreeCapacity(fillTypeIndex) > 0
+            local factor = RLBodyCondition.getNonFeedProductionFactor(foodFactor, productionFactor, hasRoom)
+            local deposit = liters * factor * timeAdjustment
+            if deposit > 0 then
+                self:addHusbandryFillLevelFromTool(self:getOwnerFarmId(), deposit, fillTypeIndex, nil, nil, nil)
+            end
+        end
+    end
 end

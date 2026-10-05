@@ -110,6 +110,18 @@
         <text name="rl_ui_male" text="Erkek"/>
         <text name="rl_ui_female" text="Dişi"/>
         <text name="rl_ui_weight" text="Ağırlık"/>
+        <text name="rl_ui_bodyCondition" text="Body condition (BCS)"/>
+        <text name="rl_ui_finish" text="Finish"/>
+        <text name="rl_ui_conditionCalf" text="Calf - not scored yet"/>
+        <text name="rl_ui_finishLean" text="lean"/>
+        <text name="rl_ui_finishStore" text="store"/>
+        <text name="rl_ui_finishReady" text="finished"/>
+        <text name="rl_ui_finishFat" text="fat"/>
+        <text name="rl_ui_finishOverfat" text="overfat"/>
+        <text name="rl_ui_bcsThin" text="thin"/>
+        <text name="rl_ui_bcsGood" text="good"/>
+        <text name="rl_ui_bcsFleshy" text="fleshy"/>
+        <text name="rl_ui_bcsFat" text="fat"/>
         <text name="rl_ui_targetWeight" text="Hedef Ağırlık"/>
         <text name="rl_ui_value" text="Değer"/>
         <text name="rl_ui_valuePerKilo" text="Kg. Başına Değer"/>
@@ -889,6 +901,8 @@
         <text name="rl_menu_filters_field_hasAnyMark" text="Has any mark"/>
         <text name="rl_menu_filters_field_weight" text="Weight"/>
         <text name="rl_menu_filters_field_health" text="Health"/>
+        <text name="rl_menu_filters_field_finishScore" text="Finish (0-100)"/>
+        <text name="rl_menu_filters_field_bcs" text="Body condition (BCS 1-5)"/>
         <text name="rl_menu_filters_field_genetics_metabolism" text="Genetics: metabolism"/>
         <text name="rl_menu_filters_field_genetics_health" text="Genetics: health"/>
         <text name="rl_menu_filters_field_genetics_fertility" text="Genetics: fertility"/>

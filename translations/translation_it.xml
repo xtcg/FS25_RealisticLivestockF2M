@@ -108,6 +108,18 @@
         <text name="rl_ui_male" text="Maschio"/>
         <text name="rl_ui_female" text="Femmina"/>
         <text name="rl_ui_weight" text="Peso"/>
+        <text name="rl_ui_bodyCondition" text="Body condition (BCS)"/>
+        <text name="rl_ui_finish" text="Finish"/>
+        <text name="rl_ui_conditionCalf" text="Calf - not scored yet"/>
+        <text name="rl_ui_finishLean" text="lean"/>
+        <text name="rl_ui_finishStore" text="store"/>
+        <text name="rl_ui_finishReady" text="finished"/>
+        <text name="rl_ui_finishFat" text="fat"/>
+        <text name="rl_ui_finishOverfat" text="overfat"/>
+        <text name="rl_ui_bcsThin" text="thin"/>
+        <text name="rl_ui_bcsGood" text="good"/>
+        <text name="rl_ui_bcsFleshy" text="fleshy"/>
+        <text name="rl_ui_bcsFat" text="fat"/>
         <text name="rl_ui_targetWeight" text="Peso obiettivo"/>
         <text name="rl_ui_value" text="Valore"/>
         <text name="rl_ui_valuePerKilo" text="Valore per kg"/>
@@ -849,6 +861,8 @@
         <text name="rl_menu_filters_field_hasAnyMark" text="Ha un contrassegno"/>
         <text name="rl_menu_filters_field_weight" text="Peso"/>
         <text name="rl_menu_filters_field_health" text="Salute"/>
+        <text name="rl_menu_filters_field_finishScore" text="Finish (0-100)"/>
+        <text name="rl_menu_filters_field_bcs" text="Body condition (BCS 1-5)"/>
         <text name="rl_menu_filters_field_genetics_metabolism" text="Genetica: metabolismo"/>
         <text name="rl_menu_filters_field_genetics_health" text="Genetica: salute"/>
         <text name="rl_menu_filters_field_genetics_fertility" text="Genetica: fertilità"/>

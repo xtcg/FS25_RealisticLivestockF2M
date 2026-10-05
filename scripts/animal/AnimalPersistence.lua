@@ -221,6 +221,9 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
     -- nil when absent (backward compatible, treated as sellable); false when explicitly saved
     local canBeSold = xmlFile:getBool(key .. "#canBeSold")
 
+    -- nil when absent: an old savegame's animal starts its body condition on its first step
+    local bodyCondition = RLBodyCondition.loadFromXMLFile(xmlFile, key)
+
     local diseases = {}
 
     -- Counts ONE drop reason: a record written in the pre-switchover shape. The other two
@@ -400,7 +403,7 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
         semenCollectedAge = semenCollectedAge, semenProducedAge = semenProducedAge,
         diseases = diseases, recentlyBoughtByAI = recentlyBoughtByAI,
         marks = marks, insemination = insemination,
-        canBeSold = canBeSold
+        canBeSold = canBeSold, bodyCondition = bodyCondition
     })
 
     animal:setBirthday(birthday)
@@ -586,6 +589,8 @@ function AnimalPersistence.saveToXMLFile(animal, xmlFile, key)
     if animal.semenCollectedAge ~= nil then xmlFile:setInt(key .. "#semenCollectedAge", animal.semenCollectedAge) end
     if animal.semenProducedAge ~= nil then xmlFile:setInt(key .. "#semenProducedAge", animal.semenProducedAge) end
     if animal.canBeSold == false then xmlFile:setBool(key .. "#canBeSold", false) end
+    -- Saved whether or not the feature is on, so switching it off loses nothing.
+    RLBodyCondition.saveToXMLFile(animal.bodyCondition, xmlFile, key)
 
     -- INDEXED walk, never `pairs`, and this is the site that MATERIALISES the positional
     -- contract the loader and both stream halves are written against. The element index is

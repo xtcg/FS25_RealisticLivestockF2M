@@ -129,3 +129,10 @@ end
 -- Livestock prices at the calibration level (HARD, x1), so a test sees the calibrated prices;
 -- tests/test_livestockprices.lua loads the real module over it.
 RLLivestockPrices = { getMultiplier = function() return 1 end }
+
+-- Body condition (scripts/nutrition). Loaded for every test: Animal and the price, carcass and
+-- reproduction code read it. Without an AnimalType global no animal is covered, so its factors
+-- are 1 and tests of other code see the old behaviour; tests/test_bodycondition.lua covers it.
+loadMod("scripts/nutrition/RLNutritionMath.lua")
+loadMod("scripts/nutrition/RLBodyConditionConfig.lua")
+loadMod("scripts/nutrition/RLBodyCondition.lua")

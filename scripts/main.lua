@@ -42,6 +42,11 @@ source(modDirectory .. "scripts/core/RLMapCountry.lua")
 source(modDirectory .. "scripts/animal/RLBreedTraits.lua")
 -- Livestock prices follow the difficulty multiplier: live prices, semen, contract slaughter fees
 source(modDirectory .. "scripts/animal/RLLivestockPrices.lua")
+-- Body condition of cattle (xml/bodyCondition.xml): nutrition budget, reserve, finish score / BCS.
+-- Read by Animal, the husbandry specs, the carcass yield and the conception rolls.
+source(modDirectory .. "scripts/nutrition/RLNutritionMath.lua")
+source(modDirectory .. "scripts/nutrition/RLBodyConditionConfig.lua")
+source(modDirectory .. "scripts/nutrition/RLBodyCondition.lua")
 
 -- SECTION 3: Animal Husbandry - Cluster System
 source(modDirectory .. "scripts/animals/husbandry/cluster/RealisticLivestock_AnimalCluster.lua")

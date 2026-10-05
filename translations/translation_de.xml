@@ -103,6 +103,18 @@
         <text name="rl_ui_male" text="Männlich"/>
         <text name="rl_ui_female" text="Weiblich"/>
         <text name="rl_ui_weight" text="Gewicht"/>
+        <text name="rl_ui_bodyCondition" text="Körperkondition (BCS)"/>
+        <text name="rl_ui_finish" text="Ausmast"/>
+        <text name="rl_ui_conditionCalf" text="Kalb - noch nicht bewertet"/>
+        <text name="rl_ui_finishLean" text="mager"/>
+        <text name="rl_ui_finishStore" text="Fresser"/>
+        <text name="rl_ui_finishReady" text="schlachtreif"/>
+        <text name="rl_ui_finishFat" text="fett"/>
+        <text name="rl_ui_finishOverfat" text="überfett"/>
+        <text name="rl_ui_bcsThin" text="dünn"/>
+        <text name="rl_ui_bcsGood" text="gut"/>
+        <text name="rl_ui_bcsFleshy" text="fleischig"/>
+        <text name="rl_ui_bcsFat" text="fett"/>
         <text name="rl_ui_targetWeight" text="Zielgewicht"/>
         <text name="rl_ui_value" text="Wert"/>
         <text name="rl_ui_valuePerKilo" text="Wert pro kg"/>
@@ -869,6 +881,8 @@
         <text name="rl_menu_filters_field_hasAnyMark" text="Has any mark"/>
         <text name="rl_menu_filters_field_weight" text="Weight"/>
         <text name="rl_menu_filters_field_health" text="Health"/>
+        <text name="rl_menu_filters_field_finishScore" text="Ausmast (0-100)"/>
+        <text name="rl_menu_filters_field_bcs" text="Körperkondition (BCS 1-5)"/>
         <text name="rl_menu_filters_field_genetics_metabolism" text="Genetics: metabolism"/>
         <text name="rl_menu_filters_field_genetics_health" text="Genetics: health"/>
         <text name="rl_menu_filters_field_genetics_fertility" text="Genetics: fertility"/>

@@ -301,6 +301,9 @@ function Animal.new(config)
 
     self.diseases = cfg.diseases or {}
 
+    -- Body condition (RLBodyCondition): own copy, never a table shared with another animal.
+    self.bodyCondition = RLBodyCondition.copyState(cfg.bodyCondition)
+
     self:updateInput()
     self:updateOutput(g_currentMission.environment.weather.temperatureUpdater.currentMin or 20)
 
@@ -407,6 +410,7 @@ function Animal:clone()
         marks = self.marks,
         insemination = self.insemination,
         canBeSold = self.canBeSold,
+        bodyCondition = self.bodyCondition,
     })
 
     newAnimal:setBirthday(self.birthday)
@@ -610,6 +614,25 @@ function Animal:addInfos(infos, forceShowAll)
         "kg / " .. string.format("%.2f", self.targetWeight) .. "kg"
 
         table.insert(infos, self.infoWeight)
+
+        -- Body condition: finish score for a male, BCS for a female (RLBodyCondition).
+        local conditionText, conditionRatio = RLBodyCondition.getInfoText(self)
+        if conditionText ~= nil then
+            local titleKey = self.gender == "male" and "rl_ui_finish" or "rl_ui_bodyCondition"
+            if self.infoBodyCondition == nil or self.infoBodyCondition.titleKey ~= titleKey then
+                self.infoBodyCondition = {
+                    titleKey = titleKey,
+                    text = g_i18n:getText(titleKey),
+                    title = g_i18n:getText(titleKey)
+                }
+            end
+
+            self.infoBodyCondition.value = 1
+            self.infoBodyCondition.ratio = math.clamp(conditionRatio or 0, 0, 1)
+            self.infoBodyCondition.valueText = conditionText
+
+            table.insert(infos, self.infoBodyCondition)
+        end
     end
 
 
@@ -1213,7 +1236,14 @@ function Animal:updateWeight(foodFactor)
 
     self.weight = math.max(self.weight + increase - decrease, 0.001)
 
-    local minWeightForAge = minWeight * (math.min(self.age, subType.reproductionMinAgeMonth * 1.5) + 0.5) * 0.5
+    self:applyUnderweightPenalty()
+end
+
+--- An animal far below the weight for its age loses health. Run after every weight change, the
+--- old one above and the body condition step (AnimalHealth.updateHealth).
+function Animal:applyUnderweightPenalty()
+    local subType = self:getSubType()
+    local minWeightForAge = subType.minWeight * (math.min(self.age, subType.reproductionMinAgeMonth * 1.5) + 0.5) * 0.5
     if self.weight < minWeightForAge then self.health = math.clamp(
         self.health - (((minWeightForAge - self.weight) / minWeightForAge) * 0.2), 0, 100) end
 end
@@ -1591,9 +1621,14 @@ function Animal:getSellPrice()
         return AnimalHorse.getHorseSellPrice(self, sellPrice, meatFactor, weightFactor)
     end
 
-    local price = math.max(
-    sellPrice * 0.6 + (sellPrice * 0.4 * weightFactor * (0.75 * self:getHealthFactor())) +
-    sellPrice * (self.isLactating and 0.15 or 0) + sellPrice * (self.isPregnant and 0.25 or 0), sellPrice * 0.05)
+    -- The weight part follows the body condition (RLBodyCondition.getMarketFactor: 1 in the
+    -- moderate finish band), so an overfat or lean animal is not paid for weight that will not
+    -- cut as meat. The lactation and pregnancy parts are not touched.
+    local base = sellPrice * 0.6
+    local body = sellPrice * 0.4 * weightFactor * (0.75 * self:getHealthFactor()) * RLBodyCondition.getMarketFactor(self)
+    local lactation = sellPrice * (self.isLactating and 0.15 or 0)
+    local pregnancy = sellPrice * (self.isPregnant and 0.25 or 0)
+    local price = math.max(base + body + lactation + pregnancy, sellPrice * 0.05)
 
     -- A bull's price follows the beef market through the seasons (RLMeatValue.getMarketFactor).
     if RLMeatValue ~= nil then price = price * RLMeatValue.getMarketFactor(subType, self.gender) end
@@ -1671,13 +1706,15 @@ function Animal._computeDailyFood(age, isLactating, reproduction, numPregnancies
     return litersPerDay
 end
 
---- Daily food multiplier from the breed's feed trait and the animal's body condition (its weight
---- against the expected weight for its age), see RLBreedTraits.
+--- Daily food multiplier from the breed's feed trait, the animal's size (its weight against the
+--- expected weight for its age, see RLBreedTraits) and, for a high-yield lactating cow, the extra
+--- intake the body condition budget allows her (RLBodyCondition.getIntakeFactor).
 ---@return number
 function Animal:getFeedModifier()
     local subType = self:getSubType()
     return RLBreedTraits.get(subType, "feed")
         * RLBreedTraits.getBodyFeedFactor(subType, self.weight, self.targetWeight, self.age)
+        * RLBodyCondition.getIntakeFactor(self)
 end
 
 function Animal:updateInput()
@@ -1792,6 +1829,7 @@ function Animal:updateOutput(temp)
 
     for fillType, output in pairs(subType.output) do
         local litersPerDay = 0
+        local palletMilkCurve
 
         if output.curve ~= nil then
             litersPerDay = output.curve:get(self.age)
@@ -1819,6 +1857,7 @@ function Animal:updateOutput(temp)
                 -- Bergmann's pallet-spawner cattle buildings. Gated like the tank milk below, so a
                 -- dry or never-calved animal fills none.
                 local factor = self:getLactationFactor()
+                palletMilkCurve = litersPerDay
 
                 litersPerDay = litersPerDay * factor
 
@@ -1867,12 +1906,24 @@ function Animal:updateOutput(temp)
             milkCurve, milkFactor, milkProductivity, milkPreDisease = curveLitersPerDay, factor, productivity, litersPerDay
         end
 
+        local diseaseFactor = 1
         if multipliers ~= nil then
             -- Cow and buffalo milk cans are the same milk as a tank, so a disease scales them the
             -- same. Goat milk keeps the pallets modifier: sheep diseases set only that one.
             local diseaseOutput = fillType
             if fillType == "pallets" and Animal.isCowMilkPalletFillType(output.fillType) then diseaseOutput = "milk" end
-            litersPerDay = litersPerDay * multipliers[diseaseOutput]
+            diseaseFactor = multipliers[diseaseOutput]
+            litersPerDay = litersPerDay * diseaseFactor
+        end
+
+        -- Cattle milk under the body condition rules: litersPerDay so far is what a cow on full
+        -- feed gives; she gives the share of it her last nutrition budget paid for. The budget
+        -- also owns feed and water for this milk, so the deposit does not scale it by them again
+        -- (RealisticLivestock_PlaceableHusbandryMilk / _Pallets).
+        if isMilk then
+            litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, milkCurve, diseaseFactor)
+        elseif palletMilkCurve ~= nil and Animal.isCowMilkPalletFillType(output.fillType) then
+            litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, palletMilkCurve, diseaseFactor)
         end
 
         if isMilk then
@@ -1890,7 +1941,8 @@ function Animal:updateOutput(temp)
             -- reason= attributes it - "disease" (gate produced milk, a disease zeroed it)
             -- vs a specific gate term. Surfaces at the default dev level.
             if self.isLactating and litersPerDay <= 0 then
-                local reason = (milkPreDisease > 0 and "disease")
+                local reason = (milkPreDisease > 0 and self.rlMilkSupport ~= nil and self.rlMilkSupport <= 0 and "bodyCondition")
+                    or (milkPreDisease > 0 and "disease")
                     or (milkCurve <= 0 and "curve=0(age?)")
                     or (not self.isParent and "notParent")
                     or ((self.monthsSinceLastBirth or 12) >= 10 and "months>=10")
