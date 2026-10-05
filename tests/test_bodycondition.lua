@@ -44,14 +44,20 @@ local RATIONS = {
     none = {},
 }
 
-local function makePen()
-    local pen = { spec_husbandryFood = { fillLevels = {}, litersPerHour = 10 }, isServer = true }
+local function makePen(animals)
+    local pen = { spec_husbandryFood = { fillLevels = {}, litersPerHour = 10 }, isServer = true, animals = animals }
     function pen:getName() return "pen" end
     return pen
 end
 
---- One feeding: the pen eats `ration` (liters per liter requested) out of a 10 l/h request.
+--- One feeding: the pen requests what its animals' food inputs say (as the engine does) and eats
+--- `ration` (liters per liter requested) of it.
 local function feed(pen, ration)
+    if pen.animals ~= nil then
+        local total = 0
+        for _, animal in ipairs(pen.animals) do total = total + animal:getInput("food") end
+        pen.spec_husbandryFood.litersPerHour = total
+    end
     RLBodyCondition.beginFeeding(pen)
     local requested = pen.spec_husbandryFood.litersPerHour * env.timeAdjustment
     for name, share in pairs(ration) do RLBodyCondition.recordRemoved(pen, FILL[name], share * requested) end
@@ -60,39 +66,51 @@ end
 
 local function makeAnimal(name, fields)
     local index, sub = Economics.find(name)
+    sub.input = sub.input or { food = { get = function(_, age) return Economics.curve(sub.food, age) end } }
     local animal = setmetatable({ age = 0, weight = sub.minWeight, targetWeight = sub.targetWeight, gender = sub.gender,
         subTypeIndex = index, animalTypeIndex = sub.typeIndex, health = 100, isLactating = false, isParent = false,
-        isPregnant = false, reproduction = 0,
+        isPregnant = false, reproduction = 0, input = {},
         genetics = { metabolism = 1, quality = 1, productivity = 1, fertility = 1, health = 1 } }, { __index = Animal })
     animal.getSubType = function() return sub end
     animal.getDiseaseMultipliers = function() return nil, 0 end
+    animal.getInput = function(self, inputType) return self.input[inputType] or 0 end
     for k, v in pairs(fields or {}) do animal[k] = v end
     return animal, sub
 end
 
+--- The animal's food request per hour, as Animal:updateInput sets it.
+local function refreshRequest(animal)
+    local sub = animal:getSubType()
+    local numPregnancies = (animal.pregnancy ~= nil and animal.pregnancy.pregnancies ~= nil) and #animal.pregnancy.pregnancies or 0
+    animal.input.food = Animal._computeDailyFood(animal.age, animal.isLactating, animal.reproduction, numPregnancies,
+        animal.genetics.metabolism, Economics.curve(sub.food, animal.age), 1, animal:getFeedModifier()) / 24
+end
+
 local function lactationFactor(m) if m >= 10 then return 0 end if m <= 3 then return 0.8 + m / 6 end return 0.8 + (11 - m) / 15 end
 
---- One hour for one animal in its pen: its milk at full feed (as Animal:updateOutput records it),
---- the feeding, then the step. Returns the liters it gives this hour.
+--- One hour for one animal in its pen: its request and milk at full feed (as updateInput and
+--- updateOutput record them), the feeding, then the step. Returns the liters of milk its budget
+--- paid for this hour (output liters per hour).
 local function hour(animal, pen, ration, sub)
-    local given = 0
+    pen.animals = pen.animals or { animal }
+    refreshRequest(animal)
     if sub ~= nil and #sub.milk > 0 then
         local curve = Economics.curve(sub.milk, animal.age)
         local lactation = animal.isLactating and lactationFactor(animal.monthsSinceLastBirth or 0) or 0
-        local potential = curve * lactation * animal.genetics.productivity
-        given = RLBodyCondition.applyMilk(animal, potential, curve, 1)
+        RLBodyCondition.applyMilk(animal, curve * lactation * animal.genetics.productivity, curve, 1)
     end
     advanceHour()
     feed(pen, ration)
     local handled = RLBodyCondition.step(animal)
     if not handled then animal:updateWeight(1) end
-    return given / 24, handled
+    local paid = animal.rlMilkPaid
+    return (paid ~= nil and paid.tick == RLBodyCondition.getTickId()) and paid.litersPerHour or 0, handled
 end
 
 --- Raise a bull on the new rules from a weaned calf on the old line until its slaughter reference.
 local function raiseNew(name, rationName, maxMonths)
     local animal, sub = makeAnimal(name)
-    local pen = makePen()
+    local pen = makePen({ animal })
     animal.clusterSystem = { owner = pen }
     pen.spec_husbandryFood.rlForageShares = Economics.RATIONS[rationName] and Economics.RATIONS[rationName][2]
     local reference = Economics.reference(sub)
@@ -153,8 +171,8 @@ for i = 1, 400 do
         capacityKg = 60 + rand() * 160, targetWeight = 500 + rand() * 600, potentialGrowthKg = rand() * 40,
         ageLossKg = rand() < 0.1 and rand() * 5 or 0, potentialMilk = lactating and rand() * 500 or 0,
         anchorMilk = lactating and rand() * 450 or 0, isLactating = lactating,
-        pregnancyProgress = rand(), numFetuses = rand() < 0.3 and 1 or 0, supplyRatio = rand() * 1.3,
-        intakeCapacity = 0.9 + rand() * 0.7, intakeFactor = 1 + rand() * 0.2,
+        pregnancyProgress = rand(), numFetuses = rand() < 0.3 and 1 or 0, intakeLiters = rand() * 1.5 * 300,
+        referenceLiters = 300, intakeCapacity = 0.9 + rand() * 0.7, minWeight = rand() * 300,
         reserveTarget = rand() < 0.5 and rand() or nil, reserveCeiling = rand(),
     }
     local r = M.step(input, config)
@@ -174,7 +192,7 @@ check("step: weight moves by frame gain + reserve kg - losses, nothing else", we
 do
     local base = { dtMonths = 1 / 24, weight = 600, reserve = config.minReserve, capacityKg = 140, targetWeight = 700,
         potentialGrowthKg = 20, ageLossKg = 0, potentialMilk = 400, anchorMilk = 400, isLactating = true,
-        pregnancyProgress = 0, numFetuses = 0, supplyRatio = 0, intakeCapacity = 1, intakeFactor = 1, reserveCeiling = 0.75 }
+        pregnancyProgress = 0, numFetuses = 0, intakeLiters = 0, referenceLiters = 300, intakeCapacity = 1, reserveCeiling = 0.75 }
     local r = M.step(base, config)
     check("step: no food and no reserve: no gain, no milk, no reserve, maintenance unmet",
         r.frameGainKg == 0 and r.milkFraction == 0 and r.reserve <= base.reserve and r.maintenanceDeficitNU >= 0
@@ -186,7 +204,7 @@ do
     check("step: a starving cow with reserve loses at most lossRatePerMonth of it",
         base.reserve - a.reserve <= config.lossRatePerMonth * base.dtMonths + 1e-12 and a.reserve < base.reserve)
 
-    base.supplyRatio, base.isLactating, base.potentialMilk, base.anchorMilk, base.potentialGrowthKg = 3, false, 0, 0, 0
+    base.intakeLiters, base.isLactating, base.potentialMilk, base.anchorMilk, base.potentialGrowthKg = 900, false, 0, 0, 0
     base.reserve = 0.74
     r = M.step(base, config)
     check("step: a surplus fills the reserve only to the ceiling and loses the rest",
@@ -269,19 +287,47 @@ do
         near(supply.energyShare.silage, 0.40, 1e-9) and near(supply.energyShare.hay, 20 * 0.70 / 100, 1e-9)
         and near(supply.energyShare.grass, 30 * 0.55 / 100, 1e-9))
 
-    local holstein = makeAnimal("BULL_HOLSTEIN", { age = 12, weight = 400 })
-    local highland = makeAnimal("BULL_HIGHLAND_CATTLE", { age = 12, weight = 300 })
-    check("ledger: each breed reads the ration through its own forage traits",
-        near(RLBodyCondition.getSupplyRatio(holstein, supply), 0.40 * 1.10 + 0.14 * 0.95 + 0.165 * 0.90, 1e-9)
-        and near(RLBodyCondition.getSupplyRatio(highland, supply), 0.40 * 1.00 + 0.14 * 1.15 + 0.165 * 1.25, 1e-9))
+    local holstein = makeAnimal("BULL_HOLSTEIN", { age = 12, weight = 400, input = { food = 10 } })
+    local highland = makeAnimal("BULL_HIGHLAND_CATTLE", { age = 12, weight = 300, input = { food = 10 } })
+    local hIntake, hAllocated, hShare = RLBodyCondition.getAllocatedIntake(holstein, supply)
+    local gIntake = RLBodyCondition.getAllocatedIntake(highland, supply)
+    check("ledger: an animal gets its request's share of each liter eaten, read through its breed's traits",
+        near(hShare, 0.1, 1e-12) and near(hAllocated, 9, 1e-9)
+        and near(hIntake, 0.1 * (40 * 1.10 + 20 * 0.70 * 0.95 + 30 * 0.55 * 0.90), 1e-9)
+        and near(gIntake, 0.1 * (40 * 1.00 + 20 * 0.70 * 1.15 + 30 * 0.55 * 1.25), 1e-9))
+end
+
+-- Supply follows the liters the animal actually ate ------------------------------------------
+
+do
+    local function oneHour(request, penRequest, eatenShare)
+        local bull = makeAnimal("BULL_ANGUS", { age = 12, weight = 380 })
+        local pen = makePen()
+        bull.clusterSystem = { owner = pen }
+        bull.input.food = request
+        pen.spec_husbandryFood.litersPerHour = penRequest
+        advanceHour()
+        feed(pen, { FORAGE = eatenShare })
+        RLBodyCondition.step(bull)
+        return bull.rlNutrition.intakeRatio, bull.weight
+    end
+    local reference = RLBodyCondition.getReferenceIntake(makeAnimal("BULL_ANGUS", { age = 12, weight = 380 })) / 24
+    local base = oneHour(reference, reference * 4, 1)
+    local doubled = oneHour(reference * 2, reference * 8, 1)
+    local crowded = oneHour(reference, reference * 40, 1)
+    local half = oneHour(reference, reference * 4, 0.5)
+    check(string.format("supply: twice the liters eaten is twice the energy (%.2f -> %.2f), whatever the pen's size (%.2f); half the trough, half (%.2f)",
+        base, doubled, crowded, half), near(doubled, 2 * base, 1e-9) and near(crowded, base, 1e-9) and near(half, base / 2, 1e-9)
+        and near(base, RLBreedTraits.get(select(2, Economics.find("BULL_ANGUS")), "silage"), 1e-6))
 end
 
 -- Step through the adapter -------------------------------------------------------------------
 
 do
-    local pen = makePen()
     local bull = makeAnimal("BULL_ANGUS", { age = 12, weight = 380 })
+    local pen = makePen({ bull })
     bull.clusterSystem = { owner = pen }
+    refreshRequest(bull)
     advanceHour()
     feed(pen, RATIONS.TMR)
     local handled = RLBodyCondition.step(bull)
@@ -291,14 +337,23 @@ do
         handled and handledAgain and bull.bodyCondition ~= nil and bull.weight == afterFirst
         and bull.bodyCondition.lastTick == RLBodyCondition.getTickId())
 
+    -- Moved to a pen with no ledger in the same hour: already done, no old-rule gain on top.
+    local other = makePen()
+    bull.clusterSystem = { owner = other }
+    check("adapter: an animal moved within the hour is not stepped again, by either rule",
+        RLBodyCondition.step(bull) == true and bull.weight == afterFirst and RLBodyCondition.coversThisHour(bull))
+    bull.clusterSystem = { owner = pen }
+
     advanceHour()
     local before = bull.weight
-    check("adapter: no feed ledger for this hour: the caller runs the old rules",
-        RLBodyCondition.step(bull) == false and bull.weight == before)
+    check("adapter: no feed ledger for this hour: the old rules for the whole hour",
+        RLBodyCondition.step(bull) == false and bull.weight == before and not RLBodyCondition.coversThisHour(bull))
 
-    check("adapter: a young bull starts on its finishing curve",
-        near(RLBodyCondition.createState(makeAnimal("BULL_ANGUS", { age = 8, weight = 300 }), "t").reserve,
-            M.interpolate(config.curves.finishingTarget, 300 / Economics.reference(select(2, Economics.find("BULL_ANGUS")))), 1e-9))
+    local bigBull = makeAnimal("BULL_ANGUS", { age = 12, weight = 300 })
+    local state = RLBodyCondition.createState(bigBull, "t")
+    check("adapter: every animal starts at the neutral reserve (yield and price factor 1)",
+        state.reserve == config.initialReserve and RLBodyCondition.getYieldFactor(bigBull) == 1
+        and RLBodyCondition.getMarketFactor(bigBull) == 1)
 end
 
 -- Calibration: bulls on full feed keep the old growth line -------------------------------------
@@ -499,39 +554,102 @@ do
     PlaceableHusbandryMilk = { registerOverwrittenFunctions = function() end, onHusbandryAnimalsUpdate = function() end }
     loadMod("scripts/animals/husbandry/placeables/RealisticLivestock_PlaceableHusbandryMilk.lua")
 
-    env.timeAdjustment = 0.5
-    local deposited = {}
-    local seen
-    local pen = { spec_husbandryMilk = { litersPerHour = { [FILL.MILK] = 5 }, rlManagedLitersPerHour = { [FILL.MILK] = 2 } } }
+    local cow, sub = makeAnimal("COW_HOLSTEIN", { age = 48, isParent = true, isLactating = true, weight = 730,
+        monthsSinceLastBirth = 2 })
+    local pen = makePen({ cow })
+    cow.clusterSystem = { owner = pen }
+    pen.spec_husbandry = { productionFactor = 0.33 }
+    pen.spec_husbandryMilk = { hasMilkProduction = true, litersPerHour = {} }
+    local strawFactor = 0.9                                       -- no straw: the base spec's x 0.9
+    function pen:updateProduction(foodFactor) self.spec_husbandry.productionFactor = foodFactor; return foodFactor * strawFactor end
     function pen:getHusbandryFreeCapacity() return 1000 end
     function pen:getOwnerFarmId() return 1 end
-    function pen:addHusbandryFillLevelFromTool(_, liters, fillType) deposited[fillType] = (deposited[fillType] or 0) + liters end
-    local base = function(self, foodFactor, productionFactor, globalProductionFactor)
-        seen = self.spec_husbandryMilk.litersPerHour[FILL.MILK]
-        local liters = productionFactor * globalProductionFactor * seen * env.timeAdjustment
-        self:addHusbandryFillLevelFromTool(1, liters, FILL.MILK)
+    local deposited, baseSaw
+    function pen:addHusbandryFillLevelFromTool(_, liters) deposited = deposited + liters end
+
+    --- One hour in the engine's order: feeding (and water), then updateOutput, where the milk store
+    --- deposits BEFORE the animals spec runs updateHealth (the budget step) inside the chain.
+    local function milkHour(ration, water, withLedger, foodFactor)
+        refreshRequest(cow)
+        local curve = Economics.curve(sub.milk, cow.age)
+        local potential = curve * lactationFactor(cow.monthsSinceLastBirth)
+        RLBodyCondition.applyMilk(cow, potential, curve, 1)
+        -- litersPerHour as summed at the end of the last hour: the cow's potential plus another animal's 3 l/h
+        pen.spec_husbandryMilk.litersPerHour[FILL.MILK] = potential / 24 + 3
+        pen.spec_husbandryMilk.rlMilkContributions = { { animal = cow, fillType = FILL.MILK, liters = potential / 24 } }
+        advanceHour()
+        if withLedger then
+            feed(pen, ration)
+            RLBodyCondition.recordWater(pen, water)
+        end
+        deposited, baseSaw = 0, nil
+        local productionFactor = foodFactor * strawFactor
+        RLBodyCondition.depositMilk(pen, pen.spec_husbandryMilk.litersPerHour, pen.spec_husbandryMilk.rlMilkContributions,
+            function()
+                baseSaw = pen.spec_husbandryMilk.litersPerHour[FILL.MILK]
+                deposited = deposited + productionFactor * 1 * baseSaw * env.timeAdjustment
+                if not RLBodyCondition.step(cow) then cow:updateWeight(foodFactor) end
+            end,
+            function(_, liters) deposited = deposited + liters end)
+        return deposited, baseSaw, potential / 24
     end
-    RealisticLivestock_PlaceableHusbandryMilk.depositSplit(pen, pen.spec_husbandryMilk, base, 0.5, 0.45, 0.6)
-    check("milk: the base deposit sees only the other animals' liters, the budgeted liters go in once",
-        seen == 3 and pen.spec_husbandryMilk.litersPerHour[FILL.MILK] == 5
-        and near(deposited[FILL.MILK], 0.45 * 0.6 * 3 * 0.5 + 2 * (0.45 / 0.5) * 0.5, 1e-9))
-    env.timeAdjustment = 1
 
-    check("milk: non-feed production factor is productionFactor / foodFactor, 1 with no food and room",
-        near(RLBodyCondition.getNonFeedProductionFactor(0.8, 0.72, true), 0.9, 1e-9)
-        and RLBodyCondition.getNonFeedProductionFactor(0, 0, true) == 1
-        and RLBodyCondition.getNonFeedProductionFactor(0, 0, false) == 0
-        and RLBodyCondition.getNonFeedProductionFactor(0.8, 0, false) == 0)
+    local normal, normalBase, potential = milkHour(RATIONS.TMR, 1, true, 1)
+    local paid = cow.rlMilkPaid.litersPerHour
+    check(string.format("milk: the base deposit gets only the other animals' liters, the cow's budget pays this hour (%.3f of %.3f l/h)",
+        paid, potential), near(normalBase, 3, 1e-9) and paid > 0.9 * potential
+        and near(normal, 3 * strawFactor + paid * strawFactor, 1e-9) and pen.spec_husbandryMilk.litersPerHour[FILL.MILK] == potential + 3)
 
-    local cow = makeAnimal("COW_HOLSTEIN", { age = 48, isParent = true, isLactating = true, weight = 730 })
-    cow.rlMilkSupport = 0.6
-    local given = RLBodyCondition.applyMilk(cow, 400, 378, 1)
-    check("milk: a covered cow gives her budget's share and records her full-feed milk",
-        near(given, 240, 1e-9) and cow.rlMilk.potential == 400 and near(cow.rlMilk.anchor, 378 * config.lactationMeanFactor, 1e-9)
-        and RLBodyCondition.isMilkManaged(cow))
+    local dry = milkHour(RATIONS.TMR, 0, true, 0)
+    check("milk: in the hour the water stops, the cow gives no milk that same hour", near(dry, 0, 1e-12))
+    local back = milkHour(RATIONS.TMR, 1, true, 1)
+    check("milk: in the hour the water is back, she gives her milk that same hour",
+        near(back, 3 * strawFactor + cow.rlMilkPaid.litersPerHour * strawFactor, 1e-9) and cow.rlMilkPaid.litersPerHour > 0)
+
+    local starving = milkHour(RATIONS.none, 1, true, 0)
+    check("milk: with no food the straw factor still applies to milk from reserve (no division by the food factor)",
+        near(starving, cow.rlMilkPaid.litersPerHour * strawFactor, 1e-12) and pen.spec_husbandry.productionFactor == 0.33)
+
+    local legacy, legacyBase = milkHour(RATIONS.TMR, 1, false, 0.8)
+    check("milk: an hour without a ledger is wholly the old rules: her full potential, scaled by the food factor",
+        near(legacyBase, potential + 3, 1e-9) and near(legacy, 0.8 * strawFactor * (potential + 3), 1e-9))
+
+    -- A second store in the same hour (e.g. moved between pens) does not deposit her milk again.
+    local before = deposited
+    RLBodyCondition.depositMilk(pen, pen.spec_husbandryMilk.litersPerHour, pen.spec_husbandryMilk.rlMilkContributions,
+        function() end, function(_, liters) deposited = deposited + liters end)
+    milkHour(RATIONS.TMR, 1, true, 1)
+    local first = deposited
+    RLBodyCondition.depositMilk(pen, pen.spec_husbandryMilk.litersPerHour, pen.spec_husbandryMilk.rlMilkContributions,
+        function() end, function(_, liters) deposited = deposited + liters end)
+    check("milk: an hour's paid milk is deposited once", deposited == first and before ~= nil)
+
     local goat = makeAnimal("BOAR_LANDRACE", { age = 20 })
-    check("milk: an animal not covered gives its milk unchanged", RLBodyCondition.applyMilk(goat, 50, 50, 1) == 50
-        and not RLBodyCondition.isMilkManaged(goat))
+    check("milk: output stays the full-feed potential; an animal not covered records nothing",
+        RLBodyCondition.applyMilk(cow, 400, 378, 1) == 400 and near(cow.rlMilk.anchor, 378 * config.lactationMeanFactor, 1e-9)
+        and RLBodyCondition.applyMilk(goat, 50, 50, 1) == 50 and goat.rlMilk == nil)
+end
+
+-- Weight floor and config checks -------------------------------------------------------------
+
+do
+    local input = { dtMonths = 1, weight = 60, minWeight = 58, reserve = 0.5, capacityKg = 140, targetWeight = 700,
+        potentialGrowthKg = 0, ageLossKg = 5, potentialMilk = 0, anchorMilk = 0, isLactating = false,
+        pregnancyProgress = 0, numFetuses = 0, intakeLiters = 0, referenceLiters = 100, intakeCapacity = 1,
+        reserveCeiling = 0.5 }
+    local r = M.step(input, config)
+    local expected = input.weight + r.frameGainKg + r.reserveKg - r.ageLossKg - r.catabolismKg - r.excessDecayKg
+    check(string.format("floor: a starving animal near its minimum weight stops there (%.2f kg), and the weight still adds up",
+        r.weight), r.weight >= input.minWeight - 1e-9 and near(r.weight, expected, 1e-9)
+        and near(r.supplyNU + r.mobilizedNU + r.catabolismNU, r.paidNU + r.depositNU + r.lostNU, 1e-9))
+
+    local bad = table.clone(config); bad.layers = config.layers
+    bad.curves = table.clone(config.curves); bad.curves.yield = { { 0, 0 / 0 }, { 50, 1 } }
+    local ok1 = RLBodyConditionConfig.validate(bad)
+    bad.curves = config.curves
+    bad.layers = { root = {}, types = {}, breeds = { COW = { HOLSTEIN = { intakeLactating = 0 / 0 } } }, subTypes = {} }
+    local ok2 = RLBodyConditionConfig.validate(bad)
+    check("config: a NaN in a curve or a breed value is rejected", ok1 == false and ok2 == false)
 end
 
 -- Console test commands ----------------------------------------------------------------------
@@ -544,11 +662,13 @@ do
 
     local pen = makePen()
     local cows = { makeAnimal("COW_HOLSTEIN", { age = 60, isParent = true, weight = 730, uniqueId = "1" }),
-        makeAnimal("BULL_ANGUS", { age = 12, weight = 380, uniqueId = "2" }) }
+        (makeAnimal("BULL_ANGUS", { age = 12, weight = 380, uniqueId = "2" })) }
     for _, animal in ipairs(cows) do
         animal.clusterSystem = { owner = pen }
         animal.updateInput, animal.setDirty = function() end, function() end
+        refreshRequest(animal)
     end
+    pen.animals = cows
     function pen:getAnimalTypeIndex() return AnimalType.COW end
     function pen:getClusters() return cows end
     function pen:hourChanged()
@@ -580,4 +700,92 @@ do
 
     print = realPrint
     RLBodyCondition.debugTickOffset = 0
+end
+
+-- Finish verdict -----------------------------------------------------------------------------
+
+do
+    local _, sub = Economics.find("BULL_ANGUS")
+    local reference = Economics.reference(sub)
+    local function verdict(weight, reserve, fields)
+        local bull = makeAnimal("BULL_ANGUS", { age = 18, weight = weight })
+        for k, v in pairs(fields or {}) do bull[k] = v end
+        bull.bodyCondition = RLBodyCondition.createState(bull, "t")
+        bull.bodyCondition.reserve = reserve
+        return (RLBodyCondition.getFinishVerdict(bull))
+    end
+    check("verdict: a 300 kg bull at finish 72 is still growing, not ready",
+        verdict(300, 0.52) == "rl_ui_finishVerdictGrowing")
+    check("verdict: at its reference and finish 72 it is ready; lean it needs finishing; overfat past its best",
+        verdict(reference, 0.52) == "rl_ui_finishVerdictReady" and verdict(reference, 0.30) == "rl_ui_finishVerdictNeedsFinish"
+        and verdict(reference * 1.2, 0.80) == "rl_ui_finishVerdictOverfat")
+    check("verdict: an animal that may not be sold is never ready",
+        verdict(reference, 0.52, { getCanBeSold = function() return false end }) == "rl_ui_finishVerdictBlocked")
+end
+
+-- Network events -----------------------------------------------------------------------------
+
+do
+    local stream, readAt = {}, 0
+    local function w(_, v) stream[#stream + 1] = v end
+    local function r() readAt = readAt + 1; return stream[readAt] end
+    streamWriteBool, streamWriteFloat32, streamWriteInt32, streamWriteUInt8, streamWriteUInt16, streamWriteString = w, w, w, w, w, w
+    streamReadBool, streamReadFloat32, streamReadInt32, streamReadUInt8, streamReadUInt16, streamReadString = r, r, r, r, r, r
+    NetworkUtil = { writeNodeObject = function(_, object) stream[#stream + 1] = object end, readNodeObject = function() return r() end }
+    RLAnimalUtil = {
+        writeStreamIdentifiers = function(animal) stream[#stream + 1] = animal.uniqueId end,
+        readStreamIdentifiers = function() return { uniqueId = r(), farmId = 1, country = 1 } end,
+        find = function(animals, _, uniqueId) for _, a in ipairs(animals) do if a.uniqueId == uniqueId then return a end end end,
+    }
+    loadMod("scripts/events/RLBodyConditionStateEvent.lua")
+    loadMod("scripts/events/RLBodyConditionConfigEvent.lua")
+
+    -- Server side: one stepped cow.
+    local cow = makeAnimal("COW_HOLSTEIN", { age = 48, isParent = true, weight = 730, uniqueId = "7" })
+    local serverPen = makePen({ cow })
+    cow.clusterSystem = { owner = serverPen }
+    function serverPen:getClusters() return { cow } end
+    hour(cow, serverPen, RATIONS.TMR)
+    local tick = RLBodyCondition.getTickId()
+
+    RLBodyConditionStateEvent.new(serverPen, tick):writeStream(1)
+
+    -- Client side: same animal, stale state.
+    local clientCow = makeAnimal("COW_HOLSTEIN", { age = 48, isParent = true, weight = 700, uniqueId = "7" })
+    local clientPen = makePen()
+    function clientPen:getClusterSystem() return { animals = { clientCow } } end
+    stream[1] = clientPen                                       -- the node object resolves to the client's pen
+    local serverConn = makeConnection(1, true)
+    local savedServer = g_server
+    g_server = nil
+    RLBodyConditionStateEvent.emptyNew():readStream(1, serverConn)
+    check("network: the hourly state event gives the client the server's weight, reserve and budget",
+        clientCow.weight == cow.weight and clientCow.bodyCondition.reserve == cow.bodyCondition.reserve
+        and near(clientCow.rlNutrition.coverage, cow.rlNutrition.coverage, 1e-12) and clientPen.spec_husbandryFood.rlPenSummary ~= nil)
+
+    -- A client sending it to the server changes nothing.
+    stream, readAt = {}, 0
+    RLBodyConditionStateEvent.new(serverPen, tick):writeStream(1)
+    stream[1] = clientPen
+    clientCow.weight = 1
+    g_server = {}
+    RLBodyConditionStateEvent.emptyNew():readStream(1, makeConnection(2, false))
+    check("network: a state event from a client is ignored", clientCow.weight == 1)
+
+    -- Config: the joining client takes the server's values.
+    stream, readAt = {}, 0
+    local serverConfig = table.clone(config)
+    serverConfig.curves, serverConfig.feedEnergy, serverConfig.layers = config.curves, config.feedEnergy, config.layers
+    serverConfig.maintenancePerKgMetabolic = 5.5
+    RLBodyConditionConfigEvent.new(serverConfig):writeStream(1)
+    local own = RLBodyConditionConfig.config
+    g_server = nil
+    RLBodyConditionConfigEvent.emptyNew():readStream(1, serverConn)
+    local received = RLBodyConditionConfig.config
+    check("network: a joining client uses the server's body condition config",
+        received.enabled and received.maintenancePerKgMetabolic == 5.5 and near(received.feedEnergy.SILAGE, 0.82, 1e-9)
+        and received.layers.breeds.COW.HOLSTEIN.intakeLactating == 0.93 and #received.curves.yield == #config.curves.yield
+        and readAt == #stream)
+    RLBodyConditionConfig.config = own
+    g_server = savedServer
 end

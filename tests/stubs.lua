@@ -2,6 +2,7 @@
 -- Each test file gets a fresh Lua state with these loaded, then overrides what it needs.
 
 math.clamp = function(v, lo, hi) return math.max(lo, math.min(hi, v)) end
+math.pow = math.pow or function(a, b) return a ^ b end
 
 table.clone = function(t, depth)
     if type(t) ~= "table" then return t end

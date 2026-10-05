@@ -614,26 +614,11 @@ function Animal:addInfos(infos, forceShowAll)
         "kg / " .. string.format("%.2f", self.targetWeight) .. "kg"
 
         table.insert(infos, self.infoWeight)
-
-        -- Body condition: finish score for a male, BCS for a female (RLBodyCondition).
-        local conditionText, conditionRatio = RLBodyCondition.getInfoText(self)
-        if conditionText ~= nil then
-            local titleKey = self.gender == "male" and "rl_ui_finish" or "rl_ui_bodyCondition"
-            if self.infoBodyCondition == nil or self.infoBodyCondition.titleKey ~= titleKey then
-                self.infoBodyCondition = {
-                    titleKey = titleKey,
-                    text = g_i18n:getText(titleKey),
-                    title = g_i18n:getText(titleKey)
-                }
-            end
-
-            self.infoBodyCondition.value = 1
-            self.infoBodyCondition.ratio = math.clamp(conditionRatio or 0, 0, 1)
-            self.infoBodyCondition.valueText = conditionText
-
-            table.insert(infos, self.infoBodyCondition)
-        end
     end
+
+    -- Body condition is scored by eye, so it shows without a monitor: finish score and verdict for
+    -- a male, BCS, milk and conception for a female, and how well the ration covers its need.
+    RLBodyCondition.addInfos(self, infos)
 
 
     if self.gender ~= nil and self.gender == "female" then
@@ -1916,10 +1901,9 @@ function Animal:updateOutput(temp)
             litersPerDay = litersPerDay * diseaseFactor
         end
 
-        -- Cattle milk under the body condition rules: litersPerDay so far is what a cow on full
-        -- feed gives; she gives the share of it her last nutrition budget paid for. The budget
-        -- also owns feed and water for this milk, so the deposit does not scale it by them again
-        -- (RealisticLivestock_PlaceableHusbandryMilk / _Pallets).
+        -- Cattle milk under the body condition rules: litersPerDay is what a cow on full feed gives.
+        -- It is recorded for her budget; in an hour the budget covers, the store deposits what
+        -- the budget paid for instead (RLBodyCondition.depositMilk), otherwise this as before.
         if isMilk then
             litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, milkCurve, diseaseFactor)
         elseif palletMilkCurve ~= nil and Animal.isCowMilkPalletFillType(output.fillType) then
@@ -1941,8 +1925,7 @@ function Animal:updateOutput(temp)
             -- reason= attributes it - "disease" (gate produced milk, a disease zeroed it)
             -- vs a specific gate term. Surfaces at the default dev level.
             if self.isLactating and litersPerDay <= 0 then
-                local reason = (milkPreDisease > 0 and self.rlMilkSupport ~= nil and self.rlMilkSupport <= 0 and "bodyCondition")
-                    or (milkPreDisease > 0 and "disease")
+                local reason = (milkPreDisease > 0 and "disease")
                     or (milkCurve <= 0 and "curve=0(age?)")
                     or (not self.isParent and "notParent")
                     or ((self.monthsSinceLastBirth or 12) >= 10 and "months>=10")

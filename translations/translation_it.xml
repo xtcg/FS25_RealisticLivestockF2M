@@ -113,13 +113,27 @@
         <text name="rl_ui_conditionCalf" text="Calf - not scored yet"/>
         <text name="rl_ui_finishLean" text="lean"/>
         <text name="rl_ui_finishStore" text="store"/>
-        <text name="rl_ui_finishReady" text="finished"/>
+        <text name="rl_ui_finishReady" text="moderate"/>
         <text name="rl_ui_finishFat" text="fat"/>
         <text name="rl_ui_finishOverfat" text="overfat"/>
         <text name="rl_ui_bcsThin" text="thin"/>
         <text name="rl_ui_bcsGood" text="good"/>
         <text name="rl_ui_bcsFleshy" text="fleshy"/>
         <text name="rl_ui_bcsFat" text="fat"/>
+        <text name="rl_ui_finishVerdict" text="Slaughter"/>
+        <text name="rl_ui_finishVerdictReady" text="ready"/>
+        <text name="rl_ui_finishVerdictNeedsFinish" text="weight reached, needs finishing"/>
+        <text name="rl_ui_finishVerdictGrowing" text="condition fine, still growing"/>
+        <text name="rl_ui_finishVerdictStore" text="growing"/>
+        <text name="rl_ui_finishVerdictOverfat" text="past its best, overfat"/>
+        <text name="rl_ui_finishVerdictTooYoung" text="too young"/>
+        <text name="rl_ui_finishVerdictBlocked" text="cannot be sold"/>
+        <text name="rl_ui_rationCoverage" text="Ration covers need"/>
+        <text name="rl_ui_milkOfPotential" text="Milk of full yield"/>
+        <text name="rl_ui_conceptionCondition" text="Conception (condition)"/>
+        <text name="rl_ui_ration" text="Ration"/>
+        <text name="rl_ui_penConditionFormat" text="BCS %s, %d thin, %d fat, %d of %d bulls ready" tag="format"/>
+        <text name="rl_ui_penRationFormat" text="eaten %.0f%%, energy %.0f%%, water %.0f%%" tag="format"/>
         <text name="rl_ui_targetWeight" text="Peso obiettivo"/>
         <text name="rl_ui_value" text="Valore"/>
         <text name="rl_ui_valuePerKilo" text="Valore per kg"/>

@@ -5,6 +5,7 @@ function RealisticLivestock_PlaceableHusbandryFood.registerOverwrittenFunctions(
 	SpecializationUtil.registerOverwrittenFunction(placeable, "updateInputAndOutput", PlaceableHusbandryFood.updateInputAndOutput)
 	SpecializationUtil.registerOverwrittenFunction(placeable, "updateFeeding", RealisticLivestock_PlaceableHusbandryFood.updateFeeding)
 	SpecializationUtil.registerOverwrittenFunction(placeable, "removeFood", RealisticLivestock_PlaceableHusbandryFood.removeFood)
+	SpecializationUtil.registerOverwrittenFunction(placeable, "updateInfo", RealisticLivestock_PlaceableHusbandryFood.updateInfo)
 end
 
 PlaceableHusbandryFood.registerOverwrittenFunctions = Utils.appendedFunction(PlaceableHusbandryFood.registerOverwrittenFunctions, RealisticLivestock_PlaceableHusbandryFood.registerOverwrittenFunctions)
@@ -35,6 +36,27 @@ function RealisticLivestock_PlaceableHusbandryFood:updateFeeding(superFunc)
     spec.rlForageShares = RLBreedTraits.getForageShares(before, spec.fillLevels, self.spec_husbandryMeadow ~= nil)
 
     return foodFactor
+end
+
+
+--- Cattle pens: body condition and last hour's ration in the pen's info box (RLBodyCondition.getPenInfo).
+function RealisticLivestock_PlaceableHusbandryFood:updateInfo(superFunc, infoTable)
+    superFunc(self, infoTable)
+
+    local spec = self.spec_husbandryFood
+    if spec == nil then return end
+
+    local conditionText, rationText = RLBodyCondition.getPenInfo(self)
+    if conditionText ~= nil then
+        spec.rlInfoCondition = spec.rlInfoCondition or { title = g_i18n:getText("rl_ui_bodyCondition"), text = "" }
+        spec.rlInfoCondition.text = conditionText
+        table.insert(infoTable, spec.rlInfoCondition)
+    end
+    if rationText ~= nil then
+        spec.rlInfoRation = spec.rlInfoRation or { title = g_i18n:getText("rl_ui_ration"), text = "" }
+        spec.rlInfoRation.text = rationText
+        table.insert(infoTable, spec.rlInfoRation)
+    end
 end
 
 

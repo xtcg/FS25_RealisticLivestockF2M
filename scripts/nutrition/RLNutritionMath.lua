@@ -68,11 +68,14 @@ end
 
 --- One budget step for one animal.
 ---
---- Supply. The pen's ration supports `supplyRatio` of the animal's full-feed demand (1 on a full
---- TMR ration of average digestibility). Demand at full feed is the anchor: maintenance +
---- pregnancy + the full growth line + the lactation-average milk at average productivity. The
---- budget is supplyRatio x intakeCapacity x intakeFactor x anchor, so an average animal on full
---- feed meets its demand and the old growth line holds.
+--- Supply. What the animal ate this step, in liters of full TMR ration: the liters allocated to it
+--- from the pen's actual consumption, each fill type times its energy and the breed's digestion of
+--- it. Its reference intake is what an average animal of its kind, age and state requests on full
+--- feed. Full-feed demand (maintenance + pregnancy + the full growth line + the lactation-average
+--- milk at average productivity) is what that reference intake pays for, times intakeCapacity. So
+--- an average animal eating its reference ration meets its demand and the old growth line holds;
+--- an animal that eats more liters (a high-yield cow's extra intake, a bigger frame, more of the
+--- trough) gets more, one that eats fewer or poorer liters gets less.
 ---
 --- Allocation, in order: maintenance, pregnancy, then growth and milk (milk weighted by
 --- milkPriority while lactating). A shortfall in maintenance and pregnancy is covered from the
@@ -83,22 +86,26 @@ end
 --- Growth to reserve. While the reserve is below the stage target, part of the growth line is
 --- laid down as reserve instead of frame, so the total gain is the old growth line.
 ---
+--- Weight floor. No step takes the animal below minWeight: age loss, reserve drawn and frame
+--- catabolised are limited before they are booked, so the weight change is always the sum of its
+--- parts and the energy ledger closes.
+---
 --- @param input table See the field list at the top of the function
 --- @param cfg table RLBodyConditionConfig values
 --- @return table result
 function RLNutritionMath.step(input, cfg)
     -- input fields (per period unless noted):
     --   dtMonths              months this step covers
-    --   weight, reserve, capacityKg
+    --   weight, reserve, capacityKg, minWeight
     --   targetWeight          frame weight the animal grows to
     --   potentialGrowthKg     growth line at full feed (>= 0)
     --   ageLossKg             age-driven frame loss (>= 0)
     --   potentialMilk         milk at full feed after the water cap (liters)
     --   anchorMilk            lactation-average milk at average productivity (liters)
     --   isLactating, pregnancyProgress (0..1), numFetuses
-    --   supplyRatio           what the ration supports, 1 = full TMR ration
+    --   intakeLiters          liters of full TMR ration it ate (energy and digestion applied)
+    --   referenceLiters       liters an average animal in its state requests on full feed
     --   intakeCapacity        kappa for the animal's state
-    --   intakeFactor          extra intake a high-yield cow is allowed (>= 1)
     --   reserveTarget         stage target that growth is diverted to (nil = no diversion)
     --   reserveCeiling        highest reserve a surplus fills to
     --   balanceEMA, lossRateEMA
@@ -106,6 +113,7 @@ function RLNutritionMath.step(input, cfg)
     local K = input.capacityKg
     local r = input.reserve
     local W = input.weight
+    local floor = math.min(math.max(input.minWeight or 0, 0), W)
 
     -- Frame weight: the reserve's share of live weight taken out.
     local frame = W - RLNutritionMath.getReserveWeightOffset(r, K, cfg.referenceReserve)
@@ -128,9 +136,12 @@ function RLNutritionMath.step(input, cfg)
     local growthNeed = frameGrowthKg * cfg.growthNUPerKg + divertKg * cfg.depositNUPerKg
     local milkNeed = math.max(input.potentialMilk or 0, 0) * cfg.milkNUPerLiter
 
+    -- Supply (NU per period): the liters eaten, valued at what the reference intake pays for.
     local anchor = maintenance + pregnancy + growthKg * cfg.growthNUPerKg
         + math.max(input.anchorMilk or 0, 0) * cfg.milkNUPerLiter
-    local supply = math.max(input.supplyRatio, 0) * input.intakeCapacity * (input.intakeFactor or 1) * anchor
+    local nuPerLiter = 0
+    if (input.referenceLiters or 0) > 0 then nuPerLiter = input.intakeCapacity * anchor / input.referenceLiters end
+    local supply = math.max(input.intakeLiters or 0, 0) * nuPerLiter
 
     -- Step amounts.
     local avail = supply * dt
@@ -151,11 +162,16 @@ function RLNutritionMath.step(input, cfg)
         paidL = math.min(needL, avail - paidG)
     end
 
-    -- Reserve mobilisation, capped by the floor, the monthly loss rate and how easily a thin
-    -- animal gives up what it has left.
+    -- Weight that may still be lost this step: age loss first, then reserve, then frame.
+    local lossRoom = W - floor
+    local ageLossKg = math.min(math.max(input.ageLossKg or 0, 0) * dt, lossRoom)
+    lossRoom = lossRoom - ageLossKg
+
+    -- Reserve mobilisation, capped by the floor, the monthly loss rate, how easily a thin animal
+    -- gives up what it has left, and the weight floor.
     local ease = math.clamp((r - cfg.minReserve) / cfg.mobilizeEaseRange, 0, 1)
     local maxDrop = math.max(math.min(r - cfg.minReserve, cfg.lossRatePerMonth * dt), 0) * ease
-    local mobilizableNU = maxDrop * K * cfg.mobilizeNUPerKg
+    local mobilizableNU = math.min(maxDrop * K, lossRoom) * cfg.mobilizeNUPerKg
 
     local deficitM, deficitP = needM - paidM, needP - paidP
     local mobilizedNU = 0
@@ -175,15 +191,18 @@ function RLNutritionMath.step(input, cfg)
     end
 
     local mobilizedKg = mobilizedNU / cfg.mobilizeNUPerKg
+    lossRoom = math.max(lossRoom - mobilizedKg, 0)
 
     -- Maintenance the reserve could not cover comes out of the frame, at most
-    -- maxCatabolismPerMonth of the weight a month; beyond that it stays unmet.
+    -- maxCatabolismPerMonth of the weight a month and never below the floor; beyond that it
+    -- stays unmet.
     local catabolismKg, catabolismNU = 0, 0
     if deficitM > 0 then
-        catabolismKg = math.min(deficitM / cfg.catabolismNUPerKg, W * cfg.maxCatabolismPerMonth * dt)
+        catabolismKg = math.min(deficitM / cfg.catabolismNUPerKg, W * cfg.maxCatabolismPerMonth * dt, lossRoom)
         catabolismNU = catabolismKg * cfg.catabolismNUPerKg
         paidM = paidM + catabolismNU
         deficitM = deficitM - catabolismNU
+        lossRoom = lossRoom - catabolismKg
     end
 
     -- Surplus into the reserve: one direction per step, so only when nothing was mobilised.
@@ -200,16 +219,16 @@ function RLNutritionMath.step(input, cfg)
 
     -- Frame changes.
     local frameGainKg = frameGrowthKg * dt * growthFraction
-    local ageLossKg = math.max(input.ageLossKg or 0, 0) * dt
     local frameAfter = frame + frameGainKg - ageLossKg - catabolismKg
     local excessDecayKg = 0
     if frameAfter > input.targetWeight then
         excessDecayKg = (frameAfter - input.targetWeight) * (1 - math.exp(-dt / cfg.frameExcessTauMonths))
     end
+    excessDecayKg = math.min(excessDecayKg, math.max(lossRoom + frameGainKg + divertedKg + depositKg, 0))
 
     local reserveKg = divertedKg + depositKg - mobilizedKg
-    local newReserve = K > 0 and math.clamp(r + reserveKg / K, 0, 1) or r
-    local newWeight = math.max(W + frameGainKg + reserveKg - ageLossKg - catabolismKg - excessDecayKg, 0.001)
+    local newReserve = K > 0 and r + reserveKg / K or r
+    local newWeight = W + frameGainKg + reserveKg - ageLossKg - catabolismKg - excessDecayKg
 
     -- Trends.
     local demand = maintenance + pregnancy + growthNeed + milkNeed
@@ -228,8 +247,10 @@ function RLNutritionMath.step(input, cfg)
         growthFraction = growthFraction,
         frameGainKg = frameGainKg,
         reserveKg = reserveKg,
+        ageLossKg = ageLossKg,
         excessDecayKg = excessDecayKg,
         catabolismKg = catabolismKg,
+        coverage = demand > 0 and supply / demand or 1,
         -- Ledger (NU this step): supply + mobilised + catabolism = paid + deposit + lost.
         -- paidNU includes the growth laid down as reserve (divertedNU).
         supplyNU = supply * dt,

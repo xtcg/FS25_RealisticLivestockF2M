@@ -113,22 +113,24 @@ function RLBodyConditionConsole:report(arg1, arg2)
                     minBCS, maxBCS, sumBCS, females = math.min(minBCS, bcs), math.max(maxBCS, bcs), sumBCS + bcs, females + 1
                     if bcs < 2.5 then thin = thin + 1 elseif bcs > 3.75 then fat = fat + 1 end
                 end
-                if animal.isLactating then
+                local milkShare = animal.rlNutrition ~= nil and animal.rlNutrition.milkShare or nil
+                if milkShare ~= nil then
                     lactating = lactating + 1
-                    milkSum = milkSum + (animal.rlMilkSupport or 1)
+                    milkSum = milkSum + milkShare
                 end
             end
 
             if showAnimals then
                 local nutrition = animal.rlNutrition
                 local state = animal.bodyCondition
-                out(string.format("   %-14s %s %3dm %7.1f kg  r=%s %-9s ration=%s milk=%s trend=%s%s",
+                out(string.format("   %-14s %s %3dm %7.1f kg  r=%s %-9s intake=%s need=%s milk=%s trend=%s%s",
                     tostring(animal.uniqueId), animal.gender == "male" and (animal.isCastrated and "S" or "M") or "F",
                     animal.age or -1, animal.weight or 0,
                     state ~= nil and string.format("%.3f", state.reserve) or "  -  ",
                     getConditionText(animal),
-                    nutrition ~= nil and string.format("%.2f", nutrition.supplyRatio) or "-",
-                    animal.isLactating and string.format("%.0f%%", (animal.rlMilkSupport or 1) * 100) or "-",
+                    nutrition ~= nil and string.format("%.2f", nutrition.intakeRatio or 0) or "-",
+                    nutrition ~= nil and string.format("%.0f%%", (nutrition.coverage or 0) * 100) or "-",
+                    nutrition ~= nil and nutrition.milkShare ~= nil and string.format("%.0f%%", nutrition.milkShare * 100) or "-",
                     state ~= nil and string.format("%+.2f", state.balanceEMA or 0) or "-",
                     nutrition ~= nil and nutrition.tick ~= RLBodyCondition.getTickId() and " (stale)" or ""))
             end

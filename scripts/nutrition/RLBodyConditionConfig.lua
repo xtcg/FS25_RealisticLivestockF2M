@@ -121,6 +121,7 @@ function RLBodyConditionConfig.validate(config)
         local points = config.curves[name]
         if points == nil or #points == 0 then return false, "curve " .. name .. " has no points" end
         for i, point in ipairs(points) do
+            if point[1] ~= point[1] or point[2] ~= point[2] then return false, string.format("curve %s point %d is not a number", name, i) end
             if point[2] < 0 then return false, string.format("curve %s point %d is negative", name, i) end
             if i > 1 and point[1] < points[i - 1][1] then
                 return false, string.format("curve %s is not sorted by x at point %d", name, i)
@@ -144,9 +145,10 @@ function RLBodyConditionConfig.validate(config)
     for typeName, breeds in pairs(layers.breeds) do
         for breed, values in pairs(breeds) do entries[#entries + 1] = { typeName .. "/" .. breed, values } end
     end
+    for attr, value in pairs(layers.root or {}) do entries[#entries + 1] = { "root", { [attr] = value } } end
     for _, entry in ipairs(entries) do
         for attr, value in pairs(entry[2]) do
-            if value <= 0 then return false, string.format("%s of %s must be > 0", attr, entry[1]) end
+            if value ~= value or value <= 0 then return false, string.format("%s of %s must be a number > 0", attr, entry[1]) end
         end
     end
 
@@ -166,4 +168,31 @@ function RLBodyConditionConfig.get()
             RLBodyConditionConfig.parse)
     end
     return RLBodyConditionConfig.config
+end
+
+
+
+--- A client takes the server's config (RLBodyConditionConfigEvent), so what it shows matches what
+--- the server computes. Missing values keep the defaults; a config that fails the checks switches
+--- the feature off on this client, as it would on a server.
+--- @param received table
+function RLBodyConditionConfig.applyServerConfig(received)
+    local config = table.clone(RLBodyConditionConfig.DEFAULTS)
+    for key, _ in pairs(RLBodyConditionConfig.DEFAULTS) do
+        if received[key] ~= nil then config[key] = received[key] end
+    end
+    config.enabled = received.enabled == true
+    config.curves = received.curves or RLBodyConditionConfig.DEFAULT_CURVES
+    config.feedEnergy = received.feedEnergy or {}
+    config.layers = received.layers or { root = {}, types = {}, breeds = {}, subTypes = {} }
+
+    local ok, reason = RLBodyConditionConfig.validate(config)
+    if not ok then
+        Log:error("RLBodyConditionConfig: the server's config fails a check (%s) - body condition switched off", reason)
+        config.enabled = false
+        config.invalidReason = reason
+    end
+
+    RLBodyConditionConfig.config = config
+    Log:info("RLBodyConditionConfig: using the server's config (enabled=%s)", tostring(config.enabled))
 end
