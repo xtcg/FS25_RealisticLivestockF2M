@@ -294,18 +294,26 @@ check("contract recipes: beef, pork and sheep rescaled; a type without meatPerHe
     AnimalMoveEvent.alignContractRecipes(target) == 3)
 check("contract recipes: 1 cow -> 270 kg, 1 pig -> 75 kg, like the farm butcher",
     near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[2].outputs[PORKMEAT].amount, 75))
-check("contract recipes: cattle fine cutting adds 1.05 per kg to the batch fee (100 + 1.05 x 270), pork keeps 100",
-    near(recipes[1].feePerBatch, 383.5) and recipes[2].feePerBatch == 100)
+check("contract recipes: cattle fine cutting adds 0.37 per kg to the batch fee (100 + 0.37 x 270), pork keeps 100",
+    near(recipes[1].feePerBatch, 199.9) and recipes[2].feePerBatch == 100)
 check("contract recipes: DUCKWILD (no meatPerHead) keeps 100", recipes[3].outputs[POULTRYMEAT].amount == 100)
 check("contract recipes: sheep 400 -> 50 kg, its other output scaled by the same factor",
     near(recipes[4].outputs[SHEEPMEAT].amount, 50) and near(recipes[4].outputs[WASTE].amount, 10))
 AnimalMoveEvent.alignContractRecipes(target)
 check("contract recipes: a second run does not scale again",
-    near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[4].outputs[WASTE].amount, 10) and near(recipes[1].feePerBatch, 383.5))
+    near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[4].outputs[WASTE].amount, 10) and near(recipes[1].feePerBatch, 199.9))
 
 target, recipes = contractRecipes({ [1] = BEEF, [3] = BEEF })
 check("contract recipes: a fill type taken by two animal types is left alone",
     AnimalMoveEvent.alignContractRecipes(target) == 0 and recipes[1].outputs[BEEFMEAT].amount == 1000)
+-- Hof Bergmann 1.5 Beta2 maps COW and its MILKCOW placeholder type (no carcass config) to BEEF.
+TYPES[5] = { name = "MILKCOW" }
+SUBS[11] = { typeIndex = 5, targetWeight = 730, name = "MILK_COW", breed = "MILK_COW", gender = "female" }
+target, recipes = contractRecipes({ [1] = BEEF, [2] = BEEF, [11] = BEEF, [3] = PIGS })
+check("contract recipes: BEEF also taken by MILKCOW (no meat per head) -> cattle recipe still 270 kg, fee 199.9",
+    AnimalMoveEvent.alignContractRecipes(target) == 2 and near(recipes[1].outputs[BEEFMEAT].amount, 270)
+    and near(recipes[1].feePerBatch, 199.9))
+TYPES[5], SUBS[11] = nil, nil
 check("contract recipes: a placeable without the contract spec is ignored",
     AnimalMoveEvent.alignContractRecipes({}) == 0 and AnimalMoveEvent.alignContractRecipes(nil) == 0)
 
