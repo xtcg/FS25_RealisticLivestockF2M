@@ -1,7 +1,10 @@
 # R0-T02 offline preparation
 
 Base: PR #31 `7af1b27dd9690286b9f4aa5a38e86b88a4f13a65`, built on dev `9be3881`.
-Branch: `feat/contract-transaction`.
+Branch: `feat/contract-transaction` (batch 1); rebased onto PR #31 `6bbb74d` in `feat/contract-adapter`.
+
+Batch 2 (PR #32, controlled live HB contract delivery): see [T02_BATCH2_STATUS.md](T02_BATCH2_STATUS.md).
+The "Not enabled or complete" section below describes batch 1 alone.
 
 ## Implemented and verified offline
 
