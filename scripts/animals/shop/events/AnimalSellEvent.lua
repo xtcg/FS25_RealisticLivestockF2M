@@ -150,9 +150,11 @@ end
 
 
 --- Server: remove the quoted animals and work out what to pay. Only the animals that are gone
---- from the source after the flush are paid, at their quoted price. When the queue or the flush
---- throws, the animals still in the source are taken off the remove queue so a later flush cannot
---- remove them unpaid. This is not a rollback: an animal the flush already removed stays removed.
+--- from the source after the flush are paid, at their quoted price. Gone means the quoted object is
+--- no longer in the source's animal list: getClusterById can fall back to an id index a failed flush
+--- left stale and return a different animal. When the queue or the flush throws, the animals still in
+--- the source are taken off the remove queue so a later flush cannot remove them unpaid. This is not
+--- a rollback: an animal the flush already removed stays removed.
 ---@param object table The sell source
 ---@param quote table From AnimalSellEvent.quoteSale
 ---@return number removed Animals gone from the source
@@ -170,9 +172,12 @@ function AnimalSellEvent.commitSale(object, quote)
 	local flushed, flushErr = true, nil
 	if queued then flushed, flushErr = pcall(function() clusterSystem:updateNow() end) end
 
+	local present = {}
+	for _, animal in ipairs(clusterSystem:getClusters() or {}) do present[animal] = true end
+
 	local removed, credit = 0, 0
 	for i, cluster in ipairs(quote.clusters) do
-		if object:getClusterById(quote.keys[i]) == nil then
+		if not present[cluster] then
 			removed = removed + 1
 			credit = credit + quote.prices[i] - quote.fees[i]
 		elseif clusterSystem.clustersToRemove ~= nil then
@@ -200,11 +205,19 @@ function AnimalSellEvent:run(connection)
 
 	end
 
+	-- Every request gets exactly one reply, even when something below throws, so the client is
+	-- never left waiting for its timeout.
+	local replied = false
+	local function reply(errorCode)
+		replied = true
+		connection:sendEvent(AnimalSellEvent.newServerToClient(errorCode))
+	end
+
 	RmSafeUtils.safeCall("AnimalSellEvent:run", function()
 
 		if not g_currentMission:getHasPlayerPermission("tradeAnimals", connection) then
 
-			connection:sendEvent(AnimalSellEvent.newServerToClient(AnimalSellEvent.SELL_ERROR_NO_PERMISSION))
+			reply(AnimalSellEvent.SELL_ERROR_NO_PERMISSION)
 			return
 
 		end
@@ -217,11 +230,16 @@ function AnimalSellEvent:run(connection)
 		Log:trace("SellEvent:run selling %d animals", numRequested)
 
 		-- Validate and price the whole batch before anything is removed.
-		local quote, errorCode, reason = AnimalSellEvent.quoteSale(self.object, self.animals, farmId)
+		-- A throw while pricing (getSellPrice, the transport fee) refuses the batch; it never falls
+		-- back to the client's amount.
+		local quoted, quote, errorCode, reason = pcall(AnimalSellEvent.quoteSale, self.object, self.animals, farmId)
+		if not quoted then
+			quote, errorCode, reason = nil, AnimalSellEvent.SELL_ERROR_CANNOT_BE_SOLD, "quote threw: " .. tostring(quote)
+		end
 		if quote == nil then
 			Log:warning("SellEvent:run refused sale of %d animals (code=%s userId=%s farmId=%s): %s",
 				numRequested, tostring(errorCode), tostring(userId), tostring(farmId), tostring(reason))
-			connection:sendEvent(AnimalSellEvent.newServerToClient(errorCode))
+			reply(errorCode)
 			return
 		end
 
@@ -241,11 +259,11 @@ function AnimalSellEvent:run(connection)
 		if removed < numQuoted or err ~= nil then
 			Log:error("SellEvent:run: removal batch failed, %d of %d removed and paid %.2f (%s)",
 				removed, numQuoted, credit, tostring(err))
-			connection:sendEvent(AnimalSellEvent.newServerToClient(AnimalSellEvent.SELL_ERROR_OBJECT_DOES_NOT_EXIST))
+			reply(AnimalSellEvent.SELL_ERROR_OBJECT_DOES_NOT_EXIST)
 			return
 		end
 
-		connection:sendEvent(AnimalSellEvent.newServerToClient(AnimalSellEvent.SELL_SUCCESS))
+		reply(AnimalSellEvent.SELL_SUCCESS)
 
 		-- Object may be a trailer on trailer-based dealer sales; only husbandry
 		-- placeables carry addRLMessage.
@@ -263,5 +281,10 @@ function AnimalSellEvent:run(connection)
 			removed, tostring(farmId), tostring(credit))
 
 	end)
+
+	if not replied then
+		Log:error("SellEvent:run: failed before replying; reporting failure to the client")
+		connection:sendEvent(AnimalSellEvent.newServerToClient(AnimalSellEvent.SELL_ERROR_OBJECT_DOES_NOT_EXIST))
+	end
 
 end

@@ -52,11 +52,21 @@ end
 local function key(animal) return RLAnimalUtil.toKey(animal.farmId, animal.uniqueId, animal.birthday.country) end
 
 -- A source with the engine's queue-then-flush removal; failAfter makes the flush throw after
--- removing that many animals, failQueue makes queueing throw.
+-- removing that many animals, failQueue makes queueing throw. Like the real getClusterById, a
+-- lookup that misses falls back to an id index rebuilt only at the end of a flush, so after a
+-- flush that threw it can return a different animal.
 local function makeSource(animals, opts)
     opts = opts or {}
     local source = { ownerFarmId = opts.owner or 1, spec_livestockTrailer = opts.trailer and {} or nil, messages = {} }
-    local system = { animals = animals, clustersToRemove = {}, flushes = 0 }
+    local system = { animals = animals, clustersToRemove = {}, flushes = 0, idToIndex = {} }
+    function system:updateIdMapping()
+        self.idToIndex = {}
+        for index, animal in ipairs(self.animals) do self.idToIndex[key(animal)] = index end
+    end
+    function system:getClusters()
+        if opts.failGetClusters then error("getClusters boom") end
+        return self.animals
+    end
     function system:addPendingRemoveCluster(cluster)
         if opts.failQueue then error("queue boom") end
         self.clustersToRemove[cluster] = true
@@ -73,7 +83,9 @@ local function makeSource(animals, opts)
                 removedNow = removedNow + 1
             end
         end
+        self:updateIdMapping()
     end
+    system:updateIdMapping()
     source.system = system
     function source:getClusterSystem() return self.system end
     function source:getOwnerFarmId() return self.ownerFarmId end
@@ -81,7 +93,8 @@ local function makeSource(animals, opts)
         for _, animal in ipairs(self.system.animals) do
             if key(animal) == id then return animal end
         end
-        return nil
+        local index = self.system.idToIndex[id]
+        return index ~= nil and self.system.animals[index] or nil
     end
     if not opts.trailer then
         function source:addRLMessage(id, _, args) self.messages[#self.messages + 1] = { id = id, args = args } end
@@ -270,3 +283,31 @@ if AnimalSellEvent.quoteSale ~= nil then
 end
 check("quote is read-only", quote ~= nil and near(quote.total, 960) and #source.system.animals == 1
     and next(source.system.clustersToRemove) == nil and source.system.flushes == 0)
+
+-- The flush removes B, then throws, with C still behind it: the stale index maps B's key to C.
+-- B left the source, so B is paid even though a lookup by its key still finds an animal.
+local sA, sB, sC = makeAnimal(1000, 40), makeAnimal(2000, 40), makeAnimal(500, 40)
+source = makeSource({ sA, sB, sC }, { failAfter = 1 })
+code, paid, replies = sell(source, ids({ sA, sB }), 3000, -80)
+check("stale index after a failed flush: lookup by key still finds an animal", source:getClusterById(key(sB)) == sC)
+check("stale index after a failed flush: the removed animal is paid", code == AnimalSellEvent.SELL_ERROR_OBJECT_DOES_NOT_EXIST
+    and replies == 1 and #wallet == 1 and near(paid, 1960))
+check("stale index after a failed flush: unsold animals stay and are unqueued", #source.system.animals == 2
+    and source.system.animals[1] == sA and source.system.animals[2] == sC and next(source.system.clustersToRemove) == nil)
+
+-- A throw while pricing refuses the batch with a reply, not a client timeout.
+for _, case in ipairs({ { "sell price", "getSellPrice" }, { "transport fee", "getTranportationFee" } }) do
+    local t = makeAnimal(1000, 40)
+    t[case[2]] = function() error(case[1] .. " boom") end
+    source = makeSource({ t })
+    code, paid, replies = sell(source, ids({ t }), 1000, -40)
+    check(case[1] .. " throws: refused with one reply", code == AnimalSellEvent.SELL_ERROR_CANNOT_BE_SOLD and replies == 1)
+    check(case[1] .. " throws: nothing paid or removed", paid == 0 and #source.system.animals == 1
+        and source.system.flushes == 0)
+end
+
+-- Anything else that throws still gets exactly one reply.
+local u = makeAnimal(1000, 40)
+source = makeSource({ u }, { failGetClusters = true })
+code, paid, replies = sell(source, ids({ u }), 1000, -40)
+check("throw after quoting: one failure reply", code == AnimalSellEvent.SELL_ERROR_OBJECT_DOES_NOT_EXIST and replies == 1)
