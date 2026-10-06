@@ -93,6 +93,8 @@ local function makePen(animals, opts)
     function system:addPendingRemoveCluster(cluster)
         if opts.failQueue then error("queue boom") end
         self.clustersToRemove[cluster] = true
+        self.queued = (self.queued or 0) + 1
+        if opts.failQueueAfter ~= nil and self.queued > opts.failQueueAfter then error("queue boom after " .. opts.failQueueAfter) end
     end
     function system:updateNow()
         self.flushes = self.flushes + 1
@@ -184,6 +186,18 @@ refusedClean("duplicate", pen, sellNow(pen, list), "identity", 2)
 refusedClean("no country", pen, sellNow(pen, { { farmId = "1", uniqueId = b1.uniqueId } }), "identity", 2)
 refusedClean("non-table identity", pen, sellNow(pen, { "1 1 4" }), "identity", 2)
 refusedClean("empty batch", pen, sellNow(pen, {}), "identity", 2)
+list = ids({ b1, b2 })
+list[2] = nil
+list[3] = ids({ b2 })[1]
+r = sellNow(pen, list)
+refusedClean("identity list with a hole", pen, r, "identity", 2)
+check("identity list with a hole: not sold as its prefix", pen.system.animals[1] == b1)
+list = ids({ b1 })
+list.extra = ids({ b2 })[1]
+refusedClean("identity list with a non-index key", pen, sellNow(pen, list), "identity", 2)
+list = ids({ b1 })
+list[1.5] = ids({ b2 })[1]
+refusedClean("identity list with a fractional key", pen, sellNow(pen, list), "identity", 2)
 refusedClean("nil batch", pen, sellNow(pen, nil), "identity", 2)
 
 local other = makeAnimal(5000, 40)
@@ -230,6 +244,14 @@ check("pending removals: refused", r.status == AIAnimalSellEvent.STATUS_REFUSED 
 check("pending removals: other queue untouched, nothing flushed", pen.system.clustersToRemove[queuedElsewhere] == true
     and pen.system.clustersToRemove[q1] == nil and pen.system.flushes == 0 and #pen.system.animals == 3)
 
+-- A queued key with a false value is still removed by the flush (it removes on ~= nil).
+local pf1, pf2 = makeAnimal(1000, 40), makeAnimal(700, 40)
+pen = makePen({ pf1, pf2 })
+pen.system.clustersToRemove[pf2] = false
+r = sellNow(pen, ids({ pf1 }))
+check("pending key with false value: refused", r.status == AIAnimalSellEvent.STATUS_REFUSED and r.failureStage == "pending"
+    and #wallet == 0 and pen.system.flushes == 0 and #pen.system.animals == 2 and pen.system.clustersToRemove[pf2] == false)
+
 -- The price moved since the plan: today's price is paid, the planned amount never is.
 local c1 = makeAnimal(1000, 40)
 pen = makePen({ c1 })
@@ -237,6 +259,26 @@ c1.price = 1200
 r = sellNow(pen, ids({ c1 }))
 check("price moved: today's price paid", r.status == AIAnimalSellEvent.STATUS_SOLD and near(r.amountGained, 1240)
     and near(paidOf(MoneyType.SOLD_ANIMALS), 1240))
+
+-- The transport fee moved since the plan: today's fee is paid.
+local tf1 = makeAnimal(1000, 40)
+pen = makePen({ tf1 })
+tf1.fee = 75
+r = sellNow(pen, ids({ tf1 }))
+check("transport fee moved: today's fee paid", r.status == AIAnimalSellEvent.STATUS_SOLD and near(r.amountGained, 1075)
+    and near(paidOf(MoneyType.SOLD_ANIMALS), 1075))
+
+-- Queueing throws after some animals were queued: no flush, nothing removed or paid, the queued
+-- part taken off the queue.
+local fq1, fq2, fq3 = makeAnimal(1000, 40), makeAnimal(800, 40), makeAnimal(600, 40)
+pen = makePen({ fq1, fq2, fq3 }, { failQueueAfter = 1 })
+r = sellNow(pen, ids({ fq1, fq2, fq3 }))
+check("queue throws part way: failed at queue", r.status == AIAnimalSellEvent.STATUS_FAILED and r.failureStage == "queue"
+    and r.removedCount == 0 and r.settledCount == 0 and r.amountGained == 0)
+check("queue throws part way: no flush, no money, queue cleared", pen.system.queued == 2 and pen.system.flushes == 0
+    and #wallet == 0 and #pen.system.animals == 3 and next(pen.system.clustersToRemove) == nil)
+pen.system.updateNow(pen.system)
+check("queue throws part way: a later flush removes nothing", #pen.system.animals == 3)
 
 -- Queueing throws: no flush, nothing removed or paid, nothing left queued.
 local f1, f2 = makeAnimal(1000, 40), makeAnimal(800, 40)
@@ -417,6 +459,14 @@ local short = sellAction({ o1 })
 short.identities = {}
 summary = runPlan({ short }, { pen1 = makePen({ o1 }) })
 check("executor identities missing: bad-data, no wage", summary.results[1].skipReason == "bad-data" and #wallet == 0)
+local hole1, hole2 = makeAnimal(1000, 40), makeAnimal(800, 40)
+pen = makePen({ hole1, hole2 })
+local holed = sellAction({ hole1, hole2 })
+holed.identities = { ids({ hole1 })[1], nil, ids({ hole2 })[1] }
+holed.animals = { hole1, nil, hole2 }
+summary = runPlan({ holed }, { pen1 = pen })
+check("executor identity list with a hole: nothing sold", summary.results[1].dispatched == false
+    and paidOf(MoneyType.SOLD_ANIMALS) == 0 and #pen.system.animals == 2)
 
 -- The frozen identities decide, not the live objects the plan holds.
 local s1, s2 = makeAnimal(1000, 40), makeAnimal(800, 40)
@@ -466,13 +516,20 @@ local plan = RLHerdsmanPlanner.planActions(
     { husbandries = { pen1 = { animalTypeIndex = 1, animals = { y1, y2 }, freeSlots = 0 } }, filtersById = { f = {} },
       animalSystem = { getAnimalTransportFee = function() return 40 end }, farmBalanceByFarmId = { [1] = 0 }, buyMarkup = 1 })
 local planned = plan[1]
+local y1Copy
+for _, identity in ipairs(planned and planned.identities or {}) do
+    if identity.uniqueId == y1.uniqueId then y1Copy = identity end
+end
 check("planner: sell carries seller farm and identity copies", planned ~= nil and planned.sellerFarmId == 1
     and #planned.identities == 2 and planned.identities[1] ~= planned.animals[1]
     and planned.identities[1].uniqueId == planned.animals[1].uniqueId and planned.identities[1].country == 4
     and planned.identities[1].birthday.country == 4 and near(planned.amountGained, 1880))
+local y1Original = y1.uniqueId
 y1.uniqueId = "changed-later"
-check("planner: identity copy frozen", planned.identities[1].uniqueId ~= "changed-later"
-    or planned.identities[2].uniqueId ~= "changed-later")
+y1.birthday.country = 9
+check("planner: the changed animal's own copy is frozen", y1Copy ~= nil and y1Copy.uniqueId == y1Original
+    and y1Copy.country == 4 and y1Copy.birthday.country == 4 and y1Copy.farmId == "1")
+y1.birthday.country = 4
 
 -- Planned and executed end to end.
 y1.uniqueId = "y1"

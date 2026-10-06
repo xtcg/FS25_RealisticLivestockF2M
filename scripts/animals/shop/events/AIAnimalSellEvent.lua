@@ -120,6 +120,23 @@ local function identityKey(identity)
 end
 
 
+--- The number of entries in a batch that is a plain array 1..n, or nil for anything else: a table
+--- with holes or extra keys would otherwise sell only the prefix `#` and ipairs see.
+---@param list any
+---@return number|nil
+function AIAnimalSellEvent.batchLength(list)
+	if type(list) ~= "table" then return nil end
+	local n, max = 0, 0
+	for k in pairs(list) do
+		if type(k) ~= "number" or k < 1 or k % 1 ~= 0 then return nil end
+		n = n + 1
+		if k > max then max = k end
+	end
+	if n ~= max then return nil end
+	return n
+end
+
+
 --- Server: price the batch from the source's own animals at this moment; changes nothing. The
 --- planned amount is never used. A missing, repeated or malformed identity, an animal that cannot
 --- be sold, is sick or has no valid price, or a source no longer owned by the seller refuses the
@@ -142,7 +159,11 @@ function AIAnimalSellEvent.quoteSale(object, identities, sellerFarmId)
 		return nil, "ownership", string.format("source owned by farm %s, plan made for farm %s", tostring(ownerFarmId), tostring(sellerFarmId))
 	end
 
-	if type(identities) ~= "table" or #identities == 0 then
+	local count = AIAnimalSellEvent.batchLength(identities)
+	if count == nil then
+		return nil, "identity", "not a plain array of identities"
+	end
+	if count == 0 then
 		return nil, "identity", "empty batch"
 	end
 
@@ -233,7 +254,7 @@ end
 ---@return table result
 function AIAnimalSellEvent.executeServer(object, identities, sellerFarmId, ctx)
 
-	local requested = type(identities) == "table" and #identities or 0
+	local requested = AIAnimalSellEvent.batchLength(identities) or 0
 	local result = { status = AIAnimalSellEvent.STATUS_REFUSED, requestedCount = requested, removedCount = 0,
 		settledCount = 0, amountGained = 0, quotedAmount = nil, failureStage = nil, reason = nil }
 
@@ -270,13 +291,10 @@ function AIAnimalSellEvent.executeServer(object, identities, sellerFarmId, ctx)
 	local clusterSystem = object:getClusterSystem()
 
 	-- The flush commits every queued removal at once; another transaction's removals would be
-	-- removed unpaid by this sale or counted into it, so this batch waits for a later day.
-	if type(clusterSystem.clustersToRemove) == "table" then
-		for _, pending in pairs(clusterSystem.clustersToRemove) do
-			if pending then
-				return finish(AIAnimalSellEvent.STATUS_REFUSED, "pending", "other removals already queued")
-			end
-		end
+	-- removed unpaid by this sale or counted into it, so this batch waits for a later day. Any key
+	-- counts, whatever its value: the flush removes every animal whose entry is not nil.
+	if type(clusterSystem.clustersToRemove) == "table" and next(clusterSystem.clustersToRemove) ~= nil then
+		return finish(AIAnimalSellEvent.STATUS_REFUSED, "pending", "other removals already queued")
 	end
 
 	local queued, queueErr = pcall(function()
