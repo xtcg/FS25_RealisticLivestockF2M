@@ -189,8 +189,8 @@ function Animal.new(config)
     self.targetWeight = targetWeight + (((targetWeight * self.genetics.metabolism) - targetWeight) / 2.5)
 
     if self.weight == nil then
-        local grown = RLBreedTraits.getGrownWeight(subType, self.gender, self.targetWeight, self.age, self.genetics.metabolism)
-        self.weight = math.clamp(grown * (math.random(85, 115) / 100), subType.minWeight, subType.maxWeight)
+        self.weight = RLBreedTraits.getNewAnimalWeight(subType, self.gender, self.targetWeight, self.age,
+            self.genetics.metabolism)
     end
 
     local farmId = cfg.farmId

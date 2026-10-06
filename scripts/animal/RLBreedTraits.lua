@@ -17,7 +17,7 @@ RLBreedTraits.CONFIG_FILE = "breedTraits.xml"
 --- Per-animal trait attributes. All but matureAgeMonth, priceTargetWeight and priceMatureAgeMonth are
 --- multipliers, 1 = unchanged.
 RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrowth", "matureAgeMonth",
-    "priceTargetWeight", "priceMatureAgeMonth" }
+    "priceTargetWeight", "priceMatureAgeMonth", "maleMaxSaleAgeMonth", "femaleMaxSaleAgeMonth" }
 
 --- Female growth relative to male, where the file sets none (the mod's original rule).
 RLBreedTraits.DEFAULT_FEMALE_GROWTH = 0.6
@@ -31,6 +31,7 @@ RLBreedTraits.DEFAULTS = {
     bodyWeightExponent = 0.35,
     minBodyRatio = 0.5,
     maxBodyRatio = 1.5,
+    eliteSaleGenetics = 1.45,
 }
 
 local modDirectory = g_currentModDirectory
@@ -246,6 +247,34 @@ function RLBreedTraits.getExpectedWeight(subType, targetWeight, age)
 end
 
 
+--- Oldest age in months the dealer normally offers an animal of this subtype and sex at
+--- (maleMaxSaleAgeMonth / femaleMaxSaleAgeMonth); nil when the file sets none (no limit but the
+--- animal type's maxBuyAge). Older stock is offered only when its genetics are elite
+--- (isEliteForSale): a breeder sells a grown animal only when it is worth more than a young one.
+--- @param subType table|nil
+--- @param gender string|nil
+--- @return number|nil
+function RLBreedTraits.getMaxSaleAge(subType, gender)
+    if subType == nil then return nil end
+    local trait = (gender or subType.gender) == "male" and "maleMaxSaleAgeMonth" or "femaleMaxSaleAgeMonth"
+    return RLBreedTraits.resolve(RLBreedTraits.getConfig().layers, subType, trait, nil)
+end
+
+
+--- Whether a dealer animal's genetics are good enough to be offered past its maximum sale age: the
+--- mean of its genes at least eliteSaleGenetics (1.45 by default, about the best 11% of the dealer's draw).
+--- @param genetics table|nil
+--- @return boolean
+function RLBreedTraits.isEliteForSale(genetics)
+    if type(genetics) ~= "table" then return false end
+    local total, count = 0, 0
+    for _, value in pairs(genetics) do
+        if type(value) == "number" then total, count = total + value, count + 1 end
+    end
+    return count > 0 and total / count >= RLBreedTraits.getConfig().eliteSaleGenetics
+end
+
+
 --- Weight an animal raised on full feed has at `age`: the same monthly gain as Animal:updateWeight
 --- (base gain x sex x (1 + (mature age - age) / 75) x metabolism x breed growth), starting at the
 --- subtype's minWeight and never above `targetWeight`. Used for animals that appear with no weight
@@ -276,6 +305,24 @@ function RLBreedTraits.getGrownWeight(subType, gender, targetWeight, age, metabo
         month = month + step
     end
     return weight
+end
+
+
+--- Weight of an animal that appears with none of its own (the dealer's stock, a new game's herds): the
+--- full-feed growth line at its age (getGrownWeight) +/-15%, between the subtype's minWeight and the
+--- animal's own target weight. A grown animal is at its mature weight, never above it.
+--- @param subType table
+--- @param gender string|nil
+--- @param targetWeight number The animal's own target weight
+--- @param age number Months
+--- @param metabolism number|nil
+--- @param randomFn function|nil `function(lo, hi) -> int`, default math.random
+--- @return number
+function RLBreedTraits.getNewAnimalWeight(subType, gender, targetWeight, age, metabolism, randomFn)
+    local grown = RLBreedTraits.getGrownWeight(subType, gender, targetWeight, age, metabolism)
+    local variation = (randomFn or math.random)(85, 115) / 100
+    local maxWeight = math.min(subType.maxWeight or targetWeight, targetWeight)
+    return math.clamp(grown * variation, subType.minWeight or 0, maxWeight)
 end
 
 
