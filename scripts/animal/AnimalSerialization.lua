@@ -176,6 +176,8 @@ function AnimalSerialization.writeStream(animal, streamId, connection)
 
     streamWriteBool(streamId, animal.canBeSold == false)
 
+    RLBodyCondition.writeStream(animal.bodyCondition, streamId)
+
     return true
 end
 
@@ -410,6 +412,8 @@ function AnimalSerialization.readStream(animal, streamId, connection)
     -- NOTE: Use explicit if - Lua and/or ternary fails when the true-branch is false.
     local cannotBeSold = streamReadBool(streamId)
     if cannotBeSold then animal.canBeSold = false end
+
+    animal.bodyCondition = RLBodyCondition.readStream(streamId)
 
     return true
 end

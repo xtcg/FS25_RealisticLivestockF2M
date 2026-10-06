@@ -119,27 +119,17 @@ function AnimalMoveEvent.getFacilityMeanTargetWeight(targetObject, subTypeIndex)
 end
 
 
---- Carcass yield of one animal in "typical animals", the units a facility is configured for
---- per head:
----
----   reference = the animal's own target weight x maleMaturity / femaleMaturity
----               (or a configured referenceWeight)
----   size      = clamp((reference / anchorWeight) ^ sizeExponent, minSizeFactor, maxSizeFactor)
----   finish    = clamp((live weight / reference) ^ finishExponent, minFinishFactor, maxFinishFactor)
----   yield     = size x finish x carcassFactor x (1 + qualitySwing x (meat gene - 1))
----
---- So a larger-framed breed finished to its own reference yields more than a smaller one, but
---- less than in proportion. A type without an anchorWeight uses the mean target weight of the
---- subtypes the facility takes as the same fill type.
----
---- The meat gene (0.25-1.75, 1 = average) prices the animal in Animal:getSellPrice. It is read
---- as carcass merit here because a facility's meat fill type carries no grade to price it by.
---- @param animal table|nil The live server Animal
+--- The slaughter reference weight of an animal (its own target weight x maleMaturity /
+--- femaleMaturity, or a configured referenceWeight, else the facility's mean) and the anchor
+--- weight its size is measured against. Also the weight the body condition's finishing curve
+--- (RLBodyCondition) reads a bull's progress against.
+--- @param animal table
 --- @param targetObject table|nil The receiving facility
 --- @param subTypeIndex number|nil
---- @return number factor
-function AnimalMoveEvent.getCarcassYieldFactor(animal, targetObject, subTypeIndex)
-	if animal == nil then return 1 end
+--- @return number|nil reference
+--- @return number|nil anchor
+function AnimalMoveEvent.getCarcassReferenceWeight(animal, targetObject, subTypeIndex)
+	if animal == nil then return nil, nil end
 
 	local config = AnimalMoveEvent.getCarcassConfig()
 	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
@@ -165,19 +155,61 @@ function AnimalMoveEvent.getCarcassYieldFactor(animal, targetObject, subTypeInde
 		or getFacilityMean()
 	local anchor = get("anchorWeight") or getFacilityMean() or reference
 
-	local size, finish = 1, 1
+	return reference, anchor
+end
+
+
+--- Carcass yield of one animal in "typical animals", the units a facility is configured for
+--- per head:
+---
+---   reference = the animal's own target weight x maleMaturity / femaleMaturity
+---               (or a configured referenceWeight)
+---   size      = clamp((reference / anchorWeight) ^ sizeExponent, minSizeFactor, maxSizeFactor)
+---   weight    = clamp((live weight / reference) ^ finishExponent, minFinishFactor, maxFinishFactor)
+---   yield     = size x weight x carcassFactor x (1 + qualitySwing x (meat gene - 1)) x condition
+---
+--- So a larger-framed breed finished to its own reference yields more than a smaller one, but
+--- less than in proportion. A type without an anchorWeight uses the mean target weight of the
+--- subtypes the facility takes as the same fill type. finishExponent and its bounds keep their
+--- names but measure weight completion only; how well finished the animal is comes from its
+--- body condition (RLBodyCondition.getYieldFactor: 1 in the moderate finish band, less when
+--- lean or overfat), applied here once so meat kg, both slaughter routes and the live price's
+--- slaughter floor all see it.
+---
+--- The meat gene (0.25-1.75, 1 = average) prices the animal in Animal:getSellPrice. It is read
+--- as carcass merit here because a facility's meat fill type carries no grade to price it by.
+--- @param animal table|nil The live server Animal
+--- @param targetObject table|nil The receiving facility
+--- @param subTypeIndex number|nil
+--- @return number factor
+function AnimalMoveEvent.getCarcassYieldFactor(animal, targetObject, subTypeIndex)
+	if animal == nil then return 1 end
+
+	local config = AnimalMoveEvent.getCarcassConfig()
+	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
+	local subType = animalSystem ~= nil and animalSystem:getSubTypeByIndex(subTypeIndex or animal.subTypeIndex) or nil
+	local defaults = AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS
+
+	local function get(attr)
+		return RLBreedTraits.resolve(config.layers, subType, attr, defaults[attr])
+	end
+
+	local reference, anchor = AnimalMoveEvent.getCarcassReferenceWeight(animal, targetObject, subTypeIndex)
+
+	local size, weightCompletion = 1, 1
 	if reference ~= nil and reference > 0 then
 		if anchor ~= nil and anchor > 0 then
 			size = math.clamp((reference / anchor) ^ config.sizeExponent, config.minSizeFactor, config.maxSizeFactor)
 		end
 		if animal.weight ~= nil then
-			finish = math.clamp((animal.weight / reference) ^ config.finishExponent, config.minFinishFactor,
+			weightCompletion = math.clamp((animal.weight / reference) ^ config.finishExponent, config.minFinishFactor,
 				config.maxFinishFactor)
 		end
 	end
 
 	local quality = animal.genetics ~= nil and animal.genetics.quality or 1
-	return size * finish * get("carcassFactor") * (1 + get("qualitySwing") * (quality - 1))
+	local condition = RLBodyCondition ~= nil and RLBodyCondition.getYieldFactor(animal) or 1
+	return size * weightCompletion * get("carcassFactor") * (1 + get("qualitySwing") * (quality - 1)) * condition
 end
 
 

@@ -21,7 +21,16 @@ function RL_PlaceableHusbandry:onHourChanged()
 			end)
 		end
 
-		if self.isServer then self:updateInputAndOutput(animals) end
+		if self.isServer then
+			self:updateInputAndOutput(animals)
+
+			-- Body condition: send this hour's steps to clients (RLBodyConditionStateEvent).
+			local tick = RLBodyCondition.getTickId()
+			if tick ~= nil and self.rlBodyConditionStepped == tick and g_server ~= nil
+				and g_currentMission.missionDynamicInfo.isMultiplayer then
+				g_server:broadcastEvent(RLBodyConditionStateEvent.new(self, tick))
+			end
+		end
 
 	end)
 end

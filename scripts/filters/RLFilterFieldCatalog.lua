@@ -231,6 +231,35 @@ RLFilterFieldCatalog.FIELDS = {
         max          = 100,
     },
 
+    -- ---------- Body condition (RLBodyCondition) ----------
+    -- Scored by eye, so not monitor-gated. nil for a calf or with the feature off.
+    {
+        key         = "finishScore",
+        type        = "number",
+        cmps        = NUMBER_CMPS,
+        animalTypes = { "COW" },
+        monitorGated = false,
+        getter      = function(animal)
+            if RLBodyCondition == nil or not RLBodyCondition.isEligible(animal) then return nil end
+            return RLBodyCondition.getFinishScore(animal)
+        end,
+        min          = 0,
+        max          = 100,
+    },
+    {
+        key         = "bcs",
+        type        = "number",
+        cmps        = NUMBER_CMPS,
+        animalTypes = { "COW" },
+        monitorGated = false,
+        getter      = function(animal)
+            if RLBodyCondition == nil or not RLBodyCondition.isEligible(animal) then return nil end
+            return RLBodyCondition.getBCS(animal)
+        end,
+        min          = 1,
+        max          = 5,
+    },
+
     -- ---------- Genetics (0-99 scale) ----------
     -- All genetics fields use min=0, max=99 to match the canonical
     -- presentation scale (scaled(rawValue) -> 0..99). The evaluator
