@@ -40,6 +40,8 @@ source(modDirectory .. "scripts/core/RLMapCountry.lua")
 
 -- SECTION 2e: Breed traits (xml/breedTraits.xml; its layered lookup is shared with the carcass yield config)
 source(modDirectory .. "scripts/animal/RLBreedTraits.lua")
+-- Carcass yield arithmetic, pure; AnimalMoveEvent feeds it the animal and config snapshot
+source(modDirectory .. "scripts/animal/RLMeatMath.lua")
 -- Livestock prices follow the difficulty multiplier: live prices, semen, contract slaughter fees
 source(modDirectory .. "scripts/animal/RLLivestockPrices.lua")
 -- Body condition of cattle (xml/bodyCondition.xml): nutrition budget, reserve, finish score / BCS.

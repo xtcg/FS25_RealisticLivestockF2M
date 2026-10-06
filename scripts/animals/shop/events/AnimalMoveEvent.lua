@@ -119,10 +119,71 @@ function AnimalMoveEvent.getFacilityMeanTargetWeight(targetObject, subTypeIndex)
 end
 
 
+--- Carcass parameters of a subtype, resolved through the layers (subtype, breed, animal type,
+--- root, then CARCASS_ATTRIBUTE_DEFAULTS), plus the type's meat per head. Read-only.
+--- @param subType table|nil
+--- @return table params RLMeatMath parameters
+function AnimalMoveEvent.getCarcassParams(subType)
+	local config = AnimalMoveEvent.getCarcassConfig()
+	local defaults = AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS
+
+	local function get(attr)
+		return RLBreedTraits.resolve(config.layers, subType, attr, defaults[attr])
+	end
+
+	return {
+		referenceWeight = get("referenceWeight"),
+		anchorWeight = get("anchorWeight"),
+		maleMaturity = get("maleMaturity"),
+		femaleMaturity = get("femaleMaturity"),
+		carcassFactor = get("carcassFactor"),
+		qualitySwing = get("qualitySwing"),
+		slaughterMinAgeMonth = get("slaughterMinAgeMonth") or 0,
+		meatPerHead = AnimalMoveEvent.getMeatPerHead(RLBreedTraits.getTypeName(subType)),
+	}
+end
+
+
+--- Frozen inputs of the carcass yield of one animal (RLMeatMath): live weight, own target
+--- weight (the subtype's when the animal has none), sex, meat gene, the facility mean when the
+--- reference or anchor needs it, and with withCondition the body condition yield factor.
+--- Reads only; sets up no state.
+--- @param animal table
+--- @param targetObject table|nil The receiving facility
+--- @param subTypeIndex number|nil
+--- @param withCondition boolean|nil
+--- @return table snapshot
+--- @return table params See getCarcassParams
+--- @return table formula The config's formula settings
+function AnimalMoveEvent.getCarcassSnapshot(animal, targetObject, subTypeIndex, withCondition)
+	local config = AnimalMoveEvent.getCarcassConfig()
+	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
+	subTypeIndex = subTypeIndex or animal.subTypeIndex
+	local subType = animalSystem ~= nil and animalSystem:getSubTypeByIndex(subTypeIndex) or nil
+	local params = AnimalMoveEvent.getCarcassParams(subType)
+
+	local snapshot = {
+		subTypeIndex = subTypeIndex,
+		age = animal.age,
+		weight = animal.weight,
+		targetWeight = animal.targetWeight or (subType ~= nil and subType.targetWeight) or nil,
+		gender = animal.gender,
+		quality = animal.genetics ~= nil and animal.genetics.quality or 1,
+	}
+	if RLMeatMath.needsFacilityMean(snapshot, params) then
+		snapshot.facilityMean = AnimalMoveEvent.getFacilityMeanTargetWeight(targetObject, subTypeIndex)
+	end
+	if withCondition then
+		snapshot.conditionFactor = RLBodyCondition ~= nil and RLBodyCondition.getYieldFactor(animal) or 1
+	end
+	return snapshot, params, config
+end
+
+
 --- The slaughter reference weight of an animal (its own target weight x maleMaturity /
 --- femaleMaturity, or a configured referenceWeight, else the facility's mean) and the anchor
 --- weight its size is measured against. Also the weight the body condition's finishing curve
---- (RLBodyCondition) reads a bull's progress against.
+--- (RLBodyCondition) reads a bull's progress against, so it reads no condition itself.
 --- @param animal table
 --- @param targetObject table|nil The receiving facility
 --- @param subTypeIndex number|nil
@@ -130,32 +191,21 @@ end
 --- @return number|nil anchor
 function AnimalMoveEvent.getCarcassReferenceWeight(animal, targetObject, subTypeIndex)
 	if animal == nil then return nil, nil end
+	local snapshot, params = AnimalMoveEvent.getCarcassSnapshot(animal, targetObject, subTypeIndex, false)
+	return RLMeatMath.getReference(snapshot, params)
+end
 
-	local config = AnimalMoveEvent.getCarcassConfig()
-	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
-	local subType = animalSystem ~= nil and animalSystem:getSubTypeByIndex(subTypeIndex or animal.subTypeIndex) or nil
-	local defaults = AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS
 
-	local function get(attr)
-		return RLBreedTraits.resolve(config.layers, subType, attr, defaults[attr])
-	end
-
-	local facilityMean
-	local function getFacilityMean()
-		if facilityMean == nil then
-			facilityMean = AnimalMoveEvent.getFacilityMeanTargetWeight(targetObject, subTypeIndex or animal.subTypeIndex) or false
-		end
-		return facilityMean or nil
-	end
-
-	local targetWeight = animal.targetWeight or (subType ~= nil and subType.targetWeight) or nil
-	local maturity = get(animal.gender == "male" and "maleMaturity" or "femaleMaturity")
-	local reference = get("referenceWeight")
-		or (targetWeight ~= nil and targetWeight > 0 and targetWeight * maturity)
-		or getFacilityMean()
-	local anchor = get("anchorWeight") or getFacilityMean() or reference
-
-	return reference, anchor
+--- Every step of an animal's carcass yield and its model meat (RLMeatMath.compute), for the
+--- trade report. modelMeat is nil when the type sets no meatPerHead.
+--- @return table|nil result nil without an animal
+--- @return table snapshot
+--- @return table params
+--- @return table formula
+function AnimalMoveEvent.getCarcassYield(animal, targetObject, subTypeIndex)
+	if animal == nil then return nil end
+	local snapshot, params, formula = AnimalMoveEvent.getCarcassSnapshot(animal, targetObject, subTypeIndex, true)
+	return RLMeatMath.compute(snapshot, params, formula), snapshot, params, formula
 end
 
 
@@ -174,7 +224,7 @@ end
 --- names but measure weight completion only; how well finished the animal is comes from its
 --- body condition (RLBodyCondition.getYieldFactor: 1 in the moderate finish band, less when
 --- lean or overfat), applied here once so meat kg, both slaughter routes and the live price's
---- slaughter floor all see it.
+--- slaughter floor all see it. The arithmetic is RLMeatMath.compute.
 ---
 --- The meat gene (0.25-1.75, 1 = average) prices the animal in Animal:getSellPrice. It is read
 --- as carcass merit here because a facility's meat fill type carries no grade to price it by.
@@ -184,32 +234,7 @@ end
 --- @return number factor
 function AnimalMoveEvent.getCarcassYieldFactor(animal, targetObject, subTypeIndex)
 	if animal == nil then return 1 end
-
-	local config = AnimalMoveEvent.getCarcassConfig()
-	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
-	local subType = animalSystem ~= nil and animalSystem:getSubTypeByIndex(subTypeIndex or animal.subTypeIndex) or nil
-	local defaults = AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS
-
-	local function get(attr)
-		return RLBreedTraits.resolve(config.layers, subType, attr, defaults[attr])
-	end
-
-	local reference, anchor = AnimalMoveEvent.getCarcassReferenceWeight(animal, targetObject, subTypeIndex)
-
-	local size, weightCompletion = 1, 1
-	if reference ~= nil and reference > 0 then
-		if anchor ~= nil and anchor > 0 then
-			size = math.clamp((reference / anchor) ^ config.sizeExponent, config.minSizeFactor, config.maxSizeFactor)
-		end
-		if animal.weight ~= nil then
-			weightCompletion = math.clamp((animal.weight / reference) ^ config.finishExponent, config.minFinishFactor,
-				config.maxFinishFactor)
-		end
-	end
-
-	local quality = animal.genetics ~= nil and animal.genetics.quality or 1
-	local condition = RLBodyCondition ~= nil and RLBodyCondition.getYieldFactor(animal) or 1
-	return size * weightCompletion * get("carcassFactor") * (1 + get("qualitySwing") * (quality - 1)) * condition
+	return AnimalMoveEvent.getCarcassYield(animal, targetObject, subTypeIndex).factor
 end
 
 
