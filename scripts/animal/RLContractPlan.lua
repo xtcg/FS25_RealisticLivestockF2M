@@ -33,7 +33,20 @@ function RLContractPlan.prepare(entries, money)
         seen[entry.key] = true
         local q = entry.quote
         if type(q) ~= "table" or q.authoritative ~= true then return reject("NOT_AUTHORITATIVE") end
-        if q.status ~= "SUPPORTED" then return reject("QUOTE_" .. tostring(q.status)) end
+        -- A quote that is UNKNOWN only because the farm has no order (NO_OPEN_ORDER, NO_FARM)
+        -- refuses as NO_ORDER; one that is UNKNOWN only for its own CANNOT_AFFORD is left to the
+        -- whole-batch cash check below, which also shares each order's credit across heads.
+        local status = q.status
+        if status == "UNKNOWN" and type(q.reasons) == "table" then
+            local onlyBudget, noOrder = true, false
+            for _, reason in ipairs(q.reasons) do
+                if reason == "NO_OPEN_ORDER" or reason == "NO_FARM" then noOrder = true
+                elseif reason ~= "CANNOT_AFFORD" then onlyBudget = false end
+            end
+            if onlyBudget and noOrder then return reject("NO_ORDER") end
+            if onlyBudget then status = "SUPPORTED" end
+        end
+        if status ~= "SUPPORTED" then return reject("QUOTE_" .. tostring(q.status)) end
         if q.semantics ~= "WEIGHTED_BATCH" then return reject("NOT_CONTRACT_BATCH") end
         if not finite(q.inputQuantity) or q.inputQuantity <= 0.001 then return reject("BAD_INPUT_AMOUNT") end
         if not finite(q.fee) or q.fee < 0 then return reject("BAD_FEE") end

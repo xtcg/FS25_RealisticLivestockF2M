@@ -198,6 +198,12 @@ do
     pen.getClusters = function() return many end
     local p, reason = RLContractPreview.prepare(many, h, 1)
     check("preview: does not silently truncate to report's 40 heads", p == nil and reason == "INSUFFICIENT_CASH")
+    money = 10
+    local single = RLTradeQuote.quoteAnimal(animals[1], h, 1)
+    p, reason = RLContractPreview.prepare(animals, h, 1)
+    check("preview: a head's own CANNOT_AFFORD is decided by the whole-batch cash check",
+        single.status == "UNKNOWN" and p == nil and reason == "INSUFFICIENT_CASH")
+    money = 1000
     g_currentMission.placeableSystem.placeables[2] = h
     check("console plan: ambiguous facility name is refused",
         RLTradeReportConsole:plan("Slaughter", "pen:Bulls"):find("AMBIGUOUS", 1, true) ~= nil)
