@@ -98,6 +98,10 @@ source(modDirectory .. "scripts/animal/RLContractTrade.lua")
 source(modDirectory .. "scripts/animal/RLSaleSettlement.lua")
 source(modDirectory .. "scripts/animal/RLSaleRecovery.lua")
 source(modDirectory .. "scripts/animal/RLLiveSale.lua")
+-- T02 batch 4: the ledger saved with the savegame, checked on load (gate before any T02 work)
+source(modDirectory .. "scripts/animal/RLTradePersistence.lua")
+source(modDirectory .. "scripts/animal/RLTradeRecovery.lua")
+source(modDirectory .. "scripts/animal/RLTradeCheckpoint.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalSellEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/SemenBuyEvent.lua")
 
@@ -368,6 +372,8 @@ source(modDirectory .. "scripts/events/RLDiseaseOverrideSetEvent.lua")
 
 -- SECTION 20f: Core (lifecycle, settings, i18n)
 source(modDirectory .. "scripts/core/FSCareerMissionInfo.lua")
+-- T02 ledger save hooks; after RLRM's own careerSavegame append, so the ledger is written last.
+RLTradeCheckpoint.install()
 source(modDirectory .. "scripts/core/I18N.lua")
 source(modDirectory .. "scripts/core/RealisticLivestock.lua")
 

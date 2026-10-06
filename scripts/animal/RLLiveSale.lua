@@ -24,7 +24,8 @@
     index); an unreadable source pays nothing and holds the locks; the money is one action per
     paymentId with an APPLIED / NOT_APPLIED / UNKNOWN receipt; NOT_APPLIED puts the very animals
     back (verified), UNKNOWN pays nothing again, puts nothing back and holds the locks. Records
-    live in memory for this run only: no crash or reload safety (batch 4).
+    are saved with the savegame by RLTradeCheckpoint (batch 4) once T02 was enabled in it; a reload
+    keeps finished sales replay-only and unfinished ones held, never resumed or paid again.
 ]]
 
 RLLiveSale = {}
@@ -63,6 +64,10 @@ end
 function RLLiveSale.setMode(mode)
     mode = type(mode) == "string" and mode:upper() or nil
     if mode ~= RLLiveSale.MODE_OFF and mode ~= RLLiveSale.MODE_SHADOW and mode ~= RLLiveSale.MODE_TEST then return false end
+    -- Batch 4: TEST only after the savegame's ledger checked out; setting it arms the ledger.
+    if mode == RLLiveSale.MODE_TEST and RLTradeCheckpoint ~= nil and not RLTradeCheckpoint.allowTest() then
+        return false, "LEDGER_" .. tostring(RLTradeCheckpoint.state) .. ":" .. tostring(RLTradeCheckpoint.reason)
+    end
     RLLiveSale.mode = mode
     Log:info("RLLiveSale: mode %s", mode)
     return true
@@ -112,7 +117,7 @@ end
 --- two legitimate rounds on one day stay apart.
 function RLLiveSale.nextRoundId()
     RLLiveSale.roundSequence = RLLiveSale.roundSequence + 1
-    return "hr" .. RLLiveSale.roundSequence
+    return "hr" .. RLLiveSale.roundSequence .. (RLTradeCheckpoint ~= nil and RLTradeCheckpoint.idTag() or "")
 end
 
 
@@ -192,7 +197,7 @@ function RLLiveSale.prepare(kind, source, quote, farmId, mission, saleId, shadow
     for _, key in ipairs(keys) do resources[#resources + 1] = "animal:" .. key end
     if saleId == nil then
         RLLiveSale.sequence = RLLiveSale.sequence + 1
-        saleId = string.format("ls%d-f%s", RLLiveSale.sequence, tostring(farmId))
+        saleId = string.format("ls%d-f%s%s", RLLiveSale.sequence, tostring(farmId), RLTradeCheckpoint ~= nil and RLTradeCheckpoint.idTag() or "")
     end
     context.txId = saleId
     local record

@@ -45,6 +45,11 @@ function T.begin(store, id, kind, fingerprint, resources)
         if old.kind ~= kind or old.fingerprint ~= fingerprint then return nil, "ID_COLLISION" end
         return copy(old), "REPLAY"
     end
+    -- Batch 4: the savegame checkpoint's gate (loading, verifying, saving, recovery required).
+    if store.admit ~= nil then
+        local admitted, why = store.admit(store, id, kind)
+        if not admitted then return nil, why end
+    end
     if store.recoveryRequired then return nil, "RECOVERY_REQUIRED" end
     if type(resources) ~= "table" or #resources == 0 or getmetatable(resources) ~= nil then return nil, "BAD_RESOURCES" end
     local keys, seen, count = {}, {}, 0
@@ -403,8 +408,11 @@ function T.import(data)
                 store.locks[key] = id
             end
             -- Never replay incomplete work on load. Even PREPARED is not proof that the
-            -- asset files and this ledger reached disk together.
-            state(record, "NEEDS_RECONCILIATION", "RELOAD_REQUIRES_ASSET_CHECK")
+            -- asset files and this ledger reached disk together. A record already awaiting
+            -- reconciliation keeps its own reason (the evidence).
+            if saved.state ~= "NEEDS_RECONCILIATION" then
+                state(record, "NEEDS_RECONCILIATION", "RELOAD_REQUIRES_ASSET_CHECK:" .. saved.state)
+            end
             store.recoveryRequired = true
         end
     end
