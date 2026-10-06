@@ -124,6 +124,8 @@ function RealisticLivestock.loadMap()
     g_overlayManager:addTextureConfigFile(modDirectory .. "gui/icons_menu.xml", "rlMenu")
     g_overlayManager:addTextureConfigFile(modDirectory .. "gui/fileTypeIcons.xml", "fileTypeIcons")
     g_overlayManager:addTextureConfigFile(modDirectory .. "gui/status_icons.xml", "rlStatus")
+    -- T02 contract transactions: OFF and an empty ledger on every map load (never saved).
+    RLContractTrade.reset()
     g_rlConsoleCommandManager = RLConsoleCommandManager.new()
     g_diseaseManager = DiseaseManager.new()
     -- g_rlFilterService is constructed at source-time so save-side

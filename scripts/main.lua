@@ -90,6 +90,10 @@ source(modDirectory .. "scripts/animal/RLTradeQuote.lua")
 source(modDirectory .. "scripts/animal/RLContractPlan.lua")
 source(modDirectory .. "scripts/animal/RLContractPreview.lua")
 source(modDirectory .. "scripts/animal/RLTradeTransaction.lua")
+-- T02 controlled contract delivery (OFF by default): HB target adapter, source adapter, entry
+source(modDirectory .. "scripts/animal/RLHBContractAdapter.lua")
+source(modDirectory .. "scripts/animal/RLTradeSourceAdapter.lua")
+source(modDirectory .. "scripts/animal/RLContractTrade.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalSellEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/SemenBuyEvent.lua")
 

@@ -298,3 +298,63 @@ function RLTradeReportConsole:report(...)
     end
     return "rlTradeReport: recipe figures are nominal, not output made or money paid"
 end
+
+
+--- rlTradeTxMode [OFF|SHADOW|TEST]: show or set the T02 contract delivery mode (server only, this run only).
+function RLTradeReportConsole:txMode(mode)
+    if not g_currentMission:getIsServer() then return "rlTradeTxMode: server only" end
+    if mode == nil then
+        return string.format("rlTradeTxMode: %s (OFF old path; SHADOW logs what TEST would do; TEST transactions, test saves only)",
+            RLContractTrade.getMode())
+    end
+    if not RLContractTrade.setMode(mode) then return "rlTradeTxMode: OFF, SHADOW or TEST" end
+    if RLContractTrade.getMode() == RLContractTrade.MODE_TEST then
+        return "rlTradeTxMode: TEST - contract deliveries run as transactions; records are not saved, use a test save"
+    end
+    return "rlTradeTxMode: " .. RLContractTrade.getMode()
+end
+
+
+--- rlTradeTxReport [txId]: this run's contract transactions. Reads only; never settles, unlocks or retries.
+function RLTradeReportConsole:txReport(txId)
+    if not g_currentMission:getIsServer() then return "rlTradeTxReport: server only (transactions run on the server)" end
+    local store = RLContractTrade.store
+    local ids = {}
+    for id in pairs(store.records) do
+        if txId == nil or id == txId then ids[#ids + 1] = id end
+    end
+    table.sort(ids, function(a, b) return store.records[a].sequence < store.records[b].sequence end)
+    if #ids == 0 then
+        return txId ~= nil and ("rlTradeTxReport: no transaction " .. txId) or
+            ("rlTradeTxReport: no transactions this run (mode " .. RLContractTrade.getMode() .. ")")
+    end
+    local held = 0
+    for _ in pairs(store.locks) do held = held + 1 end
+    for _, id in ipairs(ids) do
+        local record, receipt = store.records[id], RLContractTrade.receipts[id] or {}
+        out(string.format("== %s %s%s", id, record.state, record.reason ~= nil and (" (" .. record.reason .. ")") or ""))
+        out("   stages: " .. table.concat(record.history, " > "))
+        if receipt.keys ~= nil then
+            out(string.format("   farm %s, %d animal(s), %.6f standard batches (not kg), order %s; plan fee %.2f credit %.2f cash %.2f",
+                tostring(receipt.farmId), #receipt.keys, receipt.amount or 0, tostring(receipt.target and receipt.target.orderId),
+                receipt.plan.fee, receipt.plan.creditUse, receipt.plan.cashDue))
+        end
+        local t = receipt.target
+        if t ~= nil and t.before ~= nil and t.after ~= nil then
+            out(string.format("   target %s: accepted %s, buffered %s -> %s, credit %s -> %s, money %s -> %s%s%s",
+                tostring(t.stage), tostring(t.accepted), tostring(t.before.buffered), tostring(t.after.buffered),
+                tostring(t.before.feeCredit), tostring(t.after.feeCredit), tostring(t.moneyBefore), tostring(t.moneyAfter),
+                t.verifyError ~= nil and (" verify:" .. t.verifyError) or "", t.rollbackError ~= nil and (" rollback:" .. t.rollbackError) or ""))
+        end
+        local src = receipt.source
+        if src ~= nil then
+            out(string.format("   source %s %s: removed %d, restored %d%s%s", tostring(src.kind), tostring(src.stage),
+                #(src.removed or {}), #(src.restored or {}), src.error ~= nil and (" error:" .. src.error) or "",
+                src.rollbackError ~= nil and (" rollback:" .. src.rollbackError) or ""))
+        end
+        if record.state == "NEEDS_RECONCILIATION" then
+            out("   locks held: " .. table.concat(record.resources, ", "))
+        end
+    end
+    return string.format("rlTradeTxReport: %d transaction(s), %d lock(s) held, mode %s", #ids, held, RLContractTrade.getMode())
+end
