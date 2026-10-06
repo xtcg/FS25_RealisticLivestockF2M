@@ -40,14 +40,14 @@ check("multiplier: EASY x3", near(RLLivestockPrices.getMultiplier(), 3))
 -- Contract slaughter fees: patched at load, re-applied when the difficulty changes in game.
 DIFFICULTY = 3
 AnimalMoveEvent.alignContractRecipes(slaughterhouse)
-check("fees HARD: cattle 100 + 1.05 x 270 = 383.5, poultry the map's 5",
-    near(recipes[1].feePerBatch, 383.5) and near(recipes[2].feePerBatch, 5))
+check("fees HARD: cattle 100 + 0.37 x 270 = 199.9, poultry the map's 5",
+    near(recipes[1].feePerBatch, 199.9) and near(recipes[2].feePerBatch, 5))
 FSBaseMission.setEconomicDifficulty(g_currentMission, 1)
-check("fees EASY after a change in game: x3 (1150.5, 15)", near(recipes[1].feePerBatch, 1150.5) and near(recipes[2].feePerBatch, 15))
+check("fees EASY after a change in game: x3 (599.7, 15)", near(recipes[1].feePerBatch, 599.7) and near(recipes[2].feePerBatch, 15))
 FSBaseMission.setEconomicDifficulty(g_currentMission, 2)
-check("fees NORMAL: x1.8 (690.3, 9)", near(recipes[1].feePerBatch, 690.3) and near(recipes[2].feePerBatch, 9))
+check("fees NORMAL: x1.8 (359.82, 9)", near(recipes[1].feePerBatch, 359.82) and near(recipes[2].feePerBatch, 9))
 FSBaseMission.setEconomicDifficulty(g_currentMission, 3)
-check("fees back on HARD: the shipped fees again", near(recipes[1].feePerBatch, 383.5) and near(recipes[2].feePerBatch, 5)
+check("fees back on HARD: the shipped fees again", near(recipes[1].feePerBatch, 199.9) and near(recipes[2].feePerBatch, 5)
     and near(recipes[1].outputs[BEEFMEAT].amount, 270))
 
 -- Semen: the dealer's straw (and so a dewar's sale value) x the multiplier.
