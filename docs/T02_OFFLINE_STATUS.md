@@ -5,6 +5,7 @@ Branch: `feat/contract-transaction` (batch 1); rebased onto PR #31 `6bbb74d` in 
 
 Batch 2 (PR #32, controlled live HB contract delivery): see [T02_BATCH2_STATUS.md](T02_BATCH2_STATUS.md).
 Batch 3 (PR #33, player/herdsman live sales with money receipts, herdsman wage actions): see [T02_BATCH3_STATUS.md](T02_BATCH3_STATUS.md).
+Batch 4 (PR #34, ledger saved with the savegame, checkpoint markers, load check and gate): see [T02_BATCH4_STATUS.md](T02_BATCH4_STATUS.md).
 The "Not enabled or complete" section below describes batch 1 alone.
 
 ## Implemented and verified offline
