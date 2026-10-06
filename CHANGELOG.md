@@ -2,6 +2,14 @@
 
 ## Unreleased (xtcg fork, Hof Bergmann)
 
+### Fixed
+
+- Hof Bergmann 1.5 Beta2's public slaughterhouse gave 1000 kg of beef per typical animal again, for the map's 100 fee. Beta2 maps its MILKCOW type (the insemination system's placeholder cow) to BEEF next to COW, and a fill type taken by two animal types was left alone, so the cattle recipe was no longer aligned (the log showed 5 recipes, no cows_processing). Only animal types with a meat per head in xml/carcassYield.xml now count, so BEEF is COW's again on Beta1 and Beta2.
+
+### Changed
+
+- The cattle fine-cutting fee is 0.37 per kg instead of 1.05 (xml/carcassYield.xml, COW processingFeePerKg), so contract slaughter of a typical 270 kg animal costs 100 + 0.37 x 270 = 199.9 per batch on HARD (was 383.5), x1.8 on NORMAL and x3 on EASY.
+- Bull live-price curves (sell and buy, cows unchanged) are calibrated at an annual mean beef price of 8.4 per kg (best selling point) instead of 9.44, with the new fee, so slaughtering a finished bull by contract still earns about 12% over selling it live over the year: every bull curve x0.95511 (the ratio of a typical animal's contract net, (8.4 - 100/270 - 0.37) / (9.44 - 100/270 - 1.05)). Finished bulls at 18 months sell for Holstein 1,954, Swiss Brown 1,767, Hereford 1,791, Angus 1,928, Limousin 2,123, Highland 1,355, Water Buffalo 1,323.
 ### Changed
 
 - The dealer no longer offers animals heavier than their own target weight. Stock without a weight of its own (the dealer's, a new game's herds) is on the full-feed growth line +/-15% but capped at the animal's target, so a grown animal is at its mature weight instead of up to 15% over it (RLBreedTraits.getNewAnimalWeight).

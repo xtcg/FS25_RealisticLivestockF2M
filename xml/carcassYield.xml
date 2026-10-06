@@ -30,7 +30,7 @@
                    keeps the facility's own recipe.
 
     processingFeePerKg  Animal type only: fine cutting and packing to the map's sellable meat, charged per kg
-                   on top of the slaughterhouse's own fee (cattle 1.05). It is added to the contract
+                   on top of the slaughterhouse's own fee (cattle 0.37: 100 + 0.37 x 270 = 199.9 per typical animal). It is added to the contract
                    slaughterhouse's fee per batch at load, so it is paid through the same order and fee
                    budget; the map is not edited. A type without it is not charged.
     slaughterFee   Animal type only: the map's fee per typical animal (cattle 100), used to price the floor.
@@ -75,7 +75,7 @@
 <carcassYield qualitySwing="0.20" slaughterShare="0.85" cullShare="0.70" maxSlaughterMargin="0.25" cullFloorFactor="0.82"
               sizeExponent="0.25" minSizeFactor="0.88" maxSizeFactor="1.15"
               finishExponent="0.85" minFinishFactor="0" maxFinishFactor="1.3">
-    <animalType name="COW" anchorWeight="600" dressingRate="0.60" saleableRate="0.75" slaughterFee="100" processingFeePerKg="1.05" marketPassThrough="0.6" marketFactorMin="0.5" marketFactorMax="1.5" meatFillType="BEEFMEAT" cullAgeMonth="30" slaughterMinAgeMonth="6" maleMaturity="0.75" femaleMaturity="0.90">
+    <animalType name="COW" anchorWeight="600" dressingRate="0.60" saleableRate="0.75" slaughterFee="100" processingFeePerKg="0.37" marketPassThrough="0.6" marketFactorMin="0.5" marketFactorMax="1.5" meatFillType="BEEFMEAT" cullAgeMonth="30" slaughterMinAgeMonth="6" maleMaturity="0.75" femaleMaturity="0.90">
         <breed name="HOLSTEIN"      maleMaturity="0.59" femaleMaturity="0.85" carcassFactor="0.94"/>
         <breed name="SWISS_BROWN"   maleMaturity="0.62" femaleMaturity="0.85" carcassFactor="0.98"/>
         <breed name="HEREFORD"      maleMaturity="0.60" carcassFactor="1.00"/>

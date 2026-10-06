@@ -19,7 +19,7 @@ g_currentModDirectory = REPO
 
 -- Annual mean best-station beef price the bulls are calibrated at, and the map's seasonal factors
 -- (Hof Bergmann, mean 1.000833).
-local PRICE = { BEEFMEAT = 9.44 }
+local PRICE = { BEEFMEAT = 8.4 }
 local HB_FACTORS = { 1.00, 1.07, 0.99, 0.94, 0.85, 0.81, 0.86, 0.99, 1.08, 1.13, 1.21, 1.08 }
 local SEASONAL = 1.000833
 local FILL = { BEEFMEAT = 40 }
