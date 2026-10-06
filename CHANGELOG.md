@@ -10,6 +10,10 @@
 
 - The cattle fine-cutting fee is 0.37 per kg instead of 1.05 (xml/carcassYield.xml, COW processingFeePerKg), so contract slaughter of a typical 270 kg animal costs 100 + 0.37 x 270 = 199.9 per batch on HARD (was 383.5), x1.8 on NORMAL and x3 on EASY.
 - Bull live-price curves (sell and buy, cows unchanged) are calibrated at an annual mean beef price of 8.4 per kg (best selling point) instead of 9.44, with the new fee, so slaughtering a finished bull by contract still earns about 12% over selling it live over the year: every bull curve x0.95511 (the ratio of a typical animal's contract net, (8.4 - 100/270 - 0.37) / (9.44 - 100/270 - 1.05)). Finished bulls at 18 months sell for Holstein 1,954, Swiss Brown 1,767, Hereford 1,791, Angus 1,928, Limousin 2,123, Highland 1,355, Water Buffalo 1,323.
+### Changed
+
+- The dealer no longer offers animals heavier than their own target weight. Stock without a weight of its own (the dealer's, a new game's herds) is on the full-feed growth line +/-15% but capped at the animal's target, so a grown animal is at its mature weight instead of up to 15% over it (RLBreedTraits.getNewAnimalWeight).
+- The dealer sells young stock. Each animal type and sex has a maximum sale age (xml/breedTraits.xml maleMaxSaleAgeMonth / femaleMaxSaleAgeMonth): bulls 24 months (Highland and Water Buffalo 30), cows 48, pigs 12, rams and bucks 18, ewes and does 30, poultry 12, geese 14, rabbits 8 / 12; horses keep their own range. An animal drawn older is offered only when its genetics are elite (mean of its genes at least 1.45, about the best 11%, root eliteSaleGenetics); any other is drawn again within the limit. Bulls past 24 months fall from about 10% of the dealer's bulls to about 1%, cows past 4 years from about 5% to 0.5%, and all of them are elite.
 
 ## 1.4.0.1-dev.7 (xtcg fork, Hof Bergmann)
 
