@@ -82,6 +82,8 @@ source(modDirectory .. "scripts/animals/shop/events/AnimalInseminationEvent.lua"
 source(modDirectory .. "scripts/animals/shop/events/AnimalInseminationResultEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalMoveEvent.lua")
 source(modDirectory .. "scripts/animal/RLMeatValue.lua")
+-- Read-only trade quote: model meat vs a facility's units and effective recipe (rlTradeReport)
+source(modDirectory .. "scripts/animal/RLTradeQuote.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalSellEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/SemenBuyEvent.lua")
 
