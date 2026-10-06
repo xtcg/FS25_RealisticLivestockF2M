@@ -140,3 +140,5 @@ loadMod("scripts/nutrition/RLBodyCondition.lua")
 
 -- Carcass yield arithmetic (pure): AnimalMoveEvent's carcass entry points compute through it.
 loadMod("scripts/animal/RLMeatMath.lua")
+-- Delivery rules (pure), shared by AnimalMoveEvent and RLTradeQuote.
+loadMod("scripts/animal/RLFacilityRules.lua")

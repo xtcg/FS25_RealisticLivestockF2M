@@ -99,12 +99,60 @@ do
         and near6(order.cashCharged, quote.cashDue))
 end
 
--- No open order: the only recipe for the input is used; cash due is not made up.
+-- No open order: delivery would be refused, so the quote is not SUPPORTED; the only recipe is
+-- still described and cash due is not made up.
 do
     local quote, d = Q.quoteAnimal(bull, house, 2)
-    check("no order: only recipe, fee known, cash due unknown",
-        d.recipe.source == "only recipe" and quote.fee > 0 and quote.cashDue == nil
-        and has(quote.notes, "CASH_DUE_UNKNOWN:no open order"))
+    check("no order: NO_OPEN_ORDER, not supported; only recipe described, cash due unknown",
+        quote.status == Q.UNKNOWN and has(quote.reasons, "NO_OPEN_ORDER") and d.recipe.source == "only recipe, no open order"
+        and quote.fee > 0 and quote.cashDue == nil and has(quote.notes, "CASH_DUE_UNKNOWN:no open order"))
+    -- The delivery path agrees: no free slot without an order, so the batch is refused.
+    local copy = HB.newSlaughterhouse(SUBS)
+    function copy:contractProductionGetAnimalFreeSlots(farmId)
+        for _, order in pairs(self.spec_contractProductionService.orders) do if order.farmId == farmId then return 100 end end
+        return 0
+    end
+    AnimalMoveEvent.alignContractRecipes(copy)
+    local delivered = AnimalMoveEvent._deliverToEPPTarget(copy, { { animal = { subTypeIndex = BULL }, sourceCluster = bull } }, 2)
+    check("no order: the delivery path refuses the same animal", #delivered == 0)
+end
+
+-- No farm known (a dedicated server's console): still a weighted batch, orders not read.
+do
+    local quote, d = Q.quoteAnimal(bull, house, nil)
+    check("no farm: WEIGHTED_BATCH semantics kept, NO_FARM reason, not supported",
+        quote.semantics == Q.WEIGHTED_BATCH and has(quote.reasons, "NO_FARM") and quote.status == Q.UNKNOWN
+        and d.recipe.alignment == "ALIGNED")
+end
+
+-- Money short of the cash due: the delivery code refuses the batch, the quote says why.
+do
+    local poor = HB.newSlaughterhouse(SUBS)
+    AnimalMoveEvent.alignContractRecipes(poor)
+    HB.addOrder(poor, 1, 3, "cows_processing", 0)
+    MONEY[3] = 50
+    local quote = Q.quoteAnimal(bull, poor, 3)
+    local canTake = AnimalMoveEvent._canTakeEPPBatch(poor, { { animal = { subTypeIndex = BULL }, sourceCluster = bull } }, 3)
+    check(string.format("money short: CANNOT_AFFORD (cash %.2f, money 50), and the delivery path refuses", quote.cashDue),
+        quote.status == Q.UNKNOWN and has(quote.reasons, "CANNOT_AFFORD") and not canTake)
+    MONEY[3] = quote.cashDue + 0.0005
+    quote = Q.quoteAnimal(bull, poor, 3)
+    canTake = AnimalMoveEvent._canTakeEPPBatch(poor, { { animal = { subTypeIndex = BULL }, sourceCluster = bull } }, 3)
+    check("money just enough: SUPPORTED, same rounding as the delivery path", quote.status == Q.SUPPORTED and canTake)
+    MONEY[3] = nil
+end
+
+-- A bad parameter type is named, not thrown.
+do
+    local shipped = AnimalMoveEvent.carcassConfig
+    local config = table.clone(shipped, 4)
+    config.layers.breeds.COW.HOLSTEIN = table.clone(config.layers.breeds.COW.HOLSTEIN)
+    config.layers.breeds.COW.HOLSTEIN.carcassFactor = "heavy"
+    AnimalMoveEvent.carcassConfig = config
+    local ok, quote = pcall(Q.quoteAnimal, bull, house, 1)
+    AnimalMoveEvent.carcassConfig = shipped
+    check("bad input: quote names MODEL_BAD_INPUT:carcassFactor instead of throwing",
+        ok and quote.status == Q.UNKNOWN and has(quote.reasons, "MODEL_BAD_INPUT:carcassFactor") and quote.inputQuantity == nil)
 end
 
 -- Client copy: not authoritative.
@@ -195,12 +243,17 @@ do
         and quote.effectiveRecipeMeat == nil)
 end
 
--- Two butcher productions for BEEF -> BEEFMEAT: not guessed.
+-- Two butcher productions for BEEF -> BEEFMEAT: not guessed, but what delivery uses is shown.
 do
     local productions = table.clone(HB.BUTCHER_PRODUCTIONS)
     productions[#productions + 1] = { id = "cows_quick", input = "BEEF", inputAmount = 1000, output = "BEEFMEAT", amount = 500, waste = 100 }
-    local quote = Q.quoteAnimal(bull, HB.newFarmButcher(SUBS, { productions = productions }), 1)
-    check("butcher: two meat productions for one input are AMBIGUOUS", quote.status == Q.AMBIGUOUS and quote.inputQuantity == nil)
+    local two = HB.newFarmButcher(SUBS, { productions = productions })
+    local quote = Q.quoteAnimal(bull, two, 1)
+    local _, _, scaled = AnimalMoveEvent._getScaledButcherUnits(two, BULL, bull)
+    check(string.format("butcher: two meat productions are AMBIGUOUS; delivery would use the first (%.2f units, same as the delivery path)",
+        quote.deliveryInputQuantity), quote.status == Q.AMBIGUOUS and quote.inputQuantity == nil
+        and quote.deliveryRecipeId == "cows_processing" and near6(quote.deliveryInputQuantity, scaled)
+        and has(quote.notes, "DELIVERY_USES_FIRST:cows_processing"))
 end
 
 -- Insemination system: COW_HOLSTEIN in, a live cow out - a whole head, no carcass yield.
@@ -323,9 +376,15 @@ do
     local pen = { animals = { bull, animal(ANGUS, 600, { uniqueId = "B2" }) } }
     function pen:getName() return "Bull barn" end
     function pen:getClusters() return self.animals end
+    function pen:getOwnerFarmId() return 1 end
+    -- Another farm's pen of the same name and an animal with the same uniqueId.
+    local otherPen = { animals = { animal(ANGUS, 610, { uniqueId = "B2" }), animal(BULL, 500, { uniqueId = "X9" }) } }
+    function otherPen:getName() return "Bull barn" end
+    function otherPen:getClusters() return self.animals end
+    function otherPen:getOwnerFarmId() return 2 end
 
-    g_currentMission.placeableSystem = { placeables = { house, unaligned, butcherPlaceable, pen } }
-    g_currentMission.husbandrySystem = { placeables = { pen } }
+    g_currentMission.placeableSystem = { placeables = { house, unaligned, butcherPlaceable, pen, otherPen } }
+    g_currentMission.husbandrySystem = { placeables = { pen, otherPen } }
     g_currentMission.getFarmId = function() return 1 end
     g_currentMission.getIsServer = function() return true end
 
@@ -348,6 +407,20 @@ do
     check("console quote: butcher in production units", text:find("PRODUCTION_UNIT") ~= nil and text:find("matches") ~= nil)
     result = run("nowhere", "A1")
     check("console: unknown facility is named", result:find("no facility 'nowhere'") ~= nil)
+    result, text = run("1", "pen:bull", "farm:2")
+    check("console: farm:2 quotes only farm 2's pen", text:find("2 animal%(s%)") ~= nil and text:find("X9") ~= nil
+        and text:find("A1 ") == nil)
+    result = run("1", "X9", "1")
+    check("console: another farm's animal is not found for farm 1", result:find("no animal 'X9' in farm 1") ~= nil)
+
+    -- A dedicated server's console: no player farm. The list keeps the unit, flags NO_FARM, and farm:1 reads orders.
+    g_currentMission.getFarmId = function() return 0 end
+    result, text = run()
+    check("console list, no farm: weighted batch kept, NO_FARM shown",
+        result:find("farm none") ~= nil and text:find("COW       BEEF       WEIGHTED_BATCH") ~= nil and text:find("NO_FARM") ~= nil)
+    result, text = run("all", "farm:1")
+    check("console list, farm:1: the open order is read", result:find("farm 1") ~= nil and text:find("%(order 1%)") ~= nil)
+    g_currentMission.getFarmId = function() return 1 end
 
     g_currentMission.getIsServer = function() return false end
     local clientHouse = HB.newSlaughterhouse(SUBS, { isServer = false })

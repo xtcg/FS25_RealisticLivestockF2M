@@ -6,14 +6,18 @@
     recipes, delivers, charges, reserves room or sets up animal state. Quotes read on a client
     use its own copy of the config and are marked "not authoritative".
 
-    rlTradeReport                                   Every facility that takes animals: per input,
+    rlTradeReport [farm:N]                          Every facility that takes animals: per input,
                                                     its unit, recipe meat per unit next to the
                                                     model's meat per typical animal, fee and source,
-                                                    shared or conflicting inputs.
-    rlTradeReport <facility> <uniqueId|pen:NAME> [farmId]
-                                                    Quote animals at one facility. <facility> is
-                                                    the number from the list or part of its name.
-                                                    farmId defaults to the player's farm.
+                                                    shared or conflicting inputs, the farm's order.
+    rlTradeReport <facility> [farm:N]               The same for one facility.
+    rlTradeReport <facility> <uniqueId|pen:NAME> [farmId|farm:N]
+                                                    Quote animals of that farm's pens at one
+                                                    facility. <facility> is the number from the
+                                                    list or part of its name.
+
+    The farm defaults to the player's; on a dedicated server (no player farm) pass farm:N, or
+    orders, fee credit and money are not read (NO_FARM).
 
     A recipe figure is what the recipe would turn the input into, not output made or money paid.
 ]]
@@ -66,15 +70,17 @@ local function findFacility(selector)
 end
 
 
---- Animals by uniqueId or pen:NAME (part of the pen's name), from the husbandries.
-local function findAnimals(selector)
+--- Animals by uniqueId or pen:NAME (part of the pen's name), from the husbandries of the farm
+--- (every farm's when farmId is nil).
+function RLTradeReportConsole.findAnimals(selector, farmId)
     local animals, penFilter = {}, nil
     if selector:lower():sub(1, 4) == "pen:" then penFilter = selector:sub(5):lower() end
     local husbandrySystem = g_currentMission.husbandrySystem
     for _, pen in ipairs(husbandrySystem ~= nil and husbandrySystem.placeables or {}) do
+        local owner = pen.getOwnerFarmId ~= nil and pen:getOwnerFarmId() or nil
         local penName = pen.getName ~= nil and pen:getName() or "?"
         local penMatches = penFilter ~= nil and penName:lower():find(penFilter, 1, true) ~= nil
-        if penFilter == nil or penMatches then
+        if (farmId == nil or owner == farmId) and (penFilter == nil or penMatches) then
             for _, animal in ipairs(pen.getClusters ~= nil and pen:getClusters() or {}) do
                 if penMatches or tostring(animal.uniqueId) == selector then
                     table.insert(animals, animal)
@@ -139,6 +145,35 @@ local function describeAll(facility, farmId)
 end
 
 
+--- The farm a report is for: farm:N anywhere in the arguments, else the positional farm, else the
+--- player's farm; nil when none (a dedicated server) or 0 (spectator).
+--- @return table args Arguments without farm:N
+--- @return number|nil farmId
+--- @return string|nil error
+local function parseArgs(...)
+    local args, farmId = {}, nil
+    for i = 1, select("#", ...) do
+        local arg = select(i, ...)
+        if arg ~= nil then
+            local farm = arg:lower():match("^farm:(.*)$")
+            if farm ~= nil then
+                farmId = tonumber(farm)
+                if farmId == nil then return nil, nil, "invalid " .. arg end
+            else
+                args[#args + 1] = arg
+            end
+        end
+    end
+    if farmId == nil and args[3] ~= nil then
+        farmId = tonumber(args[3])
+        if farmId == nil then return nil, nil, "invalid farmId " .. args[3] end
+    end
+    if farmId == nil and g_currentMission.getFarmId ~= nil then farmId = g_currentMission:getFarmId() end
+    if farmId == 0 then farmId = nil end
+    return args, farmId
+end
+
+
 local function quoteLine(animal, quote)
     local subType = g_currentMission.animalSystem:getSubTypeByIndex(animal.subTypeIndex)
     local head = string.format("   %-12s %-18s %3sm %7.1f kg  factor %s  model %s kg",
@@ -154,6 +189,10 @@ local function quoteLine(animal, quote)
         quote.runCostEstimate ~= nil and string.format(" running ~%.2f", quote.runCostEstimate) or "",
         quote.feeSource ~= nil and (" [" .. quote.feeSource .. "]") or "",
         quote.status, quote.authoritative and "" or " (not authoritative)"))
+    if quote.deliveryInputQuantity ~= nil then
+        out(string.format("      delivery would use production %s: %.3f units (recipe ambiguous, quote gives none)",
+            tostring(quote.deliveryRecipeId), quote.deliveryInputQuantity))
+    end
     local reasons, notes = listText(quote.reasons), listText(quote.notes)
     if reasons ~= nil or notes ~= nil then
         out(string.format("      %s%s", reasons ~= nil and ("reasons: " .. reasons .. "  ") or "", notes ~= nil and ("notes: " .. notes) or ""))
@@ -161,34 +200,37 @@ local function quoteLine(animal, quote)
 end
 
 
---- rlTradeReport [facility] [uniqueId|pen:NAME] [farmId]
-function RLTradeReportConsole:report(facilityArg, animalArg, farmArg)
-    local farmId = tonumber(farmArg)
-    if farmId == nil and g_currentMission.getFarmId ~= nil then farmId = g_currentMission:getFarmId() end
-    if farmId == 0 then farmId = nil end
+--- rlTradeReport [facility] [uniqueId|pen:NAME] [farmId|farm:N]
+function RLTradeReportConsole:report(...)
+    local args, farmId, err = parseArgs(...)
+    if args == nil then return "rlTradeReport: " .. err end
+    local facilityArg, animalArg = args[1], args[2]
     local isServer = g_currentMission.getIsServer ~= nil and g_currentMission:getIsServer()
+    local farmText = farmId ~= nil and tostring(farmId) or "none (pass farm:N; orders, credit and money not read)"
 
-    if facilityArg == nil then
+    if facilityArg == nil or facilityArg:lower() == "all" then
         local facilities = RLTradeReportConsole.getFacilities()
         if #facilities == 0 then return "rlTradeReport: no facility takes animals" end
         for i, facility in ipairs(facilities) do
             out(string.format("== %d %s (%s)", i, facility.name, facility.target.isServer and "server" or "client copy, not authoritative"))
             describeAll(facility, farmId)
         end
-        return string.format("rlTradeReport: %d facilities, farm %s%s", #facilities, tostring(farmId),
+        return string.format("rlTradeReport: %d facilities, farm %s%s", #facilities, farmText,
             isServer and "" or "; client config, not authoritative")
     end
 
     local facility = findFacility(facilityArg)
     if facility == nil then return "rlTradeReport: no facility '" .. facilityArg .. "' (run rlTradeReport for the list)" end
     if animalArg == nil then
-        out(string.format("== %s", facility.name))
+        out(string.format("== %s, farm %s", facility.name, farmText))
         describeAll(facility, farmId)
         return "rlTradeReport: give a uniqueId or pen:NAME to quote animals"
     end
 
-    local animals = findAnimals(animalArg)
-    if #animals == 0 then return "rlTradeReport: no animal '" .. animalArg .. "'" end
+    local animals = RLTradeReportConsole.findAnimals(animalArg, farmId)
+    if #animals == 0 then
+        return "rlTradeReport: no animal '" .. animalArg .. "'" .. (farmId ~= nil and (" in farm " .. farmId .. "'s pens") or "")
+    end
     out(string.format("== %s, farm %s: %d animal(s)%s", facility.name, tostring(farmId), #animals,
         #animals > RLTradeReportConsole.MAX_ANIMALS and string.format(", first %d shown", RLTradeReportConsole.MAX_ANIMALS) or ""))
     for i, animal in ipairs(animals) do

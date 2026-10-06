@@ -121,14 +121,22 @@ end
 
 --- Carcass parameters of a subtype, resolved through the layers (subtype, breed, animal type,
 --- root, then CARCASS_ATTRIBUTE_DEFAULTS), plus the type's meat per head. Read-only.
+--- With referenceGender only what the reference and anchor need is resolved (that sex's
+--- maturity, referenceWeight, anchorWeight): the body condition reads the reference often.
 --- @param subType table|nil
+--- @param referenceGender string|nil "male" / anything else; nil for every parameter
 --- @return table params RLMeatMath parameters
-function AnimalMoveEvent.getCarcassParams(subType)
+function AnimalMoveEvent.getCarcassParams(subType, referenceGender)
 	local config = AnimalMoveEvent.getCarcassConfig()
 	local defaults = AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS
 
 	local function get(attr)
 		return RLBreedTraits.resolve(config.layers, subType, attr, defaults[attr])
+	end
+
+	if referenceGender ~= nil then
+		local maturity = referenceGender == "male" and "maleMaturity" or "femaleMaturity"
+		return { referenceWeight = get("referenceWeight"), anchorWeight = get("anchorWeight"), [maturity] = get(maturity) }
 	end
 
 	return {
@@ -138,7 +146,6 @@ function AnimalMoveEvent.getCarcassParams(subType)
 		femaleMaturity = get("femaleMaturity"),
 		carcassFactor = get("carcassFactor"),
 		qualitySwing = get("qualitySwing"),
-		slaughterMinAgeMonth = get("slaughterMinAgeMonth") or 0,
 		meatPerHead = AnimalMoveEvent.getMeatPerHead(RLBreedTraits.getTypeName(subType)),
 	}
 end
@@ -147,6 +154,7 @@ end
 --- Frozen inputs of the carcass yield of one animal (RLMeatMath): live weight, own target
 --- weight (the subtype's when the animal has none), sex, meat gene, the facility mean when the
 --- reference or anchor needs it, and with withCondition the body condition yield factor.
+--- Without withCondition only the reference parameters are read (getCarcassParams).
 --- Reads only; sets up no state.
 --- @param animal table
 --- @param targetObject table|nil The receiving facility
@@ -160,7 +168,7 @@ function AnimalMoveEvent.getCarcassSnapshot(animal, targetObject, subTypeIndex, 
 	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
 	subTypeIndex = subTypeIndex or animal.subTypeIndex
 	local subType = animalSystem ~= nil and animalSystem:getSubTypeByIndex(subTypeIndex) or nil
-	local params = AnimalMoveEvent.getCarcassParams(subType)
+	local params = AnimalMoveEvent.getCarcassParams(subType, not withCondition and (animal.gender == "male" and "male" or "female") or nil)
 
 	local snapshot = {
 		subTypeIndex = subTypeIndex,
@@ -342,21 +350,9 @@ function AnimalMoveEvent._getButcherRecipeRatio(targetObject, fillType, typeName
 	local meatFillType = meatName ~= nil and g_fillTypeManager ~= nil and g_fillTypeManager:getFillTypeIndexByName(meatName) or nil
 	if meatFillType == nil or type(targetObject.productions) ~= "table" then return nil end
 
-	for _, production in ipairs(targetObject.productions) do
-		local input, inputs = nil, 0
-		for _, candidate in ipairs(production.inputs or {}) do
-			inputs = inputs + 1
-			if (candidate.type or candidate.fillType) == fillType then input = candidate end
-		end
-		if input ~= nil and inputs == 1 and (input.amount or 0) > 0 then
-			for _, output in ipairs(production.outputs or {}) do
-				if (output.type or output.fillType) == meatFillType and (output.amount or 0) > 0 then
-					return output.amount / input.amount
-				end
-			end
-		end
-	end
-	return nil
+	-- The first matching production (RLFacilityRules; the trade report flags more than one).
+	local match = RLFacilityRules.getButcherProductions(targetObject.productions, fillType, meatFillType)[1]
+	return match ~= nil and match.output.amount / match.input.amount or nil
 end
 
 
@@ -456,16 +452,9 @@ function AnimalMoveEvent._getContractFee(targetObject, farmId, fillType, amount)
 	local serviceSpec = targetObject.spec_contractProductionService
 	if serviceSpec == nil or serviceSpec.orders == nil or serviceSpec.recipeById == nil then return nil, 0 end
 
-	local order, recipeInput, recipe
-	for _, candidate in pairs(serviceSpec.orders) do
-		local candidateRecipe = candidate.farmId == farmId and serviceSpec.recipeById[candidate.recipeId] or nil
-		local input = candidateRecipe ~= nil and candidateRecipe.inputs ~= nil and candidateRecipe.inputs[fillType] or nil
-		if input ~= nil and (order == nil or (candidate.id or 0) < (order.id or 0)) then
-			order, recipeInput, recipe = candidate, input, candidateRecipe
-		end
-	end
-	if order == nil or fillType ~= recipe.feeInputFillTypeIndex or (recipe.feePerBatch or 0) <= 0 then return order, 0 end
-	return order, amount / recipeInput.amount * recipe.feePerBatch
+	local order, recipe, recipeInput = RLFacilityRules.selectContractOrder(serviceSpec.orders, serviceSpec.recipeById, farmId, fillType)
+	if order == nil then return nil, 0 end
+	return order, RLFacilityRules.getBatchFee(amount, recipeInput.amount, recipe.feePerBatch, fillType == recipe.feeInputFillTypeIndex)
 end
 
 
@@ -484,17 +473,24 @@ function AnimalMoveEvent._canAffordContractInputs(targetObject, farmId, amountBy
 
 	local cash = 0
 	for order, fee in pairs(feeByOrder) do
-		cash = cash + math.max(fee - math.max(order.feeCredit or 0, 0), 0)
+		local _, orderCash = RLFacilityRules.splitFee(fee, order.feeCredit)
+		cash = cash + orderCash
 	end
-	return cash <= 0.001 or math.max(g_currentMission:getMoney(farmId), 0) + 0.001 >= cash
+	return RLFacilityRules.canPayCash(cash, g_currentMission:getMoney(farmId))
+end
+
+
+--- Whether a target is a contract facility with the weighted delivery calls.
+function AnimalMoveEvent._hasWeighedContractDelivery(targetObject)
+	return type(targetObject.contractProductionAddAnimals) == "function"
+		and type(targetObject.contractProductionDeliver) == "function"
+		and type(targetObject.contractProductionGetAnimalFreeSlots) == "function"
 end
 
 
 --- Whether a target is a contract facility that takes weighted deliveries from this farm.
 function AnimalMoveEvent._isWeighedContractTarget(targetObject, farmId)
-	return farmId ~= nil and type(targetObject.contractProductionAddAnimals) == "function"
-		and type(targetObject.contractProductionDeliver) == "function"
-		and type(targetObject.contractProductionGetAnimalFreeSlots) == "function"
+	return farmId ~= nil and AnimalMoveEvent._hasWeighedContractDelivery(targetObject)
 end
 
 

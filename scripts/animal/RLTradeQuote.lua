@@ -150,7 +150,8 @@ function RLTradeQuote.snapshotFacility(target, subTypeIndex, farmId)
     local serviceSpec = target.spec_contractProductionService
     if type(target.contractProductionAddAnimals) == "function" then
         snapshot.kind = "CONTRACT"
-        snapshot.weighted = AnimalMoveEvent._isWeighedContractTarget(target, farmId)
+        -- The facility's delivery calls decide the unit, whether or not a farm is known.
+        snapshot.weighted = AnimalMoveEvent._hasWeighedContractDelivery(target)
         snapshot.recipes = {}
         snapshot.recipesReadable = serviceSpec ~= nil and type(serviceSpec.recipes) == "table"
         for _, recipe in ipairs(snapshot.recipesReadable and serviceSpec.recipes or {}) do
@@ -168,19 +169,23 @@ function RLTradeQuote.snapshotFacility(target, subTypeIndex, farmId)
             })
         end
 
-        -- The farm's orders, lowest id first: the one a delivery goes to is the first whose recipe takes the input.
+        -- The order a delivery from this farm goes to, picked by the delivery code's own rule.
         snapshot.ordersReadable = serviceSpec ~= nil and type(serviceSpec.orders) == "table"
-        snapshot.orders = {}
-        for _, order in pairs(snapshot.ordersReadable and serviceSpec.orders or {}) do
-            if farmId ~= nil and order.farmId == farmId then
-                local input = fillType ~= nil and order.inputs ~= nil and order.inputs[fillType] or nil
-                table.insert(snapshot.orders, { id = order.id, recipeId = order.recipeId, feeCredit = order.feeCredit,
-                    buffered = input ~= nil and input.buffered or nil })
+            and type(serviceSpec.recipeById) == "table"
+        if snapshot.ordersReadable and farmId ~= nil and fillType ~= nil then
+            local order = RLFacilityRules.selectContractOrder(serviceSpec.orders, serviceSpec.recipeById, farmId, fillType)
+            if order ~= nil then
+                local input = order.inputs ~= nil and order.inputs[fillType] or nil
+                snapshot.order = { id = order.id, recipeId = order.recipeId, feeCredit = order.feeCredit,
+                    buffered = input ~= nil and input.buffered or nil }
             end
         end
-        table.sort(snapshot.orders, function(a, b) return (a.id or 0) < (b.id or 0) end)
         if fillType ~= nil and farmId ~= nil and snapshot.weighted then
             snapshot.room = AnimalMoveEvent._getContractRoom(target, farmId, fillType)
+        end
+        if farmId ~= nil and g_currentMission ~= nil and g_currentMission.getMoney ~= nil then
+            local ok, money = pcall(g_currentMission.getMoney, g_currentMission, farmId)
+            if ok and type(money) == "number" and money == money then snapshot.money = money end
         end
         return snapshot
     end
@@ -244,8 +249,10 @@ local function classifySharers(snapshot, role, description)
 end
 
 
---- Picks the contract recipe a delivery of this input goes to: the farm's open order's (lowest
---- id whose recipe takes it), else the only recipe that takes it. Several and no order: ambiguous.
+--- Picks the contract recipe a delivery of this input goes to: the farm's open order's (picked
+--- by RLFacilityRules in the snapshot). With no order a delivery is refused; the only recipe
+--- that takes the input is still described, under NO_OPEN_ORDER (or NO_FARM). Several recipes
+--- and no order: ambiguous.
 local function pickContractRecipe(snapshot, description)
     local byId, candidates = {}, {}
     for _, recipe in ipairs(snapshot.recipes or {}) do
@@ -253,14 +260,13 @@ local function pickContractRecipe(snapshot, description)
         if amountOf(recipe.inputs, snapshot.inputFillType) ~= nil then candidates[#candidates + 1] = recipe end
     end
 
-    for _, order in ipairs(snapshot.orders or {}) do
-        local recipe = byId[order.recipeId]
-        if recipe ~= nil and amountOf(recipe.inputs, snapshot.inputFillType) ~= nil then
-            description.order = order
-            return recipe, "order " .. tostring(order.id)
-        end
+    local order = snapshot.order
+    if order ~= nil and byId[order.recipeId] ~= nil then
+        description.order = order
+        return byId[order.recipeId], "order " .. tostring(order.id)
     end
-    if #candidates == 1 then return candidates[1], "only recipe" end
+    table.insert(description.reasons, snapshot.farmId == nil and "NO_FARM" or "NO_OPEN_ORDER")
+    if #candidates == 1 then return candidates[1], "only recipe, no open order" end
     if #candidates == 0 then
         table.insert(description.reasons, snapshot.recipesReadable and "NO_RECIPE" or "RECIPES_UNREADABLE")
     else
@@ -270,22 +276,21 @@ local function pickContractRecipe(snapshot, description)
 end
 
 
---- Picks the farm butcher production for this input: single input, the role's meat as output.
---- The delivery code takes the first such production; more than one is reported, not guessed.
+--- Picks the farm butcher production for this input: single input, the role's meat as output
+--- (RLFacilityRules, the delivery code's rule). The delivery code takes the first such
+--- production; with more than one the quote is ambiguous, and what delivery would use is
+--- reported beside it (description.deliveryRecipe).
 local function pickProduction(snapshot, role, description)
-    local candidates = {}
-    for _, production in ipairs(snapshot.productions or {}) do
-        if #production.inputs == 1 and production.inputs[1].fillType == snapshot.inputFillType
-            and (production.inputs[1].amount or 0) > 0 and role.meatFillType ~= nil
-            and (amountOf(production.outputs, role.meatFillType) or 0) > 0 then
-            candidates[#candidates + 1] = production
-        end
-    end
-    if #candidates == 1 then return candidates[1] end
-    if #candidates == 0 then
+    local matches = RLFacilityRules.getButcherProductions(snapshot.productions, snapshot.inputFillType, role.meatFillType)
+    if #matches == 1 then return matches[1].production end
+    if #matches == 0 then
         table.insert(description.reasons, snapshot.productionsReadable and "NO_RECIPE" or "RECIPES_UNREADABLE")
     else
         table.insert(description.reasons, "MULTIPLE_RECIPES")
+        local first = matches[1]
+        description.deliveryRecipe = { id = first.production.id, inputAmount = first.input.amount,
+            meatAmount = first.output.amount, meatPerInputUnit = first.output.amount / first.input.amount }
+        table.insert(description.notes, "DELIVERY_USES_FIRST:" .. tostring(first.production.id))
     end
     return nil
 end
@@ -341,6 +346,7 @@ function RLTradeQuote.describeFacility(snapshot, role)
         inputFillType = snapshot.inputFillType,
         inputFillTypeName = snapshot.inputFillTypeName,
         authoritative = snapshot.isServer == true,
+        money = snapshot.money,
         minimumAge = snapshot.minimumAge,
         maximumAge = snapshot.maximumAge,
         reasons = {},
@@ -483,11 +489,16 @@ function RLTradeQuote.quote(meat, meatReasons, description, animal)
             end
             local fee = description.fee
             if fee ~= nil and (fee.perBatch or 0) > 0 then
-                quote.fee = quote.batches * fee.perBatch
+                quote.fee = RLFacilityRules.getBatchFee(quote.inputQuantity, recipe.inputAmount, fee.perBatch, true)
                 local order = description.order
                 if order ~= nil and type(order.feeCredit) == "number" then
-                    quote.feeCreditUse = math.min(math.max(order.feeCredit, 0), quote.fee)
-                    quote.cashDue = quote.fee - quote.feeCreditUse
+                    quote.feeCreditUse, quote.cashDue = RLFacilityRules.splitFee(quote.fee, order.feeCredit)
+                    -- The delivery code refuses what the farm's money cannot pay (the facility would take only part).
+                    if description.money == nil then
+                        quote.notes[#quote.notes + 1] = "WALLET_UNKNOWN"
+                    elseif not RLFacilityRules.canPayCash(quote.cashDue, description.money) then
+                        quote.reasons[#quote.reasons + 1] = "CANNOT_AFFORD"
+                    end
                 else
                     quote.notes[#quote.notes + 1] = order == nil and "CASH_DUE_UNKNOWN:no open order" or "CASH_DUE_UNKNOWN:credit unreadable"
                 end
@@ -504,6 +515,13 @@ function RLTradeQuote.quote(meat, meatReasons, description, animal)
         local units = description.unitsPerAnimal
         if recipe ~= nil and recipe.meatPerInputUnit ~= nil and quote.meatPerHead ~= nil then
             units = quote.meatPerHead / recipe.meatPerInputUnit
+        end
+        -- Ambiguous recipe: no quantity of our own, but what the delivery code would credit
+        -- through the first production is shown beside it.
+        local delivery = description.deliveryRecipe
+        if delivery ~= nil and quote.meatPerHead ~= nil then
+            quote.deliveryInputQuantity = quote.meatPerHead / delivery.meatPerInputUnit * factor
+            quote.deliveryRecipeId = delivery.id
         end
         if quote.status ~= RLTradeQuote.AMBIGUOUS and units ~= nil then
             quote.inputQuantity = units * factor
@@ -536,9 +554,24 @@ end
 --- @return table description
 function RLTradeQuote.quoteAnimal(animal, target, farmId)
     local subTypeIndex = animal.subTypeIndex
-    local meat, snapshot, params, formula = AnimalMoveEvent.getCarcassYield(animal, target, subTypeIndex)
-    local meatReasons = RLMeatMath.check(snapshot, params, formula, meat)
+    -- Checked before computing: a value of the wrong type is named (BAD_INPUT:key), not thrown.
+    local snapshot, params, formula = AnimalMoveEvent.getCarcassSnapshot(animal, target, subTypeIndex, true)
+    local meatReasons = RLMeatMath.check(snapshot, params, formula)
+    local meat
+    local badInput = false
+    for _, reason in ipairs(meatReasons) do
+        if reason:sub(1, 10) == "BAD_INPUT:" then badInput = true end
+    end
+    if not badInput then meat = RLMeatMath.compute(snapshot, params, formula) end
     local facility = RLTradeQuote.snapshotFacility(target, subTypeIndex, farmId)
     local description = RLTradeQuote.describeFacility(facility, RLTradeQuote.getRole(subTypeIndex))
-    return RLTradeQuote.quote(meat, meatReasons, description, { age = animal.age }), description
+    local quote = RLTradeQuote.quote(meat, meatReasons, description, { age = animal.age })
+    if badInput then
+        for _, reason in ipairs(meatReasons) do
+            if reason:sub(1, 10) == "BAD_INPUT:" then quote.reasons[#quote.reasons + 1] = "MODEL_" .. reason end
+        end
+        quote.inputQuantity, quote.effectiveRecipeMeat, quote.fee, quote.cashDue = nil, nil, nil, nil
+        quote.status = RLTradeQuote.UNKNOWN
+    end
+    return quote, description
 end

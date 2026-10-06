@@ -186,6 +186,20 @@ do
     bcConfig.enabled = enabled
 end
 
+-- The reference path (read by the body condition) resolves only what it needs: no meat per head.
+do
+    local calls, original = 0, AnimalMoveEvent.getMeatPerHead
+    AnimalMoveEvent.getMeatPerHead = function(...) calls = calls + 1 return original(...) end
+    AnimalMoveEvent.getCarcassReferenceWeight(makeAnimal(SUBS.BULL_ANGUS), nil, SUBS.BULL_ANGUS)
+    local referenceCalls = calls
+    AnimalMoveEvent.getCarcassYieldFactor(makeAnimal(SUBS.BULL_ANGUS), nil, SUBS.BULL_ANGUS)
+    AnimalMoveEvent.getMeatPerHead = original
+    check("hot path: the reference weight resolves no meat per head; the yield does once",
+        referenceCalls == 0 and calls == 1)
+    check("getMeatKg: no subtype gives 0 as before", RLMeatValue.getMeatKg(makeAnimal(SUBS.BULL_ANGUS), nil) == 0
+        and LegacyCarcass.getMeatKg(makeAnimal(SUBS.BULL_ANGUS), nil) == 0)
+end
+
 -- Missing animal and missing subtype keep the old answers.
 check("fallbacks: no animal gives factor 1 and no reference",
     AnimalMoveEvent.getCarcassYieldFactor(nil, nil, 1) == 1 and AnimalMoveEvent.getCarcassReferenceWeight(nil) == nil

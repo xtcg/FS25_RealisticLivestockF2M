@@ -30,7 +30,7 @@ RLMeatMath = {}
 function RLMeatMath.needsFacilityMean(snapshot, params)
     if params.anchorWeight == nil then return true end
     local targetWeight = snapshot.targetWeight
-    return params.referenceWeight == nil and not (targetWeight ~= nil and targetWeight > 0)
+    return params.referenceWeight == nil and not (type(targetWeight) == "number" and targetWeight > 0)
 end
 
 
@@ -116,6 +116,13 @@ function RLMeatMath.check(snapshot, params, formula, result)
             local value = group[1][key]
             if value ~= nil and type(value) ~= "number" then add("BAD_INPUT:" .. key) end
         end
+    end
+    -- compute() needs these whatever else is missing.
+    local maturity = snapshot.gender == "male" and "maleMaturity" or "femaleMaturity"
+    for _, required in ipairs({ { params, "carcassFactor" }, { params, "qualitySwing" }, { params, maturity },
+        { formula, "sizeExponent" }, { formula, "minSizeFactor" }, { formula, "maxSizeFactor" },
+        { formula, "finishExponent" }, { formula, "minFinishFactor" }, { formula, "maxFinishFactor" } }) do
+        if required[1][required[2]] == nil then add("BAD_INPUT:" .. required[2]) end
     end
     if #reasons > 0 then return reasons end
 

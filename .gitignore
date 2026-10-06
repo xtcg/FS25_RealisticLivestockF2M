@@ -1,2 +1,3 @@
 site/
 scripts/tests
+__pycache__/
