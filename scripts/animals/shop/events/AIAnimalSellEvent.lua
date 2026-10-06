@@ -33,8 +33,8 @@ AIAnimalSellEvent.STATUS_FAILED = "failed"      -- failed during or after remova
 
 function AIAnimalSellEvent.emptyNew()
 
-    local self = Event.new(AIAnimalSellEvent_mt)
-    return self
+	local self = Event.new(AIAnimalSellEvent_mt)
+	return self
 
 end
 
@@ -264,8 +264,23 @@ function AIAnimalSellEvent.executeServer(object, identities, sellerFarmId, ctx, 
 	local result = { status = AIAnimalSellEvent.STATUS_REFUSED, requestedCount = requested, removedCount = 0,
 		settledCount = 0, amountGained = 0, quotedAmount = nil, failureStage = nil, reason = nil }
 
+	local liveTest = RLLiveSale ~= nil and RLLiveSale.getMode() == RLLiveSale.MODE_TEST
+	local liveShadow = RLLiveSale ~= nil and RLLiveSale.getMode() == RLLiveSale.MODE_SHADOW
+	local replayKeys
+	if liveTest and AIAnimalSellEvent.batchLength(identities) ~= nil then
+		replayKeys = {}
+		for i, identity in ipairs(identities) do
+			local key = identityKey(identity)
+			if key == nil then replayKeys = nil break end
+			replayKeys[i] = key
+		end
+	end
+
 	local function finish(status, stage, reason)
 		result.status, result.failureStage, result.reason = status, stage, reason
+		if liveTest and ctx ~= nil and ctx.server ~= nil and ctx.mission ~= nil then
+			RLLiveSale.rememberAiRefusal(saleId, object, replayKeys, sellerFarmId, result)
+		end
 		if status == AIAnimalSellEvent.STATUS_SOLD then
 			Log:debug("AIAnimalSellEvent.executeServer: sold %d animals farm=%s paid %.2f",
 				result.settledCount, tostring(sellerFarmId), result.amountGained)
@@ -285,12 +300,8 @@ function AIAnimalSellEvent.executeServer(object, identities, sellerFarmId, ctx, 
 	end
 
 	-- T02 batch 3 (RLLiveSale): a replayed sale id returns its first result and sells nothing.
-	local liveTest = RLLiveSale ~= nil and RLLiveSale.getMode() == RLLiveSale.MODE_TEST
-	local liveShadow = RLLiveSale ~= nil and RLLiveSale.getMode() == RLLiveSale.MODE_SHADOW
 	if liveTest and saleId ~= nil then
-		local keys = {}
-		for i, identity in ipairs(type(identities) == "table" and identities or {}) do keys[i] = identityKey(identity) end
-		local replayed = RLLiveSale.replayAi(saleId, object, keys, sellerFarmId, result)
+		local replayed = RLLiveSale.replayAi(saleId, object, replayKeys, sellerFarmId, result)
 		if replayed ~= nil then
 			Log:info("AIAnimalSellEvent.executeServer: sale %s replayed (%s), nothing sold again", tostring(saleId), tostring(replayed.txState or replayed.reason))
 			return replayed

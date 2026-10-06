@@ -130,6 +130,11 @@ function T.executeContract(store, id, adapter)
         return undo(store, record, adapter, true, true, "SOURCE_NOT_COMPLETE")
     end
     state(record, "SOURCE_APPLIED")
+    -- Source flush publishes synchronous callbacks too. A previously verified target may
+    -- have been detached or changed; verifyTarget must be safe to call more than once.
+    if not call(adapter.verifyTarget, id) then
+        return undo(store, record, adapter, true, true, "TARGET_CHANGED_AFTER_SOURCE")
+    end
     state(record, "COMMITTED")
     release(store, record)
     -- Visuals/notifications are explicitly outside the economic commit. Failure cannot retry.
@@ -253,6 +258,9 @@ function T.executeLiveSale(store, id, adapter)
     ok, receipt = pcall(adapter.settle, id, outcome)
     if not ok or type(receipt) ~= "table" then receipt = { status = nil, evidence = "SETTLE_THREW:" .. tostring(receipt) } end
     sale.paymentId, sale.amount, sale.payment = receipt.paymentId, receipt.amount, receipt.status or "UNKNOWN"
+    -- Money callbacks can queue survivors again. Clear our batch after the call as well,
+    -- including UNKNOWN/NOT_APPLIED paths; never consume another transaction's queue.
+    cleared = call(adapter.clearSourceQueue, id) and cleared
     local next = RLSaleRecovery.afterSettlement(outcome, receipt.status)
     if next == RLSaleRecovery.RESTORE then
         if call(adapter.restoreSource, id) and call(adapter.verifySourceRestored, id) then
@@ -267,6 +275,19 @@ function T.executeLiveSale(store, id, adapter)
         return reconcile(store, record, "SETTLEMENT_UNKNOWN:" .. tostring(receipt.evidence))
     end
 
+    -- Re-certify the subset after synchronous money listeners before releasing locks.
+    local observed, after = pcall(adapter.observeSource, id)
+    if not observed or RLSaleRecovery.afterSource(after) == RLSaleRecovery.SOURCE_UNKNOWN then
+        return reconcile(store, record, "SOURCE_CHANGED_AFTER_SETTLEMENT")
+    end
+    for _, name in ipairs({ "removedKeys", "survivorKeys" }) do
+        if type(after[name]) ~= "table" or type(outcome[name]) ~= "table" or #after[name] ~= #outcome[name] then
+            return reconcile(store, record, "SOURCE_CHANGED_AFTER_SETTLEMENT")
+        end
+        for i, key in ipairs(outcome[name]) do
+            if after[name][i] ~= key then return reconcile(store, record, "SOURCE_CHANGED_AFTER_SETTLEMENT") end
+        end
+    end
     state(record, "SETTLED")
     -- The money stands; survivors still queued could leave unpaid on a later flush.
     if not cleared then return reconcile(store, record, "SURVIVOR_QUEUE_NOT_CLEARED") end

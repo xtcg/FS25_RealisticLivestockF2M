@@ -251,9 +251,9 @@ do
     end
     local record, store, log, a = run()
     check("coordinator: all left, APPLIED -> COMMITTED, locks released, notified once", record.state == "COMMITTED"
-        and next(store.locks) == nil and table.concat(log.calls, ",") == "apply,clear,settle,notify")
+        and next(store.locks) == nil and table.concat(log.calls, ",") == "apply,clear,settle,clear,notify")
     local replay, why = T.executeLiveSale(store, "s1", a)
-    check("coordinator: replay calls nothing", why == "REPLAY" and #log.calls == 4 and replay.state == "COMMITTED")
+    check("coordinator: replay calls nothing", why == "REPLAY" and #log.calls == 5 and replay.state == "COMMITTED")
     record, store = run({ preflight = function() error("boom") end })
     check("coordinator: preflight throws -> REJECTED, released", record.state == "REJECTED" and next(store.locks) == nil)
     record, store = run({ observeSource = function() error("boom") end })
@@ -261,7 +261,7 @@ do
         and has(record.reason, "SOURCE_UNKNOWN:OBSERVE_THREW") and store.locks["cash:farm1"] == "s1" and record.sale.payment == nil)
     record, store, log = run(nil, function(o) o.removed, o.survivors, o.removedKeys, o.survivorKeys = { 1 }, { 2 }, { "k1" }, { "k2" } end)
     check("coordinator: some left, APPLIED -> COMMITTED_PARTIAL, survivors unqueued before money",
-        record.state == "COMMITTED_PARTIAL" and table.concat(log.calls, ",") == "apply,clear,settle,notify")
+        record.state == "COMMITTED_PARTIAL" and table.concat(log.calls, ",") == "apply,clear,settle,clear,notify")
     record, store = run({ clearSourceQueue = function() return false end })
     check("coordinator: survivors not unqueued -> money stands, NEEDS_RECONCILIATION", record.state == "NEEDS_RECONCILIATION"
         and record.reason == "SURVIVOR_QUEUE_NOT_CLEARED" and record.sale.payment == "APPLIED")
@@ -1239,4 +1239,84 @@ do
         and members(pen) == membersBefore and result == again)
     check("rlTradeSaleMode: shows and sets", has(RLTradeReportConsole:saleMode(), "TEST") and has(RLTradeReportConsole:saleMode("off"), "OFF")
         and LS.getMode() == "OFF" and has(RLTradeReportConsole:saleMode("bogus"), "OFF, SHADOW or TEST"))
+end
+
+
+-- PR33 review: money callbacks may change the source; refusals are replayable too.
+do
+    resetAll()
+    local a, b = animal(1000, 40), animal(800, 30)
+    local pen = newSource("PEN", 1, { a, b })
+    removalFaultAt = visualRemovals + 2
+    moneyListener = function()
+        moneyListener = nil
+        for _, survivor in ipairs(pen.clusterSystem.animals) do
+            pen.clusterSystem:addPendingRemoveCluster(survivor)
+        end
+    end
+    sell(pen, ids({ a, b }))
+    local record = lastRecord()
+    check("review: partial sale clears survivors queued by money listeners", record.state == "COMMITTED_PARTIAL"
+        and #pen.clusterSystem.animals == 1 and next(pen.clusterSystem.clustersToRemove) == nil)
+    local moneyAfter = FARMS[1].money
+    pen.clusterSystem:updateNow()
+    check("review: later flush preserves unpaid survivor", #pen.clusterSystem.animals == 1 and FARMS[1].money == moneyAfter)
+
+    resetAll()
+    local sold, other = animal(1000, 40), animal(600, 20)
+    local source = newSource("PEN", 1, { sold, other })
+    mission.addMoney = function()
+        source.clusterSystem:addPendingRemoveCluster(other)
+        error("refused before moving money")
+    end
+    sell(source, ids({ sold }))
+    record = lastRecord()
+    check("review: NOT_APPLIED restore never flushes a foreign removal", record.state == "NEEDS_RECONCILIATION"
+        and record.sale.payment == "NOT_APPLIED" and other.clusterSystem == source.clusterSystem
+        and source.clusterSystem.clustersToRemove[other] == true and FARMS[1].money == 1000)
+
+    resetAll()
+    local restored = animal(1000, 40)
+    local source2 = newSource("PEN", 1, { restored })
+    moneyListener = function()
+        moneyListener = nil
+        restored.id, restored.idFull = nil, nil
+        source2.clusterSystem:addPendingAddCluster(restored)
+        source2.clusterSystem:updateNow()
+    end
+    local result = AIAnimalSellEvent.executeServer(source2, ids({ restored }), 1,
+        { server = g_server, mission = mission }, "review-source-a1")
+    check("review: money listener re-add changes subset, holds locks without another payment",
+        result.txState == "NEEDS_RECONCILIATION" and result.paymentStatus == "APPLIED"
+        and result.settledCount == 1 and result.amountGained == 1040 and result.removedCount == nil
+        and LS.isCashHeld(1) and FARMS[1].money == 2040)
+
+    resetAll()
+    local sick = animal(1000, 40, { sick = true })
+    local source3 = newSource("PEN", 1, { sick })
+    local plan = { sellAction({ sick }) }
+    local ctx = execCtx({ pen1 = source3 }, "review-refused")
+    local first = RLHerdsmanExecutor.executeActions(plan, ctx)
+    sick.sick = false
+    local replay = RLHerdsmanExecutor.executeActions(plan, ctx)
+    check("review: quote refusal replay stays refused after disease clears", first.results[1].saleStatus == "refused"
+        and replay.results[1].saleStatus == "refused" and replay.results[1].replayed == true
+        and #source3.clusterSystem.animals == 1 and FARMS[1].money == 950 and wages(1) == -50)
+    local collision = AIAnimalSellEvent.executeServer(source3, ids({ animal(500, 20) }), 1,
+        { server = g_server, mission = mission }, "review-refused-a1")
+    check("review: refused id rejects a different payload", collision.reason == "ID_COLLISION" and collision.replayed ~= true)
+
+    resetAll()
+    local queued = animal(1000, 40)
+    local source4 = newSource("PEN", 1, { queued })
+    source4.clusterSystem:addPendingRemoveCluster(queued)
+    local request = ids({ queued })
+    local original = AIAnimalSellEvent.executeServer(source4, request, 1,
+        { server = g_server, mission = mission }, "review-prepare")
+    source4.clusterSystem.clustersToRemove[queued] = nil
+    local repeated = AIAnimalSellEvent.executeServer(source4, request, 1,
+        { server = g_server, mission = mission }, "review-prepare")
+    check("review: prepare refusal replay stays refused after queue clears", original.status == "refused"
+        and repeated.status == "refused" and repeated.replayed == true and #source4.clusterSystem.animals == 1
+        and FARMS[1].money == 1000)
 end

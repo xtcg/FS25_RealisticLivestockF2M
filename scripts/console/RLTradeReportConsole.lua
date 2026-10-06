@@ -393,6 +393,13 @@ function RLTradeReportConsole:txReport(txId)
                     t.verifyError ~= nil and (" verify:" .. t.verifyError) or "", t.rollbackError ~= nil and (" rollback:" .. t.rollbackError) or ""))
             end
             local src = receipt.source
+            if t ~= nil and t.paymentStatus ~= nil then
+                local before, after, refund = t.financeBefore or {}, t.financeAfter or {}, t.financeRefund or {}
+                out(string.format("   payment %s, refund %s: productionCosts %s -> %s -> %s, finance version %s -> %s -> %s",
+                    t.paymentStatus, tostring(t.refundStatus or "not attempted"), tostring(before.productionCosts),
+                    tostring(after.productionCosts), tostring(refund.productionCosts), tostring(before.version),
+                    tostring(after.version), tostring(refund.version)))
+            end
             if src ~= nil then
                 out(string.format("   source %s %s: removed %d, restored %d%s%s", tostring(src.kind), tostring(src.stage),
                     #(src.removed or {}), #(src.restored or {}), src.error ~= nil and (" error:" .. src.error) or "",

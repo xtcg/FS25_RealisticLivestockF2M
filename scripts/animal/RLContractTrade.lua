@@ -29,7 +29,7 @@ local Log = RmLogging.getLogger("RLRM")
 RLContractTrade.MODE_OFF = "OFF"
 RLContractTrade.MODE_SHADOW = "SHADOW"
 RLContractTrade.MODE_TEST = "TEST"
-RLContractTrade.POLICY_VERSION = "t02b2-1"
+RLContractTrade.POLICY_VERSION = "t02b2-2"
 RLContractTrade.RECEIPT_SCHEMA = 1
 
 --- Animal types this first version takes.
@@ -107,7 +107,8 @@ function RLContractTrade.prepare(request, shadow)
     if type(farmId) ~= "number" or farmId < 1 or farmId % 1 ~= 0 then return nil, "BAD_FARM" end
 
     -- Trade permission, and the source must belong to the requesting farm (access is not ownership).
-    if request.connection ~= nil and RLPermissionHelper ~= nil then
+    if request.connection ~= nil then
+        if RLPermissionHelper == nil then return nil, "NO_PERMISSION_HELPER" end
         local ownerFarmId = source ~= nil and source.getOwnerFarmId ~= nil and source:getOwnerFarmId() or nil
         local ok, reason = RLPermissionHelper.authorizeConnection(request.connection, "tradeAnimals", ownerFarmId)
         if not ok then return nil, "NO_PERMISSION:" .. tostring(reason) end
@@ -173,6 +174,7 @@ function RLContractTrade.prepare(request, shadow)
 
     local context = { farmId = farmId, source = source, target = target, keys = keys, plan = plan, amount = amount,
         fillType = fillType, sourceBinding = sourceBinding, targetBinding = targetBinding, fingerprint = fingerprint,
+        connection = request.connection,
         sourceId = sourceId, targetId = targetId }
     if shadow then return context end
 
@@ -192,10 +194,24 @@ end
 --- The coordinator's adapter for one prepared context.
 local function makeAdapter(context)
     local source, target = context.sourceBinding, context.targetBinding
+    local function authorize()
+        if RLContractTrade.mode ~= RLContractTrade.MODE_TEST then return false, "MODE" end
+        if context.source:getOwnerFarmId() ~= context.farmId then return false, "NOT_OWNER" end
+        if context.connection ~= nil then
+            if RLPermissionHelper == nil then return false, "NO_PERMISSION_HELPER" end
+            local ok, reason = RLPermissionHelper.authorizeConnection(context.connection, "tradeAnimals", context.farmId)
+            if not ok then return false, "NO_PERMISSION:" .. tostring(reason) end
+        end
+        if g_currentMission.accessHandler ~= nil and not g_currentMission.accessHandler:canFarmAccess(context.farmId, context.target) then
+            return false, "NO_TARGET_ACCESS"
+        end
+        return true
+    end
     return {
         preflight = function()
-            if RLContractTrade.mode ~= RLContractTrade.MODE_TEST then context.preflightError = "MODE" return false end
-            local ok, reason = RLHBContractAdapter.recheck(target)
+            local ok, reason = authorize()
+            if not ok then context.preflightError = reason return false end
+            ok, reason = RLHBContractAdapter.recheck(target)
             if not ok then context.preflightError = reason return false end
             ok, reason = RLTradeSourceAdapter.recheck(source)
             if not ok then context.preflightError = reason return false end
@@ -205,7 +221,16 @@ local function makeAdapter(context)
         verifyTarget = function() return (RLHBContractAdapter.verify(target)) end,
         rollbackTarget = function() return RLHBContractAdapter.rollback(target) end,
         verifyTargetRestored = function() return RLHBContractAdapter.verifyRestored(target) end,
-        applySource = function() return RLTradeSourceAdapter.apply(source) end,
+        applySource = function()
+            local ok, reason = authorize()
+            if not ok then source.receipt.error = "RECHECK:" .. tostring(reason) return false end
+            for _, animal in ipairs(source.animals) do
+                if RLDiseaseSaleGate ~= nil and not RLDiseaseSaleGate.check(animal) then
+                    source.receipt.error = "RECHECK:SICK" return false
+                end
+            end
+            return RLTradeSourceAdapter.apply(source)
+        end,
         verifySource = function() return (RLTradeSourceAdapter.verify(source)) end,
         rollbackSource = function() return RLTradeSourceAdapter.rollback(source) end,
         verifySourceRestored = function() return (RLTradeSourceAdapter.verifyRestored(source)) end,

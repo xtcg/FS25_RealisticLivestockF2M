@@ -148,6 +148,7 @@ function RLTradeSourceAdapter.bind(source, keys)
     end
 
     return { source = source, clusterSystem = clusterSystem, kind = kind, keys = keys, animals = animals,
+        ownerFarmId = source.getOwnerFarmId ~= nil and source:getOwnerFarmId() or nil,
         inBatch = inBatch, snapshots = snapshots, others = others,
         receipt = { stage = "BOUND", kind = kind, keys = keys, removed = {}, restored = {} } }
 end
@@ -157,12 +158,18 @@ end
 --- once, nothing queued, nothing a flush would remove, and no other member gone or added.
 --- @return boolean ok
 --- @return string|nil reason
-function RLTradeSourceAdapter.recheck(binding)
+function RLTradeSourceAdapter.recheck(binding, ownRemoveQueue)
     local clusterSystem = RLTradeSourceAdapter.getSupport(binding.source)
     if clusterSystem ~= binding.clusterSystem then return false, "SOURCE_CHANGED" end
+    if binding.source.getOwnerFarmId ~= nil and binding.source:getOwnerFarmId() ~= binding.ownerFarmId then
+        return false, "SOURCE_OWNER_CHANGED"
+    end
     local members = readMembers(clusterSystem)
     if members == nil then return false, "SOURCE_UNREADABLE" end
-    if next(clusterSystem.clustersToAdd) ~= nil or next(clusterSystem.clustersToRemove) ~= nil then return false, "SOURCE_QUEUE_BUSY" end
+    if next(clusterSystem.clustersToAdd) ~= nil then return false, "SOURCE_QUEUE_BUSY" end
+    for animal, value in pairs(clusterSystem.clustersToRemove) do
+        if not ownRemoveQueue or not binding.inBatch[animal] or value ~= true then return false, "SOURCE_QUEUE_BUSY" end
+    end
     local count = {}
     for _, animal in ipairs(members) do
         if flushRemoves(animal) then return false, "SOURCE_FLUSH_WOULD_REMOVE" end
@@ -171,6 +178,9 @@ function RLTradeSourceAdapter.recheck(binding)
     for i, animal in ipairs(binding.animals) do
         if count[animal] ~= 1 or identityKey(animal) ~= binding.keys[i] then return false, "ANIMAL_CHANGED:" .. tostring(binding.keys[i]) end
         if animal.isDead or animal.isSold or animal.sale ~= nil then return false, "ANIMAL_GONE:" .. tostring(binding.keys[i]) end
+        if not sameSnapshot(snapshotFields(animal, 0, {}), binding.snapshots[i]) then
+            return false, "ANIMAL_FIELDS_CHANGED:" .. tostring(binding.keys[i])
+        end
     end
     if #members ~= #binding.animals + #binding.others then return false, "SOURCE_MEMBERS_CHANGED" end
     for _, animal in ipairs(binding.others) do
@@ -185,6 +195,10 @@ end
 function RLTradeSourceAdapter.apply(binding)
     local r = binding.receipt
     if r.applied then return false end
+    -- HB's money/activation/visual callbacks may have changed this source after preflight.
+    -- Refuse before owning any queue entries; rollback must leave foreign work untouched.
+    local ok, reason = RLTradeSourceAdapter.recheck(binding)
+    if not ok then r.error = "RECHECK:" .. tostring(reason) return false end
     r.applied, r.stage = true, "APPLYING"
     local clusterSystem = binding.clusterSystem
     for i, animal in ipairs(binding.animals) do
@@ -194,6 +208,10 @@ function RLTradeSourceAdapter.apply(binding)
             return false
         end
     end
+    -- Enqueueing calls setDirty/raiseActive, which can invoke listeners as well.
+    -- Only this batch's remove entries may be consumed by the following flush.
+    ok, reason = RLTradeSourceAdapter.recheck(binding, true)
+    if not ok then r.error = "RECHECK_BEFORE_FLUSH:" .. tostring(reason) return false end
     local ok, err = pcall(clusterSystem.updateNow, clusterSystem)
     if not ok then
         r.error = "FLUSH_THREW:" .. tostring(err)
@@ -314,15 +332,30 @@ function RLTradeSourceAdapter.rollback(binding)
         if clusterSystem.clustersToRemove[animal] ~= nil then clusterSystem.clustersToRemove[animal] = nil end
         if count[animal] == nil then readd[#readd + 1] = i end
     end
+    if next(clusterSystem.clustersToAdd) ~= nil or next(clusterSystem.clustersToRemove) ~= nil then
+        r.rollbackError = "FOREIGN_QUEUE"
+        return false
+    end
     r.restored = {}
+    local expectedAdds = {}
     for _, i in ipairs(readd) do
         local animal = binding.animals[i]
+        expectedAdds[animal] = true
         animal.id, animal.idFull = nil, nil
         local ok, err = pcall(clusterSystem.addPendingAddCluster, clusterSystem, animal)
         if not ok then r.rollbackError = "READD_QUEUE_THREW:" .. tostring(err) return false end
         r.restored[#r.restored + 1] = binding.keys[i]
     end
     if #readd > 0 then
+        -- Restore enqueueing raises active as well. Do not consume a listener's foreign
+        -- queue while trying to undo this transaction; leave the uncertain work locked.
+        local queued = 0
+        for animal, value in pairs(clusterSystem.clustersToAdd) do
+            if not expectedAdds[animal] or value ~= true then r.rollbackError = "FOREIGN_QUEUE" return false end
+            queued = queued + 1
+        end
+        if next(clusterSystem.clustersToRemove) ~= nil then r.rollbackError = "FOREIGN_QUEUE" return false end
+        if queued ~= #readd then r.rollbackError = "RESTORE_QUEUE_CHANGED" return false end
         local ok, err = pcall(clusterSystem.updateNow, clusterSystem)
         if not ok then r.rollbackError = "READD_FLUSH_THREW:" .. tostring(err) return false end
     end

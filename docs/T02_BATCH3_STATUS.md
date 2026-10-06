@@ -7,7 +7,7 @@
 
 - 分支 `feat/live-sale-receipts`，从 PR32 固定 head `f27d029`（`feat/contract-adapter`）建立；PR33 的 base 指向 PR32 分支，diff 只含第三批。
 - 栈：PR31（T01）→ PR32（合同适配器）→ **PR33（本批）** → PR34（持久化，未开始）。全部保持 OPEN。
-- 建分支时 PR32 工作树另有**未提交**的修改（来源 owner 复核、`apply` 内再 recheck、提交前再验证目标）。它们不属于 PR32 的任何 head，本批没有包含。PR32 提交这些修正后，PR33 需 rebase 到新 head，并重跑 S 组和 A/B/C 组。
+- 已合并 PR32 修复提交 `4f9d754`：来源 owner/字段复核、flush 前检查、恢复时外部队列保护、合同提交前再次验证目标及支付回执修复。
 - 接口版本：`RLLiveSale.SCHEMA = 1`，`POLICY_VERSION = "t02b3-1"`；账本 `RLTradeTransaction.VERSION = 2`（导入仍接受 1）。
 
 ## 2. 范围与开关
@@ -116,7 +116,7 @@ TEST 比 OFF **更严格**的地方（保守拒绝，不是政策变化）：
 
 ## 7. 离线证据
 
-`tests/test_live_sale.lua`，147 项。
+`tests/test_live_sale.lua`，154 项。
 真实代码：
 
 - FS25 资金路径摘录（`tests/fixtures/fs25_money.lua`：addMoney、addMoneyChange、broadcastNotifications、Farm:changeBalance、FarmStats，注明行号和 SHA256；仅把反编译出的 goto 写成等价条件）；
@@ -152,11 +152,11 @@ TEST 比 OFF **更严格**的地方（保守拒绝，不是政策变化）：
 
 全套离线测试：
 
-- lupa 2.8 默认运行时（Lua 5.5）：1073/1073，exit 0。
-- Lua 5.4：1073/1073。
-- Lua 5.1：1064/1064，其中 `test_dealerstock.lua` 因其自身 `read("a")` 无法在 5.1 下加载（既有问题，与本批无关）。
-- 本批与受影响的五套（live_sale 147、contract_trade 69、trade_transaction 42、sale 52、ai_sale 110）在 Lua 5.1 下全部通过。
-- 第二批 A/B/C 组（test_contract_trade）在新账本 schema 下不变：69/69。
+- lupa 2.8 默认运行时（Lua 5.5）：1126/1126，exit 0。
+- Lua 5.4：1126/1126。
+- Lua 5.1：受影响的五套（live_sale、contract_trade、trade_transaction、sale、ai_sale）473/473。
+
+PR33 review 新增 7 项回归检查：付款监听器重新排队幸存动物时，结算后再次清理本批队列，后续 flush 不丢失未付款动物；NOT_APPLIED 恢复不消费外部移除队列；付款监听器重新添加已售动物时，保留到账结果但标记来源未知、持有锁；报价/prepare 拒绝结果按 saleId 和指纹记忆，同轮次重放不会再次出售，变更请求则拒绝为 ID_COLLISION。拒绝结果只在本轮地图运行的内存中保存。
 
 Lua 5.1 运行方式：测试框架用 `loadstring` 垫片代替 `load(字符串)`，不改仓库代码。
 

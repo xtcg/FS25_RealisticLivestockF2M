@@ -46,6 +46,7 @@ function RLLiveSale.reset()
     RLLiveSale.mode = RLLiveSale.MODE_OFF
     RLLiveSale.receipts = {}
     RLLiveSale.results = {}
+    RLLiveSale.refusals = {}
     RLLiveSale.sequence = 0
     RLLiveSale.roundSequence = 0
 end
@@ -407,6 +408,9 @@ function RLLiveSale.toAiResult(record, reason, result)
     elseif why:find("^SETTLEMENT_UNKNOWN") then
         out.status, out.failureStage = AIAnimalSellEvent.STATUS_FAILED, "payment"
         out.removedCount, out.settledCount, out.amountGained = removed, nil, nil
+    elseif why == "SOURCE_CHANGED_AFTER_SETTLEMENT" then
+        out.status, out.failureStage, out.removedCount = AIAnimalSellEvent.STATUS_FAILED, "verify", nil
+        out.settledCount, out.amountGained = removed, sale.amount
     elseif why == "SURVIVOR_QUEUE_NOT_CLEARED" then
         out.status, out.failureStage = AIAnimalSellEvent.STATUS_PARTIAL, "queue-cleanup"
         out.removedCount, out.settledCount, out.amountGained = removed, removed, sale.amount
@@ -419,14 +423,29 @@ function RLLiveSale.toAiResult(record, reason, result)
 end
 
 
---- TEST: a replay of a herdsman sale id. The original result again (marked replayed), nothing
---- sold or paid; another payload under the same id, or one still running, is refused.
+--- Keep pre-ledger refusals for this run, keyed by the same request fingerprint as a sale.
+function RLLiveSale.rememberAiRefusal(saleId, source, keys, farmId, result)
+    if saleId == nil or result.status ~= AIAnimalSellEvent.STATUS_REFUSED then return end
+    local fingerprint = RLLiveSale.fingerprint(RLLiveSale.AI, farmId, source, keys)
+    if fingerprint == nil or RLLiveSale.ledger().records[saleId] ~= nil or RLLiveSale.refusals[saleId] ~= nil then return end
+    RLLiveSale.refusals[saleId] = { fingerprint = fingerprint, result = copy(result) }
+end
+
+
+--- Return the first sale or refusal result, without repeating its economic effects.
 --- @return table|nil result nil when the id is new
 function RLLiveSale.replayAi(saleId, source, identityKeys, farmId, result)
     if saleId == nil then return nil end
     local record = RLLiveSale.ledger().records[saleId]
-    if record == nil then return nil end
     local fingerprint = RLLiveSale.fingerprint(RLLiveSale.AI, farmId, source, identityKeys)
+    if record == nil then
+        local refused = RLLiveSale.refusals[saleId]
+        if refused == nil then return nil end
+        if fingerprint ~= refused.fingerprint then return RLLiveSale.toAiResult(nil, "ID_COLLISION", result) end
+        local out = copy(refused.result)
+        out.replayed = true
+        return out
+    end
     if record.kind ~= "SALE" or fingerprint ~= record.fingerprint then return RLLiveSale.toAiResult(nil, "ID_COLLISION", result) end
     if not RLTradeTransaction.TERMINAL[record.state] then return RLLiveSale.toAiResult(nil, "IN_PROGRESS", result) end
     local out = RLLiveSale.results[saleId] ~= nil and copy(RLLiveSale.results[saleId]) or RLLiveSale.toAiResult(record, nil, result)
