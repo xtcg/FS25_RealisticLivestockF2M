@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased (xtcg fork, Hof Bergmann)
+
+### Fixed
+
+- Selling live animals: the server now prices the sale itself from the animals in the pen or trailer (each animal's sell price, minus the transport fee from a pen, none from a trailer at the dealer) and pays that. The price the client sends is only compared for the log. Before, it paid whatever price the client sent, even when an animal in the request was no longer there: a request for one missing animal at 1,234 paid 1,234 and removed nothing. A request with a missing, repeated, unsellable or sick animal, no animals, a pen or trailer the seller's farm does not own, or an animal the server cannot price is now refused whole, with nothing removed or paid; repeating a sale that went through pays nothing the second time. If removing the animals fails part way, only the animals that left are paid, the sale is reported as failed, and the rest stay unsold (not a rollback: animals already removed stay removed). Sale prices, fees and yields are unchanged.
+
 ## 1.4.0.1-dev.7 (xtcg fork, Hof Bergmann)
 
 ### Changed
