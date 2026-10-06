@@ -395,6 +395,10 @@ function RLTradeQuote.describeFacility(snapshot, role)
             local meatAmount = amountOf(production.outputs, role.meatFillType)
             description.recipe = { id = production.id, source = "production", inputAmount = inputAmount,
                 meatAmount = meatAmount, meatPerInputUnit = meatAmount / inputAmount, outputs = production.outputs }
+            -- Delivery credits meatPerHead / ratio units per typical animal, so the butcher agrees with the model by construction.
+            if role.meatPerHead ~= nil then
+                description.recipe.unitsPerTypicalAnimal = role.meatPerHead / description.recipe.meatPerInputUnit
+            end
             -- Running cost is per active hour while the production is on, whatever it makes:
             -- a nominal figure at full throughput with this production alone, not a fee.
             if (production.costsPerActiveHour or 0) > 0 and (production.cyclesPerHour or 0) > 0 then

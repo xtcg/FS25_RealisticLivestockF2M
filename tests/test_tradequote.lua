@@ -302,3 +302,60 @@ do
     g_currentMission, AnimalMoveEvent, g_fillTypeManager = saved.g_currentMission, saved.AnimalMoveEvent, saved.g_fillTypeManager
     check("pure: describe and quote on a snapshot need no game globals", ok and quote.matches and near6(quote.effectiveRecipeMeat, 270))
 end
+
+-- Console report: the list shows the 1000 -> 270 state as it is now, quotes print per animal,
+-- and neither changes anything.
+do
+    loadMod("scripts/console/RLTradeReportConsole.lua")
+    local lines = {}
+    local savedPrint = print
+    print = function(text) lines[#lines + 1] = text end
+    local function run(...)
+        lines = {}
+        local result = RLTradeReportConsole:report(...)
+        return result, table.concat(lines, "\n")
+    end
+
+    local unaligned = HB.newSlaughterhouse(SUBS)
+    function unaligned:getName() return "Old slaughterhouse" end
+    local butcherPlaceable = { spec_extendedProductionPoint = { productionPoint = butcher } }
+    function butcherPlaceable:getName() return "Farm butcher" end
+    local pen = { animals = { bull, animal(ANGUS, 600, { uniqueId = "B2" }) } }
+    function pen:getName() return "Bull barn" end
+    function pen:getClusters() return self.animals end
+
+    g_currentMission.placeableSystem = { placeables = { house, unaligned, butcherPlaceable, pen } }
+    g_currentMission.husbandrySystem = { placeables = { pen } }
+    g_currentMission.getFarmId = function() return 1 end
+    g_currentMission.getIsServer = function() return true end
+
+    local before = moneyCalls .. #house.calls .. #butcher.calls
+    local result, text = run()
+    check("console list: three facilities, aligned and unaligned BEEF reported as they are",
+        result:find("3 facilities") ~= nil and text:find("== 1 Slaughterhouse") ~= nil
+        and text:find("270.000 kg BEEFMEAT per input unit, model 270.000 kg per typical animal %-> ALIGNED %(map shipped 1000.0%)") ~= nil
+        and text:find("1000.000 kg BEEFMEAT per input unit, model 270.000 kg per typical animal %-> MISALIGNED") ~= nil)
+    check("console list: MILKCOW mix, fee source and butcher running cost shown",
+        text:find("MIXED_INPUT:MILKCOW") ~= nil and text:find("RLRM cutting fee") ~= nil and text:find("per active hour") ~= nil)
+
+    result, text = run("old", bull.uniqueId)
+    check("console quote: the unaligned facility prints the mismatch for the bull",
+        text:find("MISMATCH") ~= nil and text:find("958.6") ~= nil and text:find("258.8") ~= nil)
+    result, text = run("1", "pen:bull")
+    check("console quote: by pen, both animals, aligned facility matches",
+        text:find("2 animal%(s%)") ~= nil and select(2, text:gsub("matches", "")) == 2)
+    result, text = run("butcher", "B2", "1")
+    check("console quote: butcher in production units", text:find("PRODUCTION_UNIT") ~= nil and text:find("matches") ~= nil)
+    result = run("nowhere", "A1")
+    check("console: unknown facility is named", result:find("no facility 'nowhere'") ~= nil)
+
+    g_currentMission.getIsServer = function() return false end
+    local clientHouse = HB.newSlaughterhouse(SUBS, { isServer = false })
+    AnimalMoveEvent.alignContractRecipes(clientHouse)
+    g_currentMission.placeableSystem.placeables = { clientHouse }
+    result, text = run("1", bull.uniqueId)
+    check("console client: quotes marked not authoritative", text:find("not authoritative") ~= nil)
+
+    print = savedPrint
+    check("console: no money, delivery or production calls", before == moneyCalls .. #house.calls .. #butcher.calls)
+end

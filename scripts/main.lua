@@ -365,6 +365,7 @@ source(modDirectory .. "scripts/core/RealisticLivestock_FSBaseMission.lua")
 
 -- SECTION 20i: Console commands
 source(modDirectory .. "scripts/console/RLBodyConditionConsole.lua")
+source(modDirectory .. "scripts/console/RLTradeReportConsole.lua")
 source(modDirectory .. "scripts/console/RLConsoleCommandManager.lua")
 
 -- SECTION 20j: Messaging
