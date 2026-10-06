@@ -53,6 +53,9 @@ function PlaceableHusbandryMilk:updateInputAndOutput(superFunc, animals)
         spec.litersPerHour[fillType] = 0
     end
 
+    -- Each covered cow's share of litersPerHour, for the body condition deposit (updateOutput below).
+    spec.rlMilkContributions = {}
+
     spec.activeFillTypes = {}
 
     -- Milk diagnostics: pre-compute the registered litersPerHour keys once so a
@@ -82,6 +85,10 @@ function PlaceableHusbandryMilk:updateInputAndOutput(superFunc, animals)
                 if spec.litersPerHour[milk.fillType] ~= nil then
                     spec.litersPerHour[milk.fillType] = spec.litersPerHour[milk.fillType] + milkPerHour
                     table.addElement(spec.activeFillTypes, milk.fillType)
+
+                    if not Animal.isSemenFillType(milk.fillType) and RLBodyCondition.isEligible(animal) then
+                        table.insert(spec.rlMilkContributions, { animal = animal, fillType = milk.fillType, liters = milkPerHour })
+                    end
 
                     -- A sire whose semen this building stores has had this month's semen: no dewar
                     -- collection until next month (RLSemenCollection). Marked here, where output
@@ -202,6 +209,16 @@ function RealisticLivestock_PlaceableHusbandryMilk:updateOutput(superFunc, foodF
         end)
     end
 
-    superFunc(self, foodFactor, productionFactor, globalProductionFactor)
+    if self.isServer and spec ~= nil and spec.hasMilkProduction then
+        -- Cows under the body condition rules: their milk this hour is what their budget paid
+        -- for, deposited without the pen's food factor (RLBodyCondition.depositMilk).
+        RLBodyCondition.depositMilk(self, spec.litersPerHour, spec.rlMilkContributions,
+            function() superFunc(self, foodFactor, productionFactor, globalProductionFactor) end,
+            function(fillType, liters)
+                self:addHusbandryFillLevelFromTool(self:getOwnerFarmId(), liters, fillType, nil, nil, nil)
+            end)
+    else
+        superFunc(self, foodFactor, productionFactor, globalProductionFactor)
+    end
 
 end

@@ -42,6 +42,11 @@ source(modDirectory .. "scripts/core/RLMapCountry.lua")
 source(modDirectory .. "scripts/animal/RLBreedTraits.lua")
 -- Livestock prices follow the difficulty multiplier: live prices, semen, contract slaughter fees
 source(modDirectory .. "scripts/animal/RLLivestockPrices.lua")
+-- Body condition of cattle (xml/bodyCondition.xml): nutrition budget, reserve, finish score / BCS.
+-- Read by Animal, the husbandry specs, the carcass yield and the conception rolls.
+source(modDirectory .. "scripts/nutrition/RLNutritionMath.lua")
+source(modDirectory .. "scripts/nutrition/RLBodyConditionConfig.lua")
+source(modDirectory .. "scripts/nutrition/RLBodyCondition.lua")
 
 -- SECTION 3: Animal Husbandry - Cluster System
 source(modDirectory .. "scripts/animals/husbandry/cluster/RealisticLivestock_AnimalCluster.lua")
@@ -83,6 +88,8 @@ source(modDirectory .. "scripts/animals/shop/RealisticLivestock_AnimalItemStock.
 
 -- SECTION 9: Events (General)
 source(modDirectory .. "scripts/events/HusbandryMessageStateEvent.lua")
+source(modDirectory .. "scripts/events/RLBodyConditionStateEvent.lua")
+source(modDirectory .. "scripts/events/RLBodyConditionConfigEvent.lua")
 source(modDirectory .. "scripts/events/HusbandryMessageAddEvent.lua")
 source(modDirectory .. "scripts/events/HusbandryMessageDeleteEvent.lua")
 source(modDirectory .. "scripts/events/ReturnStrawEvent.lua")
@@ -353,6 +360,7 @@ source(modDirectory .. "scripts/animal/RealisticLivestock_Animal.lua")
 source(modDirectory .. "scripts/core/RealisticLivestock_FSBaseMission.lua")
 
 -- SECTION 20i: Console commands
+source(modDirectory .. "scripts/console/RLBodyConditionConsole.lua")
 source(modDirectory .. "scripts/console/RLConsoleCommandManager.lua")
 
 -- SECTION 20j: Messaging

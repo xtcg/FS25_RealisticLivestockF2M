@@ -31,6 +31,10 @@ function RLConsoleCommandManager.new()
         addConsoleCommand("rlHerdsmanRuleClear", "Clear all herdsman rules (SP diagnostic only)", "clearHerdsmanRules", self, "")
         -- Engine cap probe: requires writing to engine husbandries, server-side only.
         addConsoleCommand("rlTestAnimalConfigCap", "Probe engine per-type config slot cap by calling addHusbandryAnimal idx 0..127 on each active husbandry", "testAnimalConfigCap", self, "[maxIdx]")
+        -- Body condition test commands (RLBodyConditionConsole).
+        addConsoleCommand("rlBcReport", "Body condition per cattle pen: feed ledger, water, condition range", "report", RLBodyConditionConsole, "[animals] [pen]")
+        addConsoleCommand("rlBcSet", "Set cattle body condition (frame weight kept)", "set", RLBodyConditionConsole, "<reserve|bcs|finish> <value> <all|pen:NAME|uniqueId>")
+        addConsoleCommand("rlBcFastForward", "Run hourly cycles of cattle pens at once (real feed, budget, milk; ages do not advance)", "fastForward", RLBodyConditionConsole, "<hours> [pen]")
         addConsoleCommand("rlTestAnimalConfigCapFresh", "Probe whether a fresh createAnimalHusbandry call (different XML / different typeName) gets its own 32-window. Requires AnimalCapProbe pack with heritage config.", "testAnimalConfigCapFresh", self, "[maxIdx]")
     end
 

@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    Body condition: an individual nutrition budget and body reserve for cattle (scripts/nutrition).
+    Beef animals show a finish score (0..100), cows a BCS (1..5); both come from one reserve r
+    (0..1). The reserve is part of the live weight: one unit of r is reserveCapacityRatio x the
+    animal's target weight, fixed when its condition is first set up. Health and the health gene
+    keep their own meaning.
+
+    Covered: cattle (animal type COW) from calfLegacyUntilAgeMonth on, in a pen with a feed trough.
+    Calves, other species and Hof Bergmann's MILKCOW keep the old rules.
+
+    Every hour the pen's actual consumption (trough and meadow) is shared between the animals by
+    their food request. The ration supports a share of each animal's full-feed demand: liters
+    eaten x energy of each fill type x the breed's grass/hay/silage trait (breedTraits.xml), over
+    the liters requested. The budget pays maintenance, pregnancy, then growth and milk; a shortfall
+    is drawn from the reserve, a surplus stored in it. An average animal on a full TMR ration keeps
+    the old growth line and milk yield.
+
+    enabled                    Off: the old weight and milk rules; saved conditions are kept.
+    calfLegacyUntilAgeMonth    Younger cattle keep the old rules.
+
+    Reserve
+    initialReserve             Reserve of a cow or heifer whose condition is first set up
+                               (an old savegame, a calf leaving the legacy rules, a dealer animal).
+                               Bulls and steers start on their finishing curve instead.
+    reserveCapacityRatio       Live weight of one unit of reserve, as a share of target weight.
+    referenceReserve           Reserve at which live weight equals frame weight.
+    minReserve                 Floor the reserve is never drawn below.
+    gainRatePerMonth           Most the reserve rises in a month (0.10 = 0.4 BCS).
+    lossRatePerMonth           Most the reserve falls in a month.
+    mobilizeEaseRange          Within this distance of the floor the reserve gives up less.
+    trendTauMonths             Time constant of the condition trend shown to the player.
+
+    Energy (NU, a relative unit, per period)
+    maintenancePerKgMetabolic  Maintenance per kg^0.75 of live weight.
+    growthNUPerKg              A kg of frame growth.
+    depositNUPerKg             A kg of reserve laid down. Must exceed mobilizeNUPerKg.
+    mobilizeNUPerKg            What a kg of reserve gives back.
+    catabolismNUPerKg          What a kg of frame gives back once the reserve is spent.
+    maxCatabolismPerMonth      Most of its weight an animal loses from frame in a month.
+    frameExcessTauMonths       Frame above the target weight returns to it at this time constant.
+    milkNUPerLiter             A liter of milk as the game counts it (per-period curve).
+    pregnancyFactor            Extra demand per fetus at term, as a share of maintenance,
+    pregnancyRampStart         rising from this share of the pregnancy on.
+
+    Intake: budget = ration share x capacity x full-feed demand (root defaults; per animalType,
+    breed or subType below)
+    intakeGrowing              Growing animals and bulls (the old growthNutritionFactor).
+    intakeLactating            Lactating cows. Below 1 a full ration cannot cover peak lactation.
+    intakeDry                  Dry cows that have calved. Above 1 they fatten on a rich ration.
+    lactationMeanFactor        The lactation curve's mean: a cow's demand at full feed counts
+                               its milk at this point of the curve.
+    highYieldIntake            A lactating cow eats 1 + this x (productivity - 1) of her request,
+    maxIntakeFactor            at most this much.
+    milkPriority               Weight of milk against growth when the budget falls short.
+    milkMobilizeShare          Share of the milk a cow may fund from her reserve,
+    milkMobilizeFloor          and none once her reserve is below this (BCS 2.2): a thin cow gives
+                               less milk instead.
+
+    Ceilings
+    heiferReserveCeiling       A heifer stores a surplus up to this reserve,
+    cowReserveCeiling          a cow that has calved up to this one.
+
+    Curves (points are x="..." y="..."; linear between, flat outside)
+    finishingTarget  x = weight / slaughter reference weight (carcassYield.xml), y = the reserve a
+                     bull or steer on full feed lays down at that weight. Steers read it at
+                     x + steerFinishShift.
+    finishScore      x = reserve, y = finish score 0..100.
+    yield            x = finish score, y = carcass yield factor (meat kg, slaughter value floor).
+    market           x = finish score, y = factor on the weight part of a live price.
+    fertility        x = BCS, y = factor on a cow's conception probability.
+    lossTrend        x = reserve loss per month (trend), y = further factor on conception.
+    feedEnergy       Energy of a liter of each fill type. Unlisted food fill types use the
+                     productionWeight of their food group (animalFood.xml). Hay, grass and
+                     silage sit above their productionWeight so that a full growth line on TMR
+                     stays exact while the forage routes stay close to the old ones (silage
+                     +0-1 month to finish, hay +1-1.5, grass about the same, Highland on grass
+                     faster) and a dry cow keeps her condition on hay. See
+                     tests/test_bodycondition.lua.
+
+    To change these without editing the mod, copy this file to
+    modSettings/FS25_RealisticLivestockRM/bodyCondition.xml; that copy then replaces this file
+    entirely. An invalid file switches the feature off and logs why.
+-->
+<bodyCondition enabled="true" calfLegacyUntilAgeMonth="6"
+    initialReserve="0.45" reserveCapacityRatio="0.20" referenceReserve="0.45" minReserve="0.05"
+    gainRatePerMonth="0.07" lossRatePerMonth="0.08" mobilizeEaseRange="0.15" trendTauMonths="0.5"
+    maintenancePerKgMetabolic="4.5" growthNUPerKg="40" depositNUPerKg="48" mobilizeNUPerKg="32"
+    catabolismNUPerKg="10" maxCatabolismPerMonth="0.05" frameExcessTauMonths="1"
+    milkNUPerLiter="11" pregnancyFactor="0.35" pregnancyRampStart="0.6"
+    intakeGrowing="1.10" intakeLactating="1.02" intakeDry="1.6" lactationMeanFactor="1.08"
+    highYieldIntake="0.8" maxIntakeFactor="1.25" milkPriority="2" milkMobilizeShare="0.15"
+    milkMobilizeFloor="0.30" heiferReserveCeiling="0.55" cowReserveCeiling="0.75" steerFinishShift="0.08">
+
+    <!--
+        Intake by breed (intakeGrowing, intakeLactating and intakeDry may be set on an animalType,
+        breed or subType element).
+        Dairy: TMR counts as silage for the breed traits, so a Holstein (silage 1.10) gets 10% more
+        from it than a Swiss Brown; her lactating intake is set so both breeds run the same cycle on
+        TMR with the dry period on hay: about BCS 3.1-3.4 at calving, 2.5-2.8 at the bottom, 98% of
+        the milk.
+        Suckler breeds eat much more forage than their small milk needs; with the dairy intake a
+        grazing Angus herd would sit at BCS 1.6-1.8. At these values a suckler herd keeps BCS
+        2.2-2.7 on grass (Highland, Hereford best) and 2.3-2.7 or more on hay, and gets fat (BCS 4)
+        on TMR.
+    -->
+    <animalType name="COW">
+        <breed name="HOLSTEIN" intakeLactating="0.93"/>
+        <breed name="ANGUS"    intakeLactating="1.3" intakeDry="1.8"/>
+        <breed name="LIMOUSIN" intakeLactating="1.3" intakeDry="1.8"/>
+        <breed name="HEREFORD" intakeLactating="1.3" intakeDry="1.8"/>
+        <breed name="HIGHLAND" intakeLactating="1.3" intakeDry="1.8"/>
+    </animalType>
+
+    <finishingTarget>
+        <point x="0.50" y="0.35"/>
+        <point x="0.80" y="0.42"/>
+        <point x="1.00" y="0.52"/>
+        <point x="1.15" y="0.65"/>
+        <point x="1.30" y="0.78"/>
+        <point x="1.50" y="0.90"/>
+    </finishingTarget>
+
+    <finishScore>
+        <point x="0.00" y="0"/>
+        <point x="0.20" y="25"/>
+        <point x="0.35" y="50"/>
+        <point x="0.45" y="65"/>
+        <point x="0.60" y="80"/>
+        <point x="0.75" y="90"/>
+        <point x="1.00" y="100"/>
+    </finishScore>
+
+    <yield>
+        <point x="0" y="0.92"/>
+        <point x="25" y="0.95"/>
+        <point x="50" y="0.98"/>
+        <point x="65" y="1.00"/>
+        <point x="80" y="1.00"/>
+        <point x="90" y="0.95"/>
+        <point x="100" y="0.88"/>
+    </yield>
+
+    <market>
+        <point x="0" y="0.92"/>
+        <point x="25" y="0.95"/>
+        <point x="50" y="0.98"/>
+        <point x="65" y="1.00"/>
+        <point x="80" y="1.00"/>
+        <point x="90" y="0.95"/>
+        <point x="100" y="0.88"/>
+    </market>
+
+    <fertility>
+        <point x="1.0" y="0.20"/>
+        <point x="2.0" y="0.65"/>
+        <point x="2.5" y="1.00"/>
+        <point x="3.25" y="1.00"/>
+        <point x="4.0" y="0.75"/>
+        <point x="5.0" y="0.35"/>
+    </fertility>
+
+    <lossTrend>
+        <point x="0.00" y="1.00"/>
+        <point x="0.03" y="1.00"/>
+        <point x="0.10" y="0.75"/>
+    </lossTrend>
+
+    <feedEnergy>
+        <fillType name="FORAGE" energy="1.00"/>
+        <fillType name="FORAGEPLUS" energy="1.00"/>
+        <fillType name="ROUNDBALE" energy="1.00"/>
+        <fillType name="SILAGE" energy="0.82"/>
+        <fillType name="DRYGRASS_WINDROW" energy="0.70"/>
+        <fillType name="GRASS_WINDROW" energy="0.55"/>
+        <fillType name="CLOVER_WINDROW" energy="0.55"/>
+        <fillType name="SUGARBEET_CUT" energy="0.85"/>
+        <fillType name="CALFMILK" energy="1.20"/>
+    </feedEnergy>
+</bodyCondition>
