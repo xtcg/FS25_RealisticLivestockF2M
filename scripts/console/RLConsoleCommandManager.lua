@@ -43,6 +43,8 @@ function RLConsoleCommandManager.new()
     -- Trade report (RLTradeReportConsole): model meat vs facility units and recipe; changes nothing.
     addConsoleCommand("rlTradeReport", "Slaughter facilities: model meat vs input unit and recipe in effect (read-only)", "report",
         RLTradeReportConsole, "[facility] [uniqueId|pen:NAME] [farmId]")
+    addConsoleCommand("rlTradePlan", "Read-only whole-batch contract budget (shadow, no reservation or delivery)", "plan",
+        RLTradeReportConsole, "<facility> <uniqueId|pen:NAME> [farmId]")
 
 	return self
 

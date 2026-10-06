@@ -86,6 +86,10 @@ source(modDirectory .. "scripts/animals/shop/events/AnimalMoveEvent.lua")
 source(modDirectory .. "scripts/animal/RLMeatValue.lua")
 -- Read-only trade quote: model meat vs a facility's units and effective recipe (rlTradeReport)
 source(modDirectory .. "scripts/animal/RLTradeQuote.lua")
+-- T02 shadow budget and offline coordinator. No live transaction adapter is enabled.
+source(modDirectory .. "scripts/animal/RLContractPlan.lua")
+source(modDirectory .. "scripts/animal/RLContractPreview.lua")
+source(modDirectory .. "scripts/animal/RLTradeTransaction.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalSellEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/SemenBuyEvent.lua")
 

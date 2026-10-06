@@ -26,6 +26,60 @@ RLTradeReportConsole = {}
 
 RLTradeReportConsole.MAX_ANIMALS = 40
 
+-- Unlike the per-animal report, this includes the entire selection; never silently
+-- prepare only the first 40. SHADOW_OK means budget/capacity only, not trade permission.
+function RLTradeReportConsole:plan(facilityArg, animalArg, farmArg)
+    if facilityArg == nil or animalArg == nil then
+        return "rlTradePlan <facility number> <uniqueId|pen:NAME> [farmId]; read-only, shadow budget only"
+    end
+    local facilities = RLTradeReportConsole.getFacilities()
+    local target, name
+    local index = tonumber(facilityArg)
+    if index ~= nil then
+        local facility = facilities[index]
+        if facility ~= nil then target, name = facility.target, facility.name end
+    else
+        for _, facility in ipairs(facilities) do
+            if facility.name:lower():find(facilityArg:lower(), 1, true) ~= nil then
+                if target ~= nil then return "rlTradePlan: AMBIGUOUS facility name; use its number from rlTradeReport" end
+                target, name = facility.target, facility.name
+            end
+        end
+    end
+    if target == nil then return "rlTradePlan: facility not found; run rlTradeReport" end
+    local selected, penFilter = {}, nil
+    if animalArg:lower():sub(1, 4) == "pen:" then penFilter = animalArg:sub(5):lower() end
+    if penFilter == "" then return "rlTradePlan: pen name required" end
+    for _, pen in ipairs(g_currentMission.husbandrySystem ~= nil and g_currentMission.husbandrySystem.placeables or {}) do
+        local matches = penFilter ~= nil and pen:getName():lower():find(penFilter, 1, true) ~= nil
+        if penFilter == nil or matches then
+            for _, animal in ipairs(pen.getClusters ~= nil and pen:getClusters() or {}) do
+                if matches or tostring(animal.uniqueId) == animalArg then selected[#selected + 1] = animal end
+            end
+        end
+    end
+    if penFilter == nil and #selected > 1 then
+        return "rlTradePlan: AMBIGUOUS uniqueId; select a pen (identity includes herd and country)"
+    end
+    local farmId = tonumber(farmArg)
+    if farmArg ~= nil and farmId == nil then return "rlTradePlan: invalid farmId" end
+    if farmId == nil and g_currentMission.getFarmId ~= nil then farmId = g_currentMission:getFarmId() end
+    local ok, result, reason = pcall(RLContractPreview.prepare, selected, target, farmId)
+    if not ok then return "rlTradePlan: snapshot failed: " .. tostring(result) end
+    if result == nil then return "rlTradePlan: REFUSED " .. tostring(reason) end
+    print(string.format("== %s, farm %s: %d animals, SHADOW_OK (budget only)", name, tostring(farmId), #result.entries))
+    print(string.format("   fee %.2f; credit %.2f; cash %.2f; wallet %.2f -> %.2f",
+        result.fee, result.creditUse, result.cashDue, result.moneyBefore, result.moneyAfter))
+    local fillTypes = {}
+    for fillType in pairs(result.inputs) do fillTypes[#fillTypes + 1] = fillType end
+    table.sort(fillTypes)
+    for _, fillType in ipairs(fillTypes) do
+        local input = result.inputs[fillType]
+        print(string.format("   input %s: %.6f standard batches (not kg), room %.6f", tostring(fillType), input.amount, input.room))
+    end
+    return "rlTradePlan: shadow only; no authorization, reservation, delivery or charge"
+end
+
 
 local function out(text)
     print(text)
