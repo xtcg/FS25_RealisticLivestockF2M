@@ -126,6 +126,11 @@ function T.executeContract(store, id, adapter)
         return undo(store, record, adapter, true, true, "SOURCE_NOT_COMPLETE")
     end
     state(record, "SOURCE_APPLIED")
+    -- Source flush publishes synchronous callbacks too. A previously verified target may
+    -- have been detached or changed; verifyTarget must be safe to call more than once.
+    if not call(adapter.verifyTarget, id) then
+        return undo(store, record, adapter, true, true, "TARGET_CHANGED_AFTER_SOURCE")
+    end
     state(record, "COMMITTED")
     release(store, record)
     -- Visuals/notifications are explicitly outside the economic commit. Failure cannot retry.

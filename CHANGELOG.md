@@ -1,5 +1,7 @@
 # Changelog
 
+- T02 contract review fixes: recheck source ownership/queues across callbacks, verify the live target again before commit/compensation, refuse stale capacity, and certify production-cost receipts rather than refunding an interrupted money call from its balance alone. Added 46 regressions; transactions remain OFF by default and game validation is pending.
+
 ## Unreleased
 
 ### Added

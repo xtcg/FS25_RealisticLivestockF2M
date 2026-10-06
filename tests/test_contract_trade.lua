@@ -15,6 +15,7 @@ AnimalMoveEvent = { MOVE_SUCCESS = 0, MOVE_ERROR_NO_PERMISSION = 1, MOVE_ERROR_S
 loadMod("tests/fixtures/hb_beta2.lua")
 loadMod("tests/fixtures/hb_contract_delivery.lua")
 loadMod("tests/fixtures/giants_lua.lua")
+loadMod("tests/fixtures/fs25_farm_money.lua")
 
 -- Animal types and subtypes ------------------------------------------------------------------
 TYPES = { [1] = { name = "COW" }, [2] = { name = "PIG" }, [3] = { name = "SHEEP" }, [4] = { name = "MILKCOW" } }
@@ -26,11 +27,26 @@ SUBS = {
 }
 local HOLSTEIN, ANGUS, BOAR, MILKCOW = 1, 2, 3, 4
 
--- Engine stand-in: farm money as FS25 Farm:changeBalance keeps it (money, finance statistic, money earned).
+-- Real Farm balance prefix / FarmStats finance method. Hero stats and publishing remain
+-- engine stand-ins; finance wrappers below inject faults inside that mutation sequence.
 MoneyType = { PRODUCTION_COSTS = { id = 7, statistic = "productionCosts" } }
 FARMS = {}
 local moneyFault, moneyExtra, moneyUnreadable = nil, 0, false
-local function setFarm(id, money) FARMS[id] = { money = money, stats = { productionCosts = 0 }, earned = 0 } end
+local function setFarm(id, money)
+    local farm = setmetatable({ money = money, stats = { finances = { productionCosts = 0 }, financesVersionCounter = 0 }, earned = 0 },
+        { __index = ContractTestFarm })
+    function farm.stats:changeFinanceStats(amount, statistic)
+        if moneyFault == "beforeFinance" then moneyFault = nil error("finance write failed before stats changed") end
+        if moneyFault == "afterFinance" then
+            self.finances[statistic] = self.finances[statistic] + amount
+            moneyFault = nil error("finance write failed before its version changed")
+        end
+        ContractTestFarmStats.changeFinanceStats(self, amount, statistic)
+    end
+    function farm.stats:addHeroStat(_, amount) farm.earned = farm.earned + amount end
+    FARMS[id] = farm
+end
+g_farmManager = { getFarmById = function(_, id) return FARMS[id] end }
 g_currentMission = {
     animalSystem = { getSubTypeByIndex = function(_, i) return SUBS[i] end, getTypeByIndex = function(_, i) return TYPES[i] end },
     getIsServer = function() return true end,
@@ -43,9 +59,7 @@ g_currentMission = {
     addMoney = function(_, amount, farmId, moneyType)
         if moneyFault == "before" then moneyFault = nil error("addMoney failed before the change") end
         local farm = FARMS[farmId]
-        farm.money = farm.money + amount
-        farm.stats[moneyType.statistic] = (farm.stats[moneyType.statistic] or 0) + amount
-        if amount > 0 then farm.earned = farm.earned + amount end
+        farm:changeBalance(amount, moneyType)
         -- A MONEY_CHANGED listener of another mod that moves money too.
         if moneyExtra ~= 0 then farm.money = farm.money + moneyExtra moneyExtra = 0 end
         if moneyFault == "after" then moneyFault = nil error("addMoney failed after the change") end
@@ -186,7 +200,7 @@ local function state(house, source, farmId)
     -- "money earned" statistic is left out: a refund adds to it (known, checked on its own).
     local farm = FARMS[farmId or 1]
     local function amount(x) return math.abs(x) < 5e-7 and "0" or string.format("%.6f", x) end
-    parts[#parts + 1] = "m" .. amount(farm.money) .. "/" .. amount(farm.stats.productionCosts)
+    parts[#parts + 1] = "m" .. amount(farm.money) .. "/" .. amount(farm.stats.finances.productionCosts)
     if source ~= nil then
         local cs = source.clusterSystem
         parts[#parts + 1] = "a:" .. members(source)
@@ -418,8 +432,8 @@ do
     check("B03 half accepted: not a whole head - ROLLED_BACK, order, credit and money as before, animal kept",
         record.state == "ROLLED_BACK" and has(receipt.target.verifyError, "ACCEPTED") and state(house, pen) == before
         and bull.clusterSystem == pen.clusterSystem)
-    check("B03 half accepted: the refund nets out the production cost statistic", FARMS[1].stats.productionCosts == 0
-        or near(FARMS[1].stats.productionCosts, 0, 1e-9))
+    check("B03 half accepted: the refund nets out the production cost statistic", FARMS[1].stats.finances.productionCosts == 0
+        or near(FARMS[1].stats.finances.productionCosts, 0, 1e-9))
 
     house.contractProductionDeliver = function() return 0 end
     before = state(house, pen)
@@ -451,9 +465,12 @@ end
 throwCase("B05 throw in addMoney before money moved (credit already taken by HB): credit restored, no refund", function()
     moneyFault = "before"
 end, "ROLLED_BACK", function() return FARMS[1].earned == 0 end)
-throwCase("B06 throw in addMoney after money moved: the charged cash refunded once", function()
+throwCase("B06 throw inside addMoney after money/stat writes: completion unknown, no refund", function()
     moneyFault = "after"
-end, "ROLLED_BACK", function(_, _, record) return CT.receipts[record.id].target.refunded ~= nil end)
+end, "NEEDS_RECONCILIATION", function(_, _, record)
+    return CT.receipts[record.id].target.refunded == nil and CT.receipts[record.id].target.paymentStatus == "UNKNOWN"
+end)
+CT.reset() CT.setMode("TEST")
 throwCase("B07 throw in raiseActive after every order field moved: all undone", function(house)
     house.raiseFault = true
 end, "ROLLED_BACK")
@@ -704,7 +721,8 @@ do
     RLHusbandryProfiles = { apply = function() end, checkAnimal = function() return true end }
     RmSafeUtils = { safeCall = function(_, fn) local ok, err = pcall(fn) if not ok then error(err) end end }
     g_currentMission.userManager = { getUniqueUserIdByConnection = function() return "user1" end }
-    g_farmManager = { getFarmForUniqueUserId = function() return { farmId = 1 } end }
+    g_farmManager.getFarmForUniqueUserId = function() return { farmId = 1 } end
+    RLPermissionHelper = { authorizeConnection = function() return true end }
 
     local function runEvent(pen, house, animals)
         newServerToClientCodes = {}
@@ -772,3 +790,250 @@ do
         and has(RLTradeReportConsole:txMode("off"), "OFF") and CT.getMode() == "OFF"
         and has(RLTradeReportConsole:txMode("bogus"), "OFF, SHADOW or TEST"))
 end
+
+-- PR32 review regressions: real HB delivery and real RLRM flush, with synchronous faults.
+local function reviewWorld()
+    CT.reset() CT.setMode("TEST")
+    setFarm(1, 1000)
+    moneyFault, moneyExtra, moneyUnreadable, publishHook = nil, 0, false, nil
+    local house, order = newHouse(20)
+    local bull, other = animal(HOLSTEIN), animal(ANGUS)
+    local pen = newSource("PEN", 1, { bull, other })
+    return house, order, bull, other, pen
+end
+
+-- Q1: target callbacks must not donate a foreign queue to this transaction's flush.
+for _, kind in ipairs({ "remove", "falseRemove", "add" }) do
+    local house, order, bull, other, pen = reviewWorld()
+    local cs, queued = pen.clusterSystem, false
+    local newcomer = animal(ANGUS)
+    local before = state(house, pen)
+    local publishedBefore = PUBLISHED
+    house.contractProductionRefreshAnimalVisuals = function()
+        if queued then return end
+        queued = true
+        if kind == "add" then cs:addPendingAddCluster(newcomer)
+        elseif kind == "remove" then cs:addPendingRemoveCluster(other)
+        else cs.clustersToRemove[other] = false end
+    end
+    local record = CT.execute(request(pen, house, { bull }))
+    check("Q1 " .. kind .. ": source refusal precedes any flush; target compensated",
+        record.state == "ROLLED_BACK" and #cs.animals == 2 and bull.clusterSystem == cs
+        and other.clusterSystem == cs and order.inputs[BEEF].buffered == 0 and near(FARMS[1].money, 1000, 1e-9)
+        and PUBLISHED == publishedBefore)
+    check("Q1 " .. kind .. ": foreign queue kept, this batch owns no queue entry",
+        cs.clustersToRemove[bull] == nil and ((kind == "add" and cs.clustersToAdd[newcomer] == true)
+        or (kind == "remove" and cs.clustersToRemove[other] == true)
+        or (kind == "falseRemove" and cs.clustersToRemove[other] == false)))
+    if kind ~= "falseRemove" then
+        cs:updateNow()
+        check("Q1 " .. kind .. ": later foreign flush never removes the selected survivor",
+            bull.clusterSystem == cs and #cs.animals == (kind == "add" and 3 or 1))
+    end
+end
+
+-- Enqueue itself raises active. Check again before flush and never flush foreign work in undo.
+do
+    local house, order, bull, other, pen = reviewWorld()
+    local cs, fired = pen.clusterSystem, false
+    local active = pen.raiseActive
+    pen.raiseActive = function(self)
+        active(self)
+        if not fired then fired = true cs.clustersToRemove[other] = true end
+    end
+    local record = CT.execute(request(pen, house, { bull }))
+    local receipt = CT.receipts[record.id]
+    check("Q1 enqueue callback: no foreign flush even during compensation",
+        record.state == "NEEDS_RECONCILIATION" and #cs.animals == 2 and bull.clusterSystem == cs
+        and other.clusterSystem == cs and cs.clustersToRemove[other] == true and cs.clustersToRemove[bull] == nil)
+    check("Q1 enqueue callback: foreign queue uncertainty keeps target and locks",
+        receipt.source.rollbackError == "FOREIGN_QUEUE" and order.inputs[BEEF].buffered > 0 and next(CT.store.locks) ~= nil)
+end
+
+for _, kind in ipairs({ "owner", "health", "permission" }) do
+    local house, order, bull, other, pen = reviewWorld()
+    local allowed = true
+    local savedHelper = RLPermissionHelper
+    local r = request(pen, house, { bull })
+    if kind == "permission" then
+        r.connection = {}
+        RLPermissionHelper = { authorizeConnection = function() return allowed, "REVOKED" end }
+    end
+    house.contractProductionRefreshAnimalVisuals = function()
+        if kind == "owner" then pen.getOwnerFarmId = function() return 2 end
+        elseif kind == "health" then bull.sick = true
+        else allowed = false end
+    end
+    local record = CT.execute(r)
+    check("Q1 target callback changed " .. kind .. ": animal not removed, target compensated",
+        record.state == "ROLLED_BACK" and #pen.clusterSystem.animals == 2 and bull.clusterSystem == pen.clusterSystem
+        and order.inputs[BEEF].buffered == 0 and near(FARMS[1].money, 1000, 1e-9))
+    RLPermissionHelper = savedHelper
+end
+
+do
+    local house, order, bull, other, pen = reviewWorld()
+    local cs, active = pen.clusterSystem, pen.raiseActive
+    pen.visualFault = true
+    pen.raiseActive = function(self)
+        active(self)
+        if cs.clustersToAdd[bull] ~= nil then cs.clustersToRemove[other] = true end
+    end
+    local record = CT.execute(request(pen, house, { bull }))
+    check("Q1 restore enqueue callback: inverse never flushes a foreign removal",
+        record.state == "NEEDS_RECONCILIATION" and other.clusterSystem == cs
+        and cs.clustersToRemove[other] == true and cs.clustersToAdd[bull] == true
+        and CT.receipts[record.id].source.rollbackError == "FOREIGN_QUEUE" and order.inputs[BEEF].buffered > 0)
+end
+
+-- Q2: order/spec/recipe/input replacement with identical numeric fields is still a new asset.
+for _, kind in ipairs({ "removed", "order", "spec", "recipe", "input" }) do
+    local house, order, bull, other, pen = reviewWorld()
+    local detachedBuffer
+    house.contractProductionRefreshAnimalVisuals = function(self)
+        detachedBuffer = order.inputs[BEEF].buffered
+        local spec = self.spec_contractProductionService
+        if kind == "removed" then spec.orders = {}
+        elseif kind == "order" then
+            local replacement = table.clone(order)
+            spec.orders = { replacement }
+        elseif kind == "spec" then self.spec_contractProductionService = table.clone(spec)
+        elseif kind == "recipe" then spec.recipeById.cows_processing = table.clone(spec.recipeById.cows_processing)
+        else order.inputs[BEEF] = table.clone(order.inputs[BEEF]) end
+    end
+    local record = CT.execute(request(pen, house, { bull }))
+    local receipt = CT.receipts[record.id]
+    check("Q2 " .. kind .. ": detached target never certifies COMMITTED, source intact",
+        record.state == "NEEDS_RECONCILIATION" and #pen.clusterSystem.animals == 2 and bull.clusterSystem == pen.clusterSystem
+        and next(CT.store.locks) ~= nil)
+    check("Q2 " .. kind .. ": no automatic refund or write to stale target",
+        receipt.target.refunded == nil and order.inputs[BEEF].buffered == detachedBuffer and FARMS[1].earned == 0)
+end
+
+do
+    local house, order, bull, other, pen = reviewWorld()
+    publishHook = function()
+        house.spec_contractProductionService.orders = {}
+        publishHook = nil
+    end
+    local record = CT.execute(request(pen, house, { bull }))
+    check("Q2 source publish detaches target: final verification restores source, holds unresolved target",
+        record.state == "NEEDS_RECONCILIATION" and #pen.clusterSystem.animals == 2 and bull.clusterSystem == pen.clusterSystem
+        and has(record.reason, "TARGET_CHANGED_AFTER_SOURCE") and CT.receipts[record.id].target.refunded == nil)
+end
+
+do
+    local house, order, bull, other, pen = reviewWorld()
+    local deliver, addMoney = house.contractProductionDeliver, g_currentMission.addMoney
+    house.contractProductionDeliver = function(self, farm, fill, amount) return deliver(self, farm, fill, amount / 2) end
+    g_currentMission.addMoney = function(mission, amount, ...)
+        addMoney(mission, amount, ...)
+        if amount > 0 then house.spec_contractProductionService.orders = {} end
+    end
+    local context = assert(CT.prepare(request(pen, house, { bull })))
+    local record = CT.run(context)
+    g_currentMission.addMoney = addMoney
+    check("Q2 refund callback detaches order: do not write old fields or certify rollback",
+        record.state == "NEEDS_RECONCILIATION" and order.inputs[BEEF].buffered > 0
+        and CT.receipts[record.id].target.rollbackError == "ORDER_CHANGED" and near(FARMS[1].money, 1000, 1e-9))
+    local earned = FARMS[1].earned
+    check("Q2 refund already attempted: direct inverse retry cannot pay again",
+        not RLHBContractAdapter.rollback(context.targetBinding) and FARMS[1].earned == earned)
+end
+
+-- Q3: partial Farm:changeBalance is not a complete payment receipt.
+for _, phase in ipairs({ "beforeFinance", "afterFinance", "after" }) do
+    local house, order, bull, other, pen = reviewWorld()
+    moneyFault = phase
+    local record = CT.execute(request(pen, house, { bull }))
+    local receipt = CT.receipts[record.id].target
+    check("Q3 " .. phase .. ": incomplete money call quarantined, never refunded",
+        record.state == "NEEDS_RECONCILIATION" and receipt.paymentStatus == "UNKNOWN" and receipt.refunded == nil
+        and FARMS[1].money < 1000 and FARMS[1].earned == 0 and next(CT.store.locks) ~= nil
+        and #pen.clusterSystem.animals == 2)
+    check("Q3 " .. phase .. ": no positive finance credit without a proven debit",
+        phase == "beforeFinance" and FARMS[1].stats.finances.productionCosts == 0
+        or phase ~= "beforeFinance" and FARMS[1].stats.finances.productionCosts < 0)
+end
+
+do
+    local house, order, bull, other, pen = reviewWorld()
+    order.fee = 1e20 -- a small addition rounds to the same double, so it cannot prove call completion.
+    moneyFault = "after"
+    local record = CT.execute(request(pen, house, { bull }))
+    check("Q3 unchanged fee due to rounding is not a completion marker",
+        record.state == "NEEDS_RECONCILIATION" and CT.receipts[record.id].target.refunded == nil and FARMS[1].earned == 0)
+end
+
+do
+    local house, order, bull, other, pen = reviewWorld()
+    FARMS[1].stats.finances = nil
+    local record, reason = CT.execute(request(pen, house, { bull }))
+    check("Q3 missing finance evidence: paid target refused before mutation",
+        record == nil and reason == "FINANCE_UNREADABLE" and FARMS[1].money == 1000 and order.inputs[BEEF].buffered == 0)
+    order.feeCredit = 1000
+    record = CT.execute(request(pen, house, { bull }))
+    check("Q3 fully credited order needs no cash or finance inverse",
+        record.state == "COMMITTED" and FARMS[1].money == 1000)
+end
+
+do
+    local house, order, bull, other, pen = reviewWorld()
+    local context = assert(CT.prepare(request(pen, house, { bull })))
+    FARMS[1].stats.finances = { productionCosts = 0 }
+    local record = CT.run(context)
+    check("Q3 finance table archived/replaced: reject stale binding before money changes",
+        record.state == "REJECTED" and context.preflightError == "FINANCE_UNREADABLE"
+        and FARMS[1].money == 1000 and order.inputs[BEEF].buffered == 0)
+end
+
+do
+    local house, order, bull, other, pen = reviewWorld()
+    FARMS[1].stats.financesVersionCounter = 999999
+    house.visualFault = true -- payment returned before the later visual error.
+    local record = CT.execute(request(pen, house, { bull }))
+    check("Q3 version wrap: late HB failure has certified finance inverse",
+        record.state == "ROLLED_BACK" and FARMS[1].stats.financesVersionCounter == 1
+        and near(FARMS[1].stats.finances.productionCosts, 0, 1e-9) and near(FARMS[1].money, 1000, 1e-9))
+end
+
+do
+    local house, order, bull, other, pen = reviewWorld()
+    local deliver, addMoney = house.contractProductionDeliver, g_currentMission.addMoney
+    house.contractProductionDeliver = function(self, farm, fill, amount) return deliver(self, farm, fill, amount / 2) end
+    local refunds = 0
+    g_currentMission.addMoney = function(mission, amount, farm, ...)
+        if amount > 0 then refunds = refunds + 1 FARMS[farm].money = FARMS[farm].money + amount return end
+        return addMoney(mission, amount, farm, ...)
+    end
+    local context = assert(CT.prepare(request(pen, house, { bull })))
+    local record = CT.run(context)
+    g_currentMission.addMoney = addMoney
+    check("Q3 refund missing finance write: not ROLLED_BACK, order untouched, locks retained",
+        record.state == "NEEDS_RECONCILIATION" and CT.receipts[record.id].target.rollbackError == "REFUND_FINANCE_UNKNOWN"
+        and order.inputs[BEEF].buffered > 0 and FARMS[1].stats.finances.productionCosts < 0 and next(CT.store.locks) ~= nil)
+    check("Q3 incomplete refund never automatically retried",
+        not RLHBContractAdapter.rollback(context.targetBinding) and refunds == 1)
+end
+
+-- Q4: capacity is read immediately before the target call, across the farm's orders.
+for _, kind in ipairs({ "boundBuffer", "otherBuffer", "shrink", "tinyShortfall", "exact" }) do
+    local house, order, bull, other, pen = reviewWorld()
+    local amount = RLTradeQuote.quoteAnimal(bull, house, 1).inputQuantity
+    local capacity = amount + 1
+    function house:getCapacity() return capacity end
+    local second = HB.addOrder(house, 2, 1, "cows_processing", 0)
+    local context = assert(CT.prepare(request(pen, house, { bull })))
+    if kind == "boundBuffer" then order.inputs[BEEF].buffered = 1.5
+    elseif kind == "otherBuffer" then second.inputs[BEEF].buffered = 1.5
+    elseif kind == "shrink" then capacity = amount / 2
+    elseif kind == "tinyShortfall" then capacity = amount - 1e-12
+    else capacity = amount end
+    local before = state(house, pen)
+    local record = CT.run(context)
+    check("Q4 " .. kind .. ": fresh capacity decides admission",
+        kind == "exact" and record.state == "COMMITTED" and order.inputs[BEEF].buffered == amount
+        or kind ~= "exact" and record.state == "REJECTED" and context.preflightError == "INSUFFICIENT_CAPACITY"
+        and state(house, pen) == before and next(CT.store.locks) == nil)
+end
+CT.reset() CT.setMode("TEST")

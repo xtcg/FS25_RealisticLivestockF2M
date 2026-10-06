@@ -25,6 +25,16 @@ local function adapter()
     return a, assets
 end
 do
+    local s = start()
+    local a, assets = adapter()
+    local remove = a.applySource
+    a.applySource = function() remove(); assets.target = assets.target + 1; return true end
+    local result = T.executeContract(s, "tx1", a)
+    check("contract: final target verification catches a source callback's foreign mutation",
+        result.state == "NEEDS_RECONCILIATION" and assets.source == 2 and assets.target == 1
+        and result.reason == "TARGET_ROLLBACK_UNKNOWN:TARGET_CHANGED_AFTER_SOURCE" and next(s.locks) ~= nil)
+end
+do
     local s, a = start(), adapter()
     local result = T.executeContract(s, "tx1", a)
     check("contract: verified target and source commit", result.state == "COMMITTED")

@@ -10,12 +10,13 @@
     order.totalDeliveredAmount; sets order.state (raiseActive when a batch is ready); refreshes the
     animal visuals; returns the accepted amount.
 
-    Receipt: before/after of those fields, the farm's money, the farm's other orders for the fill
+    Receipt: before/after of those fields, money and productionCosts/version, the farm's other orders for the fill
     type and the recipe fingerprint. verify() requires the full amount and exactly the deltas
     HB's arithmetic gives for it; anything else - part, none, another order, a throw - is undone.
     rollback() undoes only this delivery's own changes and only while the fields still show
     them; money is refunded through addMoney with the same money type. It refuses (unknown) when
-    something else has changed them, or the money moved by any other amount.
+    something else has changed them, or the money moved by any other amount. A throw inside
+    addMoney is UNKNOWN when its completion cannot be proven; matching money alone is not a receipt.
 
     Not undone, known: raiseActive (the facility updates once with nothing to do), the farm's
     "money earned" statistic counts the refund, and anything an override of the deliver call
@@ -112,6 +113,69 @@ local function readMoney(farmId)
     return nil
 end
 
+-- Native FarmStats:changeFinanceStats changes the productionCosts entry and then its
+-- version counter. Keep object references outside the serializable receipt; an archive
+-- or replacement of the finance table invalidates an inverse against the old table.
+local function readFinance(farmId)
+    local manager = g_farmManager
+    if manager == nil or type(manager.getFarmById) ~= "function" then return nil end
+    local ok, farm = pcall(manager.getFarmById, manager, farmId)
+    local stats = ok and type(farm) == "table" and farm.stats or nil
+    if type(stats) ~= "table" then return nil end
+    local finances = stats.finances
+    local statistic = MoneyType ~= nil and MoneyType.PRODUCTION_COSTS ~= nil and MoneyType.PRODUCTION_COSTS.statistic or nil
+    local cost = type(finances) == "table" and statistic ~= nil and finances[statistic] or nil
+    local version = stats ~= nil and stats.financesVersionCounter or nil
+    if not isNumber(cost) or not isNumber(version) or version % 1 ~= 0 or version < 0 or version > 999999 then return nil end
+    return { productionCosts = cost, version = version }, { farm = farm, stats = stats, finances = finances }
+end
+
+local function readBoundFinance(binding)
+    local value, objects = readFinance(binding.farmId)
+    local bound = binding.financeObjects
+    if value == nil or bound == nil or objects.farm ~= bound.farm or objects.stats ~= bound.stats
+        or objects.finances ~= bound.finances then return nil end
+    return value
+end
+
+local function nextFinanceVersion(version)
+    return version == 999999 and 0 or version + 1
+end
+
+local function sameFinance(a, b)
+    return a ~= nil and b ~= nil and a.productionCosts == b.productionCosts and a.version == b.version
+end
+
+-- Used after mutations too: checking an old Lua object is not proof it remains an asset
+-- of the live service. Never compensate a detached order/input/recipe.
+local function checkLiveBinding(binding)
+    local support, reason = RLHBContractAdapter.getSupport(binding.target)
+    if support == nil then return false, reason end
+    local spec, order = binding.target.spec_contractProductionService, binding.order
+    if spec ~= binding.spec then return false, "SERVICE_CHANGED" end
+    local count = 0
+    for _, candidate in pairs(spec.orders) do
+        if candidate == order then count = count + 1 end
+    end
+    if count ~= 1 or order.id ~= binding.orderId or order.farmId ~= binding.farmId
+        or order.recipeId ~= binding.recipeId then return false, "ORDER_CHANGED" end
+    if type(order.inputs) ~= "table" or order.inputs[binding.fillType] ~= binding.input then return false, "ORDER_INPUT_CHANGED" end
+    if spec.recipeById[binding.recipeId] ~= binding.recipe
+        or type(binding.recipe.inputs) ~= "table"
+        or binding.recipe.inputs[binding.fillType] ~= binding.recipeInput
+        or RLHBContractAdapter.recipeFingerprint(binding.recipe) ~= binding.recipeFingerprint then
+        return false, "RECIPE_CHANGED"
+    end
+    return true
+end
+
+local function checkRoom(binding, demand)
+    local room = AnimalMoveEvent._getContractRoom(binding.target, binding.farmId, binding.fillType)
+    if not isNumber(room) then return false, "CAPACITY_UNKNOWN" end
+    if room < demand then return false, "INSUFFICIENT_CAPACITY" end
+    return true
+end
+
 
 --- What a full acceptance of `amount` does under HB's arithmetic, or why it would not be full.
 --- @return table|nil expected {fee, creditUse, cash, charged, feeCreditAfter}
@@ -152,10 +216,13 @@ function RLHBContractAdapter.bind(target, farmId, fillType, amount)
     if money == nil then return nil, "WALLET_UNKNOWN" end
     local expected, refused = expectFull(order, recipe, recipeInput, fillType, amount, money)
     if expected == nil then return nil, refused end
+    local finance, financeObjects = readFinance(farmId)
+    if expected.charged and finance == nil then return nil, "FINANCE_UNREADABLE" end
 
     return {
         target = target, spec = spec, farmId = farmId, fillType = fillType, amount = amount, support = support,
         order = order, orderId = order.id, recipeId = order.recipeId, recipe = recipe,
+        input = order.inputs[fillType], recipeInput = recipeInput, financeObjects = financeObjects,
         recipeFingerprint = RLHBContractAdapter.recipeFingerprint(recipe),
         expected = expected,
         receipt = { stage = "BOUND", orderId = order.id, recipeId = order.recipeId, amount = amount,
@@ -169,8 +236,8 @@ end
 --- @return boolean ok
 --- @return string|nil reason
 function RLHBContractAdapter.recheck(binding)
-    local support, reason = RLHBContractAdapter.getSupport(binding.target)
-    if support == nil then return false, reason end
+    local live, reason = checkLiveBinding(binding)
+    if not live then return false, reason end
     local spec = binding.target.spec_contractProductionService
     if spec ~= binding.spec then return false, "SERVICE_CHANGED" end
     local order, recipe, recipeInput = RLFacilityRules.selectContractOrder(spec.orders, spec.recipeById, binding.farmId, binding.fillType)
@@ -183,6 +250,9 @@ function RLHBContractAdapter.recheck(binding)
     local expected, refused = expectFull(order, recipe, recipeInput, binding.fillType, binding.amount, money)
     if expected == nil then return false, refused end
     if expected.fee ~= binding.expected.fee then return false, "FEE_CHANGED" end
+    if expected.charged and readBoundFinance(binding) == nil then return false, "FINANCE_UNREADABLE" end
+    local roomOk, roomReason = checkRoom(binding, binding.amount)
+    if not roomOk then return false, roomReason end
     return true
 end
 
@@ -192,17 +262,22 @@ end
 function RLHBContractAdapter.apply(binding)
     local receipt = binding.receipt
     if receipt.applied ~= nil then return false end
+    local ready, reason = RLHBContractAdapter.recheck(binding)
+    if not ready then receipt.applyError = reason return false end
     local target = binding.target
     receipt.before = readOrder(binding.order, binding.fillType)
     receipt.moneyBefore = readMoney(binding.farmId)
+    receipt.financeBefore = readBoundFinance(binding)
     receipt.others = readOtherOrders(binding.spec, binding.farmId, binding.fillType, binding.order)
     -- What a full acceptance must change, from the state right before the call.
     if receipt.moneyBefore == nil then return false end
     local expected = expectFull(binding.order, binding.recipe, binding.recipe.inputs[binding.fillType], binding.fillType,
         binding.amount, receipt.moneyBefore)
     if expected == nil then return false end
+    if expected.charged and receipt.financeBefore == nil then return false end
     binding.expected = expected
     receipt.expected = { fee = expected.fee, creditUse = expected.creditUse, cash = expected.charged and expected.cash or 0 }
+    receipt.paymentStatus = expected.charged and "UNKNOWN" or "NOT_APPLIED"
     receipt.stage = "APPLYING"
     local ok, accepted = pcall(target.contractProductionDeliver, target, binding.farmId, binding.fillType, binding.amount)
     receipt.applied = true
@@ -210,6 +285,7 @@ function RLHBContractAdapter.apply(binding)
     receipt.error = not ok and tostring(accepted) or nil
     receipt.after = readOrder(binding.order, binding.fillType)
     receipt.moneyAfter = readMoney(binding.farmId)
+    receipt.financeAfter = readBoundFinance(binding)
     receipt.stage = "APPLIED_UNVERIFIED"
     if not ok then
         Log:warning("RLHBContractAdapter.apply: deliver threw for order %s: %s", tostring(binding.orderId), receipt.error)
@@ -225,11 +301,16 @@ function RLHBContractAdapter.verify(binding)
     local r, e = binding.receipt, binding.expected
     local function fail(reason)
         r.verifyError = reason
+        r.verified = false
         return false, reason
     end
+    local live, liveReason = checkLiveBinding(binding)
+    if not live then return fail(liveReason) end
     if not r.callOk then return fail("DELIVER_THREW") end
     if r.accepted ~= binding.amount then return fail("ACCEPTED:" .. tostring(r.accepted)) end
     local b, a = r.before, r.after
+    local unchanged, changedField = sameFields(readOrder(binding.order, binding.fillType), a)
+    if not unchanged then return fail("CHANGED_SINCE:" .. changedField) end
     if not b.hasInput or not a.hasInput then return fail("INPUT_MISSING") end
     -- HB adds with these very expressions, so a full acceptance matches them exactly.
     if a.buffered ~= (b.buffered or 0) + binding.amount then return fail("BUFFERED") end
@@ -244,12 +325,22 @@ function RLHBContractAdapter.verify(binding)
     if r.moneyBefore == nil or r.moneyAfter == nil then return fail("MONEY_UNREADABLE") end
     local expectedMoney = e.charged and r.moneyBefore + (-e.cash) or r.moneyBefore
     if r.moneyAfter ~= expectedMoney then return fail("MONEY") end
+    if readMoney(binding.farmId) ~= r.moneyAfter then return fail("MONEY_CHANGED_SINCE") end
+    if e.charged then
+        if r.financeBefore == nil or not sameFinance(r.financeAfter, {
+            productionCosts = r.financeBefore.productionCosts + (-e.cash),
+            version = nextFinanceVersion(r.financeBefore.version) }) then return fail("FINANCE_DELTA") end
+        if not sameFinance(readBoundFinance(binding), r.financeAfter) then return fail("FINANCE_CHANGED_SINCE") end
+    end
     for _, other in ipairs(r.others) do
         if binding.spec.orders[other.key] ~= other.ref or not sameFields(other.fields, readOrder(other.ref, binding.fillType)) then
             return fail("OTHER_ORDER_CHANGED")
         end
     end
     if RLHBContractAdapter.recipeFingerprint(binding.recipe) ~= binding.recipeFingerprint then return fail("RECIPE_CHANGED") end
+    local roomOk, roomReason = checkRoom(binding, 0)
+    if not roomOk then return fail(roomReason) end
+    r.paymentStatus = e.charged and "APPLIED" or "NOT_APPLIED"
     r.verified, r.stage = true, "APPLIED"
     return true
 end
@@ -303,7 +394,27 @@ function RLHBContractAdapter.explain(binding)
                 end
             end
             if fits then
-                return { accepted = accepted, steps = k, charged = charged and k >= 2, cash = cash }
+                local moneyApplied = charged and k >= 2
+                if moneyApplied then
+                    -- A throw inside addMoney may be after the wallet/stat write but before
+                    -- dirty flags or synchronous listeners completed. HB writes order.fee
+                    -- only after addMoney returns: without that marker, do not infer a receipt.
+                    if not r.callOk and (k < 3 or a.fee == b.fee) then
+                        r.paymentStatus = "UNKNOWN"
+                        return nil
+                    end
+                    if r.financeBefore == nil or not sameFinance(r.financeAfter, {
+                        productionCosts = r.financeBefore.productionCosts + (-cash),
+                        version = nextFinanceVersion(r.financeBefore.version) }) then
+                        r.paymentStatus = "UNKNOWN"
+                        return nil
+                    end
+                elseif r.financeBefore ~= nil and not sameFinance(r.financeBefore, r.financeAfter) then
+                    r.paymentStatus = "UNKNOWN"
+                    return nil
+                end
+                r.paymentStatus = moneyApplied and "APPLIED" or "NOT_APPLIED"
+                return { accepted = accepted, steps = k, charged = moneyApplied, cash = cash }
             end
         end
     end
@@ -317,8 +428,11 @@ end
 --- @return boolean ok
 function RLHBContractAdapter.rollback(binding)
     local r = binding.receipt
-    if r.rolledBack then return true end
     if not r.applied then r.rolledBack, r.stage = true, "NOT_APPLIED" return true end
+    local live, reason = checkLiveBinding(binding)
+    if not live then r.rollbackError = reason return false end
+    if r.rolledBack then return true end
+    if r.refundAttempted then return false end
     local order, fillType = binding.order, binding.fillType
     local current = readOrder(order, fillType)
     local same, field = sameFields(current, r.after)
@@ -346,13 +460,42 @@ function RLHBContractAdapter.rollback(binding)
     r.explained = { accepted = explanation.accepted, steps = explanation.steps, charged = explanation.charged }
     local refund = explanation.charged and explanation.cash or 0
     if refund > 0 then
+        if not sameFinance(readBoundFinance(binding), r.financeAfter) then
+            r.rollbackError = "FINANCE_CHANGED_SINCE"
+            return false
+        end
+        r.refundAttempted = true
+        r.refundStatus = "UNKNOWN"
         local ok, err = pcall(g_currentMission.addMoney, g_currentMission, refund, binding.farmId, MoneyType.PRODUCTION_COSTS, false, true)
+        r.moneyRefund = readMoney(binding.farmId)
+        r.financeRefund = readBoundFinance(binding)
         if not ok then
             r.rollbackError = "REFUND_THREW:" .. tostring(err)
             return false
         end
         r.refunded = refund
+        local finance = r.financeRefund
+        local expectedCost = r.financeAfter.productionCosts + refund
+        if finance == nil or finance.version ~= nextFinanceVersion(r.financeAfter.version)
+            or finance.productionCosts ~= expectedCost then
+            r.rollbackError = "REFUND_FINANCE_UNKNOWN"
+            return false
+        end
+        local money = r.moneyRefund
+        if money == nil or math.abs(money - r.moneyBefore)
+            > RLHBContractAdapter.REFUND_EPSILON * math.max(1, math.abs(r.moneyBefore)) then
+            r.rollbackError = "REFUND_MONEY_UNKNOWN"
+            return false
+        end
+        r.refundStatus = "APPLIED"
     end
+
+    -- Refund callbacks can cancel/replace an order or change its fields. A successful
+    -- money call does not authorize writing an old object or overwriting foreign work.
+    live, reason = checkLiveBinding(binding)
+    if not live then r.rollbackError = reason return false end
+    same, field = sameFields(readOrder(order, fillType), r.after)
+    if not same then r.rollbackError = "CHANGED_SINCE:" .. field return false end
 
     local input = order.inputs ~= nil and order.inputs[fillType] or nil
     if input ~= nil then
@@ -377,12 +520,21 @@ function RLHBContractAdapter.verifyRestored(binding)
     local r = binding.receipt
     if not r.applied then return true end
     if not r.rolledBack then return false end
+    if not checkLiveBinding(binding) then return false end
     local same = sameFields(readOrder(binding.order, binding.fillType), r.before)
     if not same then return false end
     local money = readMoney(binding.farmId)
     if money == nil or r.moneyBefore == nil then return false end
     if math.abs(money - r.moneyBefore) > RLHBContractAdapter.REFUND_EPSILON * math.max(1, math.abs(r.moneyBefore)) then
         return false
+    end
+    if r.financeBefore ~= nil then
+        local finance = readBoundFinance(binding)
+        if finance == nil then return false end
+        local version = r.financeBefore.version
+        if r.refunded ~= nil then version = nextFinanceVersion(nextFinanceVersion(version)) end
+        if finance.version ~= version or math.abs(finance.productionCosts - r.financeBefore.productionCosts)
+            > RLHBContractAdapter.REFUND_EPSILON * math.max(1, math.abs(r.financeBefore.productionCosts)) then return false end
     end
     for _, other in ipairs(r.others) do
         if not sameFields(other.fields, readOrder(other.ref, binding.fillType)) then return false end
