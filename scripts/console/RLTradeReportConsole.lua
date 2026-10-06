@@ -315,7 +315,37 @@ function RLTradeReportConsole:txMode(mode)
 end
 
 
---- rlTradeTxReport [txId]: this run's contract transactions. Reads only; never settles, unlocks or retries.
+--- rlTradeSaleMode [OFF|SHADOW|TEST]: show or set the T02 player/herdsman sale mode (server only, this run only).
+function RLTradeReportConsole:saleMode(mode)
+    if not g_currentMission:getIsServer() then return "rlTradeSaleMode: server only" end
+    if mode == nil then
+        return string.format("rlTradeSaleMode: %s (OFF old path; SHADOW logs what TEST would do; TEST transactions with money receipts, test saves only)",
+            RLLiveSale.getMode())
+    end
+    if not RLLiveSale.setMode(mode) then return "rlTradeSaleMode: OFF, SHADOW or TEST" end
+    if RLLiveSale.getMode() == RLLiveSale.MODE_TEST then
+        return "rlTradeSaleMode: TEST - player and herdsman sales and wages run with receipts; records are not saved, use a test save"
+    end
+    return "rlTradeSaleMode: " .. RLLiveSale.getMode()
+end
+
+
+local function money(value)
+    return type(value) == "number" and string.format("%.2f", value) or tostring(value)
+end
+
+
+local function paymentLine(payment)
+    return string.format("   money %s %s: %s %s farm %s (%s)%s%s", tostring(payment.kind), tostring(payment.paymentId),
+        tostring(payment.status), money(payment.amount), tostring(payment.farmId), tostring(payment.evidence),
+        payment.delta ~= nil and string.format(" seen: money %s, statistic %s, counter %s", money(payment.delta.money),
+            money(payment.delta.finance), tostring(payment.delta.counter)) or "",
+        payment.callError ~= nil and (" error:" .. payment.callError) or "")
+end
+
+
+--- rlTradeTxReport [txId]: this run's contract and sale transactions and wage actions. Reads only;
+--- never settles, unlocks, restores or retries.
 function RLTradeReportConsole:txReport(txId)
     if not g_currentMission:getIsServer() then return "rlTradeTxReport: server only (transactions run on the server)" end
     local store = RLContractTrade.store
@@ -324,37 +354,57 @@ function RLTradeReportConsole:txReport(txId)
         if txId == nil or id == txId then ids[#ids + 1] = id end
     end
     table.sort(ids, function(a, b) return store.records[a].sequence < store.records[b].sequence end)
-    if #ids == 0 then
+    local wages = {}
+    for id, payment in pairs(store.payments or {}) do
+        if payment.kind == "WAGE" and (txId == nil or id == txId) then wages[#wages + 1] = id end
+    end
+    table.sort(wages)
+    if #ids == 0 and #wages == 0 then
         return txId ~= nil and ("rlTradeTxReport: no transaction " .. txId) or
-            ("rlTradeTxReport: no transactions this run (mode " .. RLContractTrade.getMode() .. ")")
+            string.format("rlTradeTxReport: no transactions this run (contract mode %s, sale mode %s)", RLContractTrade.getMode(),
+                RLLiveSale ~= nil and RLLiveSale.getMode() or "-")
     end
     local held = 0
     for _ in pairs(store.locks) do held = held + 1 end
     for _, id in ipairs(ids) do
-        local record, receipt = store.records[id], RLContractTrade.receipts[id] or {}
-        out(string.format("== %s %s%s", id, record.state, record.reason ~= nil and (" (" .. record.reason .. ")") or ""))
+        local record = store.records[id]
+        out(string.format("== %s %s %s%s", id, record.kind, record.state, record.reason ~= nil and (" (" .. record.reason .. ")") or ""))
         out("   stages: " .. table.concat(record.history, " > "))
-        if receipt.keys ~= nil then
-            out(string.format("   farm %s, %d animal(s), %.6f standard batches (not kg), order %s; plan fee %.2f credit %.2f cash %.2f",
-                tostring(receipt.farmId), #receipt.keys, receipt.amount or 0, tostring(receipt.target and receipt.target.orderId),
-                receipt.plan.fee, receipt.plan.creditUse, receipt.plan.cashDue))
+        if record.kind == "SALE" then
+            local receipt, sale = RLLiveSale ~= nil and RLLiveSale.receipts[id] or {}, record.sale or {}
+            out(string.format("   %s sale, farm %s, source %s: %s animal(s) asked, quoted %s; left %d, stayed %d, put back %d%s",
+                tostring(receipt.kind), tostring(receipt.farmId), tostring(receipt.sourceId), tostring(receipt.keys and #receipt.keys),
+                money(receipt.quotedAmount), #(sale.removed or {}), #(sale.survivors or {}), #(sale.restored or {}),
+                sale.applyError ~= nil and (" removal error:" .. sale.applyError) or ""))
+            local payment = store.payments ~= nil and sale.paymentId ~= nil and store.payments[sale.paymentId] or nil
+            if payment ~= nil then out(paymentLine(payment)) else out("   money: none (" .. tostring(sale.payment or "not attempted") .. ")") end
+        else
+            local receipt = RLContractTrade.receipts[id] or {}
+            if receipt.keys ~= nil then
+                out(string.format("   farm %s, %d animal(s), %.6f standard batches (not kg), order %s; plan fee %.2f credit %.2f cash %.2f",
+                    tostring(receipt.farmId), #receipt.keys, receipt.amount or 0, tostring(receipt.target and receipt.target.orderId),
+                    receipt.plan.fee, receipt.plan.creditUse, receipt.plan.cashDue))
+            end
+            local t = receipt.target
+            if t ~= nil and t.before ~= nil and t.after ~= nil then
+                out(string.format("   target %s: accepted %s, buffered %s -> %s, credit %s -> %s, money %s -> %s%s%s",
+                    tostring(t.stage), tostring(t.accepted), tostring(t.before.buffered), tostring(t.after.buffered),
+                    tostring(t.before.feeCredit), tostring(t.after.feeCredit), tostring(t.moneyBefore), tostring(t.moneyAfter),
+                    t.verifyError ~= nil and (" verify:" .. t.verifyError) or "", t.rollbackError ~= nil and (" rollback:" .. t.rollbackError) or ""))
+            end
+            local src = receipt.source
+            if src ~= nil then
+                out(string.format("   source %s %s: removed %d, restored %d%s%s", tostring(src.kind), tostring(src.stage),
+                    #(src.removed or {}), #(src.restored or {}), src.error ~= nil and (" error:" .. src.error) or "",
+                    src.rollbackError ~= nil and (" rollback:" .. src.rollbackError) or ""))
+            end
         end
-        local t = receipt.target
-        if t ~= nil and t.before ~= nil and t.after ~= nil then
-            out(string.format("   target %s: accepted %s, buffered %s -> %s, credit %s -> %s, money %s -> %s%s%s",
-                tostring(t.stage), tostring(t.accepted), tostring(t.before.buffered), tostring(t.after.buffered),
-                tostring(t.before.feeCredit), tostring(t.after.feeCredit), tostring(t.moneyBefore), tostring(t.moneyAfter),
-                t.verifyError ~= nil and (" verify:" .. t.verifyError) or "", t.rollbackError ~= nil and (" rollback:" .. t.rollbackError) or ""))
-        end
-        local src = receipt.source
-        if src ~= nil then
-            out(string.format("   source %s %s: removed %d, restored %d%s%s", tostring(src.kind), tostring(src.stage),
-                #(src.removed or {}), #(src.restored or {}), src.error ~= nil and (" error:" .. src.error) or "",
-                src.rollbackError ~= nil and (" rollback:" .. src.rollbackError) or ""))
-        end
+        if record.notificationError ~= nil then out("   message failed after settlement: " .. record.notificationError) end
         if record.state == "NEEDS_RECONCILIATION" then
             out("   locks held: " .. table.concat(record.resources, ", "))
         end
     end
-    return string.format("rlTradeTxReport: %d transaction(s), %d lock(s) held, mode %s", #ids, held, RLContractTrade.getMode())
+    for _, id in ipairs(wages) do out(paymentLine(store.payments[id])) end
+    return string.format("rlTradeTxReport: %d transaction(s), %d wage action(s), %d lock(s) held, contract mode %s, sale mode %s",
+        #ids, #wages, held, RLContractTrade.getMode(), RLLiveSale ~= nil and RLLiveSale.getMode() or "-")
 end

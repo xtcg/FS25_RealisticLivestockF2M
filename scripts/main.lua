@@ -94,6 +94,10 @@ source(modDirectory .. "scripts/animal/RLTradeTransaction.lua")
 source(modDirectory .. "scripts/animal/RLHBContractAdapter.lua")
 source(modDirectory .. "scripts/animal/RLTradeSourceAdapter.lua")
 source(modDirectory .. "scripts/animal/RLContractTrade.lua")
+-- T02 batch 3 live sales (OFF by default): money receipt, recovery decisions, entry
+source(modDirectory .. "scripts/animal/RLSaleSettlement.lua")
+source(modDirectory .. "scripts/animal/RLSaleRecovery.lua")
+source(modDirectory .. "scripts/animal/RLLiveSale.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalSellEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/SemenBuyEvent.lua")
 
