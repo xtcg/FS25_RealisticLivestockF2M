@@ -399,6 +399,15 @@ check("C04 HERDSMAN_CHECK record: op buy, errorCode 8, gate attached",
     herdsmanCheck ~= nil and herdsmanCheck.data.op == "buy" and herdsmanCheck.data.errorCode == 8
     and herdsmanCheck.data.verdict.construction.status == "NOT_READY")
 
+broadcasts = {}
+before = snapshot()
+summary = RLHerdsmanExecutor.executeActions({ { ruleId = "r-buy2", operation = "buy", husbandryId = "igloo2",
+    animals = { calf("COW_HOLSTEIN", 0) }, amountSpent = 1000, wage = 10 } }, execCtx())
+check("C05.2 herdsman buy into the built igloo goes through: dispatched, the calf in, price and wage paid",
+    summary.results[1].dispatched == true and summary.results[1].skipReason == nil and #done2.animals == 1
+    and MONEY[1] == before.money - 1000 - 10 and #removedFromDealer == before.dealer + 1)
+done2.animals, done2.added = {}, {}
+
 local mover = calf("COW_HOLSTEIN", 1)
 boxA.animals = { mover }
 broadcasts = {}

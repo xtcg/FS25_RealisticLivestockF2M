@@ -500,7 +500,7 @@ function RLHerdsmanExecutor._doBuy(action, ctx, placeable, farmId, count)
     end
 
     local errorCode = AIAnimalBuyEvent.validate(placeable, count, action.amountSpent, farmId)
-    if errorCode == AnimalBuyEvent.BUY_ERROR_PEN_NOT_BUILT then
+    if errorCode ~= nil and errorCode == AnimalBuyEvent.BUY_ERROR_PEN_NOT_BUILT then
         RLHusbandryProfiles.logDecision("HERDSMAN_CHECK", placeable, (action.animals or {})[1],
             { ruleId = action.ruleId, op = "buy", farmId = farmId, ok = false, errorCode = errorCode, count = count })
         Log:warning("%s rule=%s op=buy husbandry=%s farm=%s: the pen is not built yet - dispatch skipped (wage charged)",
@@ -976,7 +976,7 @@ function RLHerdsmanExecutor._doMove(action, ctx, placeable, farmId, count)
 
     -- TYPE-level gate on one representative subtype. A reject still charges the wage, matching buy.
     local errorCode = AIAnimalMoveEvent.validate(placeable, dest, count, action.animals[1].subTypeIndex)
-    if errorCode == AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT then
+    if errorCode ~= nil and errorCode == AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT then
         RLHusbandryProfiles.logDecision("HERDSMAN_CHECK", dest, action.animals[1],
             { ruleId = action.ruleId, op = "move", farmId = farmId, ok = false, errorCode = errorCode, count = count,
               source = RLPenLog.pen(placeable) })
