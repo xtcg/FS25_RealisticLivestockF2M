@@ -563,6 +563,9 @@
         <text name="rl_message_nameAdded" text="Given name '%s'"/>
         <text name="rl_message_nameDeleted" text="Name '%s' was removed"/>
         <text name="rl_message_boughtAnimals_single" text="1 animal was bought for %s"/>
+        <text name="rl_message_penOutgrown" text="Outgrown %s (new animals up to %s months). Pens that take it: %s"/>
+        <text name="rl_ui_penOutgrownNoPen" text="none with room"/>
+        <text name="rl_ui_penNotBuilt" text="This pen is not built yet. Animals can move in once its construction is finished."/>
         <text name="rl_message_boughtAnimals_multiple" text="%s animals were bought for %s"/>
         <text name="rl_message_soldAnimals_single" text="1 animal was sold for %s"/>
         <text name="rl_message_soldAnimals_multiple" text="%s animals were sold for %s"/>

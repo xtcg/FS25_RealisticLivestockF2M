@@ -586,6 +586,9 @@
         <text name="rl_message_nameAdded" text="命名为'%s'"/>
         <text name="rl_message_nameDeleted" text="名称'%s'已被移除"/>
         <text name="rl_message_boughtAnimals_single" text="以%s的价格购买了1头动物"/>
+        <text name="rl_message_penOutgrown" text="已超出%s的入栏月龄（新入栏最多%s个月）。可转入的圈舍：%s"/>
+        <text name="rl_ui_penOutgrownNoPen" text="暂无有空位的圈舍"/>
+        <text name="rl_ui_penNotBuilt" text="该圈舍尚未建成，完成施工后才能放入动物。"/>
         <text name="rl_message_boughtAnimals_multiple" text="以%s的价格购买了%s头动物"/>
         <text name="rl_message_soldAnimals_single" text="以%s的价格出售了1头动物"/>
         <text name="rl_message_soldAnimals_multiple" text="以%s的价格出售了%s头动物"/>

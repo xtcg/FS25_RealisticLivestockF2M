@@ -248,8 +248,8 @@ function RLAnimalBuyService.filterBuyableAnimals(destination, animals, ownerFarm
             -- Negated price + numAnimals = 1, exactly as legacy applySource/applySourceBulk.
             local price = -RLAnimalBuyService.computeBuyPrice(animal)
             local errorCode = validate(destination, animal.subTypeIndex, animal.age, 1, price, 0, ownerFarmId)
-            if errorCode == nil and not RLHusbandryProfiles.checkAnimal(destination, animal) then
-                errorCode = AnimalBuyEvent.BUY_ERROR_ANIMAL_NOT_SUPPORTED
+            if errorCode == nil then
+                errorCode = AnimalBuyEvent.getPenErrorCode(destination, animal)
             end
 
             if errorCode ~= nil then

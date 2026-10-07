@@ -40,6 +40,7 @@ function RLConsoleCommandManager.new()
 
     -- Read-only debug commands - safe on SP, MP host, and MP client.
     addConsoleCommand("rlDumpSettings", "Dump effective RL settings to the log", "dumpSettings", self, "")
+    addConsoleCommand("rlPenReport", "Log each profiled pen's rule, map filter, feed and animals (RLPEN PEN_REPORT)", "report", RLPenConsole, "[pen]")
 
 	return self
 

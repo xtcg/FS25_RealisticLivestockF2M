@@ -17,7 +17,8 @@ RLMoveDestinationHelper = {}
 ---@param animalSubTypeIndex number Animal subtype the destination must support
 ---@param animals table|nil The animals being moved or bought. When given, a husbandry whose pen
 ---  rules or age window (RLHusbandryProfiles.checkAnimal) take none of them is left out, so a
----  calf igloo is not offered for grown cattle.
+---  calf igloo is not offered for grown cattle. A husbandry that is not built yet
+---  (RLPenConstruction) is left out with or without animals.
 ---@return table Array of entries {placeable, name, currentCount, maxCount, freeSlots, isEPP, minAge?, maxAge?}
 function RLMoveDestinationHelper.getValidDestinations(sourceHusbandry, farmId, animalSubTypeIndex, animals)
     Log:trace("getValidDestinations: farmId=%d subTypeIndex=%d", farmId, animalSubTypeIndex)
@@ -38,6 +39,7 @@ function RLMoveDestinationHelper.getValidDestinations(sourceHusbandry, farmId, a
         elseif placeable.spec_husbandryAnimals ~= nil
                and placeable:getSupportsAnimalSubType(animalSubTypeIndex)
                and placeable ~= sourceHusbandry
+               and RLPenConstruction.canAdmit(placeable)
                and RLMoveDestinationHelper.acceptsAny(placeable, animals) then
             -- Regular husbandry
             local currentCount = placeable:getNumOfAnimals()

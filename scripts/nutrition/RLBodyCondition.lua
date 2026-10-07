@@ -369,7 +369,7 @@ end
 --- request (the same liters the engine asked the trough for) over the pen's request, times each
 --- fill type eaten, times that fill type's energy and the breed's digestion of its forage
 --- category. Food the pen did not eat is nobody's; the shares of all animals add up to what
---- was eaten.
+--- was eaten. In a calf rearing pen the animal's own liters (RLCalfRearing) replace the share.
 --- @param animal table
 --- @param supply table spec.rlNutritionSupply
 --- @return number litersThisStep Liters of TMR ration eaten (energy and digestion applied)
@@ -382,9 +382,11 @@ function RLBodyCondition.getAllocatedIntake(animal, supply)
 
     local share = request / supply.requested
     local subType = animal:getSubType()
+    -- In a calf rearing pen the animal ate its own share (RLCalfRearing.settle), not the pen's mix.
+    local own = RLCalfRearing ~= nil and RLCalfRearing.getAllocation(animal, supply.tick) or nil
     local intake, allocated = 0, 0
     for _, item in ipairs(supply.items) do
-        local liters = share * item.liters
+        local liters = own ~= nil and (own[item.fillType] or 0) or share * item.liters
         local digest = item.category == RLBodyCondition.OTHER_CATEGORY and 1 or RLBreedTraits.get(subType, item.category)
         allocated = allocated + liters
         intake = intake + liters * item.energy * digest

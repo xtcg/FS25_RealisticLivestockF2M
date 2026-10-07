@@ -565,6 +565,9 @@
         <text name="rl_message_nameAdded" text="Name hinzugefügt '%s'"/>
         <text name="rl_message_nameDeleted" text="Der Name „%s“ wurde entfernt."/>
         <text name="rl_message_boughtAnimals_single" text="1 Tier wurde für %s gekauft."/>
+        <text name="rl_message_penOutgrown" text="Aus %s herausgewachsen (Neuzugänge bis %s Monate). Passende Ställe: %s"/>
+        <text name="rl_ui_penOutgrownNoPen" text="keiner mit freiem Platz"/>
+        <text name="rl_ui_penNotBuilt" text="Dieser Stall ist noch nicht fertig gebaut. Tiere können erst nach Abschluss des Baus einziehen."/>
         <text name="rl_message_boughtAnimals_multiple" text="%s Tiere wurden für %s gekauft."/>
         <text name="rl_message_soldAnimals_single" text="1 Tier wurde für %s verkauft."/>
         <text name="rl_message_soldAnimals_multiple" text="%s Tiere wurden für %s verkauft."/>

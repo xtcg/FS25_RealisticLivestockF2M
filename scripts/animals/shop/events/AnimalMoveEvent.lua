@@ -1,5 +1,10 @@
 local Log = RmLogging.getLogger("RLRM")
 
+--- Reply when the target husbandry is not built yet (RLPenConstruction). The base game's codes
+--- fill 0-7, so the reply is written in ERROR_CODE_NUM_BITS rather than the base game's 3.
+AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT = 8
+AnimalMoveEvent.ERROR_CODE_NUM_BITS = 4
+
 --- Log a one-line snapshot of a cluster husbandry's visual-count state.
 --- Used by AnimalMoveEvent:run to make source/target visual-count drift
 --- observable in the log on every move.
@@ -774,7 +779,7 @@ function AnimalMoveEvent:readStream(streamId, connection)
 
 	if connection:getIsServer() then
 
-		self.errorCode = streamReadUIntN(streamId, 3)
+		self.errorCode = streamReadUIntN(streamId, AnimalMoveEvent.ERROR_CODE_NUM_BITS)
 		Log:trace("AnimalMoveEvent:readStream (client): errorCode=%d", self.errorCode)
 
 	else
@@ -812,7 +817,7 @@ function AnimalMoveEvent:writeStream(streamId, connection)
 
 	if not connection:getIsServer() then
 		Log:trace("AnimalMoveEvent:writeStream (server->client): errorCode=%d", self.errorCode)
-		streamWriteUIntN(streamId, self.errorCode, 3)
+		streamWriteUIntN(streamId, self.errorCode, AnimalMoveEvent.ERROR_CODE_NUM_BITS)
 		return
 	end
 
@@ -866,6 +871,10 @@ function AnimalMoveEvent:run(connection)
 
 			if errorCode ~= nil then
 				Log:debug("AnimalMoveEvent:run: validation failed for animal %d, errorCode=%d", i, errorCode)
+				if self.targetObject ~= nil then
+					RLHusbandryProfiles.logDecision("MOVE_CHECK", self.targetObject, animal,
+						{ farmId = farmId, source = RLPenLog.pen(self.sourceObject), ok = false, errorCode = errorCode })
+				end
 				connection:sendEvent(AnimalMoveEvent.newServerToClient(errorCode))
 				return
 			end
@@ -874,9 +883,16 @@ function AnimalMoveEvent:run(connection)
 			local liveAnimal = self.sourceObject:getClusterSystem():getClusterById(
 				RLAnimalUtil.toKey(animal.farmId, animal.uniqueId, animal.birthday.country)) or animal
 			local penOk, penReason, penDetail = RLHusbandryProfiles.checkAnimal(self.targetObject, liveAnimal)
+			local penErrorCode = nil
+			if not penOk then
+				penErrorCode = penReason == RLPenConstruction.REJECT and AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT
+					or AnimalMoveEvent.MOVE_ERROR_ANIMAL_NOT_SUPPORTED
+			end
+			RLHusbandryProfiles.logDecision("MOVE_CHECK", self.targetObject, liveAnimal,
+				{ farmId = farmId, source = RLPenLog.pen(self.sourceObject), ok = penOk, errorCode = penErrorCode })
 			if not penOk then
 				Log:debug("AnimalMoveEvent:run: animal %d refused by the pen rules (%s %s)", i, tostring(penReason), tostring(penDetail))
-				connection:sendEvent(AnimalMoveEvent.newServerToClient(AnimalMoveEvent.MOVE_ERROR_ANIMAL_NOT_SUPPORTED))
+				connection:sendEvent(AnimalMoveEvent.newServerToClient(penErrorCode))
 				return
 			end
 
@@ -1062,6 +1078,9 @@ function AnimalMoveEvent.validate(sourceObject, targetObject, farmId, subTypeInd
 
 	if not g_currentMission.accessHandler:canFarmAccess(farmId, sourceObject) or not g_currentMission.accessHandler:canFarmAccess(farmId, targetObject) then return AnimalMoveEvent.MOVE_ERROR_NO_PERMISSION end
 
+	-- Only the target is gated: animals already in an unbuilt pen can always be moved out.
+	if not RLPenConstruction.canAdmit(targetObject) then return AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT end
+
 	RLHusbandryProfiles.apply(targetObject)
 	if not targetObject:getSupportsAnimalSubType(subTypeIndex) then return AnimalMoveEvent.MOVE_ERROR_ANIMAL_NOT_SUPPORTED end
 
@@ -1069,4 +1088,12 @@ function AnimalMoveEvent.validate(sourceObject, targetObject, farmId, subTypeInd
 
 	return nil
 
+end
+
+
+-- The base screens look every reply code up in these tables and fail on a missing one.
+if AnimalScreenTrailerFarm ~= nil then
+	for _, mapping in ipairs({ AnimalScreenTrailerFarm.MOVE_TO_FARM_ERROR_CODE_MAPPING, AnimalScreenTrailerFarm.MOVE_TO_TRAILER_ERROR_CODE_MAPPING }) do
+		if mapping ~= nil then mapping[AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT] = { warning = true, text = "rl_ui_penNotBuilt" } end
+	end
 end
