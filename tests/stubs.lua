@@ -140,3 +140,12 @@ loadMod("scripts/nutrition/RLBodyCondition.lua")
 -- Pen records (RLPEN log lines) and calf rearing; outside a rearing pen they change nothing.
 loadMod("scripts/utils/RLPenLog.lua")
 loadMod("scripts/nutrition/RLCalfRearing.lua")
+
+-- RLPEN_DUMP=path: tests that capture RLPEN records append them there as log.txt lines.
+function DUMP(line)
+    local path = os.getenv("RLPEN_DUMP")
+    if path == nil or path == "" then return end
+    local handle = io.open(path, "a")
+    handle:write("2026-10-07 20:00:00.000   Info: [RLRM|H] " .. line .. "\n")
+    handle:close()
+end

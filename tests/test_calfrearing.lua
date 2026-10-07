@@ -74,11 +74,14 @@ PlaceableHusbandryFood = {}
 Utils = { appendedFunction = function(a, b) return b end, overwrittenFunction = function(a, b) return b end }
 loadMod("scripts/animals/husbandry/placeables/RealisticLivestock_PlaceableHusbandryFood.lua")
 
+-- RLPEN_DUMP=path appends every record as a log line (analyzer fixtures).
 RECORDS = {}
 local emit = RLPenLog.emit
 RLPenLog.emit = function(kind, data, warn)
     RECORDS[#RECORDS + 1] = { kind = kind, data = data }
-    return emit(kind, data, warn)
+    local line = emit(kind, data, warn)
+    DUMP(line)
+    return line
 end
 local function records(kind)
     local list = {}

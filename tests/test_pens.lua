@@ -8,12 +8,13 @@ g_currentModDirectory = REPO
 XMLFile = { loadIfExists = function(_, path) return loadXMLFileFromDisk(path) end }
 RLMapBridge = { activeBridges = { { resolvedConfigPath = "mod_support/FS25_HofBergmann/v1.5/" } } }
 
--- Every log record, so the RLPEN lines can be read back.
+-- Every log record, so the RLPEN lines can be read back (RLPEN_DUMP=path appends them as log lines).
 RECORDS = {}
 local emit = RLPenLog.emit
 RLPenLog.emit = function(kind, data, warn)
     local line = emit(kind, data, warn)
     RECORDS[#RECORDS + 1] = { kind = kind, data = data, line = line, warn = warn == true }
+    DUMP(line)
     return line
 end
 local function records(kind)
