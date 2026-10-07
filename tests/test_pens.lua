@@ -447,3 +447,13 @@ local result = RLMoveDestinationHelper.buildMoveValidationResult(
     { cow("BULL_ANGUS", 20), cow("COW_ANGUS", 20) }, { name = "p", placeable = pen("pasture"), freeSlots = 1, isEPP = false }, 1)
 check("move screen: mature bull rejected as PEN_RULES, the cow takes the one slot",
     #result.valid == 1 and #result.rejected == 1 and result.rejected[1].reason == RLHusbandryProfiles.REJECT_PEN_RULES)
+
+-- A record too long for the log line is replaced by a marker, never cut. ------------------------
+
+RECORDS = {}
+local long = {}
+for i = 1, 1000 do long[i] = "x" .. i end
+local line = RLPenLog.emit("PEN_REPORT", { pen = { name = "big" }, list = long })
+check("RLPEN: an over-long record becomes a LINE_TOO_LONG marker naming the record and its length",
+    #line <= RLPenLog.MAX_LINE and line:find('"kind":"LINE_TOO_LONG"', 1, true) ~= nil
+    and line:find('"record":"PEN_REPORT"', 1, true) ~= nil)

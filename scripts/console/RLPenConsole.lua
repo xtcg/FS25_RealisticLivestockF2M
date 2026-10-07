@@ -1,8 +1,9 @@
 --[[
     RLPenConsole.lua
     rlPenReport: one RLPEN PEN_REPORT record per profiled pen - its rule, the map filter fields,
-    what its trough and water take, and each animal's age, feeding stage, whether it has outgrown
-    the pen and its last hour's calf feeding. Read-only: it changes no rule, animal or pen.
+    what its trough and water take - and one PEN_REPORT_ANIMAL per animal in it: age, feeding
+    stage, whether it has outgrown the pen and its last hour's calf feeding. Read-only: it changes
+    no rule, animal or pen.
 ]]
 
 RLPenConsole = {}
@@ -34,15 +35,20 @@ function RLPenConsole.report(_, filter)
                 animals[#animals + 1] = entry
             end
             table.sort(animals, function(a, b) return tostring(a.key) < tostring(b.key) end)
+            local pen = RLPenLog.pen(placeable)
             RLPenLog.emit("PEN_REPORT", {
-                pen = RLPenLog.pen(placeable),
+                pen = pen,
                 profile = rule.name,
                 rearing = rule.rearing == true and RLCalfRearing.appliesToPen(placeable),
                 map = RLHusbandryProfiles.getMapFilterState(placeable),
                 feed = RLHusbandryProfiles.getFeedAcceptance(placeable),
                 capacity = placeable.getMaxNumOfAnimals ~= nil and placeable:getMaxNumOfAnimals() or nil,
-                animals = animals,
+                numAnimals = #animals,
             })
+            -- One line per animal, so a full pen stays under the log's line length.
+            for _, entry in ipairs(animals) do
+                RLPenLog.emit("PEN_REPORT_ANIMAL", { pen = pen, animal = entry })
+            end
         end
     end
     return string.format("rlPenReport: %d pen(s), see log.txt (RLPEN PEN_REPORT)", count)

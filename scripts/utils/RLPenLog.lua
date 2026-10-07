@@ -16,6 +16,10 @@ local Log = RmLogging.getLogger("RLRM")
 
 RLPenLog.TAG = "RLPEN"
 
+--- Longest line written to log.txt; a longer record is replaced by a LINE_TOO_LONG marker (the
+--- engine's log cuts long lines, and a cut JSON line would read as a different record).
+RLPenLog.MAX_LINE = 3800
+
 
 local function encode(value, out)
     local kind = type(value)
@@ -82,6 +86,11 @@ function RLPenLog.emit(kind, data, warn)
     data = data or {}
     data.kind = kind
     local line = RLPenLog.TAG .. " " .. RLPenLog.encode(data)
+    if #line > RLPenLog.MAX_LINE then
+        line = RLPenLog.TAG .. " " .. RLPenLog.encode({ kind = "LINE_TOO_LONG", record = kind, length = #line,
+            pen = data.pen, animal = data.animal })
+        warn = true
+    end
     if warn then Log:warning("%s", line) else Log:info("%s", line) end
     return line
 end
