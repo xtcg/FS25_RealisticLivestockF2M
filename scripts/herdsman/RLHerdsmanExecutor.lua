@@ -44,7 +44,7 @@
 --   was applied; `skipReason` is nil when dispatched, else one of "no-space" | "no-money" |
 --   "mark-mode" | "missing-placeable" | "missing-dest" | "bad-data" | "not-in-husbandry" |
 --   "defer-failed" | "all-age-ineligible" | "all-sick" | "owner-changed" | "sale-refused" |
---   "sale-failed". The wage follows each leg's chargeWage, not
+--   "sale-failed" | "pen-rules" | "pen-not-built". The wage follows each leg's chargeWage, not
 --   the reason: "missing-dest" and "defer-failed" never charge, "bad-data" and "missing-placeable"
 --   charge only where the leg says so (a validate rejection does, a data-skip does not), and every other
 --   reason charges. On a guarded direct-mutation leg `count` is the count ACTUALLY mutated or marked and
@@ -500,7 +500,13 @@ function RLHerdsmanExecutor._doBuy(action, ctx, placeable, farmId, count)
     end
 
     local errorCode = AIAnimalBuyEvent.validate(placeable, count, action.amountSpent, farmId)
-    if errorCode == AnimalBuyEvent.BUY_ERROR_NOT_ENOUGH_SPACE then
+    if errorCode == AnimalBuyEvent.BUY_ERROR_PEN_NOT_BUILT then
+        RLHusbandryProfiles.logDecision("HERDSMAN_CHECK", placeable, (action.animals or {})[1],
+            { ruleId = action.ruleId, op = "buy", farmId = farmId, ok = false, errorCode = errorCode, count = count })
+        Log:warning("%s rule=%s op=buy husbandry=%s farm=%s: the pen is not built yet - dispatch skipped (wage charged)",
+            LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId))
+        return true, false, "pen-not-built"
+    elseif errorCode == AnimalBuyEvent.BUY_ERROR_NOT_ENOUGH_SPACE then
         Log:warning("%s rule=%s op=buy husbandry=%s farm=%s count=%d: not enough space - dispatch skipped (wage charged)",
             LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), count)
         return true, false, "no-space"
@@ -970,7 +976,14 @@ function RLHerdsmanExecutor._doMove(action, ctx, placeable, farmId, count)
 
     -- TYPE-level gate on one representative subtype. A reject still charges the wage, matching buy.
     local errorCode = AIAnimalMoveEvent.validate(placeable, dest, count, action.animals[1].subTypeIndex)
-    if errorCode == AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE then
+    if errorCode == AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT then
+        RLHusbandryProfiles.logDecision("HERDSMAN_CHECK", dest, action.animals[1],
+            { ruleId = action.ruleId, op = "move", farmId = farmId, ok = false, errorCode = errorCode, count = count,
+              source = RLPenLog.pen(placeable) })
+        Log:warning("%s rule=%s op=move husbandry=%s farm=%s: destination '%s' is not built yet - dispatch skipped (wage charged)",
+            LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), tostring(action.destinationHusbandry))
+        return true, false, "pen-not-built"
+    elseif errorCode == AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE then
         Log:warning("%s rule=%s op=move husbandry=%s farm=%s count=%d: destination has no room - dispatch skipped (wage charged)",
             LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), count)
         return true, false, "no-space"

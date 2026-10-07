@@ -64,6 +64,18 @@ function AIAnimalBuyEvent:run(connection)
 
 	RmSafeUtils.safeCall("AIAnimalBuyEvent:run", function()
 
+		-- Backstop for validate: a pen that is not built takes nothing, checked before the dealer
+		-- loses its animals or the farm pays. The construction state is synced, so every machine
+		-- running this event decides the same.
+		if not RLPenConstruction.canAdmit(self.object) then
+			if g_server ~= nil then
+				RLPenLog.emit("AI_BUY_REFUSED", { pen = RLPenLog.pen(self.object), numAnimals = #self.animals,
+					price = self.price, construction = RLPenConstruction.describe(self.object),
+					errorCode = AnimalBuyEvent.BUY_ERROR_PEN_NOT_BUILT }, true)
+			end
+			return
+		end
+
 		for _, animal in pairs(self.animals) do
 
 			animal:setRecentlyBoughtByAI(true)
@@ -89,6 +101,8 @@ end
 function AIAnimalBuyEvent.validate(object, numAnimals, price, farmId)
 
 	if object == nil then return AnimalBuyEvent.BUY_ERROR_OBJECT_DOES_NOT_EXIST end
+
+	if not RLPenConstruction.canAdmit(object) then return AnimalBuyEvent.BUY_ERROR_PEN_NOT_BUILT end
 
 	if object:getNumOfFreeAnimalSlots() < numAnimals then return AnimalBuyEvent.BUY_ERROR_NOT_ENOUGH_SPACE end
 	

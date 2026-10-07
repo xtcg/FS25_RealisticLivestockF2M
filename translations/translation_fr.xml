@@ -617,6 +617,7 @@
         <text name="rl_message_boughtAnimals_single" text="1 animal a été acheté pour %s"/>
         <text name="rl_message_penOutgrown" text="Outgrown %s (new animals up to %s months). Pens that take it: %s"/>
         <text name="rl_ui_penOutgrownNoPen" text="none with room"/>
+        <text name="rl_ui_penNotBuilt" text="This pen is not built yet. Animals can move in once its construction is finished."/>
         <text name="rl_message_boughtAnimals_multiple" text="%s animaux ont été achetés pour %s"/>
         <text name="rl_message_soldAnimals_single" text="1 animal a été vendu pour %s"/>
         <text name="rl_message_soldAnimals_multiple" text="%s animaux ont été vendus pour %s"/>

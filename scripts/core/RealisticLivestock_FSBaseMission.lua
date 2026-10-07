@@ -212,6 +212,10 @@ function RealisticLivestock_FSBaseMission:onStartMission()
         RmSafeUtils.safeCall("RLHusbandryProfiles.checkAllResidents", function()
             RLHusbandryProfiles.checkAllResidents("LOAD")
         end)
+        -- Construction state of buildings that are husbandries, and animals in unbuilt ones.
+        RmSafeUtils.safeCall("RLPenConstruction.onMissionStarted", function()
+            RLPenConstruction.onMissionStarted()
+        end)
     end
 
     -- Re-load the BASE AnimalScreen GUI so its callback bindings re-snapshot.

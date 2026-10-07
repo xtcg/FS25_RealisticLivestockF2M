@@ -23,6 +23,14 @@
         profile     a profile above
         breeds      replaces the profile's breeds for this building
 
+    construction:
+        filename    a building with a construction state machine, matched as above
+        readyStates the construction states in which it takes animals (state names from the
+                    building's own XML, space separated). In any other state no animal is bought
+                    or moved in; animals already there stay and can be moved out. A building
+                    that has construction states but no entry here takes animals only once its
+                    construction has reached its final state.
+
     Rules apply to animals coming in: an animal that ages out stays where it is (logged as
     OVERAGE_RESIDENT, the owner gets a message), and births are never blocked.
 
@@ -66,4 +74,16 @@
     <husbandry filename="placeables/animalHusbandry/cowPastures/cowPasture01.xml" profile="PASTURE" breeds="WATER_BUFFALO"/>
     <husbandry filename="placeables/animalHusbandry/cowPastures/cowPasture02.xml" profile="PASTURE" breeds="HIGHLAND COW_HIGHLAND_CATTLE"/>
     <!-- COW_HIGHLAND_CATTLE: the map's own Highland cow, registered when the Highlands DLC is off (its breed defaults to its name). -->
+
+    <!-- Construction. The igloos (SETUP: 1000 CALFIGLU, FINALIZE, DONE) and the buildable pasture
+         (SETUP, STATE_1-4, FINALIZE, DONE) hide the real pen until DONE. The farm cow barn stands
+         from the start: its states STEP1 (milk tank) and STEP2 (milking robot) only add milking
+         equipment, so it takes animals in all of them. -->
+    <construction filename="placeables/animalHusbandry/calfIglus/calfIglu01.xml" readyStates="DONE"/>
+    <construction filename="placeables/animalHusbandry/calfIglus/calfIglu02.xml" readyStates="DONE"/>
+    <construction filename="placeables/animalHusbandry/calfIglus/calfIglu03.xml" readyStates="DONE"/>
+    <construction filename="placeables/animalHusbandry/calfIglus/calfIglu04.xml" readyStates="DONE"/>
+    <construction filename="placeables/animalHusbandry/calfIglus/calfIglu05.xml" readyStates="DONE"/>
+    <construction filename="placeables/constructibles/constructible_cowPasture.xml" readyStates="DONE"/>
+    <construction filename="placeables/animalHusbandry/cowHusbandryOldFarm/cowHusbandryOldFarm.xml" readyStates="STEP1 STEP2 FINALIZE DONE"/>
 </husbandryProfiles>

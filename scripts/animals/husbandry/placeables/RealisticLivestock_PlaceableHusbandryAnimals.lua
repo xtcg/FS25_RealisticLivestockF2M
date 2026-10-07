@@ -673,12 +673,14 @@ function RealisticLivestock_PlaceableHusbandryAnimals:onDayChanged()
     RealisticLivestock_PlaceableHusbandryAnimals.onDayChangedPens(self)
 end
 
---- After the day's ageing: outgrown residents of a profiled pen (logged, the owner told once) and a
---- calf rearing pen's feeding record. Its own safeCall, so neither can stop the pen's daily tick.
+--- After the day's ageing: outgrown residents of a profiled pen (logged, the owner told once),
+--- animals in a pen that is not built yet (logged), and a calf rearing pen's feeding record. Its
+--- own safeCall, so none of them can stop the pen's daily tick.
 function RealisticLivestock_PlaceableHusbandryAnimals:onDayChangedPens()
     if not self.isServer then return end
     RmSafeUtils.safeCall("PlaceableHusbandryAnimals:onDayChangedPens", function()
         RLHusbandryProfiles.checkResidents(self, "DAY")
+        RLPenConstruction.checkResidents(self, "DAY")
         RLCalfRearing.onPenDayChanged(self)
     end)
 end

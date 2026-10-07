@@ -19,6 +19,9 @@
     stage" (12 months for cattle). A profile without maxAge means no upper limit, so apply
     writes OPEN_MAX_AGE there instead of leaving it nil.
 
+    Before either layer, a husbandry that is still under construction takes no animal at all
+    (RLPenConstruction, from the same file's <construction> entries).
+
     Rules apply to animals coming in. Animals already in a pen stay when they outgrow it: they
     are logged (OVERAGE_RESIDENT), and the owner gets a message when one crosses the limit.
     Nothing moves, sells or removes them. Births are never blocked.
@@ -69,9 +72,11 @@ end
 --- @param xmlFile table|nil An XMLFile with a husbandryProfiles root
 --- @param config table|nil Config to add to (a later bridge's entries follow an earlier one's)
 --- @param source string|nil Path of the file, kept on each profile and entry for the log
---- @return table config {profiles = {NAME = rule}, husbandries = {{filename, profile, breeds, source}}}
+--- @return table config {profiles = {NAME = rule}, husbandries = {{filename, profile, breeds, source}},
+---   constructions = {{filename, readyStates = {NAME = true}, names, source}}}
 function RLHusbandryProfiles.parse(xmlFile, config, source)
-    config = config or { profiles = {}, husbandries = {} }
+    config = config or { profiles = {}, husbandries = {}, constructions = {} }
+    config.constructions = config.constructions or {}
     if xmlFile == nil then return config end
 
     xmlFile:iterate("husbandryProfiles.profile", function(_, key)
@@ -109,6 +114,23 @@ function RLHusbandryProfiles.parse(xmlFile, config, source)
         })
     end)
 
+    -- Buildings with a construction state machine: the states in which they take animals
+    -- (RLPenConstruction).
+    xmlFile:iterate("husbandryProfiles.construction", function(_, key)
+        local filename = xmlFile:getString(key .. "#filename")
+        local readyStates = splitNames(xmlFile:getString(key .. "#readyStates"))
+        if filename == nil or readyStates == nil then
+            Log:warning("RLHusbandryProfiles.parse: %s needs a filename and readyStates", key)
+            return
+        end
+        table.insert(config.constructions, {
+            filename = filename:gsub("\\", "/"):lower(),
+            readyStates = readyStates,
+            names = sortedNames(readyStates),
+            source = source,
+        })
+    end)
+
     return config
 end
 
@@ -118,7 +140,7 @@ end
 function RLHusbandryProfiles.getConfig()
     if RLHusbandryProfiles.config ~= nil then return RLHusbandryProfiles.config end
 
-    local config = { profiles = {}, husbandries = {} }
+    local config = { profiles = {}, husbandries = {}, constructions = {} }
     for _, bridge in ipairs(RLMapBridge ~= nil and RLMapBridge.activeBridges or {}) do
         if bridge.resolvedConfigPath ~= nil then
             local path = modDirectory .. bridge.resolvedConfigPath .. RLHusbandryProfiles.FILE
@@ -362,6 +384,7 @@ function RLHusbandryProfiles.apply(placeable)
         mapAfter = RLHusbandryProfiles.getMapFilterState(placeable),
         subTypes = names,
         feed = RLHusbandryProfiles.getFeedAcceptance(placeable),
+        construction = RLPenConstruction.describe(placeable),
     })
 
     if rule.rearing then
@@ -386,15 +409,21 @@ end
 -- Admission
 -- =============================================================================
 
---- Whether an animal may enter a placeable.
+--- Whether an animal may enter a placeable. A husbandry that is not built yet takes none
+--- (RLPenConstruction), whatever the animal.
 --- @param placeable table Target husbandry
---- @param animal table An RLRM Animal (live or its stream copy): subTypeIndex, age, gender, isCastrated
+--- @param animal table|nil An RLRM Animal (live or its stream copy): subTypeIndex, age, gender, isCastrated
 --- @return boolean ok
---- @return string|nil reason REJECT_PEN_RULES, "AGE_TOO_YOUNG" or "AGE_TOO_OLD"
+--- @return string|nil reason RLPenConstruction.REJECT, REJECT_PEN_RULES, "AGE_TOO_YOUNG" or "AGE_TOO_OLD"
 --- @return string|nil detail For the log
 function RLHusbandryProfiles.checkAnimal(placeable, animal)
     local spec = placeable ~= nil and placeable.spec_husbandryAnimals or nil
-    if spec == nil or animal == nil then return true end
+    if spec == nil then return true end
+
+    local admit, construction = RLPenConstruction.canAdmit(placeable)
+    if not admit then return false, RLPenConstruction.REJECT, RLPenConstruction.detail(construction) end
+
+    if animal == nil then return true end
     RLHusbandryProfiles.apply(placeable)
 
     local age = animal.age or 0
@@ -438,8 +467,8 @@ function RLHusbandryProfiles.checkAnimal(placeable, animal)
 end
 
 
---- Both layers' verdicts on one animal for one pen, for the log. Read-only.
---- @return table {profile, rlrm = {ok, reason, detail}, map = {ok, code, value}}
+--- Every layer's verdict on one animal for one pen, for the log. Read-only.
+--- @return table {profile, construction, rlrm = {ok, reason, detail}, map = {ok, code, value}}
 function RLHusbandryProfiles.explain(placeable, animal)
     local rule = RLHusbandryProfiles.getRule(placeable)
     local ok, reason, detail = RLHusbandryProfiles.checkAnimal(placeable, animal)
@@ -447,6 +476,7 @@ function RLHusbandryProfiles.explain(placeable, animal)
         animal ~= nil and animal.age or 0)
     return {
         profile = rule ~= nil and rule.name or nil,
+        construction = RLPenConstruction.describe(placeable),
         rlrm = { ok = ok, reason = reason, detail = detail },
         map = { ok = mapOk, code = code, value = value },
     }

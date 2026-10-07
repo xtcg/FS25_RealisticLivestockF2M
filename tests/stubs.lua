@@ -137,8 +137,10 @@ RLLivestockPrices = { getMultiplier = function() return 1 end }
 loadMod("scripts/nutrition/RLNutritionMath.lua")
 loadMod("scripts/nutrition/RLBodyConditionConfig.lua")
 loadMod("scripts/nutrition/RLBodyCondition.lua")
--- Pen records (RLPEN log lines) and calf rearing; outside a rearing pen they change nothing.
+-- Pen records (RLPEN log lines), the construction gate and calf rearing; a placeable without a
+-- construction spec is READY and outside a rearing pen nothing changes.
 loadMod("scripts/utils/RLPenLog.lua")
+loadMod("scripts/bridge/RLPenConstruction.lua")
 loadMod("scripts/nutrition/RLCalfRearing.lua")
 
 -- RLPEN_DUMP=path: tests that capture RLPEN records append them there as log.txt lines.

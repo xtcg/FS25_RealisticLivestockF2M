@@ -1,7 +1,7 @@
 --[[
     RLPenConsole.lua
     rlPenReport: one RLPEN PEN_REPORT record per profiled pen - its rule, the map filter fields,
-    what its trough and water take - and one PEN_REPORT_ANIMAL per animal in it: age, feeding
+    what its trough and water take, its construction state - and one PEN_REPORT_ANIMAL per animal in it: age, feeding
     stage, whether it has outgrown the pen and its last hour's calf feeding. Read-only: it changes
     no rule, animal or pen.
 ]]
@@ -44,6 +44,7 @@ function RLPenConsole.report(_, filter)
                 feed = RLHusbandryProfiles.getFeedAcceptance(placeable),
                 capacity = placeable.getMaxNumOfAnimals ~= nil and placeable:getMaxNumOfAnimals() or nil,
                 numAnimals = #animals,
+                construction = RLPenConstruction.describe(placeable),
             })
             -- One line per animal, so a full pen stays under the log's line length.
             for _, entry in ipairs(animals) do

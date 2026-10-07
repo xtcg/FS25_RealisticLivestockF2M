@@ -152,7 +152,8 @@ function AIAnimalMoveEvent:run(connection)
             return
         end
 
-        -- Husbandry target. Animals the pen's rules turn away stay in the source.
+        -- Husbandry target. Animals the pen's rules turn away stay in the source; so do all of
+        -- them when the target is not built yet (checkAnimal asks RLPenConstruction first).
         local admitted = {}
         for _, entry in ipairs(transferList) do
             local ok, reason, detail = RLHusbandryProfiles.checkAnimal(self.targetObject, entry.animal)
@@ -218,6 +219,7 @@ function AIAnimalMoveEvent.validate(source, target, count, subTypeIndex)
         return nil
     end
 
+    if not RLPenConstruction.canAdmit(target) then return AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT end
     if not target:getSupportsAnimalSubType(subTypeIndex) then return AnimalMoveEvent.MOVE_ERROR_ANIMAL_NOT_SUPPORTED end
     if target:getNumOfFreeAnimalSlots() < count then return AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE end
     return nil
