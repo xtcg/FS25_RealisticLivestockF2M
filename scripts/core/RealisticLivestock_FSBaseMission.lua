@@ -207,6 +207,12 @@ function RealisticLivestock_FSBaseMission:onStartMission()
 
     -- Map pen rules go in after the map has set its own husbandry filters at load.
     RLHusbandryProfiles.applyAll()
+    -- Animals a pen's rules would no longer take in stay where they are; they are only logged.
+    if g_currentMission:getIsServer() then
+        RmSafeUtils.safeCall("RLHusbandryProfiles.checkAllResidents", function()
+            RLHusbandryProfiles.checkAllResidents("LOAD")
+        end)
+    end
 
     -- Re-load the BASE AnimalScreen GUI so its callback bindings re-snapshot.
     --

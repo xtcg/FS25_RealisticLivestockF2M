@@ -156,6 +156,8 @@ function AIAnimalMoveEvent:run(connection)
         local admitted = {}
         for _, entry in ipairs(transferList) do
             local ok, reason, detail = RLHusbandryProfiles.checkAnimal(self.targetObject, entry.animal)
+            RLHusbandryProfiles.logDecision("AI_MOVE_CHECK", self.targetObject, entry.animal,
+                { source = RLPenLog.pen(self.sourceObject), ok = ok })
             if ok then
                 admitted[#admitted + 1] = entry
             else

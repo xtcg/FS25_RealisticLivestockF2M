@@ -874,6 +874,9 @@ function AnimalMoveEvent:run(connection)
 			local liveAnimal = self.sourceObject:getClusterSystem():getClusterById(
 				RLAnimalUtil.toKey(animal.farmId, animal.uniqueId, animal.birthday.country)) or animal
 			local penOk, penReason, penDetail = RLHusbandryProfiles.checkAnimal(self.targetObject, liveAnimal)
+			RLHusbandryProfiles.logDecision("MOVE_CHECK", self.targetObject, liveAnimal,
+				{ farmId = farmId, source = RLPenLog.pen(self.sourceObject), ok = penOk,
+					errorCode = not penOk and AnimalMoveEvent.MOVE_ERROR_ANIMAL_NOT_SUPPORTED or nil })
 			if not penOk then
 				Log:debug("AnimalMoveEvent:run: animal %d refused by the pen rules (%s %s)", i, tostring(penReason), tostring(penDetail))
 				connection:sendEvent(AnimalMoveEvent.newServerToClient(AnimalMoveEvent.MOVE_ERROR_ANIMAL_NOT_SUPPORTED))

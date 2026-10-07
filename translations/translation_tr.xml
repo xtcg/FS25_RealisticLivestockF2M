@@ -611,6 +611,8 @@
         <text name="rl_message_nameAdded" text="'%s' ismi verildi"/>
         <text name="rl_message_nameDeleted" text="'%s' adı kaldırıldı"/>
         <text name="rl_message_boughtAnimals_single" text="1 hayvan %s karşılığında satın alındı"/>
+        <text name="rl_message_penOutgrown" text="Outgrown %s (new animals up to %s months). Pens that take it: %s"/>
+        <text name="rl_ui_penOutgrownNoPen" text="none with room"/>
         <text name="rl_message_boughtAnimals_multiple" text="%s hayvan %s karşılığında satın alındı"/>
         <text name="rl_message_soldAnimals_single" text="1 hayvan %s karşılığında satıldı"/>
         <text name="rl_message_soldAnimals_multiple" text="%s hayvan %s karşılığında satıldı"/>

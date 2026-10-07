@@ -17,6 +17,8 @@ PlaceableHusbandryFood.onHusbandryAnimalsUpdate = Utils.overwrittenFunction(Plac
 
 
 --- Record what the pen ate in this feeding: by forage category for the breed forage traits
+--- (in a calf rearing pen the trough is drawn down within each animal's milk and solid limits,
+--- RLCalfRearing)
 --- (RLBreedTraits.getForageEfficiency, read by Animal:updateWeight), and liters per fill type
 --- for the body condition budget (RLBodyCondition: trough removals inside this feeding plus
 --- what the meadow lost, so food a feeding robot mixes in or a player adds is not counted).
@@ -27,11 +29,17 @@ function RealisticLivestock_PlaceableHusbandryFood:updateFeeding(superFunc)
     local before = {}
     for fillTypeIndex, fillLevel in pairs(spec.fillLevels) do before[fillTypeIndex] = fillLevel end
 
-    if self.isServer then RLBodyCondition.beginFeeding(self) end
+    if self.isServer then
+        RLBodyCondition.beginFeeding(self)
+        RLCalfRearing.beginFeeding(self)
+    end
 
     local foodFactor = superFunc(self)
 
-    if self.isServer then RLBodyCondition.endFeeding(self) end
+    if self.isServer then
+        RLBodyCondition.endFeeding(self)
+        RLCalfRearing.settle(self)
+    end
 
     spec.rlForageShares = RLBreedTraits.getForageShares(before, spec.fillLevels, self.spec_husbandryMeadow ~= nil)
 

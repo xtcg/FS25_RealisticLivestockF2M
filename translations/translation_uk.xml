@@ -544,6 +544,8 @@
         <text name="rl_message_nameAdded" text="Надано ім’я '%s'"/>
         <text name="rl_message_nameDeleted" text="Ім’я '%s' було видалено"/>
         <text name="rl_message_boughtAnimals_single" text="Куплено 1 тварину за %s"/>
+        <text name="rl_message_penOutgrown" text="Outgrown %s (new animals up to %s months). Pens that take it: %s"/>
+        <text name="rl_ui_penOutgrownNoPen" text="none with room"/>
         <text name="rl_message_boughtAnimals_multiple" text="Куплено %s тварин за %s"/>
         <text name="rl_message_soldAnimals_single" text="Продано 1 тварину за %s"/>
         <text name="rl_message_soldAnimals_multiple" text="Продано %s тварин за %s"/>

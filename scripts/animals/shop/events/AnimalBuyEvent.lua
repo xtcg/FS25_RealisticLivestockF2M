@@ -161,6 +161,11 @@ function AnimalBuyEvent:run(connection)
 				errorCode = AnimalBuyEvent.BUY_ERROR_ANIMAL_NOT_SUPPORTED
 			end
 
+			-- Admission record: the map filter's and the pen rules' verdicts with the result,
+			-- so a refusal says which layer (or capacity, farm, money) turned the animal away.
+			RLHusbandryProfiles.logDecision("BUY_CHECK", self.object, animal,
+				{ farmId = farmId, errorCode = errorCode, numAnimals = #self.animals })
+
 			if errorCode ~= nil then
 				Log:trace("AnimalBuyEvent:run phase: validate FAILED took %.2fms errorCode=%d", phaseDoneMs(), errorCode)
 				connection:sendEvent(AnimalBuyEvent.newServerToClient(errorCode))
@@ -178,6 +183,9 @@ function AnimalBuyEvent:run(connection)
 		end
 		Log:trace("AnimalBuyEvent:run phase: removeSale took %.2fms", phaseDoneMs())
 
+		local farm = g_farmManager ~= nil and g_farmManager:getFarmById(farmId) or nil
+		local moneyBefore = farm ~= nil and farm.money or nil
+
 		phaseReset()
 		self.object:addAnimals(self.animals)
 		Log:trace("AnimalBuyEvent:run phase: addAnimals took %.2fms", phaseDoneMs())
@@ -185,6 +193,15 @@ function AnimalBuyEvent:run(connection)
 		phaseReset()
 		g_currentMission:addMoney(self.buyPrice + self.transportPrice, farmId, MoneyType.NEW_ANIMALS_COST, true, true)
 		connection:sendEvent(AnimalBuyEvent.newServerToClient(AnimalBuyEvent.BUY_SUCCESS))
+
+		if self.object.spec_husbandryAnimals ~= nil then
+			local bought = {}
+			for _, animal in pairs(self.animals) do bought[#bought + 1] = RLPenLog.animal(animal) end
+			RLPenLog.emit("BUY_RESULT", { pen = RLPenLog.pen(self.object), farmId = farmId, animals = bought,
+				price = self.buyPrice, fee = self.transportPrice, moneyBefore = moneyBefore,
+				moneyAfter = farm ~= nil and farm.money or nil,
+				numAnimalsAfter = self.object.getNumOfAnimals ~= nil and self.object:getNumOfAnimals() or nil })
+		end
 
 		-- Object may be a trailer on trailer-based dealer buys; only husbandry
 		-- placeables carry addRLMessage.

@@ -615,6 +615,8 @@
         <text name="rl_message_nameAdded" text="Név megadva: '%s'"/>
         <text name="rl_message_nameDeleted" text="A(z) '%s' név törölve lett"/>
         <text name="rl_message_boughtAnimals_single" text="1 állat vásárolva ennyiért: %s"/>
+        <text name="rl_message_penOutgrown" text="Outgrown %s (new animals up to %s months). Pens that take it: %s"/>
+        <text name="rl_ui_penOutgrownNoPen" text="none with room"/>
         <text name="rl_message_boughtAnimals_multiple" text="%s állat vásárolva ennyiért: %s"/>
         <text name="rl_message_soldAnimals_single" text="1 állat eladva ennyiért: %s"/>
         <text name="rl_message_soldAnimals_multiple" text="%s állat eladva ennyiért: %s"/>

@@ -669,6 +669,18 @@ function RealisticLivestock_PlaceableHusbandryAnimals:onDayChanged()
             lowHealthDeaths, oldAgeDeaths, randomDeaths)
 
     end)
+
+    RealisticLivestock_PlaceableHusbandryAnimals.onDayChangedPens(self)
+end
+
+--- After the day's ageing: outgrown residents of a profiled pen (logged, the owner told once) and a
+--- calf rearing pen's feeding record. Its own safeCall, so neither can stop the pen's daily tick.
+function RealisticLivestock_PlaceableHusbandryAnimals:onDayChangedPens()
+    if not self.isServer then return end
+    RmSafeUtils.safeCall("PlaceableHusbandryAnimals:onDayChangedPens", function()
+        RLHusbandryProfiles.checkResidents(self, "DAY")
+        RLCalfRearing.onPenDayChanged(self)
+    end)
 end
 
 PlaceableHusbandryAnimals.onDayChanged = Utils.overwrittenFunction(PlaceableHusbandryAnimals.onDayChanged, RealisticLivestock_PlaceableHusbandryAnimals.onDayChanged)

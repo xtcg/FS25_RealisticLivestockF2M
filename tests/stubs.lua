@@ -137,3 +137,6 @@ RLLivestockPrices = { getMultiplier = function() return 1 end }
 loadMod("scripts/nutrition/RLNutritionMath.lua")
 loadMod("scripts/nutrition/RLBodyConditionConfig.lua")
 loadMod("scripts/nutrition/RLBodyCondition.lua")
+-- Pen records (RLPEN log lines) and calf rearing; outside a rearing pen they change nothing.
+loadMod("scripts/utils/RLPenLog.lua")
+loadMod("scripts/nutrition/RLCalfRearing.lua")

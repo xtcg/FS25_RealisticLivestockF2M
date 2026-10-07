@@ -516,6 +516,8 @@ function RLHerdsmanExecutor._doBuy(action, ctx, placeable, farmId, count)
 
     for _, animal in ipairs(action.animals or {}) do
         local ok, reason, detail = RLHusbandryProfiles.checkAnimal(placeable, animal)
+        RLHusbandryProfiles.logDecision("HERDSMAN_CHECK", placeable, animal,
+            { ruleId = action.ruleId, op = "buy", farmId = farmId, ok = ok })
         if not ok then
             Log:warning("%s rule=%s op=buy husbandry=%s farm=%s: pen rules refuse uniqueId=%s (%s %s) - dispatch skipped (wage charged)",
                 LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId),

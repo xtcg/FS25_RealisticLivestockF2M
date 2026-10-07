@@ -584,6 +584,8 @@
         <text name="rl_message_nameAdded" text="Nome impostato su '%s'"/>
         <text name="rl_message_nameDeleted" text="Nome '%s' rimosso"/>
         <text name="rl_message_boughtAnimals_single" text="1 animale acquistato per %s"/>
+        <text name="rl_message_penOutgrown" text="Outgrown %s (new animals up to %s months). Pens that take it: %s"/>
+        <text name="rl_ui_penOutgrownNoPen" text="none with room"/>
         <text name="rl_message_boughtAnimals_multiple" text="%s animali acquistati per %s"/>
         <text name="rl_message_soldAnimals_single" text="1 animale venduto per %s"/>
         <text name="rl_message_soldAnimals_multiple" text="%s animali venduti per %s"/>
