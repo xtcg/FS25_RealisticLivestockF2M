@@ -269,6 +269,13 @@ check("C05.4 no bridge entry: UNKNOWN / NO_DEFINITION while building (refused), 
 
 -- C02 destination lists --------------------------------------------------------------------------------
 
+local terminalBuilding = makePen("placeables/otherTerminalPen.xml", "terminal pen with materials missing", 1,
+    { states = { { name = "BUILD", inputs = { { "CALFIGLU", 1000 } } } }, flow = {} })
+setState(terminalBuilding, "BUILD")
+check("terminal state with unfulfilled material inputs is not completed construction",
+    not RLPenConstruction.canAdmit(terminalBuilding)
+    and RLPenConstruction.getStatus(terminalBuilding).status == "UNKNOWN")
+
 local function names(list)
     local out = {}
     for _, d in ipairs(list) do out[#out + 1] = d.name end

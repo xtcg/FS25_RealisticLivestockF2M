@@ -126,7 +126,7 @@ function RLPenConstruction.getStatus(placeable)
     end
 
     if definition == nil then
-        if isFinalState(spec, stateIndex) then
+        if isFinalState(spec, stateIndex) and #result.unfinishedInputs == 0 then
             result.status, result.admit, result.reason = RLPenConstruction.UNCHECKED, true, "NO_DEFINITION_FINAL_STATE"
         else
             result.status, result.admit, result.reason = RLPenConstruction.UNKNOWN, false, "NO_DEFINITION"
