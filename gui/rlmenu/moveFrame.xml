@@ -254,8 +254,8 @@
                         <Text profile="rlMenu_animalTypeName" id="animalDetailTypeNameText"/>
                     </GuiElement>
 
-                    <!-- Stats grid (2x5) -->
-                    <GuiElement profile="rlMenu_animalStatsSection">
+                    <!-- Stats grid (2x7) -->
+                    <GuiElement profile="rlMenu_animalStatsSection" id="statsSection">
                         <GuiElement profile="rlMenu_statCell" id="statRow[1]" position="0px -10px">
                             <Text profile="rlMenu_animalStatLabel" id="statLabel[1]"/>
                             <Text profile="rlMenu_animalStatValue" id="statValue[1]" position="155px 0px"/>
@@ -295,6 +295,22 @@
                         <GuiElement profile="rlMenu_statCell" id="statRow[10]" position="370px -150px">
                             <Text profile="rlMenu_animalStatLabel" id="statLabel[10]"/>
                             <Text profile="rlMenu_animalStatValue" id="statValue[10]" position="155px 0px"/>
+                        </GuiElement>
+                        <GuiElement profile="rlMenu_statCell" id="statRow[11]" position="0px -185px">
+                            <Text profile="rlMenu_animalStatLabel" id="statLabel[11]"/>
+                            <Text profile="rlMenu_animalStatValue" id="statValue[11]" position="155px 0px"/>
+                        </GuiElement>
+                        <GuiElement profile="rlMenu_statCell" id="statRow[12]" position="370px -185px">
+                            <Text profile="rlMenu_animalStatLabel" id="statLabel[12]"/>
+                            <Text profile="rlMenu_animalStatValue" id="statValue[12]" position="155px 0px"/>
+                        </GuiElement>
+                        <GuiElement profile="rlMenu_statCell" id="statRow[13]" position="0px -220px">
+                            <Text profile="rlMenu_animalStatLabel" id="statLabel[13]"/>
+                            <Text profile="rlMenu_animalStatValue" id="statValue[13]" position="155px 0px"/>
+                        </GuiElement>
+                        <GuiElement profile="rlMenu_statCell" id="statRow[14]" position="370px -220px">
+                            <Text profile="rlMenu_animalStatLabel" id="statLabel[14]"/>
+                            <Text profile="rlMenu_animalStatValue" id="statValue[14]" position="155px 0px"/>
                         </GuiElement>
                     </GuiElement>
 

@@ -574,25 +574,26 @@ function Animal:addInfos(infos, forceShowAll)
         self.infoReproduction.disabled = not self:getCanReproduce()
         self.infoReproduction.title = self.infoReproduction.titleOrg
 
+        -- One short reason per case: the menu's stat grid draws the value in upper case in a
+        -- 200 px cell. The minimum health is a 0..1 factor, shown as a percentage.
         if self.infoReproduction.disabled then
-            local reasonText, thresholdText = nil, nil
+            local reasonText = nil
 
             if self.age < subType.reproductionMinAgeMonth then
-                reasonText = g_i18n:getText("rl_ui_tooYoung")
-                thresholdText = g_i18n:formatNumMonth(subType.reproductionMinAgeMonth)
+                reasonText = string.format(g_i18n:getText("rl_ui_reproUnderAge"),
+                    g_i18n:formatNumMonth(subType.reproductionMinAgeMonth))
             elseif self.isParent and self.monthsSinceLastBirth <= 2 then
-                reasonText = g_i18n:getText("rl_ui_recoveringLastBirth")
-                thresholdText = g_i18n:formatNumMonth(3 - self.monthsSinceLastBirth)
+                reasonText = string.format(g_i18n:getText("rl_ui_reproRecovers"),
+                    g_i18n:formatNumMonth(3 - self.monthsSinceLastBirth))
             elseif not RealisticLivestock.hasMaleAnimalInPen(self.clusterSystem, subType.name, self) and self.reproduction == 0 then
                 reasonText = g_i18n:getText("rl_ui_noMaleAnimal")
-                thresholdText = "0"
             elseif healthFactor < subType.reproductionMinHealth then
-                reasonText = g_i18n:getText("rl_ui_unhealthy")
-                thresholdText = string.format("%d %%", subType.reproductionMinHealth)
+                reasonText = string.format(g_i18n:getText("rl_ui_reproLowHealth"),
+                    string.format("%d %%", math.floor(subType.reproductionMinHealth * 100 + 0.5)))
             end
 
             if reasonText ~= nil then
-                self.infoReproduction.valueText = string.format("%s (< %s)", reasonText, thresholdText)
+                self.infoReproduction.valueText = reasonText
             end
         end
 

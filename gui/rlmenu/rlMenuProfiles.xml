@@ -263,7 +263,7 @@
     <!--
         Stats grid label/value text profiles. Mirrors the legacy
         AnimalScreen.xml stats grid (infoTitle / infoValue rows), which
-        renders stats as plain label/value text in a 2x5 grid - NOT as
+        renders stats as plain label/value text in a 2x7 grid - NOT as
         rows-with-bars (that pattern is used elsewhere for conditions/
         food and is a separate idiom).
     -->
@@ -286,12 +286,14 @@
     </Profile>
 
     <!--
-        Flow-child wrapper for the 2x5 stat grid inside the
-        ScrollingLayout. 5 rows x 35px spacing starting at -10px,
-        each row ~20px text height = 10+140+20 = 170px + 15px pad = 185px.
+        Flow-child wrapper for the 2x7 stat grid inside the
+        ScrollingLayout. 7 rows x 35px spacing starting at -10px,
+        each row ~20px text height = 10+210+20 = 240px + 15px pad = 255px.
+        RLDetailPaneHelper.updateAnimalStats shrinks it to the rows in use
+        (10px + 35px per row).
     -->
     <Profile name="rlMenu_animalStatsSection" extends="emptyPanel" with="anchorTopStretchingX">
-        <height value="185px"/>
+        <height value="255px"/>
     </Profile>
 
     <!--
@@ -357,7 +359,7 @@
     </Profile>
 
     <!--
-        Stat row cell in the 2x5 grid. Invisible container with explicit
+        Stat row cell in the 2x7 grid. Invisible container with explicit
         size; absolute position set per-cell in the XML.
     -->
     <Profile name="rlMenu_statCell" extends="emptyPanel" with="anchorTopLeft">
