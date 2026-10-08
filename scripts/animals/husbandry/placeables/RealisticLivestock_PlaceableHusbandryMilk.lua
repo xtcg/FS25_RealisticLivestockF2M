@@ -32,7 +32,8 @@ function RealisticLivestock_PlaceableHusbandryMilk:onHusbandryAnimalsUpdate(supe
 		-- Milk diagnostics: this fires on every herd change (birth/buy/sell/move)
 		-- on BOTH server and client. Confirms the event reaches a dedicated server and
 		-- shows how many milk fillTypes are active for UI. It does NOT recompute
-		-- litersPerHour (that is server-only, in updateInputAndOutput each hour).
+		-- litersPerHour: that is server-only, in updateInputAndOutput each hour and,
+		-- on a herd change, from the food spec's listener (RL_PlaceableHusbandry.refreshInputAndOutput).
 		Log:debug("Milk[%s]: onHusbandryAnimalsUpdate clusters=%d activeFillTypes=%d hasMilkProduction=%s isServer=%s",
 			(self.getName ~= nil and self:getName()) or "?", #clusters, #spec.activeFillTypes,
 			tostring(spec.hasMilkProduction), tostring(self.isServer))
