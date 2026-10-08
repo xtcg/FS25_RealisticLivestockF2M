@@ -59,16 +59,18 @@ function RealisticLivestock_PlaceableHusbandryFood:updateInfo(superFunc, infoTab
     local spec = self.spec_husbandryFood
     if spec == nil then return end
 
-    local conditionText, rationText = RLBodyCondition.getPenInfo(self)
-    if conditionText ~= nil then
-        spec.rlInfoCondition = spec.rlInfoCondition or { title = g_i18n:getText("rl_ui_bodyCondition"), text = "" }
-        spec.rlInfoCondition.text = conditionText
-        table.insert(infoTable, spec.rlInfoCondition)
-    end
-    if rationText ~= nil then
-        spec.rlInfoRation = spec.rlInfoRation or { title = g_i18n:getText("rl_ui_ration"), text = "" }
-        spec.rlInfoRation.text = rationText
-        table.insert(infoTable, spec.rlInfoRation)
+    local rows = RLBodyCondition.getPenInfo(self)
+    if rows == nil then return end
+
+    spec.rlInfoRows = spec.rlInfoRows or {}
+    for index, row in ipairs(rows) do
+        local info = spec.rlInfoRows[index]
+        if info == nil or info.titleKey ~= row.titleKey then
+            info = { titleKey = row.titleKey, title = g_i18n:getText(row.titleKey), text = "" }
+            spec.rlInfoRows[index] = info
+        end
+        info.text = row.text
+        table.insert(infoTable, info)
     end
 end
 
