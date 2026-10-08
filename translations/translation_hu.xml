@@ -88,6 +88,9 @@
         <text name="rl_dialog_title" text="Látható állatok maximális számának beállítása"/>
 
         <text name="rl_ui_unhealthy" text="Túl beteg"/>
+        <text name="rl_ui_reproUnderAge" text="Under %s"/>
+        <text name="rl_ui_reproRecovers" text="Recovers in %s"/>
+        <text name="rl_ui_reproLowHealth" text="Health &lt; %s"/>
         <text name="rl_ui_unhealthyBracketed" text="Nem (túl beteg)"/>
         <text name="rl_ui_noMaleAnimal" text="Nincs megfelelő hím állat"/>
         <text name="rl_ui_noMaleAnimalBracketed" text="Nem (nincs megfelelő hím állat)"/>

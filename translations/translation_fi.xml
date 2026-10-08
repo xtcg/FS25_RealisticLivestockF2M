@@ -81,6 +81,9 @@
         <text name="rl_dialog_title" text="Aseta visuaalisten eläinten maksimimäärä"/>
 
         <text name="rl_ui_unhealthy" text="Liian huonokuntoinen"/>
+        <text name="rl_ui_reproUnderAge" text="Under %s"/>
+        <text name="rl_ui_reproRecovers" text="Recovers in %s"/>
+        <text name="rl_ui_reproLowHealth" text="Health &lt; %s"/>
         <text name="rl_ui_unhealthyBracketed" text="Ei (liian huonokuntoinen)"/>
         <text name="rl_ui_noMaleAnimal" text="Ei soveltuvaa uros eläintä"/>
         <text name="rl_ui_noMaleAnimalBracketed" text="Ei (ei soveltuvaa uros eläintä)"/>

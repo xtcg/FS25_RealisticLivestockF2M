@@ -87,6 +87,9 @@
         <text name="rl_dialog_title" text="Establecer número máximo de animales visuales"/>
 
         <text name="rl_ui_unhealthy" text="Demasiado poco saludable"/>
+        <text name="rl_ui_reproUnderAge" text="Under %s"/>
+        <text name="rl_ui_reproRecovers" text="Recovers in %s"/>
+        <text name="rl_ui_reproLowHealth" text="Health &lt; %s"/>
         <text name="rl_ui_unhealthyBracketed" text="No (demasiado poco saludable)"/>
         <text name="rl_ui_noMaleAnimal" text="Sin macho adecuado"/>
         <text name="rl_ui_noMaleAnimalBracketed" text="No (sin macho adecuado)"/>

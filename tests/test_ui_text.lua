@@ -81,9 +81,13 @@ end
 -- to 200 px at 14 px. Pen info box: key and value on one 296 px line at 14 px. Counted in
 -- characters, a CJK character as two.
 
+local function unescape(text)
+    return (text:gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&quot;", '"'):gsub("&#10;", "\n"):gsub("&amp;", "&"))
+end
+
 local function width(text)
     local n = 0
-    for _, code in utf8.codes(text) do n = n + ((code >= 0x2E80 and code <= 0xFFEF) and 2 or 1) end
+    for _, code in utf8.codes(unescape(text)) do n = n + ((code >= 0x2E80 and code <= 0xFFEF) and 2 or 1) end
     return n
 end
 
@@ -108,6 +112,70 @@ for _, lang in ipairs(LANGUAGES) do
     limit(PEN_KEYS, 20)
     check(lang .. ": body condition labels and values fit their cells", #long == 0)
     if #long > 0 then print(lang, "too long:", table.concat(long, " | ")) end
+end
+
+-- Reproduction reasons ---------------------------------------------------------------------------
+-- The real Animal:addInfos with each language's texts and the base game's month format
+-- ("%d %s" with ui_months). Stat grid value: 20 characters; the in-world animal box draws
+-- "Can reproduce" and "No (...)" on one 296 px line: 36 characters together.
+
+loadAnimalSection("function Animal:addInfos", "function Animal:showInfo")
+RealisticLivestock = { hasMaleAnimalInPen = function(_, _, animal) return animal.hasMale end }
+local MONTHS = { en = "months", de = "Monate", cs = "月" }
+
+local function reproductionText(texts, lang, fields)
+    g_i18n = {
+        getText = function(_, key) return unescape(texts[key] or key) end,
+        formatNumber = function(_, v) return string.format("%d", math.floor(v + 0.5)) end,
+        formatNumMonth = function(_, n) return string.format("%d %s", n, MONTHS[lang] or "months") end,
+    }
+    local sub = { name = "COW_HOLSTEIN", reproductionMinAgeMonth = 12, reproductionMinHealth = 0.75 }
+    local animal = setmetatable({ age = 20, gender = "male", isParent = false, monthsSinceLastBirth = 0,
+        reproduction = 0, hasMale = true, health = 1, monitor = {},
+        infoReproduction = { title = "Reproduction", titleOrg = "Reproduction" } }, { __index = Animal })
+    for k, v in pairs(fields) do animal[k] = v end
+    animal.getSubType = function() return sub end
+    animal.getHealthFactor = function(self) return self.health end
+    animal.getSupportsReproduction = function() return true end
+    animal.getReproductionFactor = function() return 0 end
+    animal.getCanReproduce = function() return false end
+    animal.isHorse = function() return false end
+    local infos = {}
+    animal:addInfos(infos)
+    return infos[1].valueText
+end
+
+do
+    local CASES = {
+        { "too young", { age = 8 } },
+        { "recovering", { isParent = true, monthsSinceLastBirth = 0 } },
+        { "no male", { hasMale = false } },
+        { "unhealthy", { health = 0.5 } },
+    }
+    local _, enTexts = loadTranslation("en")
+    check("reproduction: English reasons are short, the minimum health shows as 75 %",
+        reproductionText(enTexts, "en", CASES[1][2]) == "Under 12 months"
+        and reproductionText(enTexts, "en", CASES[2][2]) == "Recovers in 3 months"
+        and reproductionText(enTexts, "en", CASES[3][2]) == "No suitable male"
+        and reproductionText(enTexts, "en", CASES[4][2]) == "Health < 75 %")
+
+    for _, lang in ipairs(LANGUAGES) do
+        local _, texts = loadTranslation(lang)
+        local long = {}
+        for _, case in ipairs(CASES) do
+            local text = reproductionText(texts, lang, case[2])
+            if width(text) > 20 then long[#long + 1] = case[1] .. "=" .. text end
+        end
+        for _, key in ipairs({ "rl_ui_tooYoungBracketed", "rl_ui_recoveringLastBirthBracketed",
+            "rl_ui_noMaleAnimalBracketed", "rl_ui_unhealthyBracketed" }) do
+            if width(texts.rl_ui_canReproduce) + width(texts[key]) > 36 then long[#long + 1] = key .. "=" .. texts[key] end
+        end
+        -- Only the languages this fork maintains are held to the limit; the others' own translations are theirs.
+        if lang == "en" or lang == "de" or lang == "cs" or texts.rl_ui_noMaleAnimal == enTexts.rl_ui_noMaleAnimal then
+            check(lang .. ": reproduction reasons fit the stat grid and the in-world box", #long == 0)
+            if #long > 0 then print(lang, "too long:", table.concat(long, " | ")) end
+        end
+    end
 end
 
 -- Stat grid ------------------------------------------------------------------------------------

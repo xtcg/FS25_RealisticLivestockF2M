@@ -88,6 +88,9 @@
         <text name="rl_dialog_title" text="Maksimum Görsel Hayvan Sayısını Ayarlayın"/>
 
         <text name="rl_ui_unhealthy" text="Çok Sağlıksız"/>
+        <text name="rl_ui_reproUnderAge" text="Under %s"/>
+        <text name="rl_ui_reproRecovers" text="Recovers in %s"/>
+        <text name="rl_ui_reproLowHealth" text="Health &lt; %s"/>
         <text name="rl_ui_unhealthyBracketed" text="Hayır (çok sağlıksız)"/>
         <text name="rl_ui_noMaleAnimal" text="Uygun erkek hayvan yok"/>
         <text name="rl_ui_noMaleAnimalBracketed" text="Hayır (uygun erkek hayvan yok)"/>

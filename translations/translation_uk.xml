@@ -71,6 +71,9 @@
         <text name="rl_button_random" text="Випадково"/>
         <text name="rl_dialog_title" text="Встановити максимальну кількість видимих тварин"/>
         <text name="rl_ui_unhealthy" text="Надто поганий стан здоров’я"/>
+        <text name="rl_ui_reproUnderAge" text="Under %s"/>
+        <text name="rl_ui_reproRecovers" text="Recovers in %s"/>
+        <text name="rl_ui_reproLowHealth" text="Health &lt; %s"/>
         <text name="rl_ui_unhealthyBracketed" text="Ні (поганий стан здоров’я)"/>
         <text name="rl_ui_noMaleAnimal" text="Немає відповідного самця"/>
         <text name="rl_ui_noMaleAnimalBracketed" text="Ні (немає відповідного самця)"/>

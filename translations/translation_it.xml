@@ -86,6 +86,9 @@
         <text name="rl_dialog_title" text="Imposta il numero massimo di animali visibili"/>
 
         <text name="rl_ui_unhealthy" text="Troppo malato"/>
+        <text name="rl_ui_reproUnderAge" text="Under %s"/>
+        <text name="rl_ui_reproRecovers" text="Recovers in %s"/>
+        <text name="rl_ui_reproLowHealth" text="Health &lt; %s"/>
         <text name="rl_ui_unhealthyBracketed" text="No (troppo malato)"/>
         <text name="rl_ui_noMaleAnimal" text="Nessun maschio adatto"/>
         <text name="rl_ui_noMaleAnimalBracketed" text="No (nessun maschio adatto)"/>
