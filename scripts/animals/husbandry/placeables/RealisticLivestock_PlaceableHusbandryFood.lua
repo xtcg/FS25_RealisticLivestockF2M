@@ -11,7 +11,12 @@ end
 PlaceableHusbandryFood.registerOverwrittenFunctions = Utils.appendedFunction(PlaceableHusbandryFood.registerOverwrittenFunctions, RealisticLivestock_PlaceableHusbandryFood.registerOverwrittenFunctions)
 
 
-function RealisticLivestock_PlaceableHusbandryFood:onHusbandryAnimalsUpdate(superFunc, animals) end
+--- The pen's animals changed (AnimalClusterSystem flush): refresh all its per-hour totals now, not
+--- the base game's sum over cluster age curves (RL_PlaceableHusbandry.refreshInputAndOutput). The
+--- other specs' listeners leave their totals to this one call.
+function RealisticLivestock_PlaceableHusbandryFood:onHusbandryAnimalsUpdate(superFunc, animals)
+    RL_PlaceableHusbandry.refreshInputAndOutput(self, animals)
+end
 
 PlaceableHusbandryFood.onHusbandryAnimalsUpdate = Utils.overwrittenFunction(PlaceableHusbandryFood.onHusbandryAnimalsUpdate, RealisticLivestock_PlaceableHusbandryFood.onHusbandryAnimalsUpdate)
 
