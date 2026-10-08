@@ -36,6 +36,10 @@ local function hasCJK(text)
     return false
 end
 
+local function unescape(text)
+    return (text:gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&quot;", '"'):gsub("&#10;", "\n"):gsub("&amp;", "&"))
+end
+
 local enList, en = loadTranslation("en")
 
 -- Translation files ----------------------------------------------------------------------------
@@ -74,16 +78,34 @@ do
     table.sort(english)
     check("cs: every text is in Chinese", #english == 0)
     if #english > 0 then print("cs English:", table.concat(english, ",")) end
+
+    -- The game's font holds only the characters its own texts use; any other draws as nothing.
+    local font = {}
+    for line in readFile("tests/fs25_font_glyphs.txt"):gmatch("[^\n]+") do
+        if line:sub(1, 1) ~= "#" then
+            for _, code in utf8.codes(line) do font[code] = true end
+        end
+    end
+    local undrawable = {}
+    for name, text in pairs(zh) do
+        if text then
+            for _, code in utf8.codes(unescape(text)) do
+                if code > 0x2000 and not font[code] then
+                    undrawable[#undrawable + 1] = name .. ":" .. utf8.char(code)
+                    break
+                end
+            end
+        end
+    end
+    table.sort(undrawable)
+    check("cs: every character is in the game's font", next(font) ~= nil and #undrawable == 0)
+    if #undrawable > 0 then print("cs not in font:", table.concat(undrawable, ",")) end
 end
 
 -- Body condition texts against the cells they are drawn in ------------------------------------
 -- Stat grid (rlMenu_animalStatLabel / Value): bold upper-case label to 145 px, upper-case value
 -- to 200 px at 14 px. Pen info box: key and value on one 296 px line at 14 px. Counted in
 -- characters, a CJK character as two.
-
-local function unescape(text)
-    return (text:gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&quot;", '"'):gsub("&#10;", "\n"):gsub("&amp;", "&"))
-end
 
 local function width(text)
     local n = 0
