@@ -103,9 +103,9 @@
         <text name="rl_ui_male" text="Männlich"/>
         <text name="rl_ui_female" text="Weiblich"/>
         <text name="rl_ui_weight" text="Gewicht"/>
-        <text name="rl_ui_bodyCondition" text="Körperkondition (BCS)"/>
+        <text name="rl_ui_bodyCondition" text="Kondition"/>
         <text name="rl_ui_finish" text="Ausmast"/>
-        <text name="rl_ui_conditionCalf" text="Kalb - noch nicht bewertet"/>
+        <text name="rl_ui_conditionCalf" text="Kalb, nicht bewertet"/>
         <text name="rl_ui_finishLean" text="mager"/>
         <text name="rl_ui_finishStore" text="Fresser"/>
         <text name="rl_ui_finishReady" text="mittel"/>
@@ -116,19 +116,24 @@
         <text name="rl_ui_bcsFleshy" text="fleischig"/>
         <text name="rl_ui_bcsFat" text="fett"/>
         <text name="rl_ui_finishVerdict" text="Schlachtung"/>
-        <text name="rl_ui_finishVerdictReady" text="schlachtreif"/>
-        <text name="rl_ui_finishVerdictNeedsFinish" text="Gewicht erreicht, braucht Ausmast"/>
-        <text name="rl_ui_finishVerdictGrowing" text="Kondition gut, wächst noch"/>
-        <text name="rl_ui_finishVerdictStore" text="im Wachstum"/>
-        <text name="rl_ui_finishVerdictOverfat" text="überfett, über dem Optimum"/>
-        <text name="rl_ui_finishVerdictTooYoung" text="zu jung"/>
-        <text name="rl_ui_finishVerdictBlocked" text="nicht verkäuflich"/>
-        <text name="rl_ui_rationCoverage" text="Ration deckt Bedarf"/>
-        <text name="rl_ui_milkOfPotential" text="Milch vom Vollertrag"/>
-        <text name="rl_ui_conceptionCondition" text="Befruchtung (Kondition)"/>
-        <text name="rl_ui_ration" text="Ration"/>
-        <text name="rl_ui_penConditionFormat" text="BCS %s, %d dünn, %d fett, %d von %d Bullen schlachtreif" tag="format"/>
-        <text name="rl_ui_penRationFormat" text="gefressen %.0f%%, Energie %.0f%%, Wasser %.0f%%" tag="format"/>
+        <text name="rl_ui_finishVerdictReady" text="Schlachtreif"/>
+        <text name="rl_ui_finishVerdictNeedsFinish" text="Braucht Ausmast"/>
+        <text name="rl_ui_finishVerdictGrowing" text="Wächst noch"/>
+        <text name="rl_ui_finishVerdictStore" text="Im Wachstum"/>
+        <text name="rl_ui_finishVerdictOverfat" text="Überfett, zu spät"/>
+        <text name="rl_ui_finishVerdictTooYoung" text="Zu jung"/>
+        <text name="rl_ui_finishVerdictBlocked" text="Nicht verkäuflich"/>
+        <text name="rl_ui_finishWeight" text="Endgewicht"/>
+        <text name="rl_ui_rationCoverage" text="Versorgung"/>
+        <text name="rl_ui_milkOfPotential" text="Milchleistung"/>
+        <text name="rl_ui_conceptionCondition" text="Befruchtung"/>
+        <text name="rl_ui_penBcs" text="Ø BCS"/>
+        <text name="rl_ui_penCowsThinFat" text="Kühe dünn / fett"/>
+        <text name="rl_ui_penBullsReady" text="Bullen schlachtreif"/>
+        <text name="rl_ui_penBullsOverfat" text="Bullen überfett"/>
+        <text name="rl_ui_penFeedEaten" text="Futter gefressen"/>
+        <text name="rl_ui_penRationEnergy" text="Rationsenergie"/>
+        <text name="rl_ui_penWater" text="Wasserversorgung"/>
         <text name="rl_ui_targetWeight" text="Zielgewicht"/>
         <text name="rl_ui_value" text="Wert"/>
         <text name="rl_ui_valuePerKilo" text="Wert pro kg"/>
@@ -899,7 +904,7 @@
         <text name="rl_menu_filters_field_weight" text="Weight"/>
         <text name="rl_menu_filters_field_health" text="Health"/>
         <text name="rl_menu_filters_field_finishScore" text="Ausmast (0-100)"/>
-        <text name="rl_menu_filters_field_bcs" text="Körperkondition (BCS 1-5)"/>
+        <text name="rl_menu_filters_field_bcs" text="Körperkondition (1-5)"/>
         <text name="rl_menu_filters_field_genetics_metabolism" text="Genetics: metabolism"/>
         <text name="rl_menu_filters_field_genetics_health" text="Genetics: health"/>
         <text name="rl_menu_filters_field_genetics_fertility" text="Genetics: fertility"/>
