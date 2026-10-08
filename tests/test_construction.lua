@@ -214,8 +214,8 @@ g_currentMission.placeableSystem = { placeables = { setup1, done2, boxA, dairy, 
 -- Config ------------------------------------------------------------------------------------------------
 
 local config = RLHusbandryProfiles.getConfig()
-check("config: 7 <construction> entries; igloos and pasture ready only in DONE, the cow barn in all four states",
-    #config.constructions == 7 and table.concat(RLPenConstruction.getDefinition(setup1).names, " ") == "DONE"
+check("config: 8 <construction> entries; igloos and pasture ready only in DONE, the cow barn in all four states",
+    #config.constructions == 8 and table.concat(RLPenConstruction.getDefinition(setup1).names, " ") == "DONE"
     and table.concat(RLPenConstruction.getDefinition(dairy).names, " ") == "DONE FINALIZE STEP1 STEP2"
     and table.concat(RLPenConstruction.getDefinition(pasture).names, " ") == "DONE")
 
@@ -525,3 +525,112 @@ check("C04 PROFILE_APPLIED: construction present, SETUP, not ready, reason, the 
     and applied.data.construction.unfinishedInputs[1].fillType == "CALFIGLU"
     and applied.data.construction.source == "mod_support/FS25_HofBergmann/v1.5/husbandryProfiles.xml"
     and applied.line:find('"stateName":"SETUP"', 1, true) ~= nil)
+
+-- E farm butcher: a production point that takes animals, built SETUP -> STATE_1-3 -> FINALIZE -> DONE ------
+
+local BUTCHER_STATES = { { name = "SETUP", inputs = { { "CONSTRUCTIONTOOLS", 500 } } }, { name = "STATE_1", inputs = { { "WOODBEAM", 1000 } } },
+    { name = "STATE_2", inputs = { { "WALLBOARDS", 95 } } }, { name = "STATE_3", inputs = { { "CEMENT", 3000 } } },
+    { name = "FINALIZE" }, { name = "DONE" } }
+local BUTCHER_FLOW = { SETUP = "STATE_1", STATE_1 = "STATE_2", STATE_2 = "STATE_3", STATE_3 = "FINALIZE", FINALIZE = "DONE" }
+
+-- The map's EPP placeable and its production point (what AnimalMoveEvent carries as the target).
+local butcher = { configFileName = "/mods/FS25_HofBergmann/placeables/productionPoints/farmButcher/farmButcher.xml",
+    uniqueId = "butcher1", farmId = 1, isServer = true }
+function butcher:getName() return "Farm butcher" end
+function butcher:getOwnerFarmId() return self.farmId end
+local pp = { owningPlaceable = butcher, delivered = {},
+    animalsTypeData = { [1] = { minimumAge = 6, maximumAge = 60, maxNumAnimals = 10, unitsPerAnimal = 750 } } }
+function pp:getName() return butcher:getName() end
+function pp:getSupportsAnimalSubType() return true end
+function pp:getNumOfFreeAnimalSlots() return 10 - #self.delivered end
+function pp:addCluster(animal) self.delivered[#self.delivered + 1] = animal; return 1 end
+function pp:getClusterSystem() return nil end
+butcher.spec_extendedProductionPoint = { productionPoint = pp }
+butcher.spec_constructible = machine(BUTCHER_STATES, BUTCHER_FLOW)
+for _, state in ipairs(butcher.spec_constructible.stateMachine) do state.constructible = butcher end
+function butcher:getConstructibleStateIndexByName(n) return self.spec_constructible.stateNameToIndex[n:upper()] end
+RLPenConstruction.started = false
+setState(butcher, "SETUP")
+g_currentMission.placeableSystem.placeables[#g_currentMission.placeableSystem.placeables + 1] = butcher
+
+check("E01 config: the farm butcher is defined, ready only in DONE (8 <construction> entries)",
+    #RLHusbandryProfiles.getConfig().constructions == 8
+    and table.concat(RLPenConstruction.getDefinition(butcher).names, " ") == "DONE")
+check("E01 the production point resolves to its placeable; not a husbandry, not a production point: no building",
+    RLPenConstruction.getBuilding(pp) == butcher and RLPenConstruction.getBuilding(butcher) == butcher
+    and RLPenConstruction.getBuilding({ animalsTypeData = {} }) == nil and RLPenConstruction.getBuilding(nil) == nil)
+local butcherStatus = select(2, RLPenConstruction.canAdmit(pp))
+check("E01 butcher in SETUP: the placeable and its production point take no animal (NOT_READY, CONSTRUCTIONTOOLS missing)",
+    not RLPenConstruction.canAdmit(butcher) and not RLPenConstruction.canAdmit(pp)
+    and butcherStatus.status == "NOT_READY" and butcherStatus.stateName == "SETUP"
+    and butcherStatus.unfinishedInputs[1].fillType == "CONSTRUCTIONTOOLS"
+    and RLPenConstruction.describe(pp).stateName == "SETUP" and RLPenConstruction.describe(pp).present == true)
+setState(butcher, "STATE_3")
+local state3 = RLPenConstruction.canAdmit(pp)
+setState(butcher, "FINALIZE")
+local finalize = RLPenConstruction.canAdmit(pp)
+setState(butcher, "SETUP")
+check("E01 STATE_3 and FINALIZE still take none", not state3 and not finalize)
+
+local cow = calf("COW_HOLSTEIN", 12)
+dairy.animals = { cow }
+local function offersButcher(list)
+    for _, d in ipairs(list) do if d.name == "Farm butcher" then return d end end
+end
+check("E02 move menu: the butcher in SETUP is not offered for a 12-month cow; the cow barn's other pens still are judged as before",
+    offersButcher(RLMoveDestinationHelper.getValidDestinations(dairy, 1, cow.subTypeIndex, { cow })) == nil
+    and offersButcher(RLMoveDestinationHelper.getValidDestinations(dairy, 1, cow.subTypeIndex, nil)) == nil)
+check("E03 AnimalMoveEvent.validate to the SETUP butcher's production point: PEN_NOT_BUILT (8)",
+    AnimalMoveEvent.validate(dairy, pp, 1, cow.subTypeIndex) == AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT)
+check("E03 AnimalMoveEvent:run to the SETUP butcher: answers 8, the cow stays, nothing reaches the butcher",
+    runMove(dairy, pp, cow) == AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT and #dairy.animals == 1 and #pp.delivered == 0)
+local trailer = { getClusterSystem = function() return nil end }
+check("E03 the gate is on the butcher only: a trailer target still has no opinion", RLPenConstruction.canAdmit(trailer))
+
+local function butcherCtx()
+    return { server = g_server, mission = g_currentMission, ruleService = {}, animalNameSystem = {},
+        husbandryPlaceablesById = { dairy = dairy }, eppPlaceablesById = { butcher = butcher }, defer = function() end }
+end
+broadcasts = {}
+local wageBefore = MONEY[1]
+local butcherMove = { ruleId = "r-butcher", operation = "move", husbandryId = "dairy", destinationHusbandry = "butcher",
+    animals = { { farmId = 1, uniqueId = cow.uniqueId, country = 1, subTypeIndex = cow.subTypeIndex, age = 12 } }, wage = 10 }
+summary = RLHerdsmanExecutor.executeActions({ butcherMove }, butcherCtx())
+check("E04 herdsman move to the SETUP butcher: skipped pen-not-built, nothing dispatched, the cow stays, the wage is charged",
+    summary.results[1].skipReason == "pen-not-built" and not summary.results[1].dispatched and #broadcasts == 0
+    and #dairy.animals == 1 and #pp.delivered == 0 and MONEY[1] == wageBefore - 10)
+check("E04 AIAnimalMoveEvent.validate to the SETUP butcher: PEN_NOT_BUILT (8)",
+    AIAnimalMoveEvent.validate(dairy, butcher, 1, cow.subTypeIndex) == AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT)
+AIAnimalMoveEvent.new(dairy, butcher, butcherMove.animals):run()
+check("E04 AIAnimalMoveEvent run against the SETUP butcher (backstop): the cow stays, nothing delivered",
+    #dairy.animals == 1 and #pp.delivered == 0)
+
+-- E05 records and opening
+RECORDS = {}
+RLPenConstruction.started = false
+RLPenConstruction.onMissionStarted()
+local butcherLoad = nil
+for _, r in ipairs(records("CONSTRUCTION_STATE")) do
+    if r.data.pen ~= nil and r.data.pen.name == "Farm butcher" then butcherLoad = r end
+end
+check("E05 load: a CONSTRUCTION_STATE record for the butcher (SETUP, not ready, the missing input)",
+    butcherLoad ~= nil and butcherLoad.data.trigger == "LOAD" and butcherLoad.data.construction.stateName == "SETUP"
+    and butcherLoad.data.construction.ready == false
+    and butcherLoad.data.construction.unfinishedInputs[1].fillType == "CONSTRUCTIONTOOLS")
+RECORDS = {}
+setState(butcher, "STATE_1")
+setState(butcher, "STATE_2")
+setState(butcher, "STATE_3")
+setState(butcher, "FINALIZE")
+setState(butcher, "DONE")
+local opened = records("CONSTRUCTION_STATE")
+check("E05 SETUP -> ... -> DONE: one CHANGE record per state, only the last one marks the butcher opened",
+    #opened == 5 and opened[4].data.construction.stateName == "FINALIZE" and opened[4].data.opened == false
+    and opened[5].data.construction.stateName == "DONE" and opened[5].data.opened == true)
+
+local offered = offersButcher(RLMoveDestinationHelper.getValidDestinations(dairy, 1, cow.subTypeIndex, { cow }))
+check("E06 at DONE the butcher is offered at once (EPP entry with its age window), and validate passes",
+    offered ~= nil and offered.isEPP == true and offered.placeable == pp and offered.minAge == 6 and offered.maxAge == 60
+    and AnimalMoveEvent.validate(dairy, pp, 1, cow.subTypeIndex) == nil
+    and AIAnimalMoveEvent.validate(dairy, butcher, 1, cow.subTypeIndex) == nil)
+dairy.animals = {}
