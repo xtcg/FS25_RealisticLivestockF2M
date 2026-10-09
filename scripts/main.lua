@@ -47,6 +47,8 @@ source(modDirectory .. "scripts/animal/RLBreedTraits.lua")
 source(modDirectory .. "scripts/animal/RLMeatMath.lua")
 -- Delivery rules shared by the delivery code and the trade quote (contract order, fee, butcher recipe), pure
 source(modDirectory .. "scripts/animal/RLFacilityRules.lua")
+-- Which weight profile (xml/weightProfiles.xml) each cattle subtype resolves to (report only)
+source(modDirectory .. "scripts/animal/RLWeightProfiles.lua")
 -- Livestock prices follow the difficulty multiplier: live prices, semen, contract slaughter fees
 source(modDirectory .. "scripts/animal/RLLivestockPrices.lua")
 -- Body condition of cattle (xml/bodyCondition.xml): nutrition budget, reserve, finish score / BCS.

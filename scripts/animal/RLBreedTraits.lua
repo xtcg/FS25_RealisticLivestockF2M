@@ -106,6 +106,35 @@ function RLBreedTraits.getTypeName(subType)
 end
 
 
+--- Look `attr` up for a subtype and say which layer set it: subType, then breed within its type,
+--- then type, then root.
+--- @param layers table From parseLayers
+--- @param subType table|nil
+--- @param attr string
+--- @return any value nil when no layer sets it
+--- @return string|nil source "subType", "breed", "type" or "root"; nil when no layer sets it
+function RLBreedTraits.resolveSource(layers, subType, attr)
+    if subType ~= nil then
+        local own = subType.name ~= nil and layers.subTypes[subType.name] or nil
+        if own ~= nil and own[attr] ~= nil then return own[attr], "subType" end
+
+        local typeName = RLBreedTraits.getTypeName(subType)
+        if typeName ~= nil then
+            local breeds = layers.breeds[typeName]
+            local breed = breeds ~= nil and subType.breed ~= nil and breeds[subType.breed] or nil
+            if breed ~= nil and breed[attr] ~= nil then return breed[attr], "breed" end
+
+            local animalType = layers.types[typeName]
+            if animalType ~= nil and animalType[attr] ~= nil then return animalType[attr], "type" end
+        end
+    end
+
+    local value = layers.root[attr]
+    if value ~= nil then return value, "root" end
+    return nil, nil
+end
+
+
 --- Look `attr` up for a subtype: subType, then breed within its type, then type, then root.
 --- @param layers table From parseLayers
 --- @param subType table|nil
@@ -113,24 +142,9 @@ end
 --- @param default any Returned when no layer sets it
 --- @return any
 function RLBreedTraits.resolve(layers, subType, attr, default)
-    if subType ~= nil then
-        local own = subType.name ~= nil and layers.subTypes[subType.name] or nil
-        if own ~= nil and own[attr] ~= nil then return own[attr] end
-
-        local typeName = RLBreedTraits.getTypeName(subType)
-        if typeName ~= nil then
-            local breeds = layers.breeds[typeName]
-            local breed = breeds ~= nil and subType.breed ~= nil and breeds[subType.breed] or nil
-            if breed ~= nil and breed[attr] ~= nil then return breed[attr] end
-
-            local animalType = layers.types[typeName]
-            if animalType ~= nil and animalType[attr] ~= nil then return animalType[attr] end
-        end
-    end
-
-    local value = layers.root[attr]
-    if value ~= nil then return value end
-    return default
+    local value, source = RLBreedTraits.resolveSource(layers, subType, attr)
+    if source == nil then return default end
+    return value
 end
 
 
