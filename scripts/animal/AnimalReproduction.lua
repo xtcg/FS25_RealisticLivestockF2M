@@ -46,9 +46,12 @@ local function resolveInsemination(animal, month, year)
 
     local fertility = AnimalReproduction.getConceptionFertility(animal)
     local childNum = animal:generateRandomOffspring()
+    -- The dam's roll: the old (2 - fertility) x 0.25 threshold as a probability, times her body
+    -- condition factor (RLBodyCondition, 1 at a normal BCS, so the old roll). Same random calls.
+    local conception = RLBodyCondition.getConceptionProbability(fertility, 0.25, RLBodyCondition.getFertilityFactor(animal))
 
     if childNum > 0
-        and math.random() >= (2 - fertility) * 0.25
+        and math.random() >= 1 - conception
         and math.random() <= insemination.success * (math.random(80, 120) / 100)
     then
         animal:addMessage("INSEMINATION_SUCCESS")
@@ -165,11 +168,13 @@ local function advancePregnancy(animal, spec, day, month, year, isSaleAnimal)
         -- Natural conception attempt
         local fertility = AnimalReproduction.getConceptionFertility(animal)
         local childNum = animal:generateRandomOffspring()
+        local conditionFactor = RLBodyCondition.getFertilityFactor(animal)
+        local conception = RLBodyCondition.getConceptionProbability(fertility, 0.5, conditionFactor)
 
-        Log:trace("advancePregnancy: animal=%s natural conception attempt fertility=%.2f childNum=%d",
-            animal.uniqueId or "?", fertility, childNum)
+        Log:trace("advancePregnancy: animal=%s natural conception attempt fertility=%.2f condition=%.2f childNum=%d",
+            animal.uniqueId or "?", fertility, conditionFactor, childNum)
 
-        if math.random() >= (2 - fertility) * 0.5 and childNum > 0 then
+        if math.random() >= 1 - conception and childNum > 0 then
             animal:createPregnancy(childNum, month, year)
             Log:trace("  natural conception success")
         end

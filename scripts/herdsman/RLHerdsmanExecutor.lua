@@ -1,6 +1,7 @@
 -- RLHerdsmanExecutor.lua
 -- The in-game executor wall: turns the pure plan from RLHerdsmanPlanner.planActions into
--- mutations. It dispatches AIAnimalSellEvent / AIAnimalBuyEvent / AIAnimalInseminationEvent /
+-- mutations. It sells through AIAnimalSellEvent.executeServer (a direct server call that reports
+-- what was actually sold), dispatches AIAnimalBuyEvent / AIAnimalInseminationEvent /
 -- AIAnimalMoveEvent, applies castrate + naming + horse care as direct server-side field writes and
 -- broadcasts the matching per-animal event (caller-mutates-first, no sendLocal) so those writes
 -- sync to clients, sets the AI_MANAGER_* mark for mark-mode actions, persists the naming cursor,
@@ -21,7 +22,7 @@
 -- No g_* reads: the dispatch boundary arrives through `ctx`, so the DECISIONS are dual-run.
 --   ctx = {
 --     server                  = g_server,                        -- broadcastEvent(event, true)
---     mission                 = g_currentMission,                -- addMoney (wage)
+--     mission                 = g_currentMission,                -- addMoney (wage, sale proceeds)
 --     husbandryPlaceablesById = { [uniqueId] = <placeable> },    -- event object, getOwnerFarmId, getNumOfFreeAnimalSlots
 --     ruleService             = <RLHerdsmanRuleService>,         -- setNamingCursor(id, previous)
 --     animalNameSystem        = <real AnimalNameSystem>,         -- getRandomName(gender)
@@ -42,13 +43,29 @@
 --   amountSpent, dispatched, skipReason }. `dispatched` is true iff the broadcast or direct mutation
 --   was applied; `skipReason` is nil when dispatched, else one of "no-space" | "no-money" |
 --   "mark-mode" | "missing-placeable" | "missing-dest" | "bad-data" | "not-in-husbandry" |
---   "defer-failed" | "all-age-ineligible" | "all-sick". The wage follows each leg's chargeWage, not
+--   "defer-failed" | "all-age-ineligible" | "all-sick" | "owner-changed" | "sale-refused" |
+--   "sale-failed" | "pen-rules" | "pen-not-built". The wage follows each leg's chargeWage, not
 --   the reason: "missing-dest" and "defer-failed" never charge, "bad-data" and "missing-placeable"
 --   charge only where the leg says so (a validate rejection does, a data-skip does not), and every other
 --   reason charges. On a guarded direct-mutation leg `count` is the count ACTUALLY mutated or marked and
 --   `skippedCount` the membership-skip count; the unguarded legs report the planned count with
 --   skippedCount 0. An exec leg whose animals ALL skip membership reports "not-in-husbandry"; a mark
 --   leg whose animals all skip keeps "mark-mode", whose identity the message layer depends on.
+--   An executed sell row reports the server's outcome: count = animals sold and paid for,
+--   amountGained = money actually paid (nil when unknown), plus plannedCount, plannedAmountGained,
+--   saleStatus, removedCount, settledCount and failureStage (@see AIAnimalSellEvent.executeServer).
+--   "owner-changed" never charges the wage; "sale-refused" and "sale-failed" do.
+--
+-- T02 batch 3, only while RLLiveSale is in TEST (OFF, the default, is the behaviour above):
+--   - each executeActions call is one execution round (ctx.roundId, else a new RLLiveSale round);
+--     each sell action's transaction id is "<round>-a<action index>", so replaying the round
+--     returns the first sale results (row skipReason "replayed", no wage contribution, no message)
+--     and sells nothing again;
+--   - each farm's wage is its own money action "wage:<round>:f<farm>" with a receipt
+--     (summary.wageReceipts[farmId]); replaying the round never charges it again, a throw is
+--     recorded instead of aborting the remaining farms. The wage rules themselves are unchanged;
+--   - a buy is skipped ("cash-held", wage charged like any runtime rejection) while a transaction
+--     of the ledger holds the farm's cash (a sale or contract awaiting reconciliation).
 
 local Log = RmLogging.getLogger("RLRM")
 
@@ -244,8 +261,16 @@ function RLHerdsmanExecutor.executeActions(plan, ctx)
     -- First-seen farm order, so the per-farm wage deduction is deterministic across runners.
     local wageFarmOrder = {}
 
-    for _, action in ipairs(plan) do
-        local result = RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder)
+    -- T02 batch 3: an execution round with ids for its sales and wages (RLLiveSale TEST only).
+    local roundId = nil
+    if RLLiveSale ~= nil and RLLiveSale.getMode() == RLLiveSale.MODE_TEST then
+        roundId = ctx.roundId or RLLiveSale.nextRoundId()
+        summary.roundId, summary.wageReceipts = roundId, {}
+    end
+
+    for index, action in ipairs(plan) do
+        local saleId = roundId ~= nil and string.format("%s-a%d", roundId, index) or nil
+        local result = RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder, saleId)
         summary.results[#summary.results + 1] = result
     end
 
@@ -253,8 +278,15 @@ function RLHerdsmanExecutor.executeActions(plan, ctx)
     for _, farmId in ipairs(wageFarmOrder) do
         local wage = summary.wageByFarm[farmId]
         if wage ~= nil and wage > 0 then
-            ctx.mission:addMoney(-wage, farmId, MoneyType.HERDSMAN_WAGES, true, true)
-            Log:debug("%s wage deducted farmId=%s wage=%.2f", LOG_PREFIX, tostring(farmId), wage)
+            if roundId ~= nil then
+                local receipt, replay = RLLiveSale.chargeWage(ctx.mission, roundId, farmId, wage)
+                summary.wageReceipts[farmId] = receipt
+                Log:debug("%s wage farmId=%s wage=%.2f receipt=%s%s", LOG_PREFIX, tostring(farmId), wage,
+                    tostring(receipt.status), replay ~= nil and " (replay, not charged again)" or "")
+            else
+                ctx.mission:addMoney(-wage, farmId, MoneyType.HERDSMAN_WAGES, true, true)
+                Log:debug("%s wage deducted farmId=%s wage=%.2f", LOG_PREFIX, tostring(farmId), wage)
+            end
         end
     end
 
@@ -271,8 +303,9 @@ end
 ---@param ctx table
 ---@param summary table
 ---@param wageFarmOrder table first-seen farmId order for deterministic wage deduction
+---@param saleId string|nil T02 batch 3 (RLLiveSale TEST): the transaction id of a sell action
 ---@return table result
-function RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder)
+function RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder, saleId)
     local result = {
         ruleId       = action.ruleId,
         husbandryId  = action.husbandryId,
@@ -328,7 +361,7 @@ function RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder)
     local op = action.operation
     local chargeWage, dispatched, skipReason, actualCount, skippedCount, extra
     if op == "sell" then
-        chargeWage, dispatched, skipReason, actualCount, skippedCount = RLHerdsmanExecutor._doSell(action, ctx, placeable, farmId, count)
+        chargeWage, dispatched, skipReason, actualCount, skippedCount, extra = RLHerdsmanExecutor._doSell(action, ctx, placeable, farmId, count, saleId)
     elseif op == "buy" then
         chargeWage, dispatched, skipReason, actualCount, skippedCount = RLHerdsmanExecutor._doBuy(action, ctx, placeable, farmId, count)
     elseif op == "castrate" then
@@ -360,10 +393,30 @@ function RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder)
     -- movedCount = animals dispatched to the butcher, falling back to count for husbandry rows;
     -- skippedAge / skippedSick = animals filtered out for age / for showing symptoms. Husbandry-move
     -- and non-move rows carry no extra.
-    if type(extra) == "table" then
+    if type(extra) == "table" and extra.sale == nil then
         result.movedCount = extra.movedCount
         result.skippedAge = extra.skippedAge
         result.skippedSick = extra.skippedSick
+    end
+
+    -- An executed sale reports what the server confirmed, not the plan: count = animals sold and
+    -- paid for, amountGained = the money actually paid (nil when the payment's outcome is unknown).
+    -- The planned figures stay on the row for diagnosis. This never touches actualCount, so the wage
+    -- is unchanged.
+    if type(extra) == "table" and extra.sale ~= nil then
+        local sale = extra.sale
+        result.plannedCount = count
+        result.plannedAmountGained = action.amountGained
+        result.count = sale.settledCount or 0
+        result.amountGained = sale.amountGained
+        result.saleStatus = sale.status
+        result.removedCount = sale.removedCount
+        result.settledCount = sale.settledCount
+        result.failureStage = sale.failureStage
+        result.txId = sale.txId
+        result.txState = sale.txState
+        result.paymentStatus = sale.paymentStatus
+        result.replayed = sale.replayed
     end
 
     if chargeWage then
@@ -385,19 +438,25 @@ function RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder)
     return result
 end
 
---- Sell: exec broadcasts AIAnimalSellEvent, which deducts MoneyType.SOLD_ANIMALS on the server's
---- cluster-batch success; mark sets AI_MANAGER_SELL. Wage charged either way.
+--- Sell: exec runs AIAnimalSellEvent.executeServer synchronously, which re-checks and re-prices
+--- the batch on the server and pays MoneyType.SOLD_ANIMALS only for the animals it removed; mark
+--- sets AI_MANAGER_SELL. The sale's own outcome rides the scaling-free `extra` channel, never
+--- actualCount, so the wage stays the planned wage exactly as before. Wage charged on every outcome
+--- except a data-skip and a source that changed owner since the plan (the new owner did not hire
+--- this herdsman).
 ---@param action table
 ---@param ctx table
 ---@param placeable table
 ---@param farmId number
 ---@param count number
+---@param saleId string|nil T02 batch 3 (RLLiveSale TEST): the transaction id
 ---@return boolean chargeWage
----@return boolean dispatched
+---@return boolean dispatched true iff some animals were sold and paid for
 ---@return string|nil skipReason
----@return number|nil actualMarked nil on the unguarded sell exec leg; count marked on the mark leg
----@return number|nil skippedCount membership-skip count on the mark leg (nil on the unguarded exec leg)
-function RLHerdsmanExecutor._doSell(action, ctx, placeable, farmId, count)
+---@return number|nil actualMarked nil on the exec leg; count marked on the mark leg
+---@return number|nil skippedCount membership-skip count on the mark leg (nil on the exec leg)
+---@return table|nil extra exec leg: { sale = <executeServer result> }
+function RLHerdsmanExecutor._doSell(action, ctx, placeable, farmId, count, saleId)
     if action.mark == true then
         return setMarkOnAll(ctx, placeable, action, MARK_BY_OPERATION.sell, farmId)
     end
@@ -406,6 +465,21 @@ function RLHerdsmanExecutor._doSell(action, ctx, placeable, farmId, count)
         Log:warning("%s rule=%s op=sell husbandry=%s farm=%s: non-number amountGained (%s) - skipped (no wage)",
             LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), tostring(action.amountGained))
         return false, false, "bad-data"
+    end
+
+    -- The plan's frozen seller and identities; a plan without them predates the snapshot or is
+    -- corrupt, and is never sold on the live objects instead.
+    if action.sellerFarmId == nil or type(action.identities) ~= "table" or #action.identities ~= count then
+        Log:warning("%s rule=%s op=sell husbandry=%s farm=%s: no frozen seller/identities (seller=%s identities=%s of %d) - skipped (no wage)",
+            LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), tostring(action.sellerFarmId),
+            tostring(type(action.identities) == "table" and #action.identities or action.identities), count)
+        return false, false, "bad-data"
+    end
+
+    if action.sellerFarmId ~= farmId then
+        Log:warning("%s rule=%s op=sell husbandry=%s farm=%s: planned for farm %s, the pen changed owner - skipped (no wage)",
+            LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), tostring(action.sellerFarmId))
+        return false, false, "owner-changed"
     end
 
     -- Defensive: AIAnimalSellEvent.validate returns non-nil only on object == nil, which the
@@ -417,8 +491,30 @@ function RLHerdsmanExecutor._doSell(action, ctx, placeable, farmId, count)
         return true, false, "missing-placeable"
     end
 
-    ctx.server:broadcastEvent(AIAnimalSellEvent.new(placeable, action.animals, action.amountGained), true)
-    return true, true, nil
+    local sale = AIAnimalSellEvent.executeServer(placeable, action.identities, action.sellerFarmId, ctx, saleId)
+    local extra = { sale = sale }
+
+    -- A replayed round: the first result is reported, nothing was sold, announced or earned again.
+    if sale.replayed then
+        return false, false, "replayed", nil, nil, extra
+    end
+
+    if sale.failureStage == "ownership" then
+        return false, false, "owner-changed", nil, nil, extra
+    end
+    if sale.status == AIAnimalSellEvent.STATUS_REFUSED then
+        return true, false, "sale-refused", nil, nil, extra
+    end
+    if sale.settledCount == nil or sale.settledCount == 0 then
+        -- Nothing confirmed sold and paid: nothing to announce, whatever the engine did.
+        return true, false, "sale-failed", nil, nil, extra
+    end
+    if sale.status ~= AIAnimalSellEvent.STATUS_SOLD then
+        Log:warning("%s rule=%s op=sell husbandry=%s farm=%s: partial sale, %d of %d sold for %.2f (planned %.2f), failed at %s",
+            LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), sale.settledCount, count,
+            sale.amountGained, action.amountGained, tostring(sale.failureStage))
+    end
+    return true, true, nil, nil, nil, extra
 end
 
 --- Buy (no mark param): exec runs AIAnimalBuyEvent.validate - the real runtime gate on free slots and
@@ -440,8 +536,21 @@ function RLHerdsmanExecutor._doBuy(action, ctx, placeable, farmId, count)
         return false, false, "bad-data"
     end
 
+    -- T02 batch 3 (RLLiveSale TEST): no buy against a farm's cash a transaction still holds.
+    if RLLiveSale ~= nil and RLLiveSale.getMode() == RLLiveSale.MODE_TEST and RLLiveSale.isCashHeld(farmId) then
+        Log:warning("%s rule=%s op=buy husbandry=%s farm=%s: farm cash held by a transaction awaiting reconciliation - dispatch skipped (wage charged)",
+            LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId))
+        return true, false, "cash-held"
+    end
+
     local errorCode = AIAnimalBuyEvent.validate(placeable, count, action.amountSpent, farmId)
-    if errorCode == AnimalBuyEvent.BUY_ERROR_NOT_ENOUGH_SPACE then
+    if errorCode ~= nil and errorCode == AnimalBuyEvent.BUY_ERROR_PEN_NOT_BUILT then
+        RLHusbandryProfiles.logDecision("HERDSMAN_CHECK", placeable, (action.animals or {})[1],
+            { ruleId = action.ruleId, op = "buy", farmId = farmId, ok = false, errorCode = errorCode, count = count })
+        Log:warning("%s rule=%s op=buy husbandry=%s farm=%s: the pen is not built yet - dispatch skipped (wage charged)",
+            LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId))
+        return true, false, "pen-not-built"
+    elseif errorCode == AnimalBuyEvent.BUY_ERROR_NOT_ENOUGH_SPACE then
         Log:warning("%s rule=%s op=buy husbandry=%s farm=%s count=%d: not enough space - dispatch skipped (wage charged)",
             LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), count)
         return true, false, "no-space"
@@ -453,6 +562,18 @@ function RLHerdsmanExecutor._doBuy(action, ctx, placeable, farmId, count)
         Log:warning("%s rule=%s op=buy husbandry=%s farm=%s: validate rejected (errorCode=%s) - dispatch skipped (wage charged)",
             LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), tostring(errorCode))
         return true, false, "missing-placeable"
+    end
+
+    for _, animal in ipairs(action.animals or {}) do
+        local ok, reason, detail = RLHusbandryProfiles.checkAnimal(placeable, animal)
+        RLHusbandryProfiles.logDecision("HERDSMAN_CHECK", placeable, animal,
+            { ruleId = action.ruleId, op = "buy", farmId = farmId, ok = ok })
+        if not ok then
+            Log:warning("%s rule=%s op=buy husbandry=%s farm=%s: pen rules refuse uniqueId=%s (%s %s) - dispatch skipped (wage charged)",
+                LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId),
+                tostring(animal.uniqueId), tostring(reason), tostring(detail))
+            return true, false, "pen-rules"
+        end
     end
 
     ctx.server:broadcastEvent(AIAnimalBuyEvent.new(placeable, action.animals, action.amountSpent), true)
@@ -899,7 +1020,14 @@ function RLHerdsmanExecutor._doMove(action, ctx, placeable, farmId, count)
 
     -- TYPE-level gate on one representative subtype. A reject still charges the wage, matching buy.
     local errorCode = AIAnimalMoveEvent.validate(placeable, dest, count, action.animals[1].subTypeIndex)
-    if errorCode == AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE then
+    if errorCode ~= nil and errorCode == AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT then
+        RLHusbandryProfiles.logDecision("HERDSMAN_CHECK", dest, action.animals[1],
+            { ruleId = action.ruleId, op = "move", farmId = farmId, ok = false, errorCode = errorCode, count = count,
+              source = RLPenLog.pen(placeable) })
+        Log:warning("%s rule=%s op=move husbandry=%s farm=%s: destination '%s' is not built yet - dispatch skipped (wage charged)",
+            LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), tostring(action.destinationHusbandry))
+        return true, false, "pen-not-built"
+    elseif errorCode == AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE then
         Log:warning("%s rule=%s op=move husbandry=%s farm=%s count=%d: destination has no room - dispatch skipped (wage charged)",
             LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), count)
         return true, false, "no-space"

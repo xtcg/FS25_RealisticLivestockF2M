@@ -6,16 +6,18 @@ Sheep and goats share a husbandry but have different production types. Sheep pro
 
 ---
 
+> **Units:** amounts are per game month. The animal's info in game shows them per game day: divide by your days-per-month setting (at 1 day per month the two are the same).
+
 ## Breeds at a Glance
 
 ### Sheep
 
 | Breed | Target Weight (ewe / ram) | Wool Range (peak) | Sell Value |
 |-------|--------------------------|-------------------|------------|
-| **Black Welsh** | 42 / 57.5 kg | 24 - 166 | Lowest |
-| **Landrace** | 45 / 60 kg | 21 - 149 | Below average |
-| **Steinschaf** | 50 / 67.5 kg | 18 - 123 | Above average |
-| **Swiss Mountain** | 80 / 105 kg | 14 - 96 | Highest |
+| **Black Welsh** | 45 / 62 kg | 24 - 166 | Lowest |
+| **Landrace** | 55 / 75 kg | 21 - 149 | Below average |
+| **Steinschaf** | 80 / 95 kg | 18 - 123 | Above average |
+| **Swiss Mountain** | 75 / 100 kg | 14 - 96 | Highest |
 
 *Black Welsh produce the most wool by far, but Swiss Mountain sell for double the price. Wool range shows the full span from poor to excellent genetics.*
 
@@ -23,7 +25,7 @@ Sheep and goats share a husbandry but have different production types. Sheep pro
 
 | Breed | Target Weight (doe / ram) | Goat Milk Range (peak, lactating) | Sell Value |
 |-------|--------------------------|----------------------------------|------------|
-| **Goat** | 30 / 35 kg | 5 - 57 L/day | High |
+| **Goat** | 60 / 75 kg | 5 - 57 L/month | High |
 
 *Rams are heavier than ewes/does.*
 
@@ -35,7 +37,7 @@ Sheep and goats share a husbandry but have different production types. Sheep pro
 
 Both ewes and rams produce wool - identical output per breed. **Wool is only produced when temperature is 12°C or above** (warm weather shearing season). In winter, wool output drops to zero.
 
-### Wool Output Range (units/day, warm weather)
+### Wool Output Range (units/month, warm weather)
 
 | Breed | 6 mo | 18 mo (peak) |
 |-------|------|--------------|
@@ -52,7 +54,7 @@ Both ewes and rams produce wool - identical output per breed. **Wool is only pro
 
 Goats produce milk **only while lactating** (10 months after giving birth). Goat milk is a separate product from cow milk (GOATMILK fill type - requires compatible storage).
 
-### Goat Milk Output Range (L/day, lactating)
+### Goat Milk Output Range (L/month, lactating)
 
 | Age | Range |
 |-----|-------|
@@ -69,18 +71,20 @@ Sheep and goat prices peak at 36 months and stay at that level for older animals
 
 ### Typical Sell Prices ($)
 
-| Breed | | Newborn | 36 mo (peak) |
-|-------|---|---------|--------------|
-| **Black Welsh** | Ewe | 35 | 520 |
-| | Ram | 45 | 600 |
-| **Landrace** | Ewe | 40 | 550 |
-| | Ram | 50 | 675 |
-| **Steinschaf** | Ewe | 80 | 900 |
-| | Ram | 100 | 1,050 |
-| **Swiss Mountain** | Ewe | 100 | 1,050 |
-| | Ram | 120 | 1,200 |
-| **Goat** | Doe | 100 | 1,000 |
-| | Ram Goat | 150 | 1,500 |
+Commodity lambs are normally sold around 5-6 months; 36-month values below are mature breeding-stock values.
+
+| Breed | | Newborn | 6 mo | 36 mo (peak) |
+|-------|---|---------|------|--------------|
+| **Black Welsh** | Ewe | 35 | 130 | 520 |
+| | Ram | 45 | 155 | 600 |
+| **Landrace** | Ewe | 40 | 140 | 550 |
+| | Ram | 50 | 170 | 675 |
+| **Steinschaf** | Ewe | 80 | 180 | 900 |
+| | Ram | 100 | 210 | 1,050 |
+| **Swiss Mountain** | Ewe | 100 | 190 | 1,050 |
+| | Ram | 120 | 220 | 1,200 |
+| **Goat** | Doe | 100 | 300 | 1,000 |
+| | Ram Goat | 150 | 350 | 1,500 |
 
 *These are typical prices for an average, healthy animal. Actual prices vary widely - well-bred healthy animals sell for significantly more, poor-quality animals can sell for far less, and a sick animal is worth less while sick.*
 
@@ -112,7 +116,7 @@ Sheep and goat prices peak at 36 months and stay at that level for older animals
 
 Genetics significantly affect how much each animal eats - some are naturally much more efficient than others. Lactating goats eat noticeably more, and the Food Scale setting also adjusts consumption.
 
-### Food Consumption Range (L/day)
+### Food Consumption Range (L/month)
 
 | Breed | | Newborn | 18+ mo (adult) |
 |-------|---|---------|-----------------|
@@ -129,7 +133,7 @@ Genetics significantly affect how much each animal eats - some are naturally muc
 
 *Black Welsh are the cheapest to feed. Swiss Mountain eat the most. Goats are very efficient. Ranges show the span from the most efficient to the hungriest animals.*
 
-### Water Consumption (L/day, newborn -> adult)
+### Water Consumption (L/month, newborn -> adult)
 
 | Breed | Female | Male |
 |-------|--------|------|
@@ -147,18 +151,18 @@ Genetics significantly affect how much each animal eats - some are naturally muc
 
 | Breed | | Birth | Target | Maximum |
 |-------|---|-------|--------|---------|
-| **Black Welsh** | Ewe | 4.2 kg | 42 kg | 135 kg |
-| | Ram | 4.6 kg | 57.5 kg | 150 kg |
-| **Landrace** | Ewe | 4.4 kg | 45 kg | 135 kg |
-| | Ram | 4.7 kg | 60 kg | 150 kg |
-| **Steinschaf** | Ewe | 4.8 kg | 50 kg | 135 kg |
-| | Ram | 5.3 kg | 67.5 kg | 150 kg |
-| **Swiss Mountain** | Ewe | 5.8 kg | 80 kg | 135 kg |
-| | Ram | 6.5 kg | 105 kg | 150 kg |
-| **Goat** | Doe | 3.75 kg | 30 kg | 90 kg |
-| | Ram Goat | 4.0 kg | 35 kg | 115 kg |
+| **Black Welsh** | Ewe | 4.2 kg | 45 kg | 135 kg |
+| | Ram | 4.6 kg | 62 kg | 150 kg |
+| **Landrace** | Ewe | 4.4 kg | 55 kg | 135 kg |
+| | Ram | 4.7 kg | 75 kg | 150 kg |
+| **Steinschaf** | Ewe | 4.8 kg | 80 kg | 135 kg |
+| | Ram | 5.3 kg | 95 kg | 150 kg |
+| **Swiss Mountain** | Ewe | 5.8 kg | 75 kg | 135 kg |
+| | Ram | 6.5 kg | 100 kg | 150 kg |
+| **Goat** | Doe | 3.75 kg | 60 kg | 90 kg |
+| | Ram Goat | 4.0 kg | 75 kg | 115 kg |
 
-*Swiss Mountain sheep are nearly double the weight of Black Welsh. Goats are the lightest. Higher metabolism animals reach target weight faster but eat more.*
+*Swiss Mountain and Steinschaf are the large breeds, Black Welsh the smallest. Higher metabolism animals reach target weight faster but eat more.*
 
 ---
 

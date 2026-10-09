@@ -3,12 +3,14 @@
 AnimalMoveEvent = { MOVE_SUCCESS = 0, MOVE_ERROR_INVALID_CLUSTER = 4, MOVE_ERROR_NOT_ENOUGH_SPACE = 6 }
 
 TYPES = { [1] = { name = "COW" }, [2] = { name = "PIG" }, [3] = { name = "DUCKWILD" }, [4] = { name = "SHEEP" } }
-SUBS = { [1] = { typeIndex = 1, targetWeight = 900, name = "BULL_ANGUS", breed = "ANGUS" },
-         [2] = { typeIndex = 1, targetWeight = 575, name = "COW_HOLSTEIN", breed = "HOLSTEIN" },
-         [3] = { typeIndex = 2, targetWeight = 165 }, [4] = { typeIndex = 3, targetWeight = 3.5 },
-         [5] = { typeIndex = 3, targetWeight = 2.5 },
-         [6] = { typeIndex = 4, targetWeight = 30, name = "GOAT", breed = "GOAT" },
-         [7] = { typeIndex = 4, targetWeight = 45, name = "SHEEP_LANDRACE", breed = "LANDRACE" } }
+SUBS = { [1] = { typeIndex = 1, targetWeight = 1000, name = "BULL_ANGUS", breed = "ANGUS", gender = "male" },
+         [2] = { typeIndex = 1, targetWeight = 730, name = "COW_HOLSTEIN", breed = "HOLSTEIN", gender = "female" },
+         [3] = { typeIndex = 2, targetWeight = 240, name = "PIG_LANDRACE", breed = "LANDRACE", gender = "female" },
+         [4] = { typeIndex = 3, targetWeight = 3.5 }, [5] = { typeIndex = 3, targetWeight = 2.5 },
+         [6] = { typeIndex = 4, targetWeight = 60, name = "GOAT", breed = "GOAT", gender = "female" },
+         [7] = { typeIndex = 4, targetWeight = 55, name = "SHEEP_LANDRACE", breed = "LANDRACE", gender = "female" },
+         [8] = { typeIndex = 1, targetWeight = 1200, name = "BULL_LIMOUSIN", breed = "LIMOUSIN", gender = "male" },
+         [9] = { typeIndex = 1, targetWeight = 1100, name = "BULL_HOLSTEIN", breed = "HOLSTEIN", gender = "male" } }
 MONEY = {}
 g_currentMission = {
     animalSystem = { getSubTypeByIndex = function(_, i) return SUBS[i] end, getTypeByIndex = function(_, i) return TYPES[i] end },
@@ -16,73 +18,48 @@ g_currentMission = {
     addMoney = function(_, delta, farmId) MONEY[farmId] = (MONEY[farmId] or 0) + delta end,
 }
 
--- XMLFile over the flat, two-level carcassYield.xml: root attributes, animalType (with breed
--- children) and subType elements, addressed with the engine's "parent.child(i)#attr" keys.
-local function attributes(text)
-    local attrs = {}
-    for name, value in text:gmatch('([%w_]+)="([^"]*)"') do attrs[name] = value end
-    return attrs
-end
-local function fakeXMLFile(path)
-    local handle = io.open(path, "r")
-    if handle == nil then return nil end
-    local text = handle:read("a"):gsub("<!%-%-.-%-%->", "")
-    handle:close()
-    local nodes, counts = {}, {}
-    local function add(parent, child, attrs)
-        local i = counts[parent .. "." .. child] or 0
-        counts[parent .. "." .. child] = i + 1
-        local key = string.format("%s.%s(%d)", parent, child, i)
-        nodes[key] = attrs
-        return key
-    end
-    nodes.carcassYield = attributes(text:match("<carcassYield([^>]*)>"))
-    for element, attrText, rest in text:gmatch("<(%a+)([^>]-)(/?)>") do
-        if element == "animalType" then
-            nodes.lastType = add("carcassYield", "animalType", attributes(attrText))
-        elseif element == "breed" then
-            add(nodes.lastType, "breed", attributes(attrText))
-        elseif element == "subType" then
-            add("carcassYield", "subType", attributes(attrText))
-        end
-    end
-    local function get(key)
-        local node, attr = key:match("^(.*)#(.*)$")
-        return nodes[node] ~= nil and nodes[node][attr] or nil
-    end
-    return {
-        getString = function(_, key, default) return get(key) or default end,
-        getFloat = function(_, key, default) return tonumber(get(key)) or default end,
-        iterate = function(_, key, fn)
-            for i = 0, (counts[key] or 0) - 1 do fn(i, string.format("%s(%d)", key, i)) end
-        end,
-        delete = function() end,
-    }
-end
-XMLFile = { loadIfExists = function(_, path) return fakeXMLFile(path) end }
+XMLFile = { loadIfExists = function(_, path) return loadXMLFileFromDisk(path) end }
 fileExists = function() return false end
 g_currentModDirectory = REPO
 
+loadMod("scripts/animal/RLBreedTraits.lua")
 loadMod("scripts/animals/shop/events/AnimalMoveEvent.lua")
 
 local config = AnimalMoveEvent.getCarcassConfig()
 check("config: shipped xml/carcassYield.xml is read",
-    near(config.qualitySwing, 0.25) and config.types.COW == 650 and config.types.PIG == 120
-    and config.breeds.SHEEP.GOAT == 32 and near(config.maxWeightRatio, 2.5))
+    near(config.layers.root.qualitySwing, 0.2) and config.layers.types.COW.anchorWeight == 600
+    and near(config.layers.breeds.COW.HOLSTEIN.maleMaturity, 0.59) and config.layers.breeds.SHEEP.GOAT.anchorWeight == 32
+    and near(config.maxFinishFactor, 1.3) and near(config.sizeExponent, 0.25))
 
-local function animal(sub, weight, quality)
-    return { subTypeIndex = sub, weight = weight, genetics = quality and { quality = quality } or nil }
+-- The chain: a 600 kg standard animal x 0.60 to the carcass x 0.75 to what the map sells = 270 kg.
+check("meat per head: cattle 270 kg from anchor 600 x dressing 0.60 x saleable 0.75; pigs and sheep keep theirs",
+    near(AnimalMoveEvent.getMeatPerHead("COW"), 270) and AnimalMoveEvent.getMeatPerHead("PIG") == 75
+    and AnimalMoveEvent.getMeatPerHead("SHEEP") == 50 and AnimalMoveEvent.getMeatPerHead("DUCKWILD") == nil)
+
+-- The animal's own target weight defaults to its subtype's (no metabolism gene in these tests).
+local function animal(sub, weight, quality, targetWeight)
+    return { subTypeIndex = sub, weight = weight, gender = SUBS[sub].gender,
+        targetWeight = targetWeight or SUBS[sub].targetWeight, genetics = quality and { quality = quality } or nil }
 end
+local function yield(a) return AnimalMoveEvent.getCarcassYieldFactor(a, nil, a.subTypeIndex) end
 local function entry(a) return { animal = { subTypeIndex = a.subTypeIndex }, sourceCluster = a } end
 
 -- Stand-in for the map's unit-based butcher addCluster (PlaceableExtendedProductionAnimalUnits):
 -- whole animals of unitsPerAnimal each, read live from eppAnimalInputUnitsByFillType.
 local BEEF, PIGS, POULTRY, SHEEPGOAT = 20, 21, 22, 23
+-- The farm butcher's recipes: units in -> meat out (BEEF 1500 -> 900, PIGS 240 -> 150, SHEEPGOAT 160 -> 100).
+local MEAT = { BEEFMEAT = 30, PORKMEAT = 31, POULTRYMEAT = 32, SHEEPGOATMEAT = 33 }
+g_fillTypeManager = { getFillTypeIndexByName = function(_, name) return MEAT[name] end }
+local function production(input, inputAmount, output, outputAmount)
+    return { inputs = { { type = input, amount = inputAmount } }, outputs = { { type = output, amount = outputAmount } } }
+end
 local function butcher(capacity, fill)
     local f = { isServer = true, animalsTypeData = {}, level = fill or 0, cap = capacity,
         animalSubTypeToFillType = { [1] = BEEF, [2] = BEEF, [3] = PIGS, [4] = POULTRY, [5] = POULTRY,
-            [6] = SHEEPGOAT, [7] = SHEEPGOAT },
+            [6] = SHEEPGOAT, [7] = SHEEPGOAT, [8] = BEEF, [9] = BEEF, [10] = BEEF },
         eppAnimalInputUnitsByFillType = { [BEEF] = 750, [PIGS] = 120, [POULTRY] = 10, [SHEEPGOAT] = 80 },
+        productions = { production(BEEF, 1500, MEAT.BEEFMEAT, 900), production(PIGS, 240, MEAT.PORKMEAT, 150),
+            production(SHEEPGOAT, 160, MEAT.SHEEPGOATMEAT, 100) },
         eppHasScaledAnimalInputs = true }
     function f:getCapacity() return self.cap end
     function f:getFillLevel() return self.level end
@@ -103,24 +80,53 @@ local function butcherUnits(a)
     return f.level, #list, f
 end
 
-local units, count, f = butcherUnits(animal(1, 650, 1))
-check("butcher: 650 kg average-gene cow = configured 750", near(units, 750) and count == 1)
-check("butcher: configured units restored", f.eppAnimalInputUnitsByFillType[BEEF] == 750)
-check("butcher: 900 kg Angus bull -> 750*900/650 = 1038.5", near(butcherUnits(animal(1, 900, 1)), 1038.46))
-check("butcher: 575 kg Holstein cow -> 663.5", near(butcherUnits(animal(2, 575, 1)), 663.46))
-check("butcher: same cow, meat gene 1.5 -> 746.4", near(butcherUnits(animal(2, 575, 1.5)), 746.39))
-check("butcher: 110 kg finishing pig -> 110", near(butcherUnits(animal(3, 110, 1)), 110))
-check("butcher: unlisted type falls back to the mean target weight", near(butcherUnits(animal(4, 3.5, 1)), 11.67))
-check("butcher: 32 kg goat uses the GOAT breed reference -> 80", near(butcherUnits(animal(6, 32, 1)), 80))
-check("butcher: 50 kg sheep uses the SHEEP type reference -> 80", near(butcherUnits(animal(7, 50, 1)), 80))
+check("yield: Angus bull at its reference (1000 x 0.60 = 600 kg) -> size 1.000 x carcass 1.06 = 1.06",
+    near(yield(animal(1, 600, 1)), 1.06, 0.001))
+check("yield: Limousin bull at its reference (1200 x 0.585 = 702 kg) -> 1.102", near(yield(animal(8, 702, 1)), 1.1024, 0.001))
+check("yield: Holstein bull at its reference (1100 x 0.59 = 649 kg) -> 0.959", near(yield(animal(9, 649, 1)), 0.9586, 0.001))
+check("yield: finish (750 / 600) ^ 0.85 for a heavy Angus -> 1.282", near(yield(animal(1, 750, 1)), 1.2818, 0.001))
+check("yield: finish clamped at 1.3 for a huge Angus", near(yield(animal(1, 5000, 1)), 1.378, 0.001))
+check("yield: no finish floor, a 50 kg calf yields by its weight", near(yield(animal(1, 50, 1)), (50 / 600) ^ 0.85 * 1.06, 0.001))
+check("yield: meat gene 1.5 -> +10% (qualitySwing 0.2)", near(yield(animal(1, 600, 1.5)) / yield(animal(1, 600, 1)), 1.1))
+check("yield: goat qualitySwing 0.12 -> +6% at gene 1.5", near(yield(animal(6, 51, 1.5)) / yield(animal(6, 51, 1)), 1.06))
+check("yield: own target weight moves the reference (metabolism)",
+    yield(animal(1, 800, 1, 1200)) < yield(animal(1, 800, 1)))
+check("yield: 1 without an animal; no weight -> size x carcass only",
+    AnimalMoveEvent.getCarcassYieldFactor(nil) == 1 and near(yield({ subTypeIndex = 1, gender = "male" }), 1.06, 0.001))
 
+local units, count, f = butcherUnits(animal(1, 600, 1))
+check("butcher: Angus bull at its reference -> 450 x 1.06 = 477", near(units, 477, 0.05) and count == 1)
+check("butcher: configured units restored", f.eppAnimalInputUnitsByFillType[BEEF] == 750)
+
+-- Hof Bergmann's insemination system: the same unit-based input, but it turns 1000 units back
+-- into one live MILK_COW, so a head must stay 1000 units whatever the cow weighs.
+local insemination = butcher(1e6)
+insemination.eppAnimalInputUnitsByFillType = { [BEEF] = 1000 }
+insemination.eao_specs = { { animals = { { inputFillTypeIndex = BEEF } } } }
+AnimalMoveEvent._deliverToEPPTarget(insemination, { entry(animal(2, 450, 1)) }, 1)
+check("insemination: a light Holstein is still 1000 units (not carcass-scaled)", insemination.level == 1000)
+check("insemination: counted by head, not by yield",
+    not AnimalMoveEvent._isWeighedTarget(insemination, nil, 2) and AnimalMoveEvent._isWeighedTarget(butcher(1), nil, 2))
+check("butcher: Holstein cull cow at 621 kg, gene 1.5 -> 469.5", near(butcherUnits(animal(2, 621, 1.5)), 469.55, 0.05))
+check("butcher: 120 kg Landrace gilt -> 117.2", near(butcherUnits(animal(3, 120, 1)), 117.21, 0.05))
+check("butcher: unlisted type anchors on the facility mean target weight -> 10.39",
+    near(butcherUnits(animal(4, 3.5, 1)), 10.39, 0.01))
+check("butcher: 51 kg doe uses the GOAT breed anchor -> 84.5", near(butcherUnits(animal(6, 51, 1)), 84.49, 0.05))
+check("butcher: 46.75 kg Landrace ewe uses the SHEEP type -> 78.7", near(butcherUnits(animal(7, 46.75, 1)), 78.67, 0.05))
+
+-- The rest checks batch, room and fee handling on a linear config: yield = live / reference x
+-- (1 + 0.25 x (gene - 1)), fixed references COW 650 and PIG 120.
 local shipped = AnimalMoveEvent.carcassConfig
-AnimalMoveEvent.carcassConfig = { qualitySwing = 0.1, minWeightRatio = 0.1, maxWeightRatio = 2.5,
-    types = { COW = 650 }, breeds = { COW = { ANGUS = 900 } }, subTypes = { COW_HOLSTEIN = 575 } }
-check("config: breed reference beats type (900 kg Angus -> 750)", near(butcherUnits(animal(1, 900, 1)), 750))
-check("config: subtype reference beats type (575 kg Holstein -> 750)", near(butcherUnits(animal(2, 575, 1)), 750))
-check("config: qualitySwing read from config (gene 1.5 -> 1.05)", near(butcherUnits(animal(2, 575, 1.5)), 787.5))
-AnimalMoveEvent.carcassConfig = shipped
+AnimalMoveEvent.carcassConfig = { sizeExponent = 0, minSizeFactor = 1, maxSizeFactor = 1, finishExponent = 1,
+    minFinishFactor = 0.1, maxFinishFactor = 2.5,
+    layers = { root = { qualitySwing = 0.25 }, breeds = { COW = { ANGUS = { carcassFactor = 1.1 } } }, subTypes = {},
+        types = { COW = { referenceWeight = 650, anchorWeight = 650 }, PIG = { referenceWeight = 120, anchorWeight = 120 } } } }
+check("config: breed value beats type", near(yield(animal(1, 650, 1)), 1.1))
+AnimalMoveEvent.carcassConfig.layers.subTypes.BULL_ANGUS = { carcassFactor = 1.2 }
+check("config: subtype value beats breed", near(yield(animal(1, 650, 1)), 1.2))
+AnimalMoveEvent.carcassConfig.layers.breeds.COW = {}
+AnimalMoveEvent.carcassConfig.layers.subTypes = {}
+check("config: fixed referenceWeight replaces target x maturity", near(butcherUnits(animal(1, 900, 1)), 1038.46))
 
 local heavy = butcher(2000)
 list = AnimalMoveEvent._deliverToEPPTarget(heavy, { entry(animal(1, 900, 1)), entry(animal(1, 900, 1)) }, 1)
@@ -264,9 +270,58 @@ end
 list = AnimalMoveEvent._deliverToEPPTarget(getterStyle, { entry(animal(1, 650, 1)) }, nil)
 check("shim answers getSubTypeIndex/getNumAnimals", #list == 1 and getterStyle.credited == 1)
 
-check("yield factor is 1 without weight or genetics",
-    AnimalMoveEvent.getCarcassYieldFactor({}, 650) == 1 and AnimalMoveEvent.getCarcassYieldFactor(nil) == 1)
-check("weight ratio clamped at 2.5", near(AnimalMoveEvent.getCarcassYieldFactor(animal(1, 5000, 1), 650), 2.5))
+check("weight ratio clamped at 2.5", near(yield(animal(1, 5000, 1)), 2.5))
+AnimalMoveEvent.carcassConfig = shipped
+
+-- Contract recipes rescaled to the farm butcher's meat per typical animal (animalType#meatPerHead).
+local BEEFMEAT, PORKMEAT, POULTRYMEAT, SHEEPMEAT, WASTE = 30, 31, 32, 33, 34
+local function contractRecipes(subTypeToFillType)
+    local function recipe(id, input, output, amount, extra)
+        local r = { id = id, inputs = { [input] = { amount = 1 } }, outputs = { [output] = { amount = amount } },
+            primaryOutputFillTypeIndex = output, feePerBatch = 100, feeInputFillTypeIndex = input }
+        if extra ~= nil then r.outputs[WASTE] = { amount = extra } end
+        return r
+    end
+    local recipes = { recipe("beef", BEEF, BEEFMEAT, 1000), recipe("pork", PIGS, PORKMEAT, 500),
+        recipe("poultry", POULTRY, POULTRYMEAT, 100), recipe("sheep", SHEEPGOAT, SHEEPMEAT, 400, 80) }
+    return { spec_contractProductionService = { serviceId = "slaughterhouse", recipes = recipes },
+        animalSubTypeToFillType = subTypeToFillType or { [1] = BEEF, [2] = BEEF, [3] = PIGS, [4] = POULTRY,
+            [5] = POULTRY, [6] = SHEEPGOAT, [7] = SHEEPGOAT } }, recipes
+end
+
+local target, recipes = contractRecipes()
+check("contract recipes: beef, pork and sheep rescaled; a type without meatPerHead left alone",
+    AnimalMoveEvent.alignContractRecipes(target) == 3)
+check("contract recipes: 1 cow -> 270 kg, 1 pig -> 75 kg, like the farm butcher",
+    near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[2].outputs[PORKMEAT].amount, 75))
+check("contract recipes: cattle fine cutting adds 0.37 per kg to the batch fee (100 + 0.37 x 270), pork keeps 100",
+    near(recipes[1].feePerBatch, 199.9) and recipes[2].feePerBatch == 100)
+check("contract recipes: DUCKWILD (no meatPerHead) keeps 100", recipes[3].outputs[POULTRYMEAT].amount == 100)
+check("contract recipes: sheep 400 -> 50 kg, its other output scaled by the same factor",
+    near(recipes[4].outputs[SHEEPMEAT].amount, 50) and near(recipes[4].outputs[WASTE].amount, 10))
+AnimalMoveEvent.alignContractRecipes(target)
+check("contract recipes: a second run does not scale again",
+    near(recipes[1].outputs[BEEFMEAT].amount, 270) and near(recipes[4].outputs[WASTE].amount, 10) and near(recipes[1].feePerBatch, 199.9))
+
+target, recipes = contractRecipes({ [1] = BEEF, [3] = BEEF })
+check("contract recipes: a fill type taken by two animal types is left alone",
+    AnimalMoveEvent.alignContractRecipes(target) == 0 and recipes[1].outputs[BEEFMEAT].amount == 1000)
+-- Hof Bergmann 1.5 Beta2 maps COW and its MILKCOW placeholder type (no carcass config) to BEEF.
+TYPES[5] = { name = "MILKCOW" }
+SUBS[11] = { typeIndex = 5, targetWeight = 730, name = "MILK_COW", breed = "MILK_COW", gender = "female" }
+target, recipes = contractRecipes({ [1] = BEEF, [2] = BEEF, [11] = BEEF, [3] = PIGS })
+check("contract recipes: BEEF also taken by MILKCOW (no meat per head) -> cattle recipe still 270 kg, fee 199.9",
+    AnimalMoveEvent.alignContractRecipes(target) == 2 and near(recipes[1].outputs[BEEFMEAT].amount, 270)
+    and near(recipes[1].feePerBatch, 199.9))
+TYPES[5], SUBS[11] = nil, nil
+check("contract recipes: a placeable without the contract spec is ignored",
+    AnimalMoveEvent.alignContractRecipes({}) == 0 and AnimalMoveEvent.alignContractRecipes(nil) == 0)
+
+-- The reported Swiss Brown bull: 516 kg, average meat gene, target 1000 kg -> 0.79 typical animals.
+SUBS[10] = { typeIndex = 1, targetWeight = 1000, name = "BULL_SWISS_BROWN", breed = "SWISS_BROWN", gender = "male" }
+local bull = yield(animal(10, 516, 1))
+check("Swiss Brown bull 516 kg: 0.85 typical animals, 228 kg of beef at either facility",
+    near(bull, 0.8453, 0.002) and near(butcherUnits(animal(10, 516, 1)) * 0.6, bull * 270, 0.05))
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") then check("no script error: " .. line, false) end

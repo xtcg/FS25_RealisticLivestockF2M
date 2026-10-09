@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    Breed husbandry traits. Every trait is a multiplier, 1 = unchanged.
+
+    feed     Daily food, on top of the subtype's food curve, metabolism, pregnancy and lactation.
+    growth   Weight gained per hour of growth. Losses are not scaled.
+    femaleGrowth    Growth of a female relative to a male, default 0.6.
+    matureAgeMonth  Time scale of growth, in months. Base gain is (target weight - birth weight) /
+                    matureAgeMonth per month; growth, femaleGrowth, age and feed then change the
+                    actual rate, so only a male with growth 1 on full feed is on target by then.
+                    The expected weight for age that food, sale value and newly generated
+                    animals are measured against reaches the target at this age.
+                    Default 1.5 x the subtype's reproduction age.
+    grass    How well the breed uses what its pen ate from each forage category below. The pen's
+    hay      food factor is weighted by the share of each category in the last feeding, so a
+    silage   Highland on grass grows as if the grass were 25% richer. Health, milk and the other
+             outputs still use the pen's plain food factor.
+
+    A trait is looked up by subType name first, then by breed within the animal type, then by
+    animal type, then on the root element.
+
+    Root settings:
+    growthNutritionFactor  Growth runs at min(food factor x forage efficiency x this, 1). At 1.10,
+                           grass (0.40) grows at 44%, hay (0.65) 71.5%, silage (0.80) 88% and
+                           TMR (1.00) at full speed.
+    bodyWeightExponent     Daily food is scaled by (weight / expected weight for its age) ^ this,
+    minBodyRatio           the ratio clamped to minBodyRatio..maxBodyRatio. The expected weight
+    maxBodyRatio           grows from the subtype's minWeight to the animal's own target weight.
+
+    A pen with its own meadow that ate nothing from the trough in a feeding counts as on grass.
+
+    Dealer stock:
+    maleMaxSaleAgeMonth    Oldest age the dealer normally offers a male / female of the subtype at. A
+    femaleMaxSaleAgeMonth  breeder sells young stock - store and finishing animals, heifers, gilts,
+                           shearlings - and keeps or culls grown ones, so an animal drawn older than this
+                           is offered only when its genetics are elite; any other is drawn again within
+                           the limit. None set: only the animal type's maxBuyAge applies (horses).
+    eliteSaleGenetics      (root) The mean of its genes an animal needs to be offered past that age.
+                           1.45 is about the best 11% of the dealer's draw.
+    Animals the dealer generates are also never heavier than their own target weight.
+
+    To change these without editing the mod, copy this file to
+    modSettings/FS25_RealisticLivestockRM/breedTraits.xml; that copy then replaces this file
+    entirely. In multiplayer the server's file applies.
+-->
+<breedTraits growthNutritionFactor="1.10" bodyWeightExponent="0.35" minBodyRatio="0.5" maxBodyRatio="1.5" eliteSaleGenetics="1.45">
+    <forage>
+        <category name="grass" fillTypes="GRASS_WINDROW"/>
+        <category name="hay" fillTypes="DRYGRASS_WINDROW CLOVER_WINDROW"/>
+        <category name="silage" fillTypes="SILAGE FORAGE FORAGEPLUS ROUNDBALE"/>
+    </forage>
+
+    <!-- Bulls up to 2 years (store, finishing and young sires; Highland and buffalo finish later),
+         cows up to 4 years (heifers and young cows); older only when elite. -->
+    <animalType name="COW" maleMaxSaleAgeMonth="24" femaleMaxSaleAgeMonth="48">
+        <breed name="HIGHLAND"      maleMaxSaleAgeMonth="30" feed="0.80" growth="0.90" grass="1.25" hay="1.15" silage="1.00"/>
+        <breed name="HEREFORD"      feed="0.90" growth="1.02" grass="1.15" hay="1.10" silage="1.00"/>
+        <breed name="WATER_BUFFALO" maleMaxSaleAgeMonth="30" feed="0.90" growth="0.96" grass="1.15" hay="1.05" silage="1.00"/>
+        <breed name="LIMOUSIN"      feed="0.95" growth="1.08" grass="0.95" hay="1.00" silage="1.05"/>
+        <breed name="ANGUS"         feed="1.00" growth="1.00" grass="1.00" hay="1.00" silage="1.00"/>
+        <breed name="SWISS_BROWN"   feed="1.00" growth="1.00" grass="1.05" hay="1.05" silage="1.00"/>
+        <breed name="HOLSTEIN"      feed="1.10" growth="0.95" grass="0.90" hay="0.95" silage="1.10"/>
+    </animalType>
+
+    <!-- Gilts grow almost as fast as boars; the mod's 0.6 for females is for breeding stock. -->
+    <animalType name="PIG" femaleGrowth="0.95" maleMaxSaleAgeMonth="12" femaleMaxSaleAgeMonth="12">
+        <breed name="BERKSHIRE"  feed="1.08" growth="0.95" matureAgeMonth="17.7"/>  <!-- 118 kg at 6.5 months -->
+        <breed name="LANDRACE"   feed="1.00" growth="1.05" matureAgeMonth="16.3"/>  <!-- 126 kg at 5.5 months -->
+        <breed name="BLACK_PIED" feed="0.90" growth="0.95" matureAgeMonth="13.7"/>  <!-- 120 kg at 6 months -->
+    </animalType>
+
+    <animalType name="SHEEP" maleMaxSaleAgeMonth="18" femaleMaxSaleAgeMonth="30">  <!-- goats share the SHEEP type -->
+        <breed name="BLACK_WELSH"    feed="0.85" growth="0.90"/>
+        <breed name="LANDRACE"       feed="0.95" growth="1.00"/>
+        <breed name="STEINSCHAF"     feed="1.05" growth="1.05"/>
+        <breed name="SWISS_MOUNTAIN" feed="1.10" growth="1.05"/>
+        <breed name="GOAT"           feed="0.85" growth="0.95" grass="1.15" hay="1.15"/>
+    </animalType>
+
+    <!-- Poultry and rabbits: young stock only (point-of-lay hens, young breeders). -->
+    <animalType name="CHICKEN" maleMaxSaleAgeMonth="12" femaleMaxSaleAgeMonth="12"/>  <!-- ducks share the type on Hof Bergmann -->
+    <animalType name="GOOSE" maleMaxSaleAgeMonth="14" femaleMaxSaleAgeMonth="14"/>
+    <animalType name="RABBIT" maleMaxSaleAgeMonth="8" femaleMaxSaleAgeMonth="12"/>
+
+    <!--
+        Growth line of animals raised for meat: bulls, rams, and gilts (the boars' is on the PIG
+        breeds above). Each reaches its slaughter reference (target weight x maturity in
+        carcassYield.xml) at a realistic age on full feed: TMR for cattle. Cows and ewes keep the
+        mod's default (1.5 x the age they can first breed). Solved with tests/economics.py.
+    -->
+    <subType name="BULL_HOLSTEIN"        matureAgeMonth="40.2" priceTargetWeight="1000" priceMatureAgeMonth="32"/>  <!-- 649 kg at 17 months -->
+    <subType name="BULL_LIMOUSIN"        matureAgeMonth="55.0" priceTargetWeight="1000" priceMatureAgeMonth="35.7"/>  <!-- 702 kg at 18 months -->
+    <subType name="BULL_ANGUS"           matureAgeMonth="52.2" priceTargetWeight="850" priceMatureAgeMonth="33.4"/>  <!-- 601 kg at 19.5 months -->
+    <subType name="BULL_HEREFORD"        matureAgeMonth="54.2" priceTargetWeight="850" priceMatureAgeMonth="35.9"/>  <!-- 571 kg at 19.5 months -->
+    <subType name="BULL_SWISS_BROWN"     matureAgeMonth="51.5" priceTargetWeight="900" priceMatureAgeMonth="37.8"/>  <!-- 620 kg at 20 months -->
+    <subType name="BULL_WATERBUFFALO"    matureAgeMonth="60.3" priceTargetWeight="900" priceMatureAgeMonth="45.4"/>  <!-- 450 kg at 23 months -->
+    <subType name="BULL_HIGHLAND_CATTLE" matureAgeMonth="63.3" priceTargetWeight="750" priceMatureAgeMonth="40.2"/>  <!-- 480 kg at 25 months -->
+    <subType name="PIG_LANDRACE"         matureAgeMonth="12.2"/>  <!-- gilt: 125 kg at 5.6 months -->
+    <subType name="PIG_BLACK_PIED"       matureAgeMonth="8.9"/>   <!-- gilt: 121 kg at 6.1 months -->
+    <subType name="PIG_BERKSHIRE"        matureAgeMonth="13.1"/>  <!-- gilt: 114 kg at 6.6 months -->
+    <subType name="RAM_LANDRACE"         matureAgeMonth="9.1"/>   <!-- 46.5 kg at 5 months -->
+    <subType name="RAM_STEINSCHAF"       matureAgeMonth="9.6"/>   <!-- 59 kg at 5 months -->
+    <subType name="RAM_SWISS_MOUNTAIN"   matureAgeMonth="10.7"/>  <!-- 62 kg at 5.5 months -->
+    <subType name="RAM_BLACK_WELSH"      matureAgeMonth="9.1"/>   <!-- 38.4 kg at 5.5 months -->
+
+    <!--
+        Live-price model. Animal:getSellPrice measures an animal's weight against a reference line
+        (priceTargetWeight over priceMatureAgeMonth, the values the calibrated prices were made with) so
+        that prices do not move when target weights or growth lines are set to real weights. The
+        animal's weight is put on that line as its share of the full-feed growth line
+        (RLBreedTraits.toPriceWeight): a dealer's animal or one on full feed is priced by age as before.
+    -->
+    <subType name="COW_SWISS_BROWN" priceTargetWeight="650" priceMatureAgeMonth="18"/>
+    <subType name="COW_HOLSTEIN" priceTargetWeight="680" priceMatureAgeMonth="18"/>
+    <subType name="COW_ANGUS" priceTargetWeight="650" priceMatureAgeMonth="18"/>
+    <subType name="COW_LIMOUSIN" priceTargetWeight="650" priceMatureAgeMonth="18"/>
+    <subType name="COW_HEREFORD" priceTargetWeight="600" priceMatureAgeMonth="18"/>
+    <subType name="COW_HIGHLAND_CATTLE" priceTargetWeight="500" priceMatureAgeMonth="18"/>
+    <subType name="COW_WATERBUFFALO" priceTargetWeight="550" priceMatureAgeMonth="18"/>
+
+    <!-- Example of a single subtype:
+    <subType name="BULL_HIGHLAND_CATTLE" growth="0.85"/>
+    -->
+</breedTraits>

@@ -752,8 +752,8 @@ function RLMenuBuyFrame:startBuyFlow(animals, price, fee)
     end
 
     -- A nil source makes the source-exclusion a no-op, so every farm-owned placeable
-    -- supporting the subtype is returned.
-    local rawEntries = RLAnimalMoveService.getValidDestinations(nil, farmId, subTypeIndex)
+    -- supporting the subtype and taking at least one of the animals is returned.
+    local rawEntries = RLAnimalMoveService.getValidDestinations(nil, farmId, subTypeIndex, animals)
 
     -- EPP filter (see function doc comment for rationale)
     local entries = {}

@@ -81,16 +81,19 @@
         <text name="rl_dialog_title" text="Maximale Anzahl visueller Tiere"/>
 
         <text name="rl_ui_unhealthy" text="Zu krank"/>
+        <text name="rl_ui_reproUnderAge" text="Jünger als %s"/>
+        <text name="rl_ui_reproRecovers" text="Erholung: %s"/>
+        <text name="rl_ui_reproLowHealth" text="Gesundheit &lt; %s"/>
         <text name="rl_ui_unhealthyBracketed" text="Nein (zu krank)"/>
-        <text name="rl_ui_noMaleAnimal" text="Kein geeignetes männliches Tier"/>
-        <text name="rl_ui_noMaleAnimalBracketed" text="Nein (kein geeignetes männliches Tier)"/>
+        <text name="rl_ui_noMaleAnimal" text="Kein Deckpartner"/>
+        <text name="rl_ui_noMaleAnimalBracketed" text="Nein (kein Deckpartner)"/>
         <text name="rl_ui_recoveringLastBirth" text="Erholen von der letzten Geburt"/>
-        <text name="rl_ui_recoveringLastBirthBracketed" text="Nein (erholt sich von der letzten Geburt)"/>
+        <text name="rl_ui_recoveringLastBirthBracketed" text="Nein (Erholung)"/>
         <text name="rl_ui_tooYoung" text="Zu jung"/>
         <text name="rl_ui_tooYoungBracketed" text="Nein (zu jung)"/>
         <text name="rl_ui_pregnant" text="Schwanger"/>
         <text name="rl_ui_lactating" text="Säugend"/>
-        <text name="rl_ui_canReproduce" text="Kann reproduzieren"/>
+        <text name="rl_ui_canReproduce" text="Zuchtfähig"/>
         <text name="rl_ui_impregnatedBy" text="Besamt durch"/>
         <text name="rl_ui_unknown" text="Unbekannt"/>
         <text name="rl_ui_yes" text="Ja"/>
@@ -103,6 +106,37 @@
         <text name="rl_ui_male" text="Männlich"/>
         <text name="rl_ui_female" text="Weiblich"/>
         <text name="rl_ui_weight" text="Gewicht"/>
+        <text name="rl_ui_bodyCondition" text="Kondition"/>
+        <text name="rl_ui_finish" text="Ausmast"/>
+        <text name="rl_ui_conditionCalf" text="Kalb, nicht bewertet"/>
+        <text name="rl_ui_finishLean" text="mager"/>
+        <text name="rl_ui_finishStore" text="Fresser"/>
+        <text name="rl_ui_finishReady" text="mittel"/>
+        <text name="rl_ui_finishFat" text="fett"/>
+        <text name="rl_ui_finishOverfat" text="überfett"/>
+        <text name="rl_ui_bcsThin" text="dünn"/>
+        <text name="rl_ui_bcsGood" text="gut"/>
+        <text name="rl_ui_bcsFleshy" text="fleischig"/>
+        <text name="rl_ui_bcsFat" text="fett"/>
+        <text name="rl_ui_finishVerdict" text="Schlachtung"/>
+        <text name="rl_ui_finishVerdictReady" text="Schlachtreif"/>
+        <text name="rl_ui_finishVerdictNeedsFinish" text="Braucht Ausmast"/>
+        <text name="rl_ui_finishVerdictGrowing" text="Wächst noch"/>
+        <text name="rl_ui_finishVerdictStore" text="Im Wachstum"/>
+        <text name="rl_ui_finishVerdictOverfat" text="Überfett, zu spät"/>
+        <text name="rl_ui_finishVerdictTooYoung" text="Zu jung"/>
+        <text name="rl_ui_finishVerdictBlocked" text="Nicht verkäuflich"/>
+        <text name="rl_ui_finishWeight" text="Endgewicht"/>
+        <text name="rl_ui_rationCoverage" text="Versorgung"/>
+        <text name="rl_ui_milkOfPotential" text="Milchleistung"/>
+        <text name="rl_ui_conceptionCondition" text="Befruchtung"/>
+        <text name="rl_ui_penBcs" text="Ø BCS"/>
+        <text name="rl_ui_penCowsThinFat" text="Kühe dünn / fett"/>
+        <text name="rl_ui_penBullsReady" text="Bullen schlachtreif"/>
+        <text name="rl_ui_penBullsOverfat" text="Bullen überfett"/>
+        <text name="rl_ui_penFeedEaten" text="Futter gefressen"/>
+        <text name="rl_ui_penRationEnergy" text="Rationsenergie"/>
+        <text name="rl_ui_penWater" text="Wasserversorgung"/>
         <text name="rl_ui_targetWeight" text="Zielgewicht"/>
         <text name="rl_ui_value" text="Wert"/>
         <text name="rl_ui_valuePerKilo" text="Wert pro kg"/>
@@ -162,6 +196,7 @@
         <text name="rl_ui_moveValidSummary" text="%d Tier(e) werden verschoben" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="%d Tier(e) übersprungen: Erfüllen nicht die Altersanforderung (%d-%d months)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="%d Tier(e) übersprungen: Nicht genug Platz am Zielort" tag="format"/>
+        <text name="rl_ui_moveRejectedPenRules" text="%d Tier(e) übersprungen: In diesem Stall nicht erlaubt (Rasse, Geschlecht, Kastration oder Alter)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="Keine Tiere können an diesen Zielort verschoben werden."/>
         <text name="rl_ui_moveBulkConfirmTitle" text="Verschiebe Tiere"/>
         <text name="rl_ui_moveErrorNoPermission" text="Du hast keine Erlaubnis Tiere hierhin zu verschieben."/>
@@ -538,6 +573,9 @@
         <text name="rl_message_nameAdded" text="Name hinzugefügt '%s'"/>
         <text name="rl_message_nameDeleted" text="Der Name „%s“ wurde entfernt."/>
         <text name="rl_message_boughtAnimals_single" text="1 Tier wurde für %s gekauft."/>
+        <text name="rl_message_penOutgrown" text="Aus %s herausgewachsen (Neuzugänge bis %s Monate). Passende Ställe: %s"/>
+        <text name="rl_ui_penOutgrownNoPen" text="keiner mit freiem Platz"/>
+        <text name="rl_ui_penNotBuilt" text="Dieser Stall ist noch nicht fertig gebaut. Tiere können erst nach Abschluss des Baus einziehen."/>
         <text name="rl_message_boughtAnimals_multiple" text="%s Tiere wurden für %s gekauft."/>
         <text name="rl_message_soldAnimals_single" text="1 Tier wurde für %s verkauft."/>
         <text name="rl_message_soldAnimals_multiple" text="%s Tiere wurden für %s verkauft."/>
@@ -868,6 +906,8 @@
         <text name="rl_menu_filters_field_hasAnyMark" text="Has any mark"/>
         <text name="rl_menu_filters_field_weight" text="Weight"/>
         <text name="rl_menu_filters_field_health" text="Health"/>
+        <text name="rl_menu_filters_field_finishScore" text="Ausmast (0-100)"/>
+        <text name="rl_menu_filters_field_bcs" text="Körperkondition (1-5)"/>
         <text name="rl_menu_filters_field_genetics_metabolism" text="Genetics: metabolism"/>
         <text name="rl_menu_filters_field_genetics_health" text="Genetics: health"/>
         <text name="rl_menu_filters_field_genetics_fertility" text="Genetics: fertility"/>

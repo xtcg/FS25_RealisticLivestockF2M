@@ -21,12 +21,37 @@ function RL_PlaceableHusbandry:onHourChanged()
 			end)
 		end
 
-		if self.isServer then self:updateInputAndOutput(animals) end
+		if self.isServer then
+			self:updateInputAndOutput(animals)
+
+			-- Body condition: send this hour's steps to clients (RLBodyConditionStateEvent).
+			local tick = RLBodyCondition.getTickId()
+			if tick ~= nil and self.rlBodyConditionStepped == tick and g_server ~= nil
+				and g_currentMission.missionDynamicInfo.isMultiplayer then
+				g_server:broadcastEvent(RLBodyConditionStateEvent.new(self, tick))
+			end
+		end
 
 	end)
 end
 
 PlaceableHusbandry.onHourChanged = Utils.appendedFunction(PlaceableHusbandry.onHourChanged, RL_PlaceableHusbandry.onHourChanged)
+
+
+--- The animals in a pen changed (bought, moved, sold, born, died): set the pen's food, water,
+--- straw, manure, milk and pallet liters per hour for the animals in it now, from each animal's
+--- current per-hour input and output. The hourly hook above sets them after the hour's feeding,
+--- for the next hour, so without this the next feeding would use the old herd: a pen empty last
+--- hour asks for no food and its new animals go a whole hour unfed (foodFactor 0, health down by
+--- decreasePerHour x health genetics), while the pen they left keeps eating for them.
+--- Server only, and only once the mission runs: onStartMission sets every pen after load.
+function RL_PlaceableHusbandry.refreshInputAndOutput(placeable, animals)
+	if not placeable.isServer or g_currentMission == nil or not g_currentMission.isMissionStarted then return end
+
+	RmSafeUtils.safeCall("PlaceableHusbandry:refreshInputAndOutput", function()
+		placeable:updateInputAndOutput(animals)
+	end)
+end
 
 
 function PlaceableHusbandry:updateInputAndOutput(animals) end

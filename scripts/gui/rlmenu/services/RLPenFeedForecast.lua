@@ -62,6 +62,8 @@ local function buildScratch(animal)
         subTypeRef           = animal:getSubType(),
         subTypeName          = animal.subType,
         animalTypeIndex      = animal.animalTypeIndex,
+        -- Held at today's value: the sim does not grow the herd.
+        feedModifier         = animal.getFeedModifier ~= nil and animal:getFeedModifier() or 1,
     }
 end
 
@@ -88,7 +90,8 @@ local function sumDailyFood(scratch, foodScale)
                 numPregnancies,
                 s.metabolism,
                 baseCurveValue,
-                foodScale
+                foodScale,
+                s.feedModifier
             )
         end
     end
@@ -171,6 +174,7 @@ local function tickBirths(scratch, simMonth, simYear, maxNumAnimals)
                     subTypeRef           = s.subTypeRef,
                     subTypeName          = s.subTypeName,
                     animalTypeIndex      = s.animalTypeIndex,
+                    feedModifier         = RLBreedTraits.get(s.subTypeRef, "feed"),
                 })
             end
 

@@ -71,6 +71,9 @@
         <text name="rl_button_random" text="Випадково"/>
         <text name="rl_dialog_title" text="Встановити максимальну кількість видимих тварин"/>
         <text name="rl_ui_unhealthy" text="Надто поганий стан здоров’я"/>
+        <text name="rl_ui_reproUnderAge" text="Under %s"/>
+        <text name="rl_ui_reproRecovers" text="Recovers in %s"/>
+        <text name="rl_ui_reproLowHealth" text="Health &lt; %s"/>
         <text name="rl_ui_unhealthyBracketed" text="Ні (поганий стан здоров’я)"/>
         <text name="rl_ui_noMaleAnimal" text="Немає відповідного самця"/>
         <text name="rl_ui_noMaleAnimalBracketed" text="Ні (немає відповідного самця)"/>
@@ -93,6 +96,37 @@
         <text name="rl_ui_male" text="Самець"/>
         <text name="rl_ui_female" text="Самка"/>
         <text name="rl_ui_weight" text="Вага"/>
+        <text name="rl_ui_bodyCondition" text="Condition"/>
+        <text name="rl_ui_finish" text="Finish"/>
+        <text name="rl_ui_conditionCalf" text="Calf, not scored"/>
+        <text name="rl_ui_finishLean" text="lean"/>
+        <text name="rl_ui_finishStore" text="store"/>
+        <text name="rl_ui_finishReady" text="moderate"/>
+        <text name="rl_ui_finishFat" text="fat"/>
+        <text name="rl_ui_finishOverfat" text="overfat"/>
+        <text name="rl_ui_bcsThin" text="thin"/>
+        <text name="rl_ui_bcsGood" text="good"/>
+        <text name="rl_ui_bcsFleshy" text="fleshy"/>
+        <text name="rl_ui_bcsFat" text="fat"/>
+        <text name="rl_ui_finishVerdict" text="Slaughter"/>
+        <text name="rl_ui_finishVerdictReady" text="Ready"/>
+        <text name="rl_ui_finishVerdictNeedsFinish" text="Needs finishing"/>
+        <text name="rl_ui_finishVerdictGrowing" text="Still growing"/>
+        <text name="rl_ui_finishVerdictStore" text="Growing"/>
+        <text name="rl_ui_finishVerdictOverfat" text="Overfat, past best"/>
+        <text name="rl_ui_finishVerdictTooYoung" text="Too young"/>
+        <text name="rl_ui_finishVerdictBlocked" text="Cannot be sold"/>
+        <text name="rl_ui_finishWeight" text="Finish weight"/>
+        <text name="rl_ui_rationCoverage" text="Ration cover"/>
+        <text name="rl_ui_milkOfPotential" text="Milk output"/>
+        <text name="rl_ui_conceptionCondition" text="Fertility (BCS)"/>
+        <text name="rl_ui_penBcs" text="Avg. BCS"/>
+        <text name="rl_ui_penCowsThinFat" text="Cows thin / fat"/>
+        <text name="rl_ui_penBullsReady" text="Bulls ready"/>
+        <text name="rl_ui_penBullsOverfat" text="Bulls overfat"/>
+        <text name="rl_ui_penFeedEaten" text="Feed eaten"/>
+        <text name="rl_ui_penRationEnergy" text="Ration energy"/>
+        <text name="rl_ui_penWater" text="Water cover"/>
         <text name="rl_ui_targetWeight" text="Цільова вага"/>
         <text name="rl_ui_value" text="Цінність"/>
         <text name="rl_ui_valuePerKilo" text="Ціна за кг"/>
@@ -148,6 +182,7 @@
         <text name="rl_ui_moveValidSummary" text="Буде переміщено тварин: %d" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="Пропущено тварин: %d (не відповідає віковим вимогам %d-%d міс.)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="Пропущено тварин: %d (недостатньо місця у місці призначення)" tag="format"/>
+        <text name="rl_ui_moveRejectedPenRules" text="%d animal(s) skipped: not allowed in this pen (breed, sex, castration or age)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="Жодну тварину не вдалося перемістити до цього місця призначення."/>
         <text name="rl_ui_moveBulkConfirmTitle" text="Переміщення тварин"/>
         <text name="rl_ui_moveErrorNoPermission" text="У вас немає прав для переміщення тварин сюди."/>
@@ -517,6 +552,9 @@
         <text name="rl_message_nameAdded" text="Надано ім’я '%s'"/>
         <text name="rl_message_nameDeleted" text="Ім’я '%s' було видалено"/>
         <text name="rl_message_boughtAnimals_single" text="Куплено 1 тварину за %s"/>
+        <text name="rl_message_penOutgrown" text="Outgrown %s (new animals up to %s months). Pens that take it: %s"/>
+        <text name="rl_ui_penOutgrownNoPen" text="none with room"/>
+        <text name="rl_ui_penNotBuilt" text="This pen is not built yet. Animals can move in once its construction is finished."/>
         <text name="rl_message_boughtAnimals_multiple" text="Куплено %s тварин за %s"/>
         <text name="rl_message_soldAnimals_single" text="Продано 1 тварину за %s"/>
         <text name="rl_message_soldAnimals_multiple" text="Продано %s тварин за %s"/>
@@ -846,6 +884,8 @@
         <text name="rl_menu_filters_field_hasAnyMark" text="Має позначку"/>
         <text name="rl_menu_filters_field_weight" text="Вага"/>
         <text name="rl_menu_filters_field_health" text="Здоров’я"/>
+        <text name="rl_menu_filters_field_finishScore" text="Finish (0-100)"/>
+        <text name="rl_menu_filters_field_bcs" text="Body condition (1-5)"/>
         <text name="rl_menu_filters_field_genetics_metabolism" text="Генетика: метаболізм"/>
         <text name="rl_menu_filters_field_genetics_health" text="Генетика: здоров’я"/>
         <text name="rl_menu_filters_field_genetics_fertility" text="Генетика: фертильність"/>

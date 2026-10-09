@@ -1,3 +1,9 @@
+--- Reply when the target husbandry is not built yet (RLPenConstruction). The base game's codes
+--- fill 0-7, so the reply is written in ERROR_CODE_NUM_BITS rather than the base game's 3.
+AnimalBuyEvent.BUY_ERROR_PEN_NOT_BUILT = 8
+AnimalBuyEvent.ERROR_CODE_NUM_BITS = 4
+
+
 function AnimalBuyEvent.new(object, animals, buyPrice, transportPrice)
 
 	local event = AnimalBuyEvent.emptyNew()
@@ -16,7 +22,7 @@ function AnimalBuyEvent:readStream(streamId, connection)
 
 	if connection:getIsServer() then
 
-		self.errorCode = streamReadUIntN(streamId, 3)
+		self.errorCode = streamReadUIntN(streamId, AnimalBuyEvent.ERROR_CODE_NUM_BITS)
 
 	else
 
@@ -46,7 +52,7 @@ end
 function AnimalBuyEvent:writeStream(streamId, connection)
 
 	if not connection:getIsServer() then
-		streamWriteUIntN(streamId, self.errorCode, 3)
+		streamWriteUIntN(streamId, self.errorCode, AnimalBuyEvent.ERROR_CODE_NUM_BITS)
 		return
 	end
 
@@ -157,6 +163,15 @@ function AnimalBuyEvent:run(connection)
 
 			local errorCode = AnimalBuyEvent.validate(self.object, animal.subTypeIndex, animal.age, #self.animals, self.buyPrice, self.transportPrice, farmId)
 
+			if errorCode == nil then
+				errorCode = AnimalBuyEvent.getPenErrorCode(self.object, animal)
+			end
+
+			-- Admission record: the map filter's and the pen rules' verdicts with the result,
+			-- so a refusal says which layer (or capacity, farm, money) turned the animal away.
+			RLHusbandryProfiles.logDecision("BUY_CHECK", self.object, animal,
+				{ farmId = farmId, errorCode = errorCode, numAnimals = #self.animals })
+
 			if errorCode ~= nil then
 				Log:trace("AnimalBuyEvent:run phase: validate FAILED took %.2fms errorCode=%d", phaseDoneMs(), errorCode)
 				connection:sendEvent(AnimalBuyEvent.newServerToClient(errorCode))
@@ -174,6 +189,9 @@ function AnimalBuyEvent:run(connection)
 		end
 		Log:trace("AnimalBuyEvent:run phase: removeSale took %.2fms", phaseDoneMs())
 
+		local farm = g_farmManager ~= nil and g_farmManager:getFarmById(farmId) or nil
+		local moneyBefore = farm ~= nil and farm.money or nil
+
 		phaseReset()
 		self.object:addAnimals(self.animals)
 		Log:trace("AnimalBuyEvent:run phase: addAnimals took %.2fms", phaseDoneMs())
@@ -181,6 +199,16 @@ function AnimalBuyEvent:run(connection)
 		phaseReset()
 		g_currentMission:addMoney(self.buyPrice + self.transportPrice, farmId, MoneyType.NEW_ANIMALS_COST, true, true)
 		connection:sendEvent(AnimalBuyEvent.newServerToClient(AnimalBuyEvent.BUY_SUCCESS))
+
+		if self.object.spec_husbandryAnimals ~= nil then
+			local bought = {}
+			for _, animal in pairs(self.animals) do bought[#bought + 1] = RLPenLog.animal(animal) end
+			RLPenLog.emit("BUY_RESULT", { pen = RLPenLog.pen(self.object), farmId = farmId, animals = bought,
+				price = self.buyPrice, fee = self.transportPrice, moneyBefore = moneyBefore,
+				moneyAfter = farm ~= nil and farm.money or nil,
+				numAnimalsAfter = self.object.getNumOfAnimals ~= nil and self.object:getNumOfAnimals() or nil,
+				construction = RLPenConstruction.describe(self.object) })
+		end
 
 		-- Object may be a trailer on trailer-based dealer buys; only husbandry
 		-- placeables carry addRLMessage.
@@ -197,4 +225,32 @@ function AnimalBuyEvent:run(connection)
 
 	end)
 
+end
+
+--- The pen rules' answer for one animal as a buy error code: PEN_NOT_BUILT for a husbandry that is
+--- not built yet, ANIMAL_NOT_SUPPORTED for any other refusal, nil when the animal may go in.
+--- @return number|nil errorCode
+function AnimalBuyEvent.getPenErrorCode(object, animal)
+	local ok, reason = RLHusbandryProfiles.checkAnimal(object, animal)
+	if ok then return nil end
+	return reason == RLPenConstruction.REJECT and AnimalBuyEvent.BUY_ERROR_PEN_NOT_BUILT or AnimalBuyEvent.BUY_ERROR_ANIMAL_NOT_SUPPORTED
+end
+
+
+--- A husbandry that is not built yet takes no animals (RLPenConstruction). Only a missing object
+--- outranks it; every other base answer (subtype, space, money) comes after the building exists.
+--- Every buy path (the base screens, RLRM's menu, the server's run) goes through here.
+AnimalBuyEvent.validate = Utils.overwrittenFunction(AnimalBuyEvent.validate, function(object, superFunc, ...)
+	local errorCode = superFunc(object, ...)
+	if errorCode == AnimalBuyEvent.BUY_ERROR_OBJECT_DOES_NOT_EXIST then return errorCode end
+	if not RLPenConstruction.canAdmit(object) then return AnimalBuyEvent.BUY_ERROR_PEN_NOT_BUILT end
+	return errorCode
+end)
+
+
+-- The base screens look every reply code up in these tables and fail on a missing one.
+for _, controller in ipairs({ AnimalScreenDealerFarm, AnimalScreenDealer, AnimalScreenDealerTrailer }) do
+	if controller ~= nil and controller.BUY_ERROR_CODE_MAPPING ~= nil then
+		controller.BUY_ERROR_CODE_MAPPING[AnimalBuyEvent.BUY_ERROR_PEN_NOT_BUILT] = { warning = true, text = "rl_ui_penNotBuilt" }
+	end
 end

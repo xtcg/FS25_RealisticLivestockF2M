@@ -205,6 +205,19 @@ end
 --- Mission start: re-bind the AnimalScreen GUI, read the visual-animal cap and register every RLRM dialog.
 function RealisticLivestock_FSBaseMission:onStartMission()
 
+    -- Map pen rules go in after the map has set its own husbandry filters at load.
+    RLHusbandryProfiles.applyAll()
+    -- Animals a pen's rules would no longer take in stay where they are; they are only logged.
+    if g_currentMission:getIsServer() then
+        RmSafeUtils.safeCall("RLHusbandryProfiles.checkAllResidents", function()
+            RLHusbandryProfiles.checkAllResidents("LOAD")
+        end)
+        -- Construction state of buildings that are husbandries, and animals in unbuilt ones.
+        RmSafeUtils.safeCall("RLPenConstruction.onMissionStarted", function()
+            RLPenConstruction.onMissionStarted()
+        end)
+    end
+
     -- Re-load the BASE AnimalScreen GUI so its callback bindings re-snapshot.
     --
     -- The GUI layer captures onOpen / onClose / onCreate as function references at XML parse
@@ -299,6 +312,16 @@ function RealisticLivestock_FSBaseMission:onStartMission()
         Log:info("onStartMission: repaired %d animal(s) with fallback IDs (load-order race)", fallbackRepairCount)
     end
 
+    -- T02 ledger: check the saved ledger against the files the game just loaded, after the
+    -- identity repair above and before the first herdsman day; opens or keeps closed the T02 gate.
+    if isServer then
+        local checked, checkErr = pcall(RLTradeCheckpoint.onMissionStarted, self, { identityRepairs = fallbackRepairCount })
+        if not checked then
+            Log:error("onStartMission: T02 ledger check failed: %s - T02 transactions stay closed", tostring(checkErr))
+            RLTradeCheckpoint.state, RLTradeCheckpoint.reason = RLTradeCheckpoint.RECOVERY_REQUIRED, "CHECK_THREW"
+        end
+    end
+
     local guiOk, guiErr = pcall(function()
         local realisticLivestockFrame = RealisticLivestockFrame.new()
         g_gui:loadGui(modDirectory .. "gui/RealisticLivestockFrame.xml", "RealisticLivestockFrame", realisticLivestockFrame, true)
@@ -329,6 +352,8 @@ function RealisticLivestock_FSBaseMission:sendInitialClientState(connection, _, 
     connection:sendEvent(RL_BroadcastSettingsEvent.new())
     connection:sendEvent(AnimalSystemStateEvent.new(animalSystem.countries, animalSystem.animals, animalSystem.aiAnimals))
     connection:sendEvent(HusbandryMessageStateEvent.new(g_currentMission.husbandrySystem.placeables))
+    -- Body condition: the server's config, so the client shows what the server computes.
+    connection:sendEvent(RLBodyConditionConfigEvent.new(RLBodyConditionConfig.get()))
 
     -- P4: push the authoritative saveable-filter state to the new client so
     -- late-joiners converge with the server. Empty-set (count=0) is a valid

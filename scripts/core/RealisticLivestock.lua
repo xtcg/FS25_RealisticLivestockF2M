@@ -124,6 +124,12 @@ function RealisticLivestock.loadMap()
     g_overlayManager:addTextureConfigFile(modDirectory .. "gui/icons_menu.xml", "rlMenu")
     g_overlayManager:addTextureConfigFile(modDirectory .. "gui/fileTypeIcons.xml", "fileTypeIcons")
     g_overlayManager:addTextureConfigFile(modDirectory .. "gui/status_icons.xml", "rlStatus")
+    -- T02 contract transactions: OFF and an empty ledger on every map load (never saved).
+    RLContractTrade.reset()
+    -- T02 live sales: OFF on every map load (never saved); records share the ledger above.
+    RLLiveSale.reset()
+    -- T02 ledger: a new checkpoint instance; T02 stays closed until onStartMission checked the save.
+    RLTradeCheckpoint.reset(g_currentMission:getIsServer())
     g_rlConsoleCommandManager = RLConsoleCommandManager.new()
     g_diseaseManager = DiseaseManager.new()
     -- g_rlFilterService is constructed at source-time so save-side
@@ -480,7 +486,7 @@ function RealisticLivestock:updateReproduction(spec, cluster, numNewAnimals, fre
     totalOffspring = totalOffspring - animalsToSell
 
     if animalsToSell > 0 then
-        local animalPrice = subType.sellPrice:get(0) * 0.4
+        local animalPrice = subType.sellPrice:get(0) * 0.4 * RLLivestockPrices.getMultiplier()
         local totalAnimalPrice = animalPrice * animalsToSell
         local farm = g_farmManager:getFarmById(farmIndex)
         msgText = msgText .. ", " .. animalsToSell .. " sold due to overcrowding for £" .. math.floor(totalAnimalPrice)
@@ -811,7 +817,7 @@ function RealisticLivestock.calculateRandomMonthlyAnimalDeaths(spec, cluster, is
         if animalsCanBeSold then
             local subType = g_currentMission.animalSystem:getSubTypeByIndex(cluster:getSubTypeIndex())
             local farmIndex = spec:getOwnerFarmId()
-            local animalPrice = subType.sellPrice:get(cluster.age) * 0.2
+            local animalPrice = subType.sellPrice:get(cluster.age) * 0.2 * RLLivestockPrices.getMultiplier()
             totalAnimalPrice = animalPrice * numAnimalsToDispose
             local farm = g_farmManager:getFarmById(farmIndex)
 

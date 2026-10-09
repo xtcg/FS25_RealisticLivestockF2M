@@ -25,6 +25,7 @@ source(modDirectory .. "scripts/gui/MPLoadingScreen.lua")
 -- SECTION 2b: Utilities
 source(modDirectory .. "scripts/utils/RmSafeUtils.lua")
 source(modDirectory .. "scripts/utils/RLAnimalUtil.lua")
+source(modDirectory .. "scripts/utils/RLPenLog.lua")
 source(modDirectory .. "scripts/utils/RLPermissionHelper.lua")
 source(modDirectory .. "scripts/utils/RLScaleHelper.lua")
 source(modDirectory .. "scripts/utils/RLAnimalDisplayHelper.lua")
@@ -37,6 +38,21 @@ source(modDirectory .. "scripts/core/RLConstants.lua")
 
 -- SECTION 2d: Map country resolution (needs RLConstants)
 source(modDirectory .. "scripts/core/RLMapCountry.lua")
+
+-- SECTION 2e: Breed traits (xml/breedTraits.xml; its layered lookup is shared with the carcass yield config)
+source(modDirectory .. "scripts/animal/RLBreedTraits.lua")
+-- Carcass yield arithmetic, pure; AnimalMoveEvent feeds it the animal and config snapshot
+source(modDirectory .. "scripts/animal/RLMeatMath.lua")
+-- Delivery rules shared by the delivery code and the trade quote (contract order, fee, butcher recipe), pure
+source(modDirectory .. "scripts/animal/RLFacilityRules.lua")
+-- Livestock prices follow the difficulty multiplier: live prices, semen, contract slaughter fees
+source(modDirectory .. "scripts/animal/RLLivestockPrices.lua")
+-- Body condition of cattle (xml/bodyCondition.xml): nutrition budget, reserve, finish score / BCS.
+-- Read by Animal, the husbandry specs, the carcass yield and the conception rolls.
+source(modDirectory .. "scripts/nutrition/RLNutritionMath.lua")
+source(modDirectory .. "scripts/nutrition/RLBodyConditionConfig.lua")
+source(modDirectory .. "scripts/nutrition/RLBodyCondition.lua")
+source(modDirectory .. "scripts/nutrition/RLCalfRearing.lua")
 
 -- SECTION 3: Animal Husbandry - Cluster System
 source(modDirectory .. "scripts/animals/husbandry/cluster/RealisticLivestock_AnimalCluster.lua")
@@ -69,6 +85,25 @@ source(modDirectory .. "scripts/animals/shop/events/AnimalBuyEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalInseminationEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalInseminationResultEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalMoveEvent.lua")
+source(modDirectory .. "scripts/animal/RLMeatValue.lua")
+-- Read-only trade quote: model meat vs a facility's units and effective recipe (rlTradeReport)
+source(modDirectory .. "scripts/animal/RLTradeQuote.lua")
+-- T02 shadow budget and offline coordinator. No live transaction adapter is enabled.
+source(modDirectory .. "scripts/animal/RLContractPlan.lua")
+source(modDirectory .. "scripts/animal/RLContractPreview.lua")
+source(modDirectory .. "scripts/animal/RLTradeTransaction.lua")
+-- T02 controlled contract delivery (OFF by default): HB target adapter, source adapter, entry
+source(modDirectory .. "scripts/animal/RLHBContractAdapter.lua")
+source(modDirectory .. "scripts/animal/RLTradeSourceAdapter.lua")
+source(modDirectory .. "scripts/animal/RLContractTrade.lua")
+-- T02 batch 3 live sales (OFF by default): money receipt, recovery decisions, entry
+source(modDirectory .. "scripts/animal/RLSaleSettlement.lua")
+source(modDirectory .. "scripts/animal/RLSaleRecovery.lua")
+source(modDirectory .. "scripts/animal/RLLiveSale.lua")
+-- T02 batch 4: the ledger saved with the savegame, checked on load (gate before any T02 work)
+source(modDirectory .. "scripts/animal/RLTradePersistence.lua")
+source(modDirectory .. "scripts/animal/RLTradeRecovery.lua")
+source(modDirectory .. "scripts/animal/RLTradeCheckpoint.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalSellEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/SemenBuyEvent.lua")
 
@@ -77,6 +112,8 @@ source(modDirectory .. "scripts/animals/shop/RealisticLivestock_AnimalItemStock.
 
 -- SECTION 9: Events (General)
 source(modDirectory .. "scripts/events/HusbandryMessageStateEvent.lua")
+source(modDirectory .. "scripts/events/RLBodyConditionStateEvent.lua")
+source(modDirectory .. "scripts/events/RLBodyConditionConfigEvent.lua")
 source(modDirectory .. "scripts/events/HusbandryMessageAddEvent.lua")
 source(modDirectory .. "scripts/events/HusbandryMessageDeleteEvent.lua")
 source(modDirectory .. "scripts/events/ReturnStrawEvent.lua")
@@ -95,6 +132,8 @@ source(modDirectory .. "scripts/fillTypes/RealisticLivestock_FillTypeManager.lua
 source(modDirectory .. "scripts/bridge/RLVersionSpec.lua")
 source(modDirectory .. "scripts/bridge/RLMapBridge.lua")
 source(modDirectory .. "scripts/bridge/RLModBridge.lua")
+source(modDirectory .. "scripts/bridge/RLHusbandryProfiles.lua")
+source(modDirectory .. "scripts/bridge/RLPenConstruction.lua")
 
 -- SECTION 11b: Breeding Mathematics
 source(modDirectory .. "scripts/animal/BreedingMath.lua")
@@ -336,6 +375,8 @@ source(modDirectory .. "scripts/events/RLDiseaseOverrideSetEvent.lua")
 
 -- SECTION 20f: Core (lifecycle, settings, i18n)
 source(modDirectory .. "scripts/core/FSCareerMissionInfo.lua")
+-- T02 ledger save hooks; after RLRM's own careerSavegame append, so the ledger is written last.
+RLTradeCheckpoint.install()
 source(modDirectory .. "scripts/core/I18N.lua")
 source(modDirectory .. "scripts/core/RealisticLivestock.lua")
 
@@ -346,6 +387,9 @@ source(modDirectory .. "scripts/animal/RealisticLivestock_Animal.lua")
 source(modDirectory .. "scripts/core/RealisticLivestock_FSBaseMission.lua")
 
 -- SECTION 20i: Console commands
+source(modDirectory .. "scripts/console/RLBodyConditionConsole.lua")
+source(modDirectory .. "scripts/console/RLTradeReportConsole.lua")
+source(modDirectory .. "scripts/console/RLPenConsole.lua")
 source(modDirectory .. "scripts/console/RLConsoleCommandManager.lua")
 
 -- SECTION 20j: Messaging

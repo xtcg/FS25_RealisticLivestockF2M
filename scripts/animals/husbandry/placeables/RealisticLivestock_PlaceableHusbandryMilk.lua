@@ -32,7 +32,8 @@ function RealisticLivestock_PlaceableHusbandryMilk:onHusbandryAnimalsUpdate(supe
 		-- Milk diagnostics: this fires on every herd change (birth/buy/sell/move)
 		-- on BOTH server and client. Confirms the event reaches a dedicated server and
 		-- shows how many milk fillTypes are active for UI. It does NOT recompute
-		-- litersPerHour (that is server-only, in updateInputAndOutput each hour).
+		-- litersPerHour: that is server-only, in updateInputAndOutput each hour and,
+		-- on a herd change, from the food spec's listener (RL_PlaceableHusbandry.refreshInputAndOutput).
 		Log:debug("Milk[%s]: onHusbandryAnimalsUpdate clusters=%d activeFillTypes=%d hasMilkProduction=%s isServer=%s",
 			(self.getName ~= nil and self:getName()) or "?", #clusters, #spec.activeFillTypes,
 			tostring(spec.hasMilkProduction), tostring(self.isServer))
@@ -52,6 +53,9 @@ function PlaceableHusbandryMilk:updateInputAndOutput(superFunc, animals)
     for fillType, _ in pairs(spec.litersPerHour) do
         spec.litersPerHour[fillType] = 0
     end
+
+    -- Each covered cow's share of litersPerHour, for the body condition deposit (updateOutput below).
+    spec.rlMilkContributions = {}
 
     spec.activeFillTypes = {}
 
@@ -82,6 +86,10 @@ function PlaceableHusbandryMilk:updateInputAndOutput(superFunc, animals)
                 if spec.litersPerHour[milk.fillType] ~= nil then
                     spec.litersPerHour[milk.fillType] = spec.litersPerHour[milk.fillType] + milkPerHour
                     table.addElement(spec.activeFillTypes, milk.fillType)
+
+                    if not Animal.isSemenFillType(milk.fillType) and RLBodyCondition.isEligible(animal) then
+                        table.insert(spec.rlMilkContributions, { animal = animal, fillType = milk.fillType, liters = milkPerHour })
+                    end
 
                     -- A sire whose semen this building stores has had this month's semen: no dewar
                     -- collection until next month (RLSemenCollection). Marked here, where output
@@ -202,6 +210,16 @@ function RealisticLivestock_PlaceableHusbandryMilk:updateOutput(superFunc, foodF
         end)
     end
 
-    superFunc(self, foodFactor, productionFactor, globalProductionFactor)
+    if self.isServer and spec ~= nil and spec.hasMilkProduction then
+        -- Cows under the body condition rules: their milk this hour is what their budget paid
+        -- for, deposited without the pen's food factor (RLBodyCondition.depositMilk).
+        RLBodyCondition.depositMilk(self, spec.litersPerHour, spec.rlMilkContributions,
+            function() superFunc(self, foodFactor, productionFactor, globalProductionFactor) end,
+            function(fillType, liters)
+                self:addHusbandryFillLevelFromTool(self:getOwnerFarmId(), liters, fillType, nil, nil, nil)
+            end)
+    else
+        superFunc(self, foodFactor, productionFactor, globalProductionFactor)
+    end
 
 end

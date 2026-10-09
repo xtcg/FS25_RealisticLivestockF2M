@@ -6,13 +6,15 @@ Pigs are the most prolific breeders in Realistic Livestock RM, with litters of u
 
 ---
 
+> **Units:** amounts are per game month. The animal's info in game shows them per game day: divide by your days-per-month setting (at 1 day per month the two are the same).
+
 ## Breeds at a Glance
 
 | Breed | Type | Target Weight (sow / boar) | Sell Value | Character |
 |-------|------|---------------------------|------------|-----------|
-| **Berkshire** | Premium | 140 / 180 kg | Highest | Most valuable per head |
-| **Landrace** | Standard | 165 / 205 kg | Moderate | Balanced mid-range |
-| **Black Pied** | Economy | 180 / 250 kg | Lowest | Cheapest, heaviest boars |
+| **Berkshire** | Premium | 220 / 280 kg | Highest | Most valuable per head |
+| **Landrace** | Standard | 240 / 300 kg | Moderate | Balanced mid-range |
+| **Black Pied** | Economy | 180 / 250 kg | Lowest | Cheapest to feed |
 
 *Boars are heavier than sows and sell for more. Berkshire pigs eat the most but command the highest prices.*
 
@@ -26,12 +28,12 @@ Pig prices peak at 24 months and stay at that level for older animals (unlike ca
 
 | Breed | | Newborn | 6 mo | 24 mo (peak) |
 |-------|---|---------|------|--------------|
-| **Berkshire** | Sow | 45 | 450 | 1,600 |
-| | Boar | 60 | 525 | 1,850 |
-| **Landrace** | Sow | 40 | 400 | 1,400 |
-| | Boar | 50 | 475 | 1,650 |
-| **Black Pied** | Sow | 35 | 375 | 1,200 |
-| | Boar | 45 | 450 | 1,500 |
+| **Berkshire** | Sow | 45 | 215 | 1,600 |
+| | Boar | 60 | 240 | 1,850 |
+| **Landrace** | Sow | 40 | 190 | 1,400 |
+| | Boar | 50 | 210 | 1,650 |
+| **Black Pied** | Sow | 35 | 170 | 1,200 |
+| | Boar | 45 | 190 | 1,500 |
 
 *These are typical prices for an average, healthy animal. Actual prices vary widely - well-bred healthy animals sell for significantly more, poor-quality animals can sell for far less, and a sick animal is worth less while sick.*
 
@@ -54,6 +56,8 @@ Pig prices peak at 24 months and stay at that level for older animals (unlike ca
 | **Landrace** | 55 | 1,100 | 65 | 1,400 |
 | **Black Pied** | 45 | 1,000 | 55 | 1,200 |
 
+*Finishing pigs are normally bought much younger: at 6 months dealer prices are about 200-270 depending on breed and sex. The adult figures above are breeding-stock prices.*
+
 ---
 
 ## Output
@@ -74,7 +78,7 @@ Pigs produce only manure and liquid manure - no milk, wool, or eggs. Their value
 
 Genetics significantly affect how much each animal eats - some are naturally much more efficient than others. The Food Scale setting also adjusts consumption.
 
-### Food Consumption Range (L/day)
+### Food Consumption Range (L/month)
 
 | Breed | | Newborn | 24 mo (adult) |
 |-------|---|---------|---------------|
@@ -87,7 +91,7 @@ Genetics significantly affect how much each animal eats - some are naturally muc
 
 *Berkshire pigs eat the most. Black Pied are the most efficient to feed. Ranges show the span from the most efficient to the hungriest animals. Most animals eat near the middle of these ranges.*
 
-### Water Consumption (L/day, newborn -> adult)
+### Water Consumption (L/month, newborn -> adult)
 
 | Breed | Sow | Boar |
 |-------|-----|------|
@@ -103,14 +107,14 @@ Genetics significantly affect how much each animal eats - some are naturally muc
 
 | Breed | | Birth | Target | Maximum |
 |-------|---|-------|--------|---------|
-| **Berkshire** | Sow | 1.6 kg | 140 kg | 1,050 kg |
-| | Boar | 1.7 kg | 180 kg | 1,200 kg |
-| **Landrace** | Sow | 1.36 kg | 165 kg | 1,050 kg |
-| | Boar | 1.4 kg | 205 kg | 1,200 kg |
+| **Berkshire** | Sow | 1.6 kg | 220 kg | 1,050 kg |
+| | Boar | 1.7 kg | 280 kg | 1,200 kg |
+| **Landrace** | Sow | 1.36 kg | 240 kg | 1,050 kg |
+| | Boar | 1.4 kg | 300 kg | 1,200 kg |
 | **Black Pied** | Sow | 1.65 kg | 180 kg | 1,050 kg |
 | | Boar | 1.75 kg | 250 kg | 1,200 kg |
 
-*Black Pied boars have the highest target weight at 250 kg. Higher metabolism animals reach target weight faster but eat more. Castrated pigs gain weight faster than intact males.*
+*Target weights are grown breeding stock; finishing pigs go to slaughter at about 120 kg. Higher metabolism animals reach target weight faster but eat more. Castrated pigs gain weight faster than intact males.*
 
 ---
 

@@ -32,8 +32,11 @@
 --
 -- Action records, emitted in run order (operation rank, then `compareRulesByName` within an op;
 -- within a rule, targets in lexicographic uniqueId order):
---   sell { ruleId, operation="sell", husbandryId, animals=<price desc>, mark, wage, amountGained? }
---        (`amountGained` present iff `mark==false`; a marked sell is advisory - no money, no event)
+--   sell { ruleId, operation="sell", husbandryId, animals=<price desc>, mark, wage, amountGained?,
+--          sellerFarmId?, identities? }
+--        (the last three present iff `mark==false`; a marked sell is advisory - no money, no event.
+--        `amountGained` is the planned total, `sellerFarmId` = rule.farmId and `identities` frozen
+--        identity copies parallel to `animals`, which the server checks when it sells)
 --   move { ruleId, operation="move", husbandryId=<source>, animals=<genetics desc>, destinationHusbandry, mark, wage }
 --        (an OUT op like sell: the selected set leaves the SOURCE plan pool this tick, and the
 --        destination-side add lands next day - there is no same-day dest-add)
@@ -154,6 +157,20 @@ end
 --- across farms or countries distinct, and is the deterministic tie-break for equal-price sorts.
 ---@param animal table|nil
 ---@return string|nil key, or nil when an identity field is missing
+--- Frozen copies of the animals' three-field identities, in the same order, for a sale the server
+--- checks at execute. An animal without a full identity copies as nil fields; the server refuses it.
+---@param animals table[]
+---@return table[] identities { farmId, uniqueId, country, birthday = { country }, animalTypeIndex }
+local function identitiesOf(animals)
+    local list = {}
+    for i, animal in ipairs(animals) do
+        local country = type(animal.birthday) == "table" and animal.birthday.country or nil
+        list[i] = { farmId = animal.farmId, uniqueId = animal.uniqueId, country = country,
+            birthday = { country = country }, animalTypeIndex = animal.animalTypeIndex }
+    end
+    return list
+end
+
 local function animalKey(animal)
     if type(animal) ~= "table" then return nil end
     local farmId, uniqueId = animal.farmId, animal.uniqueId
@@ -762,7 +779,14 @@ function RLHerdsmanPlanner.planActions(rules, ctx)
                                 if not mark then
                                     -- Carry the proceeds and credit the farm ledger so a later
                                     -- same-farm buy can spend them; a marked sell is advisory only.
+                                    -- amountGained is the planned figure: the server re-prices at
+                                    -- execute and pays only what it removed, so it is diagnostic.
                                     action.amountGained = amountGained
+                                    -- The farm this plan belongs to and a copy of each animal's
+                                    -- identity, frozen now: the server sells only if the pen still
+                                    -- belongs to this farm, whatever the live objects say later.
+                                    action.sellerFarmId = rule.farmId
+                                    action.identities = identitiesOf(selected)
                                     seedLedger(rule.farmId)
                                     if type(ledger[rule.farmId]) == "number" then
                                         ledger[rule.farmId] = ledger[rule.farmId] + amountGained

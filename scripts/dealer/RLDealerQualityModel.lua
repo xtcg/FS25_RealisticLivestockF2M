@@ -49,7 +49,7 @@ RLDealerQualityModel.DEFAULT_INDEX = 2
 -- APPEND-ONLY: never reorder, never insert. The bounds stay LITERAL because this is the
 -- locked-numbers artifact; assertPresetTable checks them against the constants at load.
 RLDealerQualityModel.PRESETS = {
-    [1] = { key = "budget",   lo = 0.25, hi = 1.00, markup = 1.01,  outlierChance = 0.075 },
+    [1] = { key = "budget",   lo = 0.25, hi = 1.00, markup = 1.05,  outlierChance = 0.075 },
     [2] = { key = "standard", lo = 0.25, hi = 1.75, markup = 1.075, outlierChance = 0.075 },
     [3] = { key = "premium",  lo = 1.15, hi = 1.75, markup = 1.30,  outlierChance = 0.075 },
 }

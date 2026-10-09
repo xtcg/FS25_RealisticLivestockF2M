@@ -87,6 +87,9 @@
         <text name="rl_dialog_title" text="Establecer número máximo de animales visuales"/>
 
         <text name="rl_ui_unhealthy" text="Demasiado poco saludable"/>
+        <text name="rl_ui_reproUnderAge" text="Under %s"/>
+        <text name="rl_ui_reproRecovers" text="Recovers in %s"/>
+        <text name="rl_ui_reproLowHealth" text="Health &lt; %s"/>
         <text name="rl_ui_unhealthyBracketed" text="No (demasiado poco saludable)"/>
         <text name="rl_ui_noMaleAnimal" text="Sin macho adecuado"/>
         <text name="rl_ui_noMaleAnimalBracketed" text="No (sin macho adecuado)"/>
@@ -109,6 +112,37 @@
         <text name="rl_ui_male" text="Macho"/>
         <text name="rl_ui_female" text="Hembra"/>
         <text name="rl_ui_weight" text="Peso"/>
+        <text name="rl_ui_bodyCondition" text="Condition"/>
+        <text name="rl_ui_finish" text="Finish"/>
+        <text name="rl_ui_conditionCalf" text="Calf, not scored"/>
+        <text name="rl_ui_finishLean" text="lean"/>
+        <text name="rl_ui_finishStore" text="store"/>
+        <text name="rl_ui_finishReady" text="moderate"/>
+        <text name="rl_ui_finishFat" text="fat"/>
+        <text name="rl_ui_finishOverfat" text="overfat"/>
+        <text name="rl_ui_bcsThin" text="thin"/>
+        <text name="rl_ui_bcsGood" text="good"/>
+        <text name="rl_ui_bcsFleshy" text="fleshy"/>
+        <text name="rl_ui_bcsFat" text="fat"/>
+        <text name="rl_ui_finishVerdict" text="Slaughter"/>
+        <text name="rl_ui_finishVerdictReady" text="Ready"/>
+        <text name="rl_ui_finishVerdictNeedsFinish" text="Needs finishing"/>
+        <text name="rl_ui_finishVerdictGrowing" text="Still growing"/>
+        <text name="rl_ui_finishVerdictStore" text="Growing"/>
+        <text name="rl_ui_finishVerdictOverfat" text="Overfat, past best"/>
+        <text name="rl_ui_finishVerdictTooYoung" text="Too young"/>
+        <text name="rl_ui_finishVerdictBlocked" text="Cannot be sold"/>
+        <text name="rl_ui_finishWeight" text="Finish weight"/>
+        <text name="rl_ui_rationCoverage" text="Ration cover"/>
+        <text name="rl_ui_milkOfPotential" text="Milk output"/>
+        <text name="rl_ui_conceptionCondition" text="Fertility (BCS)"/>
+        <text name="rl_ui_penBcs" text="Avg. BCS"/>
+        <text name="rl_ui_penCowsThinFat" text="Cows thin / fat"/>
+        <text name="rl_ui_penBullsReady" text="Bulls ready"/>
+        <text name="rl_ui_penBullsOverfat" text="Bulls overfat"/>
+        <text name="rl_ui_penFeedEaten" text="Feed eaten"/>
+        <text name="rl_ui_penRationEnergy" text="Ration energy"/>
+        <text name="rl_ui_penWater" text="Water cover"/>
         <text name="rl_ui_targetWeight" text="Peso objetivo"/>
         <text name="rl_ui_value" text="Valor"/>
         <text name="rl_ui_valuePerKilo" text="Valor por kg"/>
@@ -174,6 +208,7 @@
         <text name="rl_ui_moveValidSummary" text="%d animal(es) serán movidos" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="%d animal(es) omitidos: no cumplen el requisito de edad (%d-%d meses)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="%d animal(es) omitidos: no hay suficiente espacio en el destino" tag="format"/>
+        <text name="rl_ui_moveRejectedPenRules" text="%d animal(s) skipped: not allowed in this pen (breed, sex, castration or age)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="No se puede mover ningún animal a este destino."/>
         <text name="rl_ui_moveBulkConfirmTitle" text="Mover animales"/>
         <text name="rl_ui_moveErrorNoPermission" text="No tienes permiso para mover animales aquí."/>
@@ -562,6 +597,9 @@
         <text name="rl_message_nameAdded" text="Nombre asignado: '%s'"/>
         <text name="rl_message_nameDeleted" text="Se eliminó el nombre '%s'"/>
         <text name="rl_message_boughtAnimals_single" text="Se compró 1 animal por %s"/>
+        <text name="rl_message_penOutgrown" text="Outgrown %s (new animals up to %s months). Pens that take it: %s"/>
+        <text name="rl_ui_penOutgrownNoPen" text="none with room"/>
+        <text name="rl_ui_penNotBuilt" text="This pen is not built yet. Animals can move in once its construction is finished."/>
         <text name="rl_message_boughtAnimals_multiple" text="Se compraron %s animales por %s"/>
         <text name="rl_message_soldAnimals_single" text="Se vendió 1 animal por %s"/>
         <text name="rl_message_soldAnimals_multiple" text="Se vendieron %s animales por %s"/>
@@ -823,6 +861,8 @@
         <text name="rl_menu_filters_field_hasAnyMark" text="Tiene alguna marca"/>
         <text name="rl_menu_filters_field_weight" text="Peso"/>
         <text name="rl_menu_filters_field_health" text="Salud"/>
+        <text name="rl_menu_filters_field_finishScore" text="Finish (0-100)"/>
+        <text name="rl_menu_filters_field_bcs" text="Body condition (1-5)"/>
         <text name="rl_menu_filters_field_genetics_metabolism" text="Genética: metabolismo"/>
         <text name="rl_menu_filters_field_genetics_health" text="Genética: salud"/>
         <text name="rl_menu_filters_field_genetics_fertility" text="Genética: fertilidad"/>

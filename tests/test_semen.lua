@@ -1,6 +1,6 @@
 -- Semen collection and sale, the straw ledger, and server-side semen purchase.
 
-DewarData = { CAPACITY = 1000, PRICE_PER_STRAW = 0.85 }
+DewarData = { CAPACITY = 1000, PRICE_PER_STRAW = 4.65 }
 RLDiseaseSaleGate = { check = function(a) return not a.sick end }
 MoneyType = { SEMEN_SALE = "semenSale", SEMEN_PURCHASE = "semenPurchase" }
 RLConstants = { DEWAR_QUANTITIES = { 1, 2, 5, 10, 25, 50, 100 } }
@@ -13,6 +13,8 @@ SUBS = {
     [3] = { name = "CHICKEN_ROOSTER", typeIndex = 2, gender = "male", reproductionMinAgeMonth = 6, output = {} },
     [4] = { name = "BULL", typeIndex = 1, gender = "male", output = { milk = { fillType = "BULLSPERM" } } },
     [5] = { name = "RAM_LANDRACE", typeIndex = 3, gender = "male", reproductionMinAgeMonth = 5, output = {} },
+    [6] = { name = "BULL_HOLSTEIN", typeIndex = 1, gender = "male", breed = "HOLSTEIN", reproductionMinAgeMonth = 12, output = {} },
+    [7] = { name = "BULL_ANGUS", typeIndex = 1, gender = "male", breed = "ANGUS", reproductionMinAgeMonth = 12, output = {} },
 }
 MONEY = {}
 PERMISSION = true
@@ -93,6 +95,18 @@ check("bull in its first month -> 150", yield(mkAnimal(1, 12, 1)) == 150)
 check("fertility 1.5 at peak -> 450", yield(mkAnimal(1, 30, 1.5)) == 450)
 check("bull at 120 months declines -> 154", yield(mkAnimal(1, 120, 1)) == 154)
 check("ram at peak -> 100", yield(mkAnimal(5, 10, 1)) == 100)
+check("yield: too young -> 0", yield(mkAnimal(1, 11, 1)) == 0)
+check("yield: at the cutoff age -> 0", yield(mkAnimal(1, 132, 1)) == 0)
+check("yield: infertile -> 0", yield(mkAnimal(1, 30, 0)) == 0)
+
+-- Age share the bull stable's BULLSPERM output follows too (same curve as the straw yield)
+local share = RLSemenCollection.getAgeOutputFactor
+check("stable: HB BULL under 12 months gives nothing", share(mkAnimal(4, 11, 1)) == 0)
+check("stable: half at 12 months, full from 18", near(share(mkAnimal(4, 12, 1)), 0.5) and share(mkAnimal(4, 18, 1)) == 1)
+check("stable: full until 70% of 132 months", share(mkAnimal(4, 92, 1)) == 1)
+check("stable: 120 months declines like the straw yield", near(share(mkAnimal(4, 120, 1)), 154 / 300, 0.002))
+check("stable: nothing from the cutoff age, over 30% the month before", share(mkAnimal(4, 132, 1)) == 0 and share(mkAnimal(4, 131, 1)) > 0.3)
+check("stable: fertility 1.5 still at full at 135 months, producing at 190", share(mkAnimal(4, 135, 1.5)) == 1 and share(mkAnimal(4, 190, 1.5)) > 0.3)
 
 -- Sale value
 local average = { collected = true, success = 0.6, country = 6, farmId = "12",
@@ -102,10 +116,25 @@ local elite = { collected = true, success = 0.9, country = 6, farmId = "12",
 local cheapDealer = { collected = false, success = 0.6, country = 6, farmId = "77",
     genetics = { fertility = 1, quality = 1, health = 1, metabolism = 1, productivity = 1 } }
 local averageValue = RLSemenCollection.getSellValue(average, 300)
-check("average sire, 300 straws = 300*0.85*0.6*2.25*0.6 = 206.55", near(averageValue, 206.55))
-check("elite sire worth 9.072x the average", near(RLSemenCollection.getSellValue(elite, 300) / averageValue, 9.072, 0.001))
-check("bought semen resells below its buy price",
-    RLSemenCollection.getSellValue(cheapDealer, 300) < 0.2 * 300 * 0.85 * 0.6 * 2.25)
+check("average sire, 300 straws = 300*4.65*0.6*1.55*0.7 = 908.145", near(averageValue, 908.145))
+-- Elite, meat weights: .35*1.5 + .25*1.2 + .20*1.5 + .10*1.4 + .10*1.6 = 1.425; conception 0.9 vs 0.6
+check("elite sire worth 1.425^3 x 1.5 the average",
+    near(RLSemenCollection.getSellValue(elite, 300) / averageValue, 1.425 ^ 3 * 1.5, 0.001))
+check("bought semen resells at 70% of its buy price",
+    near(RLSemenCollection.getSellValue(cheapDealer, 300), 0.7 * 300 * RLSemenCollection.getStrawPrice(cheapDealer, 0.2)))
+
+-- Breeding index
+local index = RLSemenCollection.getBreedingIndex
+local milky = { fertility = 1, quality = 1, health = 1, metabolism = 1, productivity = 1.5 }
+check("index: average sire is 1", near(index(average), 1))
+check("index: dairy breed weights milk 40%", near(index({ subTypeIndex = 6, genetics = milky }), 1.2))
+check("index: meat breed weights milk 10%", near(index({ subTypeIndex = 7, genetics = milky }), 1.05))
+check("index: missing productivity leaves the rest averaged",
+    near(index({ genetics = { fertility = 0.5, quality = 0.5, health = 0.5, metabolism = 0.5 } }), 0.5))
+-- The playtest sire: every gene 0.67, 133 straws at conception 0.5
+local ordinary = { collected = true, success = 0.5, genetics = { fertility = 0.67, quality = 0.67, health = 0.67, metabolism = 0.67, productivity = 0.67 } }
+check("ordinary sire, 133 straws = 133*4.65*0.5*0.67^3*1.55*0.7 = 100.9",
+    near(RLSemenCollection.getSellValue(ordinary, 133), 133 * 4.65 * 0.5 * 0.67 ^ 3 * 1.55 * 0.7, 0.01))
 
 -- SemenSellEvent
 local alice = makeConnection("alice", false)
@@ -119,9 +148,9 @@ SemenSellEvent.new(d):run(alice)
 PERMISSION = true
 check("sell: no tradeAnimals permission refused", MONEY[1] == nil and not d.isDeleted)
 SemenSellEvent.new(d):run(alice)
-check("sell: own dewar sold at the server's value and removed", near(MONEY[1], 206.55) and d.isDeleted)
+check("sell: own dewar sold at the server's value and removed", near(MONEY[1], averageValue) and d.isDeleted)
 SemenSellEvent.new(mkDewar(1, average, 300)):run(makeConnection("alice", true))
-check("sell: event arriving from the server side is ignored", near(MONEY[1], 206.55))
+check("sell: event arriving from the server side is ignored", near(MONEY[1], averageValue))
 
 -- SemenCollectEvent request (server)
 local sent, broadcast = {}, {}

@@ -31,11 +31,30 @@ function RLConsoleCommandManager.new()
         addConsoleCommand("rlHerdsmanRuleClear", "Clear all herdsman rules (SP diagnostic only)", "clearHerdsmanRules", self, "")
         -- Engine cap probe: requires writing to engine husbandries, server-side only.
         addConsoleCommand("rlTestAnimalConfigCap", "Probe engine per-type config slot cap by calling addHusbandryAnimal idx 0..127 on each active husbandry", "testAnimalConfigCap", self, "[maxIdx]")
+        -- Body condition test commands (RLBodyConditionConsole).
+        addConsoleCommand("rlBcReport", "Body condition per cattle pen: feed ledger, water, condition range", "report", RLBodyConditionConsole, "[animals] [pen]")
+        addConsoleCommand("rlBcSet", "Set cattle body condition (frame weight kept)", "set", RLBodyConditionConsole, "<reserve|bcs|finish> <value> <all|pen:NAME|uniqueId>")
+        addConsoleCommand("rlBcFastForward", "Run hourly cycles of cattle pens at once (real feed, budget, milk; ages do not advance)", "fastForward", RLBodyConditionConsole, "<hours> [pen]")
         addConsoleCommand("rlTestAnimalConfigCapFresh", "Probe whether a fresh createAnimalHusbandry call (different XML / different typeName) gets its own 32-window. Requires AnimalCapProbe pack with heritage config.", "testAnimalConfigCapFresh", self, "[maxIdx]")
     end
 
     -- Read-only debug commands - safe on SP, MP host, and MP client.
     addConsoleCommand("rlDumpSettings", "Dump effective RL settings to the log", "dumpSettings", self, "")
+    -- Trade report (RLTradeReportConsole): model meat vs facility units and recipe; changes nothing.
+    addConsoleCommand("rlTradeReport", "Slaughter facilities: model meat vs input unit and recipe in effect (read-only)", "report",
+        RLTradeReportConsole, "[facility] [uniqueId|pen:NAME] [farmId]")
+    addConsoleCommand("rlTradeTxReport", "T02 contract and sale transactions this run: state, stages, receipts, money actions, held locks (read-only)", "txReport",
+        RLTradeReportConsole, "[txId]")
+    if g_currentMission:getIsServer() then
+        -- Server only, never saved: OFF on every load. TEST is for test saves.
+        addConsoleCommand("rlTradeTxMode", "T02 contract delivery mode: OFF (old path), SHADOW (log only), TEST (transaction; test saves only)",
+            "txMode", RLTradeReportConsole, "[OFF|SHADOW|TEST]")
+        addConsoleCommand("rlTradeSaleMode", "T02 player/herdsman sale mode: OFF (old path), SHADOW (log only), TEST (transaction with money receipt; test saves only)",
+            "saleMode", RLTradeReportConsole, "[OFF|SHADOW|TEST]")
+    end
+    addConsoleCommand("rlTradePlan", "Read-only whole-batch contract budget (shadow, no reservation or delivery)", "plan",
+        RLTradeReportConsole, "<facility> <uniqueId|pen:NAME> [farmId]")
+    addConsoleCommand("rlPenReport", "Log each profiled pen's rule, map filter, feed and animals (RLPEN PEN_REPORT)", "report", RLPenConsole, "[pen]")
 
 	return self
 

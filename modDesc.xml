@@ -1,6 +1,6 @@
 <modDesc descVersion="110">
     <author>Ritter</author>
-    <version>1.4.0.0</version>
+    <version>1.4.0.1-dev.7</version>
     <title>
         <en>Realistic Livestock - Ritter version</en>
         <it>Allevamento Realistico - Versione Ritter</it>
@@ -25,6 +25,35 @@ Documentation: https://rittermod.github.io/FS25_RealisticLivestockRM
 Source code and issue tracker: https://github.com/rittermod/FS25_RealisticLivestockRM
 
 Changelog
+
+1.4.0.1-dev.7 (xtcg fork, Hof Bergmann):
+- Cattle target weights from real mature weights; slaughter references at real finishing weights (bulls 55-62% of mature), finishing ages unchanged.
+- Beef chain: 600 kg standard animal x 0.60 carcass x 0.75 sellable = 270 kg per typical animal. Dealer animals arrive on the full-feed growth line.
+- Contract slaughter of cattle adds a cutting fee of 1.05 per kg. A bull's live price follows the beef market (60% pass-through); slaughtering by contract earns about 12% over the year, never more than 25%.
+- Livestock prices follow the economic difficulty: HARD is the calibrated level; on NORMAL live animals, the dealer, semen and slaughter fees are x1.8 and on EASY x3, like meat and milk.
+
+1.4.0.1-dev.6 (xtcg fork, Hof Bergmann):
+- Live animals are worth at least 85% of what their meat fetches at the best selling point (70% for old cows, bulls, sows, boars and mutton), so dealer prices follow the meat price and buying to slaughter leaves only a thin margin. Settings in xml/carcassYield.xml.
+- Hof Bergmann's public slaughterhouse gives the same meat per animal as the farm butcher; it only saves time and work.
+- Light animals give meat by weight at the butcher and slaughterhouse (a 120 kg calf no longer counts as half a grown one).
+- Recalibrated cattle, pig and sheep/goat live-market prices to realistic weights and finishing ages. Budget dealer markup 5% instead of 1%.
+- Semen is priced by the sire's breeding index; your own semen sells at about 70% of the dealer's price for the same genetics.
+
+1.4.0.1-dev.5 (xtcg fork, Hof Bergmann):
+- Fixed selling a dewar with K after the player had been in a vehicle.
+- The buy and move screens list only pens whose rules take at least one of the selected animals (no calf igloo for grown cattle).
+- Hof Bergmann's insemination system counts delivered Holsteins by head instead of by carcass yield, so it makes one milk cow per cow.
+
+1.4.0.1-dev.4 (xtcg fork, Hof Bergmann):
+- Fixed the Hof Bergmann public slaughterhouse refusing every animal, and passed the delivering farm to it in multiplayer.
+- Butcher and slaughterhouse deliveries now scale with the animal: its frame (its own target weight x a slaughter maturity for its breed and sex), how finished it is, its breed's carcass factor and its meat gene. Settings in xml/carcassYield.xml; a copy in modSettings/FS25_RealisticLivestockRM/ replaces it.
+- New breed target weights for cattle, pigs, sheep and goats; animals in a save move to them.
+- Breeds differ in feed, growth and how well they use grass, hay and silage (xml/breedTraits.xml). Growth needs better feed for full speed: silage no longer grows as fast as TMR. Daily food follows body condition.
+- Meat animals reach slaughter weight at realistic ages on full feed: bulls 17 (Holstein) to 25 months (Highland), pigs 5.5 to 6.5, sheep 5 to 5.5. Gilts grow almost as fast as boars. Food curves keep each breed's feed per kg gained in order, and cows eat for their frame.
+- Milk at peak: Holstein 378, Swiss Brown 320, Hereford 80, Angus 70, Limousin 60, Highland 50.
+- A delivery that does not fit the facility's room or the farm's fee budget is refused whole and stays in the trailer.
+- Added collecting and selling semen from your own sires, and fixed Hof Bergmann's bull stable semen, which follows the same age curve as collected semen.
+- Added pen rules for Hof Bergmann's cattle buildings: calf igloos take all calves up to 5 months, calf rearing boxes male and steer calves, bull barns intact bulls from 6 months, the farm cow barn Holstein and Swiss Brown cows, the cow barn with pasture and the pastures cows, steers and bulls under 12 months. RLRM bulls, male calves, steers and Hereford now have somewhere to go.
 
 1.4.0.0:
 Heads up before you update:
