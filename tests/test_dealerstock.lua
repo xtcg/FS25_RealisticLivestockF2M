@@ -19,6 +19,7 @@ loadMod("scripts/animal/RLBreedTraits.lua")
 loadMod("scripts/animal/RLGeneticsDraw.lua")
 loadMod("scripts/nutrition/RLCalfRearing.lua")
 loadMod("scripts/dealer/RLDealerStockPolicy.lua")
+loadMod("scripts/dealer/RLDealerSaleCatalog.lua")
 
 local P = RLDealerStockPolicy
 local R = P.REASON
@@ -96,6 +97,10 @@ check("entry: alpaca, quail and cats are not covered",
 check("entry: ducks in the chicken type use the DUCK profile",
     P.getEntry(config, { name = "DUCK_MALE", breed = "DUCK", gender = "male" }, "CHICKEN").profile.name == "DUCK"
     and P.getEntry(config, { name = "CHICKEN", breed = "CHICKEN" }, "CHICKEN").profile.name == "CHICKEN")
+
+
+local layersWithRoot = { root = { flag = false }, types = {}, breeds = {}, subTypes = {} }
+check("shared layer lookup keeps a false root value", RLBreedTraits.resolveNamed(layersWithRoot, "COW", nil, nil, "flag", true) == false)
 
 
 -- Ages per purpose -------------------------------------------------------------------------------
@@ -488,6 +493,8 @@ loadMod("scripts/console/RLDealerConsole.lua")
 local catalogLine = RLDealerConsole.describeSubType(config, system, cowType, angusCow)
 check("catalog line: " .. catalogLine, catalogLine:find("status=COVERED weight=LEGACY_WEIGHT profile=CATTLE slow=false cap=48 buyable=[0-72]", 1, true) ~= nil
     and catalogLine:find("COW_YOUNG[30-47]w2", 1, true) ~= nil and catalogLine:find("HEIFER_READY:NO_BREEDING_WEIGHT", 1, true) ~= nil)
+local sorted = RLDealerSaleCatalog.sortedTypes({ [9] = alpacaType, [1] = cowType })
+check("catalog walks a type table with holes in index order", #sorted == 2 and sorted[1] == cowType and sorted[2] == alpacaType)
 check("catalog line, not covered: " .. RLDealerConsole.describeSubType(config, system, alpacaType, alpaca),
     RLDealerConsole.describeSubType(config, system, alpacaType, alpaca):find("status=NOT_COVERED", 1, true) ~= nil)
 

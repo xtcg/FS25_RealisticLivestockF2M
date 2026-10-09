@@ -658,7 +658,9 @@ end
 
 
 --- The first purpose (file order) the animal qualifies for now, for a listing saved before
---- purposes existed.
+--- purposes existed. Checked like a newly generated animal (not `onShelf`): its history was made
+--- by the old rules and never checked, so one whose conception cannot be shown to fit is withdrawn
+--- and replaced by the next restock rather than kept.
 --- @return table|nil purpose
 --- @return string|nil reason The first purpose's first failure, when none qualifies
 function RLDealerStockPolicy.classify(animal, entry, subType, ctx)

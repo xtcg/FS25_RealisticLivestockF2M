@@ -113,7 +113,10 @@ end
 --- @return any
 function RLBreedTraits.resolve(layers, subType, attr, default)
     if subType == nil then return RLBreedTraits.resolveNamed(layers, nil, nil, nil, attr, default) end
-    return RLBreedTraits.resolveNamed(layers, RLBreedTraits.getTypeName(subType), subType.breed, subType.name, attr, default)
+    -- The subtype's own layer first, so the type name is only looked up when it is needed (hot path).
+    local own = subType.name ~= nil and layers.subTypes[subType.name] or nil
+    if own ~= nil and own[attr] ~= nil then return own[attr] end
+    return RLBreedTraits.resolveNamed(layers, RLBreedTraits.getTypeName(subType), subType.breed, nil, attr, default)
 end
 
 
@@ -134,8 +137,7 @@ function RLBreedTraits.resolveNamed(layers, typeName, breed, subTypeName, attr, 
         if animalType ~= nil and animalType[attr] ~= nil then return animalType[attr] end
     end
 
-    local value = layers.root ~= nil and layers.root[attr] or nil
-    if value ~= nil then return value end
+    if layers.root ~= nil and layers.root[attr] ~= nil then return layers.root[attr] end
     return default
 end
 

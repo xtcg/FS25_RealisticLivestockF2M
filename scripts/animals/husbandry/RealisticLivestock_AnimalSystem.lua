@@ -1561,6 +1561,12 @@ local function countSaleGenerationFailure(animalTypeIndex, reason)
 end
 
 
+--- Forget the failures counted for a type since the last summary.
+function AnimalSystem._clearSaleGenerationFailures(animalTypeIndex)
+    saleGenerationFailures[animalTypeIndex] = nil
+end
+
+
 --- "REASON=n REASON=n" of the failures counted for a type since the last clear (or, with
 --- `totals`, since the map load), and clear the former when `clear`.
 ---@return string
@@ -1571,10 +1577,9 @@ function AnimalSystem._formatSaleGenerationFailures(animalTypeIndex, clear, tota
 end
 
 
---- Pick the source farm a new sale animal of this type comes from, and the next animal id there.
---- 88% of first picks are the map's own country. The id is only taken (farm.ids advanced) by
---- commitSaleSourceFarm once the animal is accepted, so a rejected attempt wastes no id.
----@return table|nil source {farm, farmId, quality, countryIndex, lastAnimalId}; nil when no farm keeps the type
+--- Pick the source farm a new sale animal of this type comes from. 88% of first picks are the map's
+--- own country. Takes no animal id: _takeSaleAnimalId does, once the animal has qualified.
+---@return table|nil source {farm, farmId, quality, countryIndex}; nil when no farm keeps the type
 function AnimalSystem:_pickSaleSourceFarm(animalTypeIndex, animalType)
     local attemptedCountryIndexes = {}
 
@@ -1613,8 +1618,7 @@ function AnimalSystem:_pickSaleSourceFarm(animalTypeIndex, animalType)
 
         if #validFarms > 0 then
             local farm = country.farms[validFarms[math.random(1, #validFarms)]]
-            return { farm = farm, farmId = farm.id, quality = farm.quality, countryIndex = countryIndex,
-                lastAnimalId = (farm.ids[animalTypeIndex] or 0) + 1 }
+            return { farm = farm, farmId = farm.id, quality = farm.quality, countryIndex = countryIndex }
         end
 
         if wasMapPick then
@@ -1625,8 +1629,17 @@ function AnimalSystem:_pickSaleSourceFarm(animalTypeIndex, animalType)
 end
 
 
+--- Take the source farm's next animal id for a sale animal that qualified.
+---@return number id
+function AnimalSystem:_takeSaleAnimalId(source, animalTypeIndex)
+    local id = (source.farm.ids[animalTypeIndex] or 0) + 1
+    source.farm.ids[animalTypeIndex] = id
+    return id
+end
+
+
 --- Give a pregnant sale animal its offspring and expected birth date. A plan from
---- dealerStock.xml is `plan.pregnancyMonths` into its gestation (reproduction set to match);
+--- dealerStock.xml is `plan.pregnancyMonths` into its gestation (the caller set reproduction);
 --- the old rules' pregnancy has just been conceived, with a 1% chance of a gestation 1-2 months
 --- off the subtype's.
 local function createSalePregnancy(self, animal, animalType, subType, subTypeIndex, genetics, plan, month, year)
@@ -1737,9 +1750,6 @@ local function createSalePregnancy(self, animal, animalType, subType, subTypeInd
     if plan.pregnancyMonths > 0 then
 
         remaining = reproductionDuration - plan.pregnancyMonths
-        -- Two decimals, rounded down like the daily advance, so the progress never reads further on
-        -- than the months planned.
-        animal.reproduction = math.floor(plan.pregnancyMonths / reproductionDuration * 10000) / 100
 
     else
 
@@ -1835,8 +1845,6 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
     local source = self:_pickSaleSourceFarm(animalTypeIndex, animalType)
     if source == nil then return nil, "noValidFarms" end
 
-    local uniqueId = RLAnimalUtil.generateUniqueId(source.farmId, source.lastAnimalId)
-
 
     -- Genetics come from the shared bell draw, which centres every sale animal
     -- on its own base quality rather than on the source farm's. Productivity is
@@ -1917,8 +1925,23 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
         genetics = genetics
     })
 
+    -- How far the planned pregnancy is along (two decimals, rounded down like the daily advance,
+    -- so it never reads further on than the months planned). The old rules' pregnancy has just
+    -- been conceived (0).
+    if plan.isPregnant and plan.pregnancyMonths > 0 then
+        animal.reproduction = math.floor(plan.pregnancyMonths / subType.reproductionDurationMonth * 10000) / 100
+    end
+
+    -- Check the animal against its purpose before it takes an id, a disease draw or offspring, so a
+    -- rejected one (a heifer too light to be ready to breed) leaves nothing behind in the farm's ids
+    -- or the log under a real listing's id.
+    if purpose ~= nil then
+        local ok, reasons = RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx)
+        if not ok then return nil, reasons[1] end
+    end
+
     animal.farmId = tostring(source.farmId)
-    animal.uniqueId = uniqueId
+    animal.uniqueId = RLAnimalUtil.generateUniqueId(source.farmId, self:_takeSaleAnimalId(source, animalTypeIndex))
     animal.birthday.country = source.countryIndex
 
     local variations = self:getVisualByAge(subTypeIndex, age).visualAnimal.variations
@@ -1961,23 +1984,19 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
     -- reproduction).
     --
     -- Guard differs from site 1 (advancePregnancy) on purpose: this flow
-    -- sets animal.reproduction only together with a pregnancy that has
-    -- children, so the pen-side `reproduction > 0` precondition says nothing
-    -- here. Gate on the actual invariant violation instead: isPregnant=true
-    -- paired with no usable pregnancy data.
+    -- sets animal.reproduction from the plan before the offspring are drawn,
+    -- so the pen-side `reproduction > 0` precondition says nothing here.
+    -- Gate on the actual invariant violation instead: isPregnant=true paired
+    -- with no usable pregnancy data.
     if animal.isPregnant and (animal.pregnancy == nil or #animal.pregnancy.pregnancies == 0) then
         AnimalReproduction._clearOrphanedPregnancy(animal, "pregnancy-nil")
     end
 
-    -- The finished animal must still qualify: a purpose that needs a pregnancy loses it with the
-    -- offspring above, and the weight a heifer needs to be ready to breed is only known now.
-    -- A rejected animal never took its id, so the farm's next animal gets it.
-    if purpose ~= nil then
-        local ok, reasons = RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx)
-        if not ok then return nil, reasons[1] end
+    -- A purpose that needs a pregnancy loses it when no offspring were drawn above. Rare; that
+    -- animal's id stays used, as ids are never handed out twice.
+    if purpose ~= nil and purpose.pregnant == "always" and not animal.isPregnant then
+        return nil, RLDealerStockPolicy.REASON.PREGNANCY
     end
-
-    source.farm.ids[animalTypeIndex] = source.lastAnimalId
 
     return animal
 
@@ -2551,7 +2570,7 @@ function AnimalSystem:onHourChanged()
 
             -- Only this restock's failures go into the summary below (the map load's fill, a dealer
             -- reset and a sale-availability repopulate also generate).
-            AnimalSystem._formatSaleGenerationFailures(animalTypeIndex, true)
+            AnimalSystem._clearSaleGenerationFailures(animalTypeIndex)
 
             if #animals < threshold then
 
@@ -2604,10 +2623,11 @@ function AnimalSystem:onHourChanged()
 
                 -- Why listings no longer qualified, and why generation attempts failed (each failed
                 -- place is maxAttempts attempts plus SLOT_LEFT_EMPTY).
-                if withdrawn > 0 or migrated > 0 or creationsSucceeded < creationsAttempted then
+                -- Retried attempts count even when a later one filled the place.
+                local failures = AnimalSystem._formatSaleGenerationFailures(animalTypeIndex, true)
+                if withdrawn > 0 or migrated > 0 or failures ~= "none" then
                     Log:debug("Dealer stock type=%d: withdrawn {%s}, old listings given a purpose %d, generation failures {%s}",
-                        animalTypeIndex, RLDealerStockPolicy.formatCounts(withdrawnReasons), migrated,
-                        AnimalSystem._formatSaleGenerationFailures(animalTypeIndex, true))
+                        animalTypeIndex, RLDealerStockPolicy.formatCounts(withdrawnReasons), migrated, failures)
                 end
 
                 -- A tick that clears more than half the shelf is worth finding by

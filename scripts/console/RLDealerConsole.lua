@@ -56,13 +56,8 @@ function RLDealerConsole.catalog(_, typeFilter)
     local config = RLDealerStockPolicy.getConfig()
     typeFilter = typeFilter ~= nil and typeFilter ~= "" and typeFilter:upper() or nil
 
-    -- The type table can have holes (maps and bridges), so walk it with pairs, in index order.
-    local types = {}
-    for _, animalType in pairs(animalSystem:getTypes()) do table.insert(types, animalType) end
-    table.sort(types, function(a, b) return (a.typeIndex or 0) < (b.typeIndex or 0) end)
-
     local lines = 0
-    for _, animalType in ipairs(types) do
+    for _, animalType in ipairs(RLDealerSaleCatalog.sortedTypes(animalSystem:getTypes())) do
         if typeFilter == nil or animalType.name == typeFilter then
             for _, subTypeIndex in ipairs(animalType.subTypes) do
                 local subType = animalSystem:getSubTypeByIndex(subTypeIndex)
