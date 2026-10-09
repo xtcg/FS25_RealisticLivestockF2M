@@ -11,12 +11,19 @@ end
 PlaceableHusbandryFood.registerOverwrittenFunctions = Utils.appendedFunction(PlaceableHusbandryFood.registerOverwrittenFunctions, RealisticLivestock_PlaceableHusbandryFood.registerOverwrittenFunctions)
 
 
-function RealisticLivestock_PlaceableHusbandryFood:onHusbandryAnimalsUpdate(superFunc, animals) end
+--- The pen's animals changed (AnimalClusterSystem flush): refresh all its per-hour totals now, not
+--- the base game's sum over cluster age curves (RL_PlaceableHusbandry.refreshInputAndOutput). The
+--- other specs' listeners leave their totals to this one call.
+function RealisticLivestock_PlaceableHusbandryFood:onHusbandryAnimalsUpdate(superFunc, animals)
+    RL_PlaceableHusbandry.refreshInputAndOutput(self, animals)
+end
 
 PlaceableHusbandryFood.onHusbandryAnimalsUpdate = Utils.overwrittenFunction(PlaceableHusbandryFood.onHusbandryAnimalsUpdate, RealisticLivestock_PlaceableHusbandryFood.onHusbandryAnimalsUpdate)
 
 
 --- Record what the pen ate in this feeding: by forage category for the breed forage traits
+--- (in a calf rearing pen the trough is drawn down within each animal's milk and solid limits,
+--- RLCalfRearing)
 --- (RLBreedTraits.getForageEfficiency, read by Animal:updateWeight), and liters per fill type
 --- for the body condition budget (RLBodyCondition: trough removals inside this feeding plus
 --- what the meadow lost, so food a feeding robot mixes in or a player adds is not counted).
@@ -27,11 +34,17 @@ function RealisticLivestock_PlaceableHusbandryFood:updateFeeding(superFunc)
     local before = {}
     for fillTypeIndex, fillLevel in pairs(spec.fillLevels) do before[fillTypeIndex] = fillLevel end
 
-    if self.isServer then RLBodyCondition.beginFeeding(self) end
+    if self.isServer then
+        RLBodyCondition.beginFeeding(self)
+        RLCalfRearing.beginFeeding(self)
+    end
 
     local foodFactor = superFunc(self)
 
-    if self.isServer then RLBodyCondition.endFeeding(self) end
+    if self.isServer then
+        RLBodyCondition.endFeeding(self)
+        RLCalfRearing.settle(self)
+    end
 
     spec.rlForageShares = RLBreedTraits.getForageShares(before, spec.fillLevels, self.spec_husbandryMeadow ~= nil)
 
@@ -46,16 +59,18 @@ function RealisticLivestock_PlaceableHusbandryFood:updateInfo(superFunc, infoTab
     local spec = self.spec_husbandryFood
     if spec == nil then return end
 
-    local conditionText, rationText = RLBodyCondition.getPenInfo(self)
-    if conditionText ~= nil then
-        spec.rlInfoCondition = spec.rlInfoCondition or { title = g_i18n:getText("rl_ui_bodyCondition"), text = "" }
-        spec.rlInfoCondition.text = conditionText
-        table.insert(infoTable, spec.rlInfoCondition)
-    end
-    if rationText ~= nil then
-        spec.rlInfoRation = spec.rlInfoRation or { title = g_i18n:getText("rl_ui_ration"), text = "" }
-        spec.rlInfoRation.text = rationText
-        table.insert(infoTable, spec.rlInfoRation)
+    local rows = RLBodyCondition.getPenInfo(self)
+    if rows == nil then return end
+
+    spec.rlInfoRows = spec.rlInfoRows or {}
+    for index, row in ipairs(rows) do
+        local info = spec.rlInfoRows[index]
+        if info == nil or info.titleKey ~= row.titleKey then
+            info = { titleKey = row.titleKey, title = g_i18n:getText(row.titleKey), text = "" }
+            spec.rlInfoRows[index] = info
+        end
+        info.text = row.text
+        table.insert(infoTable, info)
     end
 end
 

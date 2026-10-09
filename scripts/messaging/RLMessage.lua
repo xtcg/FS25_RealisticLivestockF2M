@@ -70,6 +70,11 @@ RLMessage = {
 		["title"] = "name",
 		["importance"] = 3
 	},
+	["PEN_OUTGROWN"] = {
+		["text"] = "penOutgrown",
+		["title"] = "movement",
+		["importance"] = 2
+	},
 	["BOUGHT_ANIMALS_SINGLE"] = {
 		["text"] = "boughtAnimals_single",
 		["title"] = "movement",

@@ -164,8 +164,9 @@ local function buildPlannerCtx(farm, husbandriesById, env)
             animalTypeIndex = typeIndex,
             animals = placeable:getClusters(),
             -- The planner's Buy slot cap: total free animal slots, mirroring
-            -- AIAnimalBuyEvent.validate's space gate.
-            freeSlots = placeable:getNumOfFreeAnimalSlots(),
+            -- AIAnimalBuyEvent.validate's space gate. A pen that is not built yet has none, so
+            -- no buy is planned into it (RLPenConstruction).
+            freeSlots = RLPenConstruction.canAdmit(placeable) and placeable:getNumOfFreeAnimalSlots() or 0,
         }
         -- Reserved-exclusion: nothing sets `animal.reserved` TRUE any more, so this filter removes
         -- nothing today - `AnimalSystem:onDayChanged` only clears it. Kept as a cheap guard in case

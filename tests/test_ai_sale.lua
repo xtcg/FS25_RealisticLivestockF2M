@@ -32,7 +32,7 @@ loadMod("scripts/herdsman/RLHerdsmanPlanner.lua")
 loadMod("scripts/herdsman/RLHerdsmanExecutor.lua")
 loadMod("scripts/herdsman/RLHerdsmanMessages.lua")
 
-RLHusbandryProfiles = { checkAnimal = function() return true end }
+RLHusbandryProfiles = { checkAnimal = function() return true end, logDecision = function() end }
 
 local wallet, balance, failAddMoney
 local mission = {

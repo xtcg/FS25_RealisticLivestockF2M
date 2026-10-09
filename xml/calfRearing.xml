@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    Calf rearing: what a hand-reared calf can eat at each age, in pens whose husbandry profile
+    is marked rearing="true" (Hof Bergmann: the calf igloos and the calf rearing boxes A/B, see
+    mod_support/FS25_HofBergmann/v1.5/husbandryProfiles.xml). Everywhere else calves keep the old
+    rules, so a suckler calf with its mother in a barn or on pasture is not affected.
+
+    Every hour each animal in a rearing pen may take at most milkMax x its food request from milk
+    fill types and at most solidMax x its request from any other food (hay, TMR, silage...). The
+    pen's trough is drawn down through the engine's own food consumption, with these caps; what
+    the pen ate is then shared out by each animal's caps, so a weaned calf gets no milk even when
+    a younger one drinks it beside it. The animal's food factor for health and growth is its own
+    share x each fill type's productionWeight (animalFood.xml) over its request. A calf on solid
+    feed alone before weaning, or on milk alone after it, is underfed and shows it.
+
+    There is no calf starter fill type on the map. Solid feed is the map's cattle food; the
+    calf pens' troughs take all of it (the map's avoidFillTypes is not read by the engine).
+
+    Calves under 6 months are outside the body condition budget (bodyCondition.xml
+    calfLegacyUntilAgeMonth); an older animal still in a rearing pen keeps its own share there.
+
+    enabled        Off: rearing pens feed like any pen.
+    weaningMonth   Age (whole months) at which milk is being withdrawn. Housing moves at 2 months
+                   (the igloo's maxAge="1"); this is a separate, later step.
+    milkFillTypes  Fill types counted as milk.
+
+    Curves: x = age - weaningMonth (months), y = share of the food request (linear between points,
+    flat outside). With weaningMonth 3: 0-2 months PRE_WEANING, 3 WEANING, 4+ WEANED.
+    milkMax    Most of the request that milk can cover.
+    solidMax   Most of the request that solid feed can cover (rumen development).
+
+    weaningMonth may be set per animalType, breed or subType below (same lookup as
+    breedTraits.xml). Copy this file to modSettings/FS25_RealisticLivestockRM/calfRearing.xml to
+    change it without editing the mod; an invalid file switches the feature off and logs why.
+-->
+<calfRearing enabled="true" weaningMonth="3" milkFillTypes="CALFMILK">
+    <milkMax>
+        <point x="-3" y="1.00"/>
+        <point x="-2" y="0.90"/>
+        <point x="-1" y="0.70"/>
+        <point x="0" y="0.35"/>
+        <point x="1" y="0.00"/>
+    </milkMax>
+    <solidMax>
+        <point x="-3" y="0.10"/>
+        <point x="-2" y="0.30"/>
+        <point x="-1" y="0.60"/>
+        <point x="0" y="0.90"/>
+        <point x="1" y="1.00"/>
+    </solidMax>
+</calfRearing>

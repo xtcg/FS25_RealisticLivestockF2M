@@ -723,6 +723,65 @@ do
         verdict(reference, 0.52, { getCanBeSold = function() return false end }) == "rl_ui_finishVerdictBlocked")
 end
 
+-- Display rows -------------------------------------------------------------------------------
+
+do
+    local savedI18n = g_i18n
+    g_i18n = { getText = function(_, key) return key end }
+    local _, sub = Economics.find("BULL_ANGUS")
+    local reference = Economics.reference(sub)
+
+    -- The menu's stat grid has one short value cell per row: verdict and weight are two rows.
+    local bull = makeAnimal("BULL_ANGUS", { age = 18, weight = reference })
+    bull.bodyCondition = RLBodyCondition.createState(bull, "t")
+    bull.bodyCondition.reserve = 0.52
+    bull.rlNutrition = { coverage = 0.9 }
+    local infos = {}
+    RLBodyCondition.addInfos(bull, infos)
+    local byTitle = {}
+    for _, row in ipairs(infos) do byTitle[row.title] = row end
+    check("display: a bull's verdict row holds the verdict alone",
+        byTitle.rl_ui_finishVerdict ~= nil and byTitle.rl_ui_finishVerdict.valueText == "rl_ui_finishVerdictReady")
+    check("display: the weight against the slaughter reference is its own row",
+        byTitle.rl_ui_finishWeight ~= nil
+        and byTitle.rl_ui_finishWeight.valueText == string.format("%.0f / %.0f kg", reference, reference)
+        and near(byTitle.rl_ui_finishWeight.ratio, 1, 1e-9))
+    check("display: a bull's rows are finish, verdict, weight and ration in that order",
+        #infos == 4 and infos[1].title == "rl_ui_finish" and infos[2].title == "rl_ui_finishVerdict"
+        and infos[3].title == "rl_ui_finishWeight" and infos[4].title == "rl_ui_rationCoverage")
+
+    -- The pen info box: one short figure per row, cow rows only with cows, bull rows only with bulls.
+    local cow = makeAnimal("COW_HOLSTEIN", { age = 60, isParent = true, weight = 730 })
+    cow.bodyCondition = RLBodyCondition.createState(cow, "t")
+    local pen = makePen()
+    local animals = { cow }
+    function pen:getAnimalTypeIndex() return AnimalType.COW end
+    function pen:getClusters() return animals end
+    local function keys(rows)
+        local out = {}
+        for _, row in ipairs(rows or {}) do out[#out + 1] = row.titleKey end
+        return table.concat(out, ",")
+    end
+    check("display: a cow pen shows average BCS and thin / fat cows, no bull rows",
+        keys(RLBodyCondition.getPenInfo(pen)) == "rl_ui_penBcs,rl_ui_penCowsThinFat")
+    animals = { bull }
+    local rows = RLBodyCondition.getPenInfo(pen)
+    check("display: a bull barn shows bulls ready and overfat, no cow rows",
+        keys(rows) == "rl_ui_penBullsReady,rl_ui_penBullsOverfat" and rows[1].text == "1 / 1" and rows[2].text == "0")
+    animals = { cow, bull }
+    pen.spec_husbandryFood.rlPenSummary = { eatenShare = 0.98, energy = 0.82, water = 1 }
+    rows = RLBodyCondition.getPenInfo(pen)
+    local short = true
+    for _, row in ipairs(rows) do short = short and #row.text <= 8 end
+    check("display: a mixed pen with a ration summary shows all seven rows, each a short figure",
+        keys(rows) == "rl_ui_penBcs,rl_ui_penCowsThinFat,rl_ui_penBullsReady,rl_ui_penBullsOverfat,"
+            .. "rl_ui_penFeedEaten,rl_ui_penRationEnergy,rl_ui_penWater"
+        and rows[5].text == "98 %" and rows[6].text == "82 %" and rows[7].text == "100 %" and short)
+    animals = {}
+    check("display: a pen without covered cattle has no rows", RLBodyCondition.getPenInfo(pen) == nil)
+    g_i18n = savedI18n
+end
+
 -- Network events -----------------------------------------------------------------------------
 
 do
