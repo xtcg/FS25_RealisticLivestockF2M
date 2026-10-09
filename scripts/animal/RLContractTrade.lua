@@ -11,9 +11,10 @@
 
     Supported first: COW animals with a meat profile, ALIGNED quote, from a pen or livestock
     trailer of the requesting farm, into HB 1.5.0.0 Beta2's contract service with an open order.
-    The mode is per run (reset to OFF on every map load, never saved); records live in memory
-    only, so a transaction that needs reconciliation does not survive a reload - TEST is for
-    test saves.
+    The mode is per run (reset to OFF on every map load, never saved). Since batch 4 the records
+    are saved with the savegame (RLTradeCheckpoint) once T02 was enabled in it, and TEST can only
+    be set after the loaded ledger checked out; a transaction awaiting reconciliation stays held
+    across reloads. TEST is for test saves.
 
     Order: prepare (permission, ownership, identities, live animals, quotes, whole-batch budget
     and room, HB binding, fingerprint, locks) -> preflight (recheck both sides) -> target
@@ -56,6 +57,10 @@ end
 function RLContractTrade.setMode(mode)
     mode = type(mode) == "string" and mode:upper() or nil
     if mode ~= RLContractTrade.MODE_OFF and mode ~= RLContractTrade.MODE_SHADOW and mode ~= RLContractTrade.MODE_TEST then return false end
+    -- Batch 4: TEST only after the savegame's ledger checked out; setting it arms the ledger.
+    if mode == RLContractTrade.MODE_TEST and RLTradeCheckpoint ~= nil and not RLTradeCheckpoint.allowTest() then
+        return false, "LEDGER_" .. tostring(RLTradeCheckpoint.state) .. ":" .. tostring(RLTradeCheckpoint.reason)
+    end
     RLContractTrade.mode = mode
     Log:info("RLContractTrade: mode %s", mode)
     return true
@@ -183,7 +188,8 @@ function RLContractTrade.prepare(request, shadow)
     for _, key in ipairs(keys) do resources[#resources + 1] = "animal:" .. key end
 
     RLContractTrade.sequence = RLContractTrade.sequence + 1
-    context.txId = string.format("ct%d-f%d-o%s", RLContractTrade.sequence, farmId, tostring(targetBinding.orderId))
+    context.txId = string.format("ct%d-f%d-o%s%s", RLContractTrade.sequence, farmId, tostring(targetBinding.orderId),
+        RLTradeCheckpoint ~= nil and RLTradeCheckpoint.idTag() or "")
     local record
     record, reason = RLTradeTransaction.begin(RLContractTrade.store, context.txId, "CONTRACT", fingerprint, resources)
     if record == nil then return nil, reason end

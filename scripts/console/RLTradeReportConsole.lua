@@ -307,9 +307,10 @@ function RLTradeReportConsole:txMode(mode)
         return string.format("rlTradeTxMode: %s (OFF old path; SHADOW logs what TEST would do; TEST transactions, test saves only)",
             RLContractTrade.getMode())
     end
-    if not RLContractTrade.setMode(mode) then return "rlTradeTxMode: OFF, SHADOW or TEST" end
+    local set, refused = RLContractTrade.setMode(mode)
+    if not set then return refused ~= nil and ("rlTradeTxMode: TEST refused - " .. refused) or "rlTradeTxMode: OFF, SHADOW or TEST" end
     if RLContractTrade.getMode() == RLContractTrade.MODE_TEST then
-        return "rlTradeTxMode: TEST - contract deliveries run as transactions; records are not saved, use a test save"
+        return "rlTradeTxMode: TEST - contract deliveries run as transactions; the ledger is saved with this savegame from now on, use a test save"
     end
     return "rlTradeTxMode: " .. RLContractTrade.getMode()
 end
@@ -322,9 +323,10 @@ function RLTradeReportConsole:saleMode(mode)
         return string.format("rlTradeSaleMode: %s (OFF old path; SHADOW logs what TEST would do; TEST transactions with money receipts, test saves only)",
             RLLiveSale.getMode())
     end
-    if not RLLiveSale.setMode(mode) then return "rlTradeSaleMode: OFF, SHADOW or TEST" end
+    local set, refused = RLLiveSale.setMode(mode)
+    if not set then return refused ~= nil and ("rlTradeSaleMode: TEST refused - " .. refused) or "rlTradeSaleMode: OFF, SHADOW or TEST" end
     if RLLiveSale.getMode() == RLLiveSale.MODE_TEST then
-        return "rlTradeSaleMode: TEST - player and herdsman sales and wages run with receipts; records are not saved, use a test save"
+        return "rlTradeSaleMode: TEST - player and herdsman sales and wages run with receipts; the ledger is saved with this savegame from now on, use a test save"
     end
     return "rlTradeSaleMode: " .. RLLiveSale.getMode()
 end
@@ -344,10 +346,35 @@ local function paymentLine(payment)
 end
 
 
+--- The savegame ledger's checkpoint: gate state, generation, last save, what the load found.
+function RLTradeReportConsole.ledgerStatus()
+    local C = RLTradeCheckpoint
+    if C == nil or C.state == nil then return end
+    out(string.format("ledger: %s (%s), %s, lineage %s, generation %d, epoch %s", tostring(C.state), tostring(C.reason),
+        C.armed and "saved with this savegame" or "not enabled in this savegame", tostring(C.lineage), C.generation or 0,
+        tostring(C.epochTag)))
+    if C.last ~= nil then
+        out(string.format("   last save: generation %d %s%s%s", C.last.generation, tostring(C.last.status),
+            C.last.reason ~= nil and (" (" .. C.last.reason .. ")") or "", C.last.engine ~= nil and (" engine " .. C.last.engine) or ""))
+    end
+    local load = C.load
+    if load ~= nil then
+        out(string.format("   load: %s %s (%s); %d unfinished held, %d never-started cancelled, %d identity repair(s) at start%s",
+            tostring(load.state), tostring(load.level), tostring(load.reason), load.unfinished or 0, load.cancelled or 0,
+            load.identityRepairs or 0, load.ledgerError ~= nil and (", ledger: " .. load.ledgerError) or ""))
+        for _, resource in ipairs(load.resources or {}) do
+            out(string.format("   lock %s -> %s: %s", resource.key, tostring(resource.owner), resource.status))
+        end
+    end
+    if C.quarantine ~= nil then out("   damaged ledger kept as " .. C.QUARANTINE_FILENAME .. " (" .. tostring(C.quarantine.reason) .. ")") end
+end
+
+
 --- rlTradeTxReport [txId]: this run's contract and sale transactions and wage actions. Reads only;
 --- never settles, unlocks, restores or retries.
 function RLTradeReportConsole:txReport(txId)
     if not g_currentMission:getIsServer() then return "rlTradeTxReport: server only (transactions run on the server)" end
+    RLTradeReportConsole.ledgerStatus()
     local store = RLContractTrade.store
     local ids = {}
     for id in pairs(store.records) do
