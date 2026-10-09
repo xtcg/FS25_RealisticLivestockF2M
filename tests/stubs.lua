@@ -137,6 +137,11 @@ RLLivestockPrices = { getMultiplier = function() return 1 end }
 loadMod("scripts/nutrition/RLNutritionMath.lua")
 loadMod("scripts/nutrition/RLBodyConditionConfig.lua")
 loadMod("scripts/nutrition/RLBodyCondition.lua")
+
+-- Carcass yield arithmetic (pure): AnimalMoveEvent's carcass entry points compute through it.
+loadMod("scripts/animal/RLMeatMath.lua")
+-- Delivery rules (pure), shared by AnimalMoveEvent and RLTradeQuote.
+loadMod("scripts/animal/RLFacilityRules.lua")
 -- Pen records (RLPEN log lines), the construction gate and calf rearing; a placeable without a
 -- construction spec is READY and outside a rearing pen nothing changes.
 loadMod("scripts/utils/RLPenLog.lua")

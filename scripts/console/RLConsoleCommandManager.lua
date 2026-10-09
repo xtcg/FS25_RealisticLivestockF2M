@@ -40,6 +40,9 @@ function RLConsoleCommandManager.new()
 
     -- Read-only debug commands - safe on SP, MP host, and MP client.
     addConsoleCommand("rlDumpSettings", "Dump effective RL settings to the log", "dumpSettings", self, "")
+    -- Trade report (RLTradeReportConsole): model meat vs facility units and recipe; changes nothing.
+    addConsoleCommand("rlTradeReport", "Slaughter facilities: model meat vs input unit and recipe in effect (read-only)", "report",
+        RLTradeReportConsole, "[facility] [uniqueId|pen:NAME] [farmId]")
     addConsoleCommand("rlPenReport", "Log each profiled pen's rule, map filter, feed and animals (RLPEN PEN_REPORT)", "report", RLPenConsole, "[pen]")
 
 	return self
