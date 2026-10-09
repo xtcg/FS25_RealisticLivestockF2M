@@ -1156,37 +1156,23 @@ function Animal:getCanReproduce() return AnimalReproduction.getCanReproduce(self
 
 function Animal:updateHealth(foodFactor) AnimalHealth.updateHealth(self, foodFactor) end
 
--- The disease multiplier scales positive growth only: an age-driven loss and the decrease terms
--- stay exactly as a healthy animal's.
---- Advance this animal's weight by one hour of growth, overweight regression and starvation.
+-- The disease multiplier scales growth only: the decrease terms stay exactly as a healthy
+-- animal's.
+--- Advance this animal's weight by one hour of growth, overweight regression and starvation. All
+--- three are rates per period integrated over the hour (RLWeightMath), so a month gives the same
+--- weight at any days per period; at 1 day per period every hour is as it always was. Growth is the
+--- full-feed line's gain (RLBreedTraits.getLineGain, never negative with age) x nutrition.
 ---@param foodFactor number The pen's 0..1 food factor
 ---@return nil
 function Animal:updateWeight(foodFactor)
     local subType = self:getSubType()
-    local minWeight = subType.minWeight
-    local targetWeight = self.targetWeight
-    local weight = self.weight
     local metabolism = self.genetics.metabolism
-    local adultMonth = RLBreedTraits.getMatureAge(subType)
+    local dtMonths = RLWeightMath.getHourMonths(g_currentMission.environment.daysPerPeriod)
 
-    local baseIncrease = ((targetWeight - minWeight) / adultMonth) / (24 * g_currentMission.environment.daysPerPeriod)
-    local increase = baseIncrease * (self.gender == "female" and RLBreedTraits.getFemaleGrowth(subType) or 1.0) *
-    (1 + ((adultMonth - self.age) / 75)) *
-    self:getGrowthNutrition(foodFactor)
-
-    if increase < 0 then
-        metabolism = 1 + (1 - metabolism)
-
-        Log:trace("updateWeight: animal=%s/%s age-driven loss (age=%s adultMonth=%s), metabolism inverted to %s",
-            tostring(self.farmId), tostring(self.uniqueId), tostring(self.age), tostring(adultMonth),
-            tostring(metabolism))
-    end
-
-    increase = increase * metabolism
+    local increase = RLBreedTraits.getLineGain(subType, self.gender, self.targetWeight, self.age, metabolism)
+        * self:getGrowthNutrition(foodFactor) * dtMonths
 
     if self.isCastrated then increase = increase * 1.15 end
-
-    if increase > 0 then increase = increase * RLBreedTraits.get(subType, "growth") end
 
     if self.clusterSystem ~= nil and self.clusterSystem.owner ~= nil and self.clusterSystem.owner.spec_husbandryMilk ~= nil and self.isLactating then increase =
         increase * 0.75 end
@@ -1206,21 +1192,12 @@ function Animal:updateWeight(foodFactor)
         end
     end
 
-    local decrease = 0
-    if weight > targetWeight then decrease = (weight - targetWeight) / (metabolism * 25) end
-
     if foodFactor == 0 then
         Log:trace("updateWeight: animal=%s/%s starving, weight=%s targetWeight=%s",
-            tostring(self.farmId), tostring(self.uniqueId), tostring(weight), tostring(targetWeight))
-
-        if weight < targetWeight then
-            decrease = (targetWeight - weight) / ((1 - (metabolism - 1)) * 150)
-        elseif weight > targetWeight then
-            decrease = decrease + ((weight - targetWeight) / ((1 - (metabolism - 1)) * 150))
-        end
+            tostring(self.farmId), tostring(self.uniqueId), tostring(self.weight), tostring(self.targetWeight))
     end
 
-    self.weight = math.max(self.weight + increase - decrease, 0.001)
+    self.weight = RLWeightMath.stepLegacy(self.weight, self.targetWeight, increase, metabolism, foodFactor == 0, dtMonths)
 
     self:applyUnderweightPenalty()
 end

@@ -275,11 +275,64 @@ function RLBreedTraits.isEliteForSale(genetics)
 end
 
 
---- Weight an animal raised on full feed has at `age`: the same monthly gain as Animal:updateWeight
---- (base gain x sex x (1 + (mature age - age) / 75) x metabolism x breed growth), starting at the
---- subtype's minWeight and never above `targetWeight`. Used for animals that appear with no weight
---- of their own (the dealer's stock, a new game's herds), so that a bull of finishing age arrives at
---- about the weight one raised in the pen reaches, not on the slower expected-weight line above.
+--- Monthly gain of the full-feed growth line of an intact, healthy animal at `age`: base gain
+--- (targetWeight - minWeight) / mature age x sex x age factor x metabolism x breed growth. The age
+--- factor 1 + (mature age - age) / 75 runs down to 0 and stays there (RLWeightMath), so the line
+--- never loses weight with age. Animal:updateWeight and the body condition budget scale this by
+--- what the animal ate, castration, a milking cow and disease.
+--- @param subType table
+--- @param gender string|nil "female" grows at getFemaleGrowth
+--- @param targetWeight number The animal's own target weight
+--- @param age number Months
+--- @param metabolism number|nil Metabolism gene, default 1
+--- @return number kg per period (>= 0)
+function RLBreedTraits.getLineGain(subType, gender, targetWeight, age, metabolism)
+    local matureAge = RLBreedTraits.getMatureAge(subType)
+    if matureAge <= 0 then return 0 end
+
+    local baseGain = (targetWeight - (subType.minWeight or 0)) / matureAge
+    local sex = gender == "female" and RLBreedTraits.getFemaleGrowth(subType) or 1
+    local gain = baseGain * sex * RLWeightMath.getAgeGrowthFactor(age, matureAge) * (metabolism or 1)
+        * RLBreedTraits.get(subType, "growth")
+    return math.max(gain, 0)
+end
+
+
+--- The full-feed growth line at `age`: its weight, from the subtype's minWeight, month by month at
+--- getLineGain and never above `targetWeight`, and what it gains in the month from `age` on.
+--- @param subType table
+--- @param gender string|nil
+--- @param targetWeight number The animal's own target weight
+--- @param age number Months
+--- @param metabolism number|nil
+--- @return number weight kg at `age`
+--- @return number nextGain kg the line gains from `age` to `age` + 1 month
+function RLBreedTraits.getGrownLine(subType, gender, targetWeight, age, metabolism)
+    local minWeight = subType.minWeight or 0
+    if RLBreedTraits.getMatureAge(subType) <= 0 or targetWeight <= minWeight then return minWeight, 0 end
+
+    local function advance(weight, from, to)
+        local month = from
+        while month < to do
+            local step = math.min(1, to - month)
+            local gain = RLBreedTraits.getLineGain(subType, gender, targetWeight, month, metabolism)
+            weight = math.min(weight + gain * step, targetWeight)
+            month = month + step
+        end
+        return weight
+    end
+
+    local weight = advance(minWeight, 0, age)
+    return weight, advance(weight, age, age + 1) - weight
+end
+
+
+--- Weight an animal raised on full feed has at `age` (getGrownLine): the same monthly gain as
+--- Animal:updateWeight at full feed, starting at the subtype's minWeight and never above
+--- `targetWeight`. Used for animals that appear with no weight of their own (the dealer's stock, a
+--- new game's herds), so that a bull of finishing age arrives at about the weight one raised in the
+--- pen reaches, not on the slower expected-weight line above, and as the line live prices and the
+--- body condition budget's feed price are read against.
 --- @param subType table
 --- @param gender string|nil "female" grows at getFemaleGrowth
 --- @param targetWeight number The animal's own target weight
@@ -287,30 +340,14 @@ end
 --- @param metabolism number|nil Metabolism gene, default 1
 --- @return number
 function RLBreedTraits.getGrownWeight(subType, gender, targetWeight, age, metabolism)
-    local minWeight = subType.minWeight or 0
-    local matureAge = RLBreedTraits.getMatureAge(subType)
-    if matureAge <= 0 or targetWeight <= minWeight then return minWeight end
-
-    metabolism = metabolism or 1
-    local baseGain = (targetWeight - minWeight) / matureAge
-    local sex = gender == "female" and RLBreedTraits.getFemaleGrowth(subType) or 1
-    local growth = RLBreedTraits.get(subType, "growth")
-
-    local weight, month = minWeight, 0
-    while month < age do
-        local step = math.min(1, age - month)
-        local gain = baseGain * sex * (1 + (matureAge - month) / 75)
-        gain = gain > 0 and gain * metabolism * growth or gain * (2 - metabolism)
-        weight = math.min(math.max(weight + gain * step, minWeight), targetWeight)
-        month = month + step
-    end
-    return weight
+    return (RLBreedTraits.getGrownLine(subType, gender, targetWeight, age, metabolism))
 end
 
 
 --- Weight of an animal that appears with none of its own (the dealer's stock, a new game's herds): the
---- full-feed growth line at its age (getGrownWeight) +/-15%, between the subtype's minWeight and the
---- animal's own target weight. A grown animal is at its mature weight, never above it.
+--- full-feed growth line at its age (getGrownWeight) +/-15%, never above the animal's own target
+--- weight. A grown animal is at its mature weight, never above it. The subtype's minWeight is the
+--- line's birth weight, not a floor: a newborn's draw keeps its whole 85-115% spread.
 --- @param subType table
 --- @param gender string|nil
 --- @param targetWeight number The animal's own target weight
@@ -322,7 +359,7 @@ function RLBreedTraits.getNewAnimalWeight(subType, gender, targetWeight, age, me
     local grown = RLBreedTraits.getGrownWeight(subType, gender, targetWeight, age, metabolism)
     local variation = (randomFn or math.random)(85, 115) / 100
     local maxWeight = math.min(subType.maxWeight or targetWeight, targetWeight)
-    return math.clamp(grown * variation, subType.minWeight or 0, maxWeight)
+    return math.min(grown * variation, maxWeight)
 end
 
 

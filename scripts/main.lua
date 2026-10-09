@@ -40,6 +40,8 @@ source(modDirectory .. "scripts/core/RLConstants.lua")
 source(modDirectory .. "scripts/core/RLMapCountry.lua")
 
 -- SECTION 2e: Breed traits (xml/breedTraits.xml; its layered lookup is shared with the carcass yield config)
+-- Weight arithmetic of the growth line, the old weight rule and the body condition budget (pure)
+source(modDirectory .. "scripts/animal/RLWeightMath.lua")
 source(modDirectory .. "scripts/animal/RLBreedTraits.lua")
 -- Carcass yield arithmetic, pure; AnimalMoveEvent feeds it the animal and config snapshot
 source(modDirectory .. "scripts/animal/RLMeatMath.lua")

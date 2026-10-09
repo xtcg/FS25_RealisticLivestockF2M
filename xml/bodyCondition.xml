@@ -18,6 +18,16 @@
 
     enabled                    Off: the old weight and milk rules; saved conditions are kept.
     calfLegacyUntilAgeMonth    Younger cattle keep the old rules.
+    fixedFeedPrice             How much a liter eaten is worth (server only).
+                               false: what this animal needs on full feed - maintenance at its
+                               own weight, its own growth (a steer's x1.15, a sick animal's less)
+                               and milk - so needing more makes the same liters richer.
+                               true: what an animal of its genes on its full-feed growth line at
+                               its age and state needs, intact and healthy, whatever this one
+                               needs now; a disease's lost growth is spent on the disease. Animals
+                               behind their line (slow forage routes) get only maintenance-level
+                               feed once the line is grown, so this waits for the new growth
+                               curves; see tests/test_weight.lua.
 
     Reserve
     initialReserve             Reserve of a cow or heifer whose condition is first set up
@@ -82,7 +92,7 @@
     modSettings/FS25_RealisticLivestockRM/bodyCondition.xml; that copy then replaces this file
     entirely. An invalid file switches the feature off and logs why.
 -->
-<bodyCondition enabled="true" calfLegacyUntilAgeMonth="6"
+<bodyCondition enabled="true" calfLegacyUntilAgeMonth="6" fixedFeedPrice="false"
     initialReserve="0.45" reserveCapacityRatio="0.20" referenceReserve="0.45" minReserve="0.05"
     gainRatePerMonth="0.07" lossRatePerMonth="0.08" mobilizeEaseRange="0.15" trendTauMonths="0.5"
     maintenancePerKgMetabolic="4.5" growthNUPerKg="40" depositNUPerKg="48" mobilizeNUPerKg="32"

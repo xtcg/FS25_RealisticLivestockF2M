@@ -47,6 +47,7 @@ RLBodyConditionConfig.DEFAULT_CURVES = {
 function RLBodyConditionConfig.parse(xmlFile)
     local config = table.clone(RLBodyConditionConfig.DEFAULTS)
     config.enabled = true
+    config.fixedFeedPrice = false
     config.curves = {}
     config.feedEnergy = {}
     config.layers = { root = {}, types = {}, breeds = {}, subTypes = {} }
@@ -55,6 +56,7 @@ function RLBodyConditionConfig.parse(xmlFile)
 
     if xmlFile ~= nil then
         config.enabled = xmlFile:getBool("bodyCondition#enabled", true)
+        config.fixedFeedPrice = xmlFile:getBool("bodyCondition#fixedFeedPrice", false)
 
         for key, default in pairs(RLBodyConditionConfig.DEFAULTS) do
             config[key] = xmlFile:getFloat("bodyCondition#" .. key, default)
@@ -174,7 +176,8 @@ end
 
 --- A client takes the server's config (RLBodyConditionConfigEvent), so what it shows matches what
 --- the server computes. Missing values keep the defaults; a config that fails the checks switches
---- the feature off on this client, as it would on a server.
+--- the feature off on this client, as it would on a server. fixedFeedPrice is not sent: only the
+--- server runs the budget it prices.
 --- @param received table
 function RLBodyConditionConfig.applyServerConfig(received)
     local config = table.clone(RLBodyConditionConfig.DEFAULTS)

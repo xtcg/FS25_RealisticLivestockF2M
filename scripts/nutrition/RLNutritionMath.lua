@@ -70,12 +70,16 @@ end
 ---
 --- Supply. What the animal ate this step, in liters of full TMR ration: the liters allocated to it
 --- from the pen's actual consumption, each fill type times its energy and the breed's digestion of
---- it. Its reference intake is what an average animal of its kind, age and state requests on full
---- feed. Full-feed demand (maintenance + pregnancy + the full growth line + the lactation-average
---- milk at average productivity) is what that reference intake pays for, times intakeCapacity. So
---- an average animal eating its reference ration meets its demand and the old growth line holds;
---- an animal that eats more liters (a high-yield cow's extra intake, a bigger frame, more of the
---- trough) gets more, one that eats fewer or poorer liters gets less.
+--- it. A liter is worth what the reference intake (referenceLiters) pays for, times intakeCapacity:
+---   need-based price (no referenceWeight): the animal's own full-feed demand - maintenance at its
+---     weight, pregnancy, its growth line and the lactation-average milk at average productivity.
+---     The same liters are worth more to an animal that needs more (a heavier body, a steer).
+---   fixed price (referenceWeight given): the demand of a reference animal - maintenance at
+---     referenceWeight, pregnancy, growth referenceGrowthKg, milk anchorMilk - whatever this
+---     animal needs now. A disease's lost growth (diseaseLossKg) is then spent on the disease.
+--- An animal eating its reference ration at its reference meets its demand and the old growth
+--- line holds; one that eats more liters (a high-yield cow's extra intake, a bigger frame, more of
+--- the trough) gets more, one that eats fewer or poorer liters gets less.
 ---
 --- Allocation, in order: maintenance, pregnancy, then growth and milk (milk weighted by
 --- milkPriority while lactating). A shortfall in maintenance and pregnancy is covered from the
@@ -104,7 +108,10 @@ function RLNutritionMath.step(input, cfg)
     --   anchorMilk            lactation-average milk at average productivity (liters)
     --   isLactating, pregnancyProgress (0..1), numFetuses
     --   intakeLiters          liters of full TMR ration it ate (energy and digestion applied)
-    --   referenceLiters       liters an average animal in its state requests on full feed
+    --   referenceLiters       liters the reference animal requests on full feed
+    --   referenceWeight       fixed price: the reference animal's weight (nil = need-based price)
+    --   referenceGrowthKg     fixed price: the reference animal's growth
+    --   diseaseLossKg         fixed price: growth a disease takes (paid with growth, gains nothing)
     --   intakeCapacity        kappa for the animal's state
     --   reserveTarget         stage target that growth is diverted to (nil = no diversion)
     --   reserveCeiling        highest reserve a surplus fills to
@@ -128,17 +135,26 @@ function RLNutritionMath.step(input, cfg)
         divertKg = math.min(growthKg, wantedDelta * K / dt)
     end
     local frameGrowthKg = growthKg - divertKg
+    local fixedPrice = input.referenceWeight ~= nil
+    local diseaseKg = (fixedPrice and growthKg > 0) and math.max(input.diseaseLossKg or 0, 0) or 0
 
     -- Demands (NU per period).
     local maintenance = cfg.maintenancePerKgMetabolic * math.max(W, 1) ^ 0.75
     local ramp = math.clamp(((input.pregnancyProgress or 0) - cfg.pregnancyRampStart) / (1 - cfg.pregnancyRampStart), 0, 1)
     local pregnancy = maintenance * cfg.pregnancyFactor * (input.numFetuses or 0) * ramp
-    local growthNeed = frameGrowthKg * cfg.growthNUPerKg + divertKg * cfg.depositNUPerKg
+    local growthNeed = (frameGrowthKg + diseaseKg) * cfg.growthNUPerKg + divertKg * cfg.depositNUPerKg
     local milkNeed = math.max(input.potentialMilk or 0, 0) * cfg.milkNUPerLiter
 
     -- Supply (NU per period): the liters eaten, valued at what the reference intake pays for.
-    local anchor = maintenance + pregnancy + growthKg * cfg.growthNUPerKg
-        + math.max(input.anchorMilk or 0, 0) * cfg.milkNUPerLiter
+    local anchor
+    if fixedPrice then
+        local referenceMaintenance = cfg.maintenancePerKgMetabolic * math.max(input.referenceWeight, 1) ^ 0.75
+        anchor = referenceMaintenance * (1 + cfg.pregnancyFactor * (input.numFetuses or 0) * ramp)
+            + math.max(input.referenceGrowthKg or 0, 0) * cfg.growthNUPerKg
+    else
+        anchor = maintenance + pregnancy + growthKg * cfg.growthNUPerKg
+    end
+    anchor = anchor + math.max(input.anchorMilk or 0, 0) * cfg.milkNUPerLiter
     local nuPerLiter = 0
     if (input.referenceLiters or 0) > 0 then nuPerLiter = input.intakeCapacity * anchor / input.referenceLiters end
     local supply = math.max(input.intakeLiters or 0, 0) * nuPerLiter
