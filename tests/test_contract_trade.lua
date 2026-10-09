@@ -718,7 +718,7 @@ end
 do
     newServerToClientCodes = {}
     AnimalMoveEvent.newServerToClient = function(code) newServerToClientCodes[#newServerToClientCodes + 1] = code return { code = code } end
-    RLHusbandryProfiles = { apply = function() end, checkAnimal = function() return true end }
+    RLHusbandryProfiles = { apply = function() end, checkAnimal = function() return true end, logDecision = function() end }
     RmSafeUtils = { safeCall = function(_, fn) local ok, err = pcall(fn) if not ok then error(err) end end }
     g_currentMission.userManager = { getUniqueUserIdByConnection = function() return "user1" end }
     g_farmManager.getFarmForUniqueUserId = function() return { farmId = 1 } end
