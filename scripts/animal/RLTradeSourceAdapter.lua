@@ -258,6 +258,63 @@ function RLTradeSourceAdapter.verify(binding)
 end
 
 
+--- Batch 3 (live sale): which frozen animals left and which stayed, by object, without judging
+--- the batch. Unknown when the list cannot be read or a frozen animal is listed twice.
+--- sameSystem: the source still has the bound cluster system; othersIntact: every member outside
+--- the batch is still there once and nothing else joined.
+--- @return table outcome {known, reason?, sameSystem, othersIntact, removed = {i}, survivors = {i}, removedKeys, survivorKeys}
+function RLTradeSourceAdapter.observe(binding)
+    local r = binding.receipt
+    local okSupport, clusterSystem = pcall(RLTradeSourceAdapter.getSupport, binding.source)
+    local count, members = presence(binding)
+    if count == nil then
+        r.observeError = "SOURCE_UNREADABLE"
+        return { known = false, reason = "SOURCE_UNREADABLE" }
+    end
+    local outcome = { known = true, sameSystem = okSupport and clusterSystem == binding.clusterSystem, othersIntact = true,
+        removed = {}, survivors = {}, removedKeys = {}, survivorKeys = {} }
+    for i, animal in ipairs(binding.animals) do
+        if count[animal] == nil then
+            outcome.removed[#outcome.removed + 1] = i
+            outcome.removedKeys[#outcome.removedKeys + 1] = binding.keys[i]
+        elseif count[animal] == 1 then
+            outcome.survivors[#outcome.survivors + 1] = i
+            outcome.survivorKeys[#outcome.survivorKeys + 1] = binding.keys[i]
+        else
+            r.observeError = "BATCH_MEMBER_DUPLICATED"
+            return { known = false, reason = "BATCH_MEMBER_DUPLICATED:" .. tostring(binding.keys[i]) }
+        end
+    end
+    for _, animal in ipairs(binding.others) do
+        if count[animal] ~= 1 then outcome.othersIntact = false end
+    end
+    if #members ~= #binding.others + #outcome.survivors then outcome.othersIntact = false end
+    r.removed, r.survivors = outcome.removedKeys, outcome.survivorKeys
+    r.stage = "OBSERVED"
+    return outcome
+end
+
+
+--- Batch 3 (live sale): take this batch's animals off the source's queues, touching no other
+--- entry. An animal that left has no entry; one still a member must not be removed unpaid by a
+--- later flush. True only when no frozen animal is left in either queue.
+--- @return boolean ok
+--- @return string|nil reason
+function RLTradeSourceAdapter.clearBatchQueue(binding)
+    local clusterSystem = binding.clusterSystem
+    if type(clusterSystem.clustersToRemove) ~= "table" or type(clusterSystem.clustersToAdd) ~= "table" then
+        return false, "QUEUE_UNREADABLE"
+    end
+    for _, animal in ipairs(binding.animals) do clusterSystem.clustersToRemove[animal] = nil end
+    for _, animal in ipairs(binding.animals) do
+        if clusterSystem.clustersToRemove[animal] ~= nil or clusterSystem.clustersToAdd[animal] ~= nil then
+            return false, "QUEUE_LEFT"
+        end
+    end
+    return true
+end
+
+
 --- Put back exactly what this batch took out. Idempotent. False when the source cannot be read
 --- or the re-add throws (unknown: keep for reconciliation).
 --- @return boolean ok
