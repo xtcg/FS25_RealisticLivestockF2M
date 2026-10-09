@@ -34,7 +34,7 @@ RLDetailPaneHelper.GENETICS_COLOR_NEUTRAL = { 1.00, 1.00, 1.00, 1 }
 -- Number of pre-allocated XML row slots per stack
 RLDetailPaneHelper.NUM_CONDITION_ROWS = 5
 RLDetailPaneHelper.NUM_FOOD_ROWS      = 5
-RLDetailPaneHelper.NUM_STAT_ROWS      = 10
+RLDetailPaneHelper.NUM_STAT_ROWS      = 14
 RLDetailPaneHelper.NUM_GENETICS_ROWS  = 6
 RLDetailPaneHelper.NUM_DISEASE_ROWS   = 5
 RLDetailPaneHelper.NUM_INPUT_ROWS     = 3
@@ -292,12 +292,32 @@ end
 -- Animal column rendering
 -- =============================================================================
 
---- Render the per-animal stat rows as a 2x5 grid of plain label/value text
---- pairs (no status bars). Variable count handled by hide-unused.
---- @param frame table Frame with statRow/statLabel/statValue[1..NUM_STAT_ROWS]
+--- Height of the stat grid section for a number of rows in use, as a share of its full
+--- height (the profile's 255px: 10px top pad + 35px per grid row, 7 rows).
+--- @param numStats number Stat rows to show
+--- @return number share 0..1
+function RLDetailPaneHelper.getStatsSectionShare(numStats)
+    local gridRows = math.ceil(RLDetailPaneHelper.NUM_STAT_ROWS / 2)
+    local used = math.ceil(math.min(math.max(numStats, 0), RLDetailPaneHelper.NUM_STAT_ROWS) / 2)
+    return (10 + 35 * used) / (10 + 35 * gridRows)
+end
+
+--- Render the per-animal stat rows as a 2x7 grid of plain label/value text
+--- pairs (no status bars). Variable count handled by hide-unused; the grid
+--- section shrinks to the rows in use so a short list leaves no gap.
+--- @param frame table Frame with statRow/statLabel/statValue[1..NUM_STAT_ROWS], statsSection
 --- @param statRows table list of {title, valueText, value, customUnitText}
 function RLDetailPaneHelper.updateAnimalStats(frame, statRows)
     if frame.statRow == nil then return end
+    if #statRows > RLDetailPaneHelper.NUM_STAT_ROWS then
+        Log:debug("RLDetailPaneHelper.updateAnimalStats: %d stat rows, grid shows %d",
+            #statRows, RLDetailPaneHelper.NUM_STAT_ROWS)
+    end
+    local section = frame.statsSection
+    if section ~= nil and section.setSize ~= nil and section.size ~= nil then
+        section.rlFullHeight = section.rlFullHeight or section.size[2]
+        section:setSize(nil, section.rlFullHeight * RLDetailPaneHelper.getStatsSectionShare(#statRows))
+    end
     for index = 1, RLDetailPaneHelper.NUM_STAT_ROWS do
         local row = frame.statRow[index]
         local info = statRows[index]

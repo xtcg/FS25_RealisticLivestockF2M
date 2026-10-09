@@ -54,6 +54,7 @@ function RLConsoleCommandManager.new()
     end
     addConsoleCommand("rlTradePlan", "Read-only whole-batch contract budget (shadow, no reservation or delivery)", "plan",
         RLTradeReportConsole, "<facility> <uniqueId|pen:NAME> [farmId]")
+    addConsoleCommand("rlPenReport", "Log each profiled pen's rule, map filter, feed and animals (RLPEN PEN_REPORT)", "report", RLPenConsole, "[pen]")
 
 	return self
 

@@ -13,36 +13,51 @@
                     untilMature: intact males only until their subtype's breeding age
                     (reproduction minAgeMonth, 12 months for RLRM cattle)
         minAge      months, inclusive (omit for no limit)
-        maxAge      months, inclusive (omit for no limit)
+        maxAge      months, inclusive (omit for no limit; ages are whole months, so maxAge="1"
+                    takes 0 and 1 month and turns away 2)
         breeds      breed names, space separated (omit for every breed)
+        rearing     true: a hand-rearing calf pen; milk and solid feed by age (xml/calfRearing.xml)
 
     husbandry:
         filename    the building's config, matched against the end of its path
         profile     a profile above
         breeds      replaces the profile's breeds for this building
 
-    Rules apply to animals coming in: an animal that ages out stays where it is, and
-    births are never blocked. Hof Bergmann's MVB dairy (MILKCOW) is the map's own
-    system and is left as it is.
+    construction:
+        filename    a building with a construction state machine, matched as above
+        readyStates the construction states in which it takes animals (state names from the
+                    building's own XML, space separated). In any other state no animal is bought
+                    or moved in; animals already there stay and can be moved out. A building
+                    that has construction states but no entry here takes animals only once its
+                    construction has reached its final state.
+
+    Rules apply to animals coming in: an animal that ages out stays where it is (logged as
+    OVERAGE_RESIDENT, the owner gets a message), and births are never blocked.
+
+    Calf path on the home farm: igloo (0-1 months) -> rearing box A/B (0-5, heifers, bull calves
+    and steers, 3 each) -> dairy barn (Holstein / Swiss Brown cows from 6) or bull barn (intact bulls
+    from 6). The farm 2 barn takes weaned calves from 3 months.
+
+    Hof Bergmann's MVB dairy (MILKCOW) is the map's own system and is left as it is.
 -->
 <husbandryProfiles>
-    <profile name="CALF"      female="true"  steer="true"  intactMale="true"        maxAge="5"/>
-    <profile name="BULL_CALF" female="false" steer="true"  intactMale="true"        maxAge="5"/>
-    <profile name="DAIRY"     female="true"  steer="false" intactMale="false"       minAge="6" breeds="HOLSTEIN SWISS_BROWN"/>
-    <profile name="BULL"      female="false" steer="false" intactMale="true"        minAge="6"/>
-    <profile name="MIXED"     female="true"  steer="true"  intactMale="untilMature" minAge="6"/>
-    <profile name="PASTURE"   female="true"  steer="true"  intactMale="untilMature"/>
+    <profile name="NURSERY"    female="true"  steer="true"  intactMale="true"        maxAge="1" rearing="true"/>
+    <profile name="GROUP_CALF" female="true"  steer="true"  intactMale="true"        maxAge="5" rearing="true"/>
+    <profile name="DAIRY"      female="true"  steer="false" intactMale="false"       minAge="6" breeds="HOLSTEIN SWISS_BROWN"/>
+    <profile name="BULL"       female="false" steer="false" intactMale="true"        minAge="6"/>
+    <profile name="MIXED"      female="true"  steer="true"  intactMale="untilMature" minAge="3"/>
+    <profile name="PASTURE"    female="true"  steer="true"  intactMale="untilMature"/>
 
-    <!-- Calf igloos 01-05 -->
-    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu01.xml" profile="CALF"/>
-    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu02.xml" profile="CALF"/>
-    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu03.xml" profile="CALF"/>
-    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu04.xml" profile="CALF"/>
-    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu05.xml" profile="CALF"/>
+    <!-- Calf igloos 01-05: one calf each, 0-1 months; from 2 months it moves to a group pen -->
+    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu01.xml" profile="NURSERY"/>
+    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu02.xml" profile="NURSERY"/>
+    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu03.xml" profile="NURSERY"/>
+    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu04.xml" profile="NURSERY"/>
+    <husbandry filename="placeables/animalHusbandry/calfIglus/calfIglu05.xml" profile="NURSERY"/>
 
-    <!-- Calf rearing boxes A/B (bulls) -->
-    <husbandry filename="placeables/animalHusbandry/bullStable/bullCalfZone01.xml" profile="BULL_CALF"/>
-    <husbandry filename="placeables/animalHusbandry/bullStable/bullCalfZone02.xml" profile="BULL_CALF"/>
+    <!-- Calf rearing boxes A/B: group pens, 3 calves of either sex, 0-5 months (the map names them for bulls) -->
+    <husbandry filename="placeables/animalHusbandry/bullStable/bullCalfZone01.xml" profile="GROUP_CALF"/>
+    <husbandry filename="placeables/animalHusbandry/bullStable/bullCalfZone02.xml" profile="GROUP_CALF"/>
 
     <!-- Bull barns (farm and MVB) -->
     <husbandry filename="placeables/animalHusbandry/bullStable/bullStable.xml" profile="BULL"/>
@@ -51,7 +66,7 @@
     <!-- Cow barn (farm): milked into its tank -->
     <husbandry filename="placeables/animalHusbandry/cowHusbandryOldFarm/cowHusbandryOldFarm.xml" profile="DAIRY"/>
 
-    <!-- Cow barn with pasture (farm 2) -->
+    <!-- Cow barn with pasture (farm 2): weaned calves from 3 months (its trough takes no milk) -->
     <husbandry filename="placeables/animalHusbandry/cowHusbandryFarm02/cowHusbandryFarm02.xml" profile="MIXED"/>
 
     <!-- Pastures -->
@@ -59,4 +74,16 @@
     <husbandry filename="placeables/animalHusbandry/cowPastures/cowPasture01.xml" profile="PASTURE" breeds="WATER_BUFFALO"/>
     <husbandry filename="placeables/animalHusbandry/cowPastures/cowPasture02.xml" profile="PASTURE" breeds="HIGHLAND COW_HIGHLAND_CATTLE"/>
     <!-- COW_HIGHLAND_CATTLE: the map's own Highland cow, registered when the Highlands DLC is off (its breed defaults to its name). -->
+
+    <!-- Construction. The igloos (SETUP: 1000 CALFIGLU, FINALIZE, DONE) and the buildable pasture
+         (SETUP, STATE_1-4, FINALIZE, DONE) hide the real pen until DONE. The farm cow barn stands
+         from the start: its states STEP1 (milk tank) and STEP2 (milking robot) only add milking
+         equipment, so it takes animals in all of them. -->
+    <construction filename="placeables/animalHusbandry/calfIglus/calfIglu01.xml" readyStates="DONE"/>
+    <construction filename="placeables/animalHusbandry/calfIglus/calfIglu02.xml" readyStates="DONE"/>
+    <construction filename="placeables/animalHusbandry/calfIglus/calfIglu03.xml" readyStates="DONE"/>
+    <construction filename="placeables/animalHusbandry/calfIglus/calfIglu04.xml" readyStates="DONE"/>
+    <construction filename="placeables/animalHusbandry/calfIglus/calfIglu05.xml" readyStates="DONE"/>
+    <construction filename="placeables/constructibles/constructible_cowPasture.xml" readyStates="DONE"/>
+    <construction filename="placeables/animalHusbandry/cowHusbandryOldFarm/cowHusbandryOldFarm.xml" readyStates="STEP1 STEP2 FINALIZE DONE"/>
 </husbandryProfiles>
