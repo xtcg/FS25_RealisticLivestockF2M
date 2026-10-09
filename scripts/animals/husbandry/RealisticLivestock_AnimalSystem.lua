@@ -1504,7 +1504,7 @@ end
 
 --- What RLDealerStockPolicy needs to know of a subtype from the game: the type's maxBuyAge, the
 --- ages whose visual can be bought, the calf rearing weaning month, and whether and how long its
---- mothers milk (AnimalReproduction's rule).
+--- mothers milk (RLLactation, the game's rule).
 ---@param animalType table
 ---@param subType table
 ---@return table ctx {maxBuyAge, weaningMonth, union, lactates, lactationMonths}
@@ -1514,8 +1514,8 @@ function AnimalSystem:getSaleAgeContext(animalType, subType)
         maxBuyAge = maxBuyAge,
         weaningMonth = RLCalfRearing.getWeaningMonthForSubType(subType),
         union = RLDealerStockPolicy.getBuyableAgeUnion(subType, maxBuyAge),
-        lactates = AnimalReproduction.lactatesAfterBirth(animalType.typeIndex, subType.name),
-        lactationMonths = AnimalReproduction.LACTATION_MONTHS,
+        lactates = RLLactation.startsAtBirth(animalType.typeIndex, subType.name),
+        lactationMonths = RLLactation.MONTHS,
     }
 end
 
@@ -1561,12 +1561,12 @@ end
 --- Say once per breed per map load that dealerStock.xml gives a covered breed no use, so only the
 --- sources that take any breed supply it.
 local function noteSaleBreedUseGap(animalType, subType, entry)
-    if not RLDealerStockPolicy.isUseMissing(entry) then return end
     local latchKey = "use:" .. tostring(animalType.name) .. ":" .. tostring(subType.breed)
     if saleGenerationBailLatches[latchKey] then return end
+    saleGenerationBailLatches[latchKey] = true
+    if not RLDealerStockPolicy.isUseMissing(entry) then return end
     Log:info("Dealer stock: %s breed %s has no use in dealerStock.xml (dairy, beef...), so only sources that take any breed supply it.",
         tostring(animalType.name), tostring(subType.breed))
-    saleGenerationBailLatches[latchKey] = true
 end
 
 
@@ -1992,7 +1992,9 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
     -- rolls once per animal per day. A generation roll would convert the same monthly chance
     -- through `perTick` a second time, and an animal generated late in the day would draw twice.
     -- Before the id: an animal whose genetic disease shows (affected, not a carrier) is not listed,
-    -- and the check below rejects it before it takes one (its seeding lines name no uniqueId).
+    -- and the check below rejects it before it takes one. Its seeding lines name the source farm
+    -- but no uniqueId; the "listed with genetic records" line below ties a listing to them.
+    animal.farmId = tostring(source.farmId)
     g_diseaseManager:setGeneticDiseasesForSaleAnimal(animal)
 
     -- Check the animal against its purpose before it takes an id or offspring, so a rejected one
@@ -2003,7 +2005,6 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
         if not ok then return nil, reasons[1] end
     end
 
-    animal.farmId = tostring(source.farmId)
     animal.uniqueId = RLAnimalUtil.generateUniqueId(source.farmId, self:_takeSaleAnimalId(source, animalTypeIndex))
     animal.birthday.country = source.countryIndex
 

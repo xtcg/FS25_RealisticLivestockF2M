@@ -24,7 +24,7 @@ loadMod("scripts/nutrition/RLCalfRearing.lua")
 loadMod("scripts/dealer/RLDealerStockPolicy.lua")
 loadMod("scripts/dealer/RLDealerSaleCatalog.lua")
 AnimalType = { COW = 1, PIG = 2, SHEEP = 3, HORSE = 4, CHICKEN = 5 }
--- The game's milk rule (AnimalReproduction) comes from tests/stubs.lua.
+-- The game's milk rule (RLLactation) comes from tests/stubs.lua.
 
 local P = RLDealerStockPolicy
 local R = P.REASON
@@ -63,8 +63,8 @@ local function ctxFor(subType, maxBuyAge)
     maxBuyAge = maxBuyAge or 72
     return { maxBuyAge = maxBuyAge, weaningMonth = RLCalfRearing.getWeaningMonthForSubType(subType),
         union = P.getBuyableAgeUnion(subType, maxBuyAge),
-        lactates = AnimalReproduction.lactatesAfterBirth(subType.typeIndex, subType.name),
-        lactationMonths = AnimalReproduction.LACTATION_MONTHS }
+        lactates = RLLactation.startsAtBirth(subType.typeIndex, subType.name),
+        lactationMonths = RLLactation.MONTHS }
 end
 
 local function describe(candidates)
@@ -243,9 +243,13 @@ check(string.format("heifer calves: dairy herd %d, rearing unit %d of 10000; a s
 
 check("goats: own source, and they milk (cows and goats do; sheep do not)",
     sourcesOf(P.getEntry(config, { name = "GOAT", breed = "GOAT", gender = "female" }, "SHEEP"), "female", "BREEDER_YOUNG") == "GOAT_HERD"
-    and AnimalReproduction.lactatesAfterBirth(AnimalType.COW, "COW_HOLSTEIN")
-    and AnimalReproduction.lactatesAfterBirth(AnimalType.SHEEP, "GOAT")
-    and not AnimalReproduction.lactatesAfterBirth(AnimalType.SHEEP, "SHEEP_LANDRACE"))
+    and RLLactation.startsAtBirth(AnimalType.COW, "COW_HOLSTEIN")
+    and RLLactation.startsAtBirth(AnimalType.SHEEP, "GOAT")
+    and not RLLactation.startsAtBirth(AnimalType.SHEEP, "SHEEP_LANDRACE"))
+local curve = {}
+for m = 0, 10 do table.insert(curve, string.format("%.3f", RLLactation.getYieldFactor(m))) end
+check("milk yield curve as before: " .. table.concat(curve, " "), table.concat(curve, " ")
+    == "0.800 0.967 1.133 1.300 1.267 1.200 1.133 1.067 1.000 0.933 0.000")
 
 
 -- Draws -----------------------------------------------------------------------------------------
@@ -557,8 +561,8 @@ RLDealerQualityModel = { reshapeGenetics = function(g) return g, false end, getP
 RLCalendar = { getMonthAndYear = function() return 3, 2 end }
 -- Now and then a genetic disease that shows (an affected animal): it must not be listed.
 g_diseaseManager = { setGeneticDiseasesForSaleAnimal = function(_, animal) animal.affected = math.random(1, 40) == 1 end }
-AnimalReproduction._clearOrphanedPregnancy = function(animal)
-    animal.pregnancy, animal.reproduction, animal.isPregnant = nil, 0, false end
+AnimalReproduction = { _clearOrphanedPregnancy = function(animal)
+    animal.pregnancy, animal.reproduction, animal.isPregnant = nil, 0, false end }
 g_currentMission.environment = { currentMonotonicDay = 40 }
 g_currentMission.animalNameSystem = { getRandomName = function() return "Name" end }
 
@@ -762,8 +766,10 @@ do
     local parsed = P.parseConfig(loadXMLFileFromDisk(path))
     os.remove(path)
     local warnings = table.concat(LOG, "\n", before + 1)
-    check("version 1 file: warned that profiles without sources offer nothing", warnings:find("version 1", 1, true) ~= nil
-        and warnings:find("profile OLD has no source", 1, true) ~= nil)
+    check("version 1 file: warned, and a profile without sources keeps selling from one UNSPECIFIED source",
+        warnings:find("version 1", 1, true) ~= nil and warnings:find("profile OLD has no source", 1, true) ~= nil
+        and #parsed.profiles.OLD.sources == 1 and parsed.profiles.OLD.sources[1].id == "UNSPECIFIED"
+        and P.supplies(parsed.profiles.OLD.sources[1], { use = nil }, parsed.profiles.OLD.purposes[1], "male"))
     check("source naming a purpose the profile lacks (YUNG, YOUNG for males): warned",
         warnings:find("source FARM2 names purpose YUNG,", 1, true) ~= nil
         and warnings:find("source FARM2 names purpose YOUNG for male", 1, true) ~= nil)

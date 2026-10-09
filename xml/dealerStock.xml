@@ -55,7 +55,8 @@
 
     Sources: the kinds of farm the dealer buys from (a dairy herd, a suckler herd, a rearing unit,
     a breeding stock farm...). Every purpose needs one that supplies it for the breed and sex, or
-    it is not offered (NO_SOURCE). Each listing names its source.
+    it is not offered (NO_SOURCE). Each listing names its source. A profile with no source (a file
+    from before version 2) gets one, UNSPECIFIED, that supplies everything with history UNKNOWN.
       id                 name of the source, saved with the listing
       uses               the breed uses it keeps (the use attribute below), or any (default)
       purposes           purpose ids it supplies, ID for both sexes or ID:female / ID:male;

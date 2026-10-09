@@ -76,6 +76,9 @@ RLDealerStockPolicy.TRACEABILITY = { UNKNOWN = 1, PARTIAL = 2, RECORDED = 3 }
 --- Breed use a source takes whatever the breed (and the only one a breed without a use matches).
 RLDealerStockPolicy.ANY_USE = "any"
 
+--- The one source a profile without any gets (a file from before sources).
+RLDealerStockPolicy.DEFAULT_SOURCE = "UNSPECIFIED"
+
 local RULES = { never = true, always = true, optional = true }
 local GENDERS = { female = true, male = true, any = true }
 
@@ -256,8 +259,8 @@ function RLDealerStockPolicy.parseConfig(xmlFile)
 
     local version = xmlFile:getInt("dealerStock#version")
     if version == nil or version < RLDealerStockPolicy.DEFAULTS.version then
-        Log:warning("RLDealerStockPolicy: dealerStock.xml is version %s, the mod's is %d: profiles without "
-            .. "sources offer nothing. Copy the mod's file again and redo your changes.",
+        Log:warning("RLDealerStockPolicy: dealerStock.xml is version %s, the mod's is %d; copy the mod's file "
+            .. "again to get its newer settings (sources, calving counts, health, weaning ages).",
             tostring(version), RLDealerStockPolicy.DEFAULTS.version)
     end
     config.version = version or config.version
@@ -327,9 +330,15 @@ function RLDealerStockPolicy.parseConfig(xmlFile)
             end
             table.insert(profile.sources, source)
         end)
-        if #profile.sources == 0 and #profile.purposes > 0 then
-            Log:warning("RLDealerStockPolicy: profile %s has no source, so none of its purposes is offered "
-                .. "(dealerStock.xml version 2 names the farms each purpose comes from)", name)
+        if #profile.sources == 0 then
+            -- A file from before sources (version 1): one source of unknown history that supplies
+            -- every purpose of any breed, so the profile keeps selling as it did.
+            table.insert(profile.sources, { id = RLDealerStockPolicy.DEFAULT_SOURCE, uses = { [RLDealerStockPolicy.ANY_USE] = true },
+                anyUse = true, weight = 1, traceability = "UNKNOWN" })
+            if #profile.purposes > 0 then
+                Log:warning("RLDealerStockPolicy: profile %s has no source; its purposes come from one source, %s "
+                    .. "(any breed, history unknown), until the file names its sources", name, RLDealerStockPolicy.DEFAULT_SOURCE)
+            end
         end
 
         if config.profiles[name] ~= nil then
@@ -798,7 +807,7 @@ end
 
 
 --- Whether a mother milks now: a female, since her last birth, for lactationMonths (ctx.lactates:
---- the species milks at all). The game's own rule (AnimalReproduction), so a listing stays in step
+--- the species milks at all). The game's own rule (RLLactation), so a listing stays in step
 --- as it ages on the shelf.
 --- @param ctx table {lactates, lactationMonths}
 --- @return boolean
