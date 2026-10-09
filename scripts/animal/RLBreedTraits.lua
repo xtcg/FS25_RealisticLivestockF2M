@@ -318,21 +318,23 @@ function RLBreedTraits.getLineGain(subType, gender, targetWeight, age, metabolis
 end
 
 
---- A line's weight after going from `weight` at month `from` to month `to`, a month at a time
---- (the gain at the start of each month), never above targetWeight.
-local function advanceLine(weight, from, to, rate, matureAge, targetWeight)
-    local month = from
-    while month < to do
-        local step = math.min(1, to - month)
-        weight = math.min(weight + rate * RLWeightMath.getAgeGrowthFactor(month, matureAge) * step, targetWeight)
-        month = month + step
-    end
-    return weight
+--- Sum of the age factor over the line's months up to `age`: whole months k = 0 .. n-1 at their
+--- start (1 + (matureAge - k) / 75, never below 0) and the part month from n = floor(age) at month
+--- n's factor - what a month-by-month step from birth adds up. In closed form: the factor is
+--- positive for k <= floor(matureAge + 75) and falls by 1/75 a month, an arithmetic series.
+local function getAgeFactorSum(age, matureAge)
+    local n = math.floor(age)
+    local months = math.min(n, math.floor(matureAge + RLWeightMath.AGE_FACTOR_MONTHS) + 1)
+    local first = RLWeightMath.getAgeGrowthFactor(0, matureAge)
+    local whole = months > 0 and months * first - months * (months - 1) / (2 * RLWeightMath.AGE_FACTOR_MONTHS) or 0
+    return whole + RLWeightMath.getAgeGrowthFactor(n, matureAge) * (age - n)
 end
 
 
 --- The full-feed growth line at `age`: its weight, from the subtype's minWeight, month by month at
---- getLineGain and never above `targetWeight`, and what it gains in the month from `age` on.
+--- getLineGain (the gain at the start of each month) and never above `targetWeight`, and what it
+--- gains in the month from `age` on. Gains are never negative, so capping at the target once is
+--- capping it every month; the weight is minWeight + base rate x getAgeFactorSum, O(1) at any age.
 --- @param subType table
 --- @param gender string|nil
 --- @param targetWeight number The animal's own target weight
@@ -345,8 +347,10 @@ function RLBreedTraits.getGrownLine(subType, gender, targetWeight, age, metaboli
     local matureAge, rate = getLineRate(subType, gender, targetWeight, metabolism)
     if matureAge <= 0 or targetWeight <= minWeight then return minWeight, 0 end
 
-    local weight = advanceLine(minWeight, 0, age, rate, matureAge, targetWeight)
-    return weight, advanceLine(weight, age, age + 1, rate, matureAge, targetWeight) - weight
+    age = math.max(age or 0, 0)
+    local weight = math.min(minWeight + rate * getAgeFactorSum(age, matureAge), targetWeight)
+    local after = math.min(minWeight + rate * getAgeFactorSum(age + 1, matureAge), targetWeight)
+    return weight, after - weight
 end
 
 
@@ -363,10 +367,7 @@ end
 --- @param metabolism number|nil Metabolism gene, default 1
 --- @return number
 function RLBreedTraits.getGrownWeight(subType, gender, targetWeight, age, metabolism)
-    local minWeight = subType.minWeight or 0
-    local matureAge, rate = getLineRate(subType, gender, targetWeight, metabolism)
-    if matureAge <= 0 or targetWeight <= minWeight then return minWeight end
-    return advanceLine(minWeight, 0, age, rate, matureAge, targetWeight)
+    return (RLBreedTraits.getGrownLine(subType, gender, targetWeight, age, metabolism))
 end
 
 

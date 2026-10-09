@@ -137,6 +137,19 @@ do
 end
 
 do
+    -- Crossing the target within a step: the step that crosses adds its growth without the return
+    -- to the target (the old hour did the same), so a period of many short steps starts that return
+    -- a fraction of an hour sooner. One crossing, a fraction of one hour's return.
+    local weights = {}
+    for _, days in ipairs({ 1, 3, 7, 28 }) do
+        weights[#weights + 1] = month(makeAnimal("BULL_ANGUS", { weight = 999.5, targetWeight = 1000, age = 20 }), 1, days)
+    end
+    local spread = math.max(table.unpack(weights)) - math.min(table.unpack(weights))
+    check(string.format("old rule: crossing its target in a month, a growing animal differs by %.4f kg between 1/3/7/28 days "
+        .. "per period (%.4f .. %.4f)", spread, weights[1], weights[4]), spread < 0.1 and weights[1] > 1000)
+end
+
+do
     -- Growth already was per period; with the losses integrated the whole month agrees too.
     local weights = {}
     for _, days in ipairs({ 1, 3, 7, 28 }) do
@@ -192,6 +205,33 @@ do
     check("age: every subtype's growth line rises to its target and stays there up to 300 months (" .. table.concat(details, " ") .. ")", lineOk)
     check("age: the line's monthly gain is never negative", gainOk)
     check("age: up to mature age + 75 months the line is exactly the old one", sameOk)
+end
+
+do
+    -- The line in closed form against a month-by-month walk at the gain each month starts with,
+    -- at fractional ages and well past mature age + 75 months.
+    local worst, details = 0, ""
+    for _, sub in ipairs(Economics.subTypes) do
+        local matureAge = RLBreedTraits.getMatureAge(sub)
+        if matureAge > 0 and sub.targetWeight > sub.minWeight then
+            for _, metabolism in ipairs({ 0.3, 1, 1.7 }) do
+                -- A target the line reaches late, so the age factor's tail matters.
+                local target = sub.targetWeight * 4
+                for age = 0, 260, 0.75 do
+                    local walk, month = sub.minWeight, 0
+                    while month < age do
+                        local step = math.min(1, age - month)
+                        walk = math.min(walk + RLBreedTraits.getLineGain(sub, sub.gender, target, month, metabolism) * step, target)
+                        month = month + step
+                    end
+                    local line = RLBreedTraits.getGrownWeight(sub, sub.gender, target, age, metabolism)
+                    local diff = math.abs(line - walk) / math.max(walk, 1)
+                    if diff > worst then worst, details = diff, string.format("%s m%.1f %.2f mo", sub.name, metabolism, age) end
+                end
+            end
+        end
+    end
+    check(string.format("line: the closed form is the month-by-month walk at any age (worst %.1e, %s)", worst, details), worst < 1e-12)
 end
 
 do

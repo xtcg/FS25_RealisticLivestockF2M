@@ -13,7 +13,10 @@
     month of 1 day did (a 500 kg animal starving for one month: 413.6 kg at 1 day, 0.001 kg at 7).
     They are now integrated exactly over the step, at the hourly rates they had at
     REFERENCE_DAYS_PER_PERIOD (the game's default, 1 day): at 1 day per period every hour is the
-    same as before, and any other period length gives the same month.
+    same as before, and any other period length gives the same month. The one exception is the
+    step in which a growing animal crosses its target: it adds its growth without the return (as
+    the old hour did), so with shorter steps the return starts a fraction of an hour sooner - a
+    one-off difference of a few grams (tests/test_weight.lua).
 
     Age. Structural growth never turns into a loss with age: the growth line's age factor
     1 + (matureAge - age) / 75 runs down to 0 at matureAge + 75 months and stays there. A healthy,
@@ -62,8 +65,8 @@ end
 --- Exact over the step at the reference hourly rates, and the same for the step taken whole or in
 --- parts: above the target the excess E follows the old hourly recurrence E -> E x (1 - r) + g
 --- (g the growth per reference hour), whose value after n hours is E* + (E - E*) x (1 - r)^n with
---- E* = g / r, for any n. Below the target growth adds as before. At 1 day per period n is 1 and
---- every step is the old one.
+--- E* = g / r, for any n. Below the target growth adds as before, also in the step that takes the
+--- animal over it. At 1 day per period n is 1 and every step is the old one.
 --- @param weight number kg
 --- @param targetWeight number kg
 --- @param gainKg number Growth this step (>= 0)

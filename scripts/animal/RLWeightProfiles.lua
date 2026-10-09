@@ -11,10 +11,10 @@
     Hof Bergmann's MILKCOW is its own animal type without individual weights; its subtypes are
     listed as NOT_COVERED.
 
-    Each setting is reported with its value and its source: the layer of the config file that set
-    it ("subType", "breed", "type", "root") or "default" when the code's fallback applies - for
-    matureAgeMonth 1.5 x the reproduction age, for femaleGrowth 0.6, growth and feed 1, the carcass
-    maturity 1. defaults lists the settings on the code's fallback, generic those set only for the
+    Each setting is reported with the value the game uses (read through the same getter) and its
+    source: the layer of the config file that set it ("subType", "breed", "type", "root") or
+    "default" when the getter's fallback applies - for matureAgeMonth 1.5 x the reproduction age,
+    for femaleGrowth 0.6, growth and feed 1, the carcass maturity 1. defaults lists the settings on the code's fallback, generic those set only for the
     whole animal type or file (nothing for this breed), priceLine whether a live-price line is set.
     gap is true when the breed is unresolved or a setting the growth line needs (matureAgeMonth,
     and femaleGrowth for a female) is on the code's fallback.
@@ -83,11 +83,11 @@ function RLWeightProfiles.resolveProfile(subType)
 end
 
 
---- One setting: { value, source }, source "default" when no layer of its file sets it.
-local function setting(layers, subType, attr, default)
-    local value, source = RLBreedTraits.resolveSource(layers, subType, attr)
-    if source == nil then return { value = default, source = "default" } end
-    return { value = value, source = source }
+--- One setting: the value the game uses (from its own getter) and the layer of its file that set
+--- it, "default" when none does and the getter's fallback applies.
+local function setting(value, layers, subType, attr)
+    local _, source = RLBreedTraits.resolveSource(layers, subType, attr)
+    return { value = value, source = source or "default" }
 end
 
 
@@ -114,18 +114,22 @@ function RLWeightProfiles.describe(subType)
     record.reproductionMinAgeMonth = subType.reproductionMinAgeMonth
 
     local traits = RLBreedTraits.getConfig().layers
-    local isFemale = subType.gender == "female"
-    record.matureAgeMonth = setting(traits, subType, "matureAgeMonth", (subType.reproductionMinAgeMonth or 0) * 1.5)
-    record.growth = setting(traits, subType, "growth", 1)
-    record.feed = setting(traits, subType, "feed", 1)
-    if isFemale then record.femaleGrowth = setting(traits, subType, "femaleGrowth", RLBreedTraits.DEFAULT_FEMALE_GROWTH) end
-
-    local priceTarget = RLBreedTraits.resolveSource(traits, subType, "priceTargetWeight")
-    local priceAge = RLBreedTraits.resolveSource(traits, subType, "priceMatureAgeMonth")
-    record.priceLine = priceTarget ~= nil and priceAge ~= nil
+    record.matureAgeMonth = setting(RLBreedTraits.getMatureAge(subType), traits, subType, "matureAgeMonth")
+    record.growth = setting(RLBreedTraits.get(subType, "growth"), traits, subType, "growth")
+    record.feed = setting(RLBreedTraits.get(subType, "feed"), traits, subType, "feed")
+    -- The growth line's sex factor applies to "female" only (RLBreedTraits.getLineGain).
+    if subType.gender == "female" then
+        record.femaleGrowth = setting(RLBreedTraits.getFemaleGrowth(subType), traits, subType, "femaleGrowth")
+    end
+    record.priceLine = RLBreedTraits.getPriceModel(subType) ~= nil
 
     if AnimalMoveEvent ~= nil and AnimalMoveEvent.getCarcassConfig ~= nil then
-        record.maturity = setting(AnimalMoveEvent.getCarcassConfig().layers, subType, isFemale and "femaleMaturity" or "maleMaturity", 1)
+        -- The slaughter reference's choice (AnimalMoveEvent.getCarcassReferenceWeight): maleMaturity
+        -- for "male", femaleMaturity for anything else.
+        local attr = subType.gender == "male" and "maleMaturity" or "femaleMaturity"
+        local layers = AnimalMoveEvent.getCarcassConfig().layers
+        record.maturity = setting(RLBreedTraits.resolve(layers, subType, attr, AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS[attr]),
+            layers, subType, attr)
     end
 
     local defaults, generic = {}, {}

@@ -99,6 +99,40 @@ do
 end
 
 
+do
+    -- The report reads the values the game uses, through the same getters and the same choices.
+    local same = true
+    for _, sub in ipairs(subTypes) do
+        local record = byName[sub.name]
+        if record ~= nil and record.matureAgeMonth ~= nil then
+            if record.matureAgeMonth.value ~= RLBreedTraits.getMatureAge(sub) or record.growth.value ~= RLBreedTraits.get(sub, "growth")
+                or (record.femaleGrowth ~= nil and record.femaleGrowth.value ~= RLBreedTraits.getFemaleGrowth(sub))
+                or record.priceLine ~= (RLBreedTraits.getPriceModel(sub) ~= nil) then same = false end
+        end
+    end
+    check("settings: every reported value is the getter's (mature age, growth, femaleGrowth, price line)", same)
+
+    -- A price line with a zero target is no price line for the live price, nor for the report.
+    local layers = RLBreedTraits.getConfig().layers
+    local zero = add("BULL_ZEROPRICE", "CHAROLAIS_PACK", "male", COW_TYPE, 1000)
+    layers.subTypes.BULL_ZEROPRICE = { priceTargetWeight = 0, priceMatureAgeMonth = 30 }
+    local zeroRecord = RLWeightProfiles.describe(zero)
+    layers.subTypes.BULL_ZEROPRICE = nil
+    table.remove(subTypes)
+    check("settings: a price target of 0 is reported as no price line, as the live price ignores it",
+        zeroRecord.priceLine == false and RLBreedTraits.getPriceModel(zero) == nil)
+
+    -- A subtype without a gender is read with femaleMaturity, as the slaughter reference reads it.
+    local genderless = add("CATTLE_NOGENDER", "HOLSTEIN", nil, COW_TYPE, 700)
+    local genderlessRecord = RLWeightProfiles.describe(genderless)
+    table.remove(subTypes)
+    local carcass = AnimalMoveEvent.getCarcassConfig().layers
+    check(string.format("settings: a subtype without a gender is reported with femaleMaturity (%.2f), as the carcass code uses",
+        genderlessRecord.maturity.value), near(genderlessRecord.maturity.value,
+        RLBreedTraits.resolve(carcass, genderless, "femaleMaturity", 1), 1e-12) and genderlessRecord.femaleGrowth == nil)
+end
+
+
 -- Summary and log lines ------------------------------------------------------------------------
 
 do
