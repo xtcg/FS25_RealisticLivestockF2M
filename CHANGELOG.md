@@ -16,6 +16,10 @@
 - tests/test_bodycondition.lua: the budget's energy ledger and bounds, the calibration against the old growth line for every bull and against the milk yield for both dairy breeds, 1/3/7 days per period, the feed ledger, conception, the carcass factor, save and stream round trips and the milk deposit.
 ## Unreleased (xtcg fork, Hof Bergmann)
 
+### Changed
+
+- Hof Bergmann's farm cow barn (DAIRY profile) also takes the dairy breeds of FS25_CowBreedsRLRM: Red Holstein, Ayrshire, Jersey, Guernsey, Kerry and Shorthorn Milkers cows from 6 months, next to Holstein and Swiss Brown. The pack's beef breeds (Charolais, Simmental, Red Angus, ...) stay out, as do bulls and steers. Without the pack the names match nothing and the barn is unchanged. The MVB insemination area (COW_HOLSTEIN in, the map's MILKCOW out) is the map's own and is not changed.
+
 ### Fixed
 
 - Animals bought or moved into a pen lost health in their first hour although the trough was full: a pen's food, water, straw, manure, milk and pallet liters per hour were only set after each hour's feeding, for the next hour, so the first feeding after a herd change used the old herd. A pen empty the hour before asked for no food, the engine then returns food factor 0, and every new animal lost a full hour's health (decreasePerHour x its health gene: a cow 100 -> 68, a calf moved to a rearing box 100 -> 69), while the pen it left kept eating for it for an hour; into an occupied pen the newcomers diluted everyone's share for that hour. The server now sets a pen's totals again whenever its animals change (bought, moved, sold, born, died), from each animal's current per-hour input and output; the hourly totals are unchanged otherwise. Not a base-game behaviour: the base game also sets them on every herd change.
