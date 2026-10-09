@@ -85,6 +85,22 @@ local function chance(randomFn, p)
 end
 
 
+--- One of `items` by `weightOf(item)` (> 0 in total), from one draw; nil when the total is 0.
+local function pickWeighted(items, weightOf, randomFn)
+    local total = 0
+    for _, item in ipairs(items) do total = total + weightOf(item) end
+    if total <= 0 then return nil end
+
+    local roll = randomFn(1, 1000000) / 1000000 * total
+    local cumulative = 0
+    for _, item in ipairs(items) do
+        cumulative = cumulative + weightOf(item)
+        if roll <= cumulative then return item end
+    end
+    return items[#items]
+end
+
+
 -- Layer attributes: name -> XML getter.
 local LAYER_ATTRIBUTES = {
     profile = "getString",
@@ -183,7 +199,8 @@ end
 
 
 --- Read one source element; nil (with a warning) when it cannot be used.
---- @return table|nil source {id, uses{[use]=true}, anyUse, purposes{["ID"|"ID:sex"]=true}|nil (all), weight, traceability}
+--- @return table|nil source {id, uses{[use]=true}, anyUse, purposes{["ID"|"ID:sex"]=true}|nil (all),
+---         purposeList{{id, sex|nil}}|nil, weight, traceability}
 local function readSource(xmlFile, key, profileName)
     local id = xmlFile:getString(key .. "#id")
     local weight = xmlFile:getFloat(key .. "#weight", 1)
@@ -210,7 +227,7 @@ local function readSource(xmlFile, key, profileName)
 
     local purposes = words(xmlFile:getString(key .. "#purposes", "*"))
     if not (#purposes == 1 and purposes[1] == "*") then
-        source.purposes = {}
+        source.purposes, source.purposeList = {}, {}
         for _, token in ipairs(purposes) do
             local purposeId, sex = token:match("^([^:]+):?(%a*)$")
             sex = sex ~= nil and sex:lower() or ""
@@ -218,7 +235,9 @@ local function readSource(xmlFile, key, profileName)
                 Log:warning("RLDealerStockPolicy: profile %s source %s: purpose %s not understood, ignored",
                     profileName, source.id, token)
             else
-                source.purposes[purposeId:upper() .. (sex ~= "" and (":" .. sex) or "")] = true
+                purposeId = purposeId:upper()
+                source.purposes[purposeId .. (sex ~= "" and (":" .. sex) or "")] = true
+                table.insert(source.purposeList, { id = purposeId, sex = sex ~= "" and sex or nil })
             end
         end
     end
@@ -235,12 +254,13 @@ function RLDealerStockPolicy.parseConfig(xmlFile)
     config.layers = { types = {}, breeds = {}, subTypes = {} }
     if xmlFile == nil then return config end
 
-    config.version = xmlFile:getInt("dealerStock#version", config.version)
-    if config.version < RLDealerStockPolicy.DEFAULTS.version then
-        Log:warning("RLDealerStockPolicy: dealerStock.xml is version %d, the mod's is %d: profiles without "
+    local version = xmlFile:getInt("dealerStock#version")
+    if version == nil or version < RLDealerStockPolicy.DEFAULTS.version then
+        Log:warning("RLDealerStockPolicy: dealerStock.xml is version %s, the mod's is %d: profiles without "
             .. "sources offer nothing. Copy the mod's file again and redo your changes.",
-            config.version, RLDealerStockPolicy.DEFAULTS.version)
+            tostring(version), RLDealerStockPolicy.DEFAULTS.version)
     end
+    config.version = version or config.version
     config.maxAttempts = math.max(1, xmlFile:getInt("dealerStock#maxAttempts", config.maxAttempts))
     config.femaleShare = math.clamp(xmlFile:getFloat("dealerStock#femaleShare", config.femaleShare), 0, 1)
 
@@ -296,14 +316,13 @@ function RLDealerStockPolicy.parseConfig(xmlFile)
                 return
             end
             sourceIds[source.id] = true
-            for token in pairs(source.purposes or {}) do
-                local purposeId, sex = token:match("^([^:]+):?(%a*)$")
-                if not seen[purposeId .. ":female"] and not seen[purposeId .. ":male"] then
+            for _, named in ipairs(source.purposeList or {}) do
+                if not seen[named.id .. ":female"] and not seen[named.id .. ":male"] then
                     Log:warning("RLDealerStockPolicy: profile %s source %s names purpose %s, which the profile does not have",
-                        name, source.id, purposeId)
-                elseif sex ~= "" and not seen[purposeId .. ":" .. sex] then
+                        name, source.id, named.id)
+                elseif named.sex ~= nil and not seen[named.id .. ":" .. named.sex] then
                     Log:warning("RLDealerStockPolicy: profile %s source %s names purpose %s for %s, which the profile does not have",
-                        name, source.id, purposeId, sex)
+                        name, source.id, named.id, named.sex)
                 end
             end
             table.insert(profile.sources, source)
@@ -452,10 +471,11 @@ end
 
 --- The least traceable of some sources (the first of equals): what an old listing, whose history
 --- is not known, is labelled with.
---- @param sources table[] not empty
---- @return table source
+--- @param sources table[]
+--- @return table|nil source nil for none
 function RLDealerStockPolicy.getLeastTraceableSource(sources)
     local best = sources[1]
+    if best == nil then return nil end
     for _, source in ipairs(sources) do
         local rank = RLDealerStockPolicy.TRACEABILITY
         if rank[source.traceability] < rank[best.traceability] then best = source end
@@ -491,15 +511,7 @@ end
 --- @return table source
 function RLDealerStockPolicy.pickSource(sources, randomFn)
     if #sources == 1 then return sources[1] end
-    local total = 0
-    for _, source in ipairs(sources) do total = total + source.weight end
-    local roll = randomFn(1, 1000000) / 1000000 * total
-    local cumulative = 0
-    for _, source in ipairs(sources) do
-        cumulative = cumulative + source.weight
-        if roll <= cumulative then return source end
-    end
-    return sources[#sources]
+    return pickWeighted(sources, function(source) return source.weight end, randomFn)
 end
 
 
@@ -677,17 +689,7 @@ end
 --- Draw a candidate by purpose weight.
 --- @return table|nil candidate
 function RLDealerStockPolicy.pickCandidate(candidates, randomFn)
-    local total = 0
-    for _, candidate in ipairs(candidates) do total = total + candidate.purpose.weight end
-    if total <= 0 then return nil end
-
-    local roll = randomFn(1, 1000000) / 1000000 * total
-    local cumulative = 0
-    for _, candidate in ipairs(candidates) do
-        cumulative = cumulative + candidate.purpose.weight
-        if roll <= cumulative then return candidate end
-    end
-    return candidates[#candidates]
+    return pickWeighted(candidates, function(candidate) return candidate.purpose.weight end, randomFn)
 end
 
 

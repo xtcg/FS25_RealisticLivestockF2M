@@ -127,6 +127,18 @@ function loadAnimalSection(first, last)
     assert(load("local Log = RmLogging.getLogger()\n" .. text:sub(from, to), "Animal section " .. first))()
 end
 
+-- The game's milk rule (AnimalReproduction.LACTATION_MONTHS, lactatesAfterBirth): just that part of
+-- AnimalReproduction.lua, whose rest uses the engine's `continue`, which this Lua cannot load.
+do
+    local handle = assert(io.open(REPO .. "scripts/animal/AnimalReproduction.lua", "r"))
+    local text = handle:read("a")
+    handle:close()
+    local a = assert(text:find("--- Months a mother milks after giving birth", 1, true))
+    local b = assert(text:find("-- ====", a, true))
+    AnimalReproduction = {}
+    assert(load("local Log = RmLogging.getLogger()\n" .. text:sub(a, b - 1), "milk rule"))()
+end
+
 -- Livestock prices at the calibration level (HARD, x1), so a test sees the calibrated prices;
 -- tests/test_livestockprices.lua loads the real module over it.
 RLLivestockPrices = { getMultiplier = function() return 1 end }

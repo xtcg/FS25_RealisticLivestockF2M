@@ -1783,12 +1783,13 @@ function Animal.isCowMilkPalletFillType(fillTypeIndex)
 end
 
 --- Milk yield through the lactation: 0.8 at birth, rising to 1.3 at 3 months, falling to about
---- 0.93 at 9 months, and 0 from 10 months on or for an animal not lactating or never a mother.
+--- 0.93 at 9 months, and 0 from AnimalReproduction.LACTATION_MONTHS (10) on or for an animal not
+--- lactating or never a mother.
 ---@return number
 function Animal:getLactationFactor()
     local monthsSinceLastBirth = self.monthsSinceLastBirth or 12
 
-    if monthsSinceLastBirth >= 10 or not self.isLactating or not self.isParent then return 0 end
+    if monthsSinceLastBirth >= AnimalReproduction.LACTATION_MONTHS or not self.isLactating or not self.isParent then return 0 end
     if monthsSinceLastBirth <= 3 then return 0.8 + (monthsSinceLastBirth / 6) end
     return 0.8 + ((11 - monthsSinceLastBirth) / 15)
 end

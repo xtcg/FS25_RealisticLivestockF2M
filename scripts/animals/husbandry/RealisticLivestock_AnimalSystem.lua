@@ -2524,10 +2524,12 @@ function AnimalSystem:_checkSaleListing(animal, cache)
     end
 
     if animal.sale.source == nil then
-        -- The purpose qualified, so a source supplies it (NO_SOURCE otherwise). Its history is not
-        -- known, so the least traceable of them.
-        animal.sale.source = RLDealerStockPolicy.getLeastTraceableSource(
-            RLDealerStockPolicy.getSources(entry, purpose, animal.gender)).id
+        -- Its history is not known, so the least traceable source that supplies it. The purpose
+        -- qualified, so there is one (NO_SOURCE otherwise); withdrawn should that ever not hold.
+        local source = RLDealerStockPolicy.getLeastTraceableSource(
+            RLDealerStockPolicy.getSources(entry, purpose, animal.gender))
+        if source == nil then return false, RLDealerStockPolicy.REASON.NO_SOURCE end
+        animal.sale.source = source.id
         migrated = true
     end
 

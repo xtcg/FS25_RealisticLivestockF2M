@@ -24,17 +24,7 @@ loadMod("scripts/nutrition/RLCalfRearing.lua")
 loadMod("scripts/dealer/RLDealerStockPolicy.lua")
 loadMod("scripts/dealer/RLDealerSaleCatalog.lua")
 AnimalType = { COW = 1, PIG = 2, SHEEP = 3, HORSE = 4, CHICKEN = 5 }
--- The game's milk rule, from AnimalReproduction.lua (the rest of that file uses the engine's
--- `continue`, which this Lua cannot load).
-do
-    local handle = assert(io.open(REPO .. "scripts/animal/AnimalReproduction.lua", "r"))
-    local text = handle:read("a")
-    handle:close()
-    local a = assert(text:find("--- Months a mother milks after giving birth", 1, true))
-    local b = assert(text:find("-- ====", a, true))
-    AnimalReproduction = {}
-    assert(load(text:sub(a, b - 1), "milk rule"))()
-end
+-- The game's milk rule (AnimalReproduction) comes from tests/stubs.lua.
 
 local P = RLDealerStockPolicy
 local R = P.REASON
@@ -780,7 +770,18 @@ do
     check("source with an unknown traceability: ignored with a warning", #parsed.profiles.TYPO.sources == 1
         and warnings:find("source FARM ignored: traceability", 1, true) ~= nil)
     for i = #LOG, before + 1, -1 do table.remove(LOG, i) end
+
+    path = os.tmpname()
+    handle = assert(io.open(path, "w"))
+    handle:write([[<dealerStock><profile name="P" maxFemaleAgeMonth="12" maxMaleAgeMonth="12"/></dealerStock>]])
+    handle:close()
+    before = #LOG
+    P.parseConfig(loadXMLFileFromDisk(path))
+    os.remove(path)
+    check("a file without a version: warned like version 1", table.concat(LOG, "\n", before + 1):find("version nil", 1, true) ~= nil)
+    for i = #LOG, before + 1, -1 do table.remove(LOG, i) end
 end
+check("least traceable of no sources: none", P.getLeastTraceableSource({}) == nil)
 
 
 -- rlDealerCatalog: one line per subtype, read-only.
