@@ -193,7 +193,7 @@ local function keyOf(a) return RLAnimalUtil.toKey(a.farmId, a.uniqueId, a.birthd
 
 local CODES = {}
 AnimalMoveEvent.newServerToClient = function(code) CODES[#CODES + 1] = code return { code = code } end
-RLHusbandryProfiles = { apply = function() end, checkAnimal = function() return true end }
+RLHusbandryProfiles = { apply = function() end, checkAnimal = function() return true end, logDecision = function() end }
 RLPermissionHelper = { authorizeConnection = function() return true end }
 
 local function runEvent(source, house, animals)
