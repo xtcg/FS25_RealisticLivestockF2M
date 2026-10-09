@@ -326,7 +326,7 @@ local function animalFrom(subType, age, plan, weight, ctx)
     local animal = { age = age, gender = subType.gender, isParent = plan.isParent,
         monthsSinceLastBirth = plan.monthsSinceLastBirth, isPregnant = plan.isPregnant, reproduction = 0,
         weight = weight or 600, targetWeight = subType.targetWeight, health = 95,
-        isLactating = P.isInMilk(plan.isParent, plan.monthsSinceLastBirth, ctx or ctxFor(subType)),
+        isLactating = P.isInMilk(subType.gender, plan.isParent, plan.monthsSinceLastBirth, ctx or ctxFor(subType)),
         sale = { parity = plan.parity } }
     if plan.isPregnant then
         animal.pregnancy = { duration = plan.duration, pregnancies = { {} } }
@@ -399,7 +399,7 @@ local ctx = ctxFor(holstein)
 local function filled(animal)
     if animal.health == nil then animal.health = 95 end
     if animal.isLactating == nil then
-        animal.isLactating = P.isInMilk(animal.isParent, animal.monthsSinceLastBirth, ctx)
+        animal.isLactating = P.isInMilk(animal.gender, animal.isParent, animal.monthsSinceLastBirth, ctx)
     end
     return animal
 end
@@ -453,6 +453,9 @@ local quickEntry = P.getEntry(quick, holstein, "COW")
 check("old listing, calvings unknown: withdrawn when more could fit than the purpose allows",
     reasonsOf({ age = 35, gender = "female", isParent = true, monthsSinceLastBirth = 1 },
         P.findPurpose(quickEntry, "female", "COW_FIRST"), quickEntry) == R.PARITY)
+check("old listing, calvings unknown: kept a month past its birthday, before months since calving catch up",
+    reasonsOf({ age = 33, gender = "female", isParent = true, monthsSinceLastBirth = 1 },
+        P.findPurpose(quickEntry, "female", "COW_FIRST"), quickEntry) == "ok")
 check("first-calver 7 months after calving and dry: LACTATION", reasonsOf({ age = 30, gender = "female",
     isParent = true, monthsSinceLastBirth = 7, isLactating = false, sale = { parity = 1 } }, first) == R.LACTATION)
 check("first-calver 11 months after calving, dry: ok; still in milk: LACTATION",
@@ -653,11 +656,11 @@ check(string.format("births recorded: none %d, one %d, two %d", parityCount["0"]
 local sickRejected = tonumber(AnimalSystem._formatSaleGenerationFailures(1, false, true):match("SICK=(%d+)") or 0)
 local anySick = false
 for _, animal in ipairs(generated) do if animal:getHasAnyDisease() then anySick = true end end
-check(string.format("none showing a disease (%d rejected at the final check)", sickRejected), not anySick and sickRejected > 0)
+check(string.format("none showing a disease (%d rejected before taking an id)", sickRejected), not anySick and sickRejected > 0)
 local lostPregnancies = tonumber(AnimalSystem._formatSaleGenerationFailures(1, false, true):match("PREGNANCY=(%d+)") or 0)
-check(string.format("farm ids: one per accepted animal plus one per animal lost at the final check (%d = %d + %d + %d); light heifers took none",
-    system.countries[1].farms[1].ids[1], #generated, lostPregnancies, sickRejected),
-    system.countries[1].farms[1].ids[1] == #generated + lostPregnancies + sickRejected and lostPregnancies > 0)
+check(string.format("farm ids: one per accepted animal plus one per pregnancy lost after it (%d = %d + %d); light heifers and affected animals took none",
+    system.countries[1].farms[1].ids[1], #generated, lostPregnancies),
+    system.countries[1].farms[1].ids[1] == #generated + lostPregnancies and lostPregnancies > 0)
 
 local maxBull, maxHighland, maxCow = 0, 0, 0
 for _, animal in ipairs(generated) do
@@ -714,12 +717,13 @@ local function listing(sale, extra)
 end
 local oldListing = listing({ day = 1 })
 local keep, why = system:_checkSaleListing(oldListing)
-check("listing from before purposes: given the first purpose and source that fit (" .. tostring(oldListing.sale.purpose)
+check("listing from before purposes: given the first purpose that fits and the least traceable source of it (" .. tostring(oldListing.sale.purpose)
     .. " from " .. tostring(oldListing.sale.source) .. ")", keep and why == "MIGRATED"
-    and oldListing.sale.purpose == "HEIFER_REPLACEMENT" and oldListing.sale.source == "DAIRY_HERD")
-local d1Listing = listing({ day = 1, purpose = "HEIFER_REPLACEMENT" })
+    and oldListing.sale.purpose == "HEIFER_REPLACEMENT" and oldListing.sale.source == "REARING_UNIT")
+local d1Listing = listing({ day = 1, purpose = "COW_YOUNG" }, { age = 40, isParent = true, monthsSinceLastBirth = 4, isLactating = true })
 keep, why = system:_checkSaleListing(d1Listing)
-check("listing from before sources: given one", keep and why == "MIGRATED" and d1Listing.sale.source == "DAIRY_HERD")
+check("listing from before sources: given one (" .. tostring(d1Listing.sale.source) .. ", the only one)",
+    keep and why == "MIGRATED" and d1Listing.sale.source == "DAIRY_HERD")
 keep, why = system:_checkSaleListing(listing({ day = 1, purpose = "HEIFER_REPLACEMENT", source = "REARING_UNIT", parity = 0 }))
 check("current listing: kept as it is", keep and why == nil)
 keep, why = system:_checkSaleListing(listing({ day = 1, purpose = "HEIFER_REPLACEMENT", source = "REARING_UNIT", parity = 0 },
@@ -730,6 +734,55 @@ keep, why = system:_checkSaleListing(sickOld)
 check("old listing that is ill: withdrawn, not given a source", not keep and sickOld.sale.source == nil)
 
 
+-- The old rules can make a male of a milking type a "parent"; he is never in milk.
+check("a male is never in milk", not P.isInMilk("male", true, 3, { lactates = true, lactationMonths = 10 }))
+local stableBull = { name = "BULL", breed = "BULL", gender = "male", visuals = visuals({ 0, true }),
+    supportsReproduction = false, reproductionMinAgeMonth = 12, reproductionDurationMonth = 9, index = 8,
+    typeIndex = 1, minWeight = 40, targetWeight = 1000, maxWeight = 1400 }
+SUBTYPES[8] = stableBull
+local stableType = { name = "COW", typeIndex = 1, subTypes = { 8 }, averageBuyAge = 40, maxBuyAge = 60 }
+system.countries[1].farms[1].ids[10] = 0
+function system:getTypeByIndex(i) return i == 1 and cowType or (i == 9 and alpacaType or (i == 10 and stableType or nil)) end
+local stableParents, stableInMilk = 0, 0
+for _ = 1, 400 do
+    local bull = system:createNewSaleAnimal(10)
+    if bull ~= nil and bull.isParent then stableParents = stableParents + 1 end
+    if bull ~= nil and bull.isLactating then stableInMilk = stableInMilk + 1 end
+end
+check(string.format("old rules: Hof Bergmann's stable bull made a parent %d times, in milk %d times", stableParents, stableInMilk),
+    stableParents > 0 and stableInMilk == 0)
+
+
+-- A dealerStock.xml from before sources, and a source naming a purpose the profile lacks: warned.
+do
+    local path = os.tmpname()
+    local handle = assert(io.open(path, "w"))
+    handle:write([[<dealerStock version="1">
+    <profile name="OLD" maxFemaleAgeMonth="12" maxMaleAgeMonth="12">
+        <purpose id="YOUNG" gender="any" minAgeMonth="1" maxAgeMonth="6"/>
+    </profile>
+    <profile name="TYPO" maxFemaleAgeMonth="12" maxMaleAgeMonth="12">
+        <purpose id="YOUNG" gender="female" minAgeMonth="1" maxAgeMonth="6"/>
+        <source id="FARM" purposes="YOUNG YUNG YOUNG:male" traceability="SOMETIMES"/>
+        <source id="FARM2" purposes="YOUNG YUNG YOUNG:male"/>
+    </profile>
+</dealerStock>]])
+    handle:close()
+    local before = #LOG
+    local parsed = P.parseConfig(loadXMLFileFromDisk(path))
+    os.remove(path)
+    local warnings = table.concat(LOG, "\n", before + 1)
+    check("version 1 file: warned that profiles without sources offer nothing", warnings:find("version 1", 1, true) ~= nil
+        and warnings:find("profile OLD has no source", 1, true) ~= nil)
+    check("source naming a purpose the profile lacks (YUNG, YOUNG for males): warned",
+        warnings:find("source FARM2 names purpose YUNG,", 1, true) ~= nil
+        and warnings:find("source FARM2 names purpose YOUNG for male", 1, true) ~= nil)
+    check("source with an unknown traceability: ignored with a warning", #parsed.profiles.TYPO.sources == 1
+        and warnings:find("source FARM ignored: traceability", 1, true) ~= nil)
+    for i = #LOG, before + 1, -1 do table.remove(LOG, i) end
+end
+
+
 -- rlDealerCatalog: one line per subtype, read-only.
 loadMod("scripts/console/RLDealerConsole.lua")
 local catalogLine = RLDealerConsole.describeSubType(config, system, cowType, angusCow)
@@ -737,6 +790,8 @@ check("catalog line: " .. catalogLine, catalogLine:find("status=COVERED weight=L
     and catalogLine:find("COW_YOUNG[30-47]w2<SUCKLER_HERD>", 1, true) ~= nil and catalogLine:find("HEIFER_READY:NO_BREEDING_WEIGHT", 1, true) ~= nil)
 local gapsLine = RLDealerConsole.describeGaps(config, cowType, { holstein, oddCow, oddBull, { name = "BULL", breed = "BULL", gender = "male" } })
 check("gaps line: " .. gapsLine, gapsLine == "RLDEALER GAPS type=COW subTypes=4 covered=3 oldRules={BULL:LEGACY} breedsWithoutUse={ODD}")
+check("gaps line: pig breeds need no use (their source takes any breed)",
+    RLDealerConsole.describeGaps(config, { name = "PIG" }, { gilt }) == "RLDEALER GAPS type=PIG subTypes=1 covered=1 oldRules={} breedsWithoutUse={}")
 local sorted = RLDealerSaleCatalog.sortedTypes({ [9] = alpacaType, [1] = cowType })
 check("catalog walks a type table with holes in index order", #sorted == 2 and sorted[1] == cowType and sorted[2] == alpacaType)
 check("catalog line, not covered: " .. RLDealerConsole.describeSubType(config, system, alpacaType, alpaca),

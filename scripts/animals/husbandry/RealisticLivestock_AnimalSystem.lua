@@ -1561,7 +1561,7 @@ end
 --- Say once per breed per map load that dealerStock.xml gives a covered breed no use, so only the
 --- sources that take any breed supply it.
 local function noteSaleBreedUseGap(animalType, subType, entry)
-    if entry.use ~= nil then return end
+    if not RLDealerStockPolicy.isUseMissing(entry) then return end
     local latchKey = "use:" .. tostring(animalType.name) .. ":" .. tostring(subType.breed)
     if saleGenerationBailLatches[latchKey] then return end
     Log:info("Dealer stock: %s breed %s has no use in dealerStock.xml (dairy, beef...), so only sources that take any breed supply it.",
@@ -1959,8 +1959,9 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
         subTypeIndex = subTypeIndex,
         isParent = plan.isParent,
         isPregnant = plan.isPregnant,
-        -- In milk by her last birth, as the game would have it (none for a male: never a parent).
-        isLactating = RLDealerStockPolicy.isInMilk(plan.isParent, plan.monthsSinceLastBirth, ctx),
+        -- In milk by her last birth, as the game would have it. Females only: the old rules can
+        -- make a male a "parent".
+        isLactating = RLDealerStockPolicy.isInMilk(animalGender, plan.isParent, plan.monthsSinceLastBirth, ctx),
         -- No castration at the dealer: every male is sold intact.
         isCastrated = false,
         name = name,
@@ -1985,9 +1986,18 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
         animal.reproduction = math.floor(plan.pregnancyMonths / plan.duration * 10000) / 100
     end
 
-    -- Check the animal against its purpose before it takes an id, a disease draw or offspring, so a
-    -- rejected one (a heifer too light to be ready to breed) leaves nothing behind in the farm's ids
-    -- or the log under a real listing's id.
+    animal.diseases = {}
+
+    -- No spontaneous roll here: dealer stock sits in `self.animals`, which the DAY tick already
+    -- rolls once per animal per day. A generation roll would convert the same monthly chance
+    -- through `perTick` a second time, and an animal generated late in the day would draw twice.
+    -- Before the id: an animal whose genetic disease shows (affected, not a carrier) is not listed,
+    -- and the check below rejects it before it takes one (its seeding lines name no uniqueId).
+    g_diseaseManager:setGeneticDiseasesForSaleAnimal(animal)
+
+    -- Check the animal against its purpose before it takes an id or offspring, so a rejected one
+    -- (a heifer too light to be ready to breed, an affected genetic disease) leaves nothing behind
+    -- in the farm's ids or the log under a real listing's id.
     if purpose ~= nil then
         local ok, reasons = RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx)
         if not ok then return nil, reasons[1] end
@@ -1996,6 +2006,15 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
     animal.farmId = tostring(source.farmId)
     animal.uniqueId = RLAnimalUtil.generateUniqueId(source.farmId, self:_takeSaleAnimalId(source, animalTypeIndex))
     animal.birthday.country = source.countryIndex
+
+    if #animal.diseases > 0 and Log.level >= RmLogging.LOG_LEVEL.DEBUG then
+        local records = {}
+        for _, disease in ipairs(animal.diseases) do
+            table.insert(records, string.format("%s(carrier=%s)", tostring(disease.title), tostring(disease.isCarrier)))
+        end
+        Log:debug("createNewSaleAnimal: uniqueId=%s listed with genetic records %s", tostring(animal.uniqueId),
+            table.concat(records, " "))
+    end
 
     local variations = self:getVisualByAge(subTypeIndex, age).visualAnimal.variations
     local variationIndex = 1
@@ -2009,14 +2028,6 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
 
     Log:trace("createNewSaleAnimal: calendar month=%s year=%s (animalTypeIndex=%s)",
         tostring(month), tostring(year), tostring(animalTypeIndex))
-
-
-    animal.diseases = {}
-
-    -- No spontaneous roll here: dealer stock sits in `self.animals`, which the DAY tick already
-    -- rolls once per animal per day. A generation roll would convert the same monthly chance
-    -- through `perTick` a second time, and an animal generated late in the day would draw twice.
-    g_diseaseManager:setGeneticDiseasesForSaleAnimal(animal)
 
 
     if plan.isPregnant then
@@ -2040,8 +2051,8 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
     end
 
     -- And the finished animal once more: a purpose that needs a pregnancy loses it when no
-    -- offspring were drawn above, and whatever the steps since the first check change is caught
-    -- here. Rare; that animal's id stays used, as ids are never handed out twice.
+    -- offspring were drawn above (rare), and whatever else the steps since the first check change
+    -- is caught here. That animal's id stays used, as ids are never handed out twice.
     if purpose ~= nil then
         local ok, reasons = RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx)
         if not ok then return nil, reasons[1] end
@@ -2474,8 +2485,8 @@ end
 --- sex's absolute cap, or come too close to giving birth; it is then withdrawn at once, however
 --- recently it was listed; so is one that falls ill, or whose source no longer supplies it.
 --- A listing saved before purposes existed takes the first purpose it qualifies for, or is
---- withdrawn; one saved before sources takes the first source that supplies it (a label for the
---- kind of farm, which the old listing never had: no history is claimed by it).
+--- withdrawn; one saved before sources takes the least traceable source that supplies it (a label
+--- for the kind of farm, which the old listing never had: no history is claimed by it).
 --- A subtype the file does not cover is not checked. No draws, server only.
 ---@param animal table Sale listing (has `sale`)
 ---@param cache table|nil Per-tick {[subTypeIndex] = {subType, entry, ctx}}; they depend only on the subtype
@@ -2513,8 +2524,10 @@ function AnimalSystem:_checkSaleListing(animal, cache)
     end
 
     if animal.sale.source == nil then
-        -- The purpose qualified, so a source supplies it (NO_SOURCE otherwise).
-        animal.sale.source = RLDealerStockPolicy.getSources(entry, purpose, animal.gender)[1].id
+        -- The purpose qualified, so a source supplies it (NO_SOURCE otherwise). Its history is not
+        -- known, so the least traceable of them.
+        animal.sale.source = RLDealerStockPolicy.getLeastTraceableSource(
+            RLDealerStockPolicy.getSources(entry, purpose, animal.gender)).id
         migrated = true
     end
 

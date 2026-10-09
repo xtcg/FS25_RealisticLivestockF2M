@@ -56,7 +56,8 @@ end
 
 
 --- One GAPS line for an animal type: its subtypes on the old dealer rules (legacy or not covered)
---- and its covered breeds without a use (only sources taking any breed supply them).
+--- and its covered breeds without a use where its sources need one (only sources taking any breed
+--- supply them).
 ---@return string
 function RLDealerConsole.describeGaps(config, animalType, subTypes)
     local oldRules, noUse, seenBreed, covered = {}, {}, {}, 0
@@ -65,7 +66,7 @@ function RLDealerConsole.describeGaps(config, animalType, subTypes)
         if entry.status == RLDealerStockPolicy.COVERED then
             covered = covered + 1
             local breed = tostring(subType.breed)
-            if entry.use == nil and not seenBreed[breed] then
+            if RLDealerStockPolicy.isUseMissing(entry) and not seenBreed[breed] then
                 seenBreed[breed] = true
                 table.insert(noUse, breed)
             end
