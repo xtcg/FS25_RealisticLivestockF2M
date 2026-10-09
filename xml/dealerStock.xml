@@ -152,6 +152,9 @@
     <animalType name="CHICKEN" profile="CHICKEN">
         <breed name="DUCK" profile="DUCK"/>  <!-- Hof Bergmann's ducks share the chicken type -->
     </animalType>
+    <!-- The map defines its female duck itself, so name both subtypes whatever breed it carries. -->
+    <subType name="DUCK" profile="DUCK"/>
+    <subType name="DUCK_MALE" profile="DUCK"/>
     <animalType name="GOOSE" profile="GOOSE"/>
     <animalType name="RABBIT" profile="RABBIT"/>
     <animalType name="HORSE" profile="HORSE"/>
