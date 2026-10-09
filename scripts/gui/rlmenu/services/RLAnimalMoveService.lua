@@ -31,6 +31,7 @@ RLAnimalMoveService.ERROR_CODE_MAPPING = {
     [AnimalMoveEvent.MOVE_ERROR_ANIMAL_NOT_SUPPORTED]         = "rl_ui_moveErrorNotSupported",
     [AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE]             = "rl_ui_moveErrorNoSpace",
     [AnimalMoveEvent.MOVE_ERROR_INVALID_CLUSTER]              = "rl_ui_moveErrorNotSupported",
+    [AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT]                = "rl_ui_penNotBuilt",
 }
 
 

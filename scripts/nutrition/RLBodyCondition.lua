@@ -369,7 +369,7 @@ end
 --- request (the same liters the engine asked the trough for) over the pen's request, times each
 --- fill type eaten, times that fill type's energy and the breed's digestion of its forage
 --- category. Food the pen did not eat is nobody's; the shares of all animals add up to what
---- was eaten.
+--- was eaten. In a calf rearing pen the animal's own liters (RLCalfRearing) replace the share.
 --- @param animal table
 --- @param supply table spec.rlNutritionSupply
 --- @return number litersThisStep Liters of TMR ration eaten (energy and digestion applied)
@@ -382,9 +382,11 @@ function RLBodyCondition.getAllocatedIntake(animal, supply)
 
     local share = request / supply.requested
     local subType = animal:getSubType()
+    -- In a calf rearing pen the animal ate its own share (RLCalfRearing.settle), not the pen's mix.
+    local own = RLCalfRearing ~= nil and RLCalfRearing.getAllocation(animal, supply.tick) or nil
     local intake, allocated = 0, 0
     for _, item in ipairs(supply.items) do
-        local liters = share * item.liters
+        local liters = own ~= nil and (own[item.fillType] or 0) or share * item.liters
         local digest = item.category == RLBodyCondition.OTHER_CATEGORY and 1 or RLBreedTraits.get(subType, item.category)
         allocated = allocated + liters
         intake = intake + liters * item.energy * digest
@@ -859,14 +861,22 @@ function RLBodyCondition.addInfos(animal, infos)
 
     if not RLBodyCondition.isEligible(animal) then return end
 
+    -- Verdict and weight against the slaughter reference are separate rows: together they do not
+    -- fit one value cell of the menu's stat grid.
     local verdict, reference = RLBodyCondition.getFinishVerdict(animal)
     if verdict ~= nil then
+        local weightRatio = reference ~= nil and math.clamp(animal.weight / reference, 0, 1) or 0
         row = infoRow(animal, "verdict", "rl_ui_finishVerdict")
-        row.ratio = reference ~= nil and math.clamp(animal.weight / reference, 0, 1) or 0
-        row.valueText = reference ~= nil
-            and string.format("%s (%.0f / %.0f kg)", g_i18n:getText(verdict), animal.weight, reference)
-            or g_i18n:getText(verdict)
+        row.ratio = weightRatio
+        row.valueText = g_i18n:getText(verdict)
         table.insert(infos, row)
+
+        if reference ~= nil then
+            row = infoRow(animal, "finishWeight", "rl_ui_finishWeight")
+            row.ratio = weightRatio
+            row.valueText = string.format("%.0f / %.0f kg", animal.weight, reference)
+            table.insert(infos, row)
+        end
     end
 
     local nutrition = animal.rlNutrition
@@ -895,22 +905,22 @@ function RLBodyCondition.addInfos(animal, infos)
 end
 
 
---- Lines for a cattle pen's info box: the condition of its covered animals and the last hour's
---- ration (on a client, from RLBodyConditionStateEvent's pen summary).
+--- Rows for a cattle pen's info box: the condition of its covered animals and the last hour's
+--- ration (on a client, from RLBodyConditionStateEvent's pen summary). One short figure per row,
+--- because the info box is 340 px wide and draws key and value on the same line.
 --- @param placeable table
---- @return string|nil conditionText
---- @return string|nil rationText
+--- @return table|nil rows List of { titleKey, text }; cow rows only with cows, bull rows only with bulls
 function RLBodyCondition.getPenInfo(placeable)
     if not RLBodyCondition.isEnabled() or placeable.getAnimalTypeIndex == nil or AnimalType == nil
         or placeable:getAnimalTypeIndex() ~= AnimalType.COW then return nil end
 
-    local cows, bcsSum, thin, fat, bulls, ready = 0, 0, 0, 0, 0, 0
+    local cows, bcsSum, thin, fat, bulls, ready, overfat = 0, 0, 0, 0, 0, 0, 0
     for _, animal in ipairs(placeable:getClusters()) do
         if RLBodyCondition.isEligible(animal) then
             if animal.gender == "male" then
                 bulls = bulls + 1
                 if RLBodyCondition.getFinishVerdict(animal) == "rl_ui_finishVerdictReady" then ready = ready + 1 end
-                if RLBodyCondition.getFinishScore(animal) > 80 then fat = fat + 1 end
+                if RLBodyCondition.getFinishScore(animal) > 80 then overfat = overfat + 1 end
             else
                 local bcs = RLBodyCondition.getBCS(animal)
                 cows, bcsSum = cows + 1, bcsSum + bcs
@@ -920,8 +930,15 @@ function RLBodyCondition.getPenInfo(placeable)
     end
     if cows + bulls == 0 then return nil end
 
-    local conditionText = string.format(g_i18n:getText("rl_ui_penConditionFormat"),
-        cows > 0 and string.format("%.1f", bcsSum / cows) or "-", thin, fat, ready, bulls)
+    local rows = {}
+    if cows > 0 then
+        table.insert(rows, { titleKey = "rl_ui_penBcs", text = string.format("%.1f", bcsSum / cows) })
+        table.insert(rows, { titleKey = "rl_ui_penCowsThinFat", text = string.format("%d / %d", thin, fat) })
+    end
+    if bulls > 0 then
+        table.insert(rows, { titleKey = "rl_ui_penBullsReady", text = string.format("%d / %d", ready, bulls) })
+        table.insert(rows, { titleKey = "rl_ui_penBullsOverfat", text = string.format("%d", overfat) })
+    end
 
     local foodSpec = placeable.spec_husbandryFood
     local summary = foodSpec ~= nil and foodSpec.rlPenSummary or nil
@@ -934,11 +951,11 @@ function RLBodyCondition.getPenInfo(placeable)
             water = water ~= nil and water.coverage or 1 }
     end
 
-    local rationText = nil
     if summary ~= nil then
-        rationText = string.format(g_i18n:getText("rl_ui_penRationFormat"), summary.eatenShare * 100,
-            summary.energy * 100, summary.water * 100)
+        table.insert(rows, { titleKey = "rl_ui_penFeedEaten", text = string.format("%.0f %%", summary.eatenShare * 100) })
+        table.insert(rows, { titleKey = "rl_ui_penRationEnergy", text = string.format("%.0f %%", summary.energy * 100) })
+        table.insert(rows, { titleKey = "rl_ui_penWater", text = string.format("%.0f %%", summary.water * 100) })
     end
 
-    return conditionText, rationText
+    return rows
 end
