@@ -1507,7 +1507,7 @@ end
 --- mothers milk (RLLactation, the game's rule).
 ---@param animalType table
 ---@param subType table
----@return table ctx {maxBuyAge, weaningMonth, union, lactates, lactationMonths}
+---@return table ctx {maxBuyAge, weaningMonth, union, lactates}
 function AnimalSystem:getSaleAgeContext(animalType, subType)
     local maxBuyAge = animalType.maxBuyAge or 60
     return {
@@ -1515,7 +1515,6 @@ function AnimalSystem:getSaleAgeContext(animalType, subType)
         weaningMonth = RLCalfRearing.getWeaningMonthForSubType(subType),
         union = RLDealerStockPolicy.getBuyableAgeUnion(subType, maxBuyAge),
         lactates = RLLactation.startsAtBirth(animalType.typeIndex, subType.name),
-        lactationMonths = RLLactation.MONTHS,
     }
 end
 
@@ -1558,15 +1557,15 @@ local function noteSaleCoverageGap(animalType, subType, entry)
 end
 
 
---- Say once per breed per map load that dealerStock.xml gives a covered breed no use, so only the
---- sources that take any breed supply it.
+--- Say once per subtype per map load that dealerStock.xml gives a covered breed no use, so only the
+--- sources that take any breed supply it. Per subtype: a subType layer may give one its own use.
 local function noteSaleBreedUseGap(animalType, subType, entry)
-    local latchKey = "use:" .. tostring(animalType.name) .. ":" .. tostring(subType.breed)
+    local latchKey = "use:" .. tostring(subType.name)
     if saleGenerationBailLatches[latchKey] then return end
     saleGenerationBailLatches[latchKey] = true
     if not RLDealerStockPolicy.isUseMissing(entry) then return end
-    Log:info("Dealer stock: %s breed %s has no use in dealerStock.xml (dairy, beef...), so only sources that take any breed supply it.",
-        tostring(animalType.name), tostring(subType.breed))
+    Log:info("Dealer stock: %s %s (breed %s) has no use in dealerStock.xml (dairy, beef...), so only sources that take any breed supply it.",
+        tostring(animalType.name), tostring(subType.name), tostring(subType.breed))
 end
 
 
@@ -2511,6 +2510,12 @@ function AnimalSystem:_checkSaleListing(animal, cache)
 
     local purpose
     local migrated = false
+
+    -- Listed from the fallback source of a file without sources, which the file now names: given
+    -- one of them below, like a listing from before sources.
+    if animal.sale.source == RLDealerStockPolicy.DEFAULT_SOURCE and RLDealerStockPolicy.findSource(entry, animal.sale.source) == nil then
+        animal.sale.source = nil
+    end
 
     if animal.sale.purpose ~= nil then
         purpose = RLDealerStockPolicy.findPurpose(entry, animal.gender, animal.sale.purpose)

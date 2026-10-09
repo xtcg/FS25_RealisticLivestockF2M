@@ -193,6 +193,15 @@ local function readPurpose(xmlFile, key, profileName)
 end
 
 
+--- A source table (readSource and the fallback for a profile without sources).
+local function newSource(id, uses, weight, traceability)
+    local source = { id = id, uses = {}, weight = weight, traceability = traceability }
+    for _, use in ipairs(uses) do source.uses[use:lower()] = true end
+    source.anyUse = source.uses[RLDealerStockPolicy.ANY_USE] == true
+    return source
+end
+
+
 --- Split a space-separated list.
 local function words(text)
     local list = {}
@@ -222,11 +231,8 @@ local function readSource(xmlFile, key, profileName)
         return nil
     end
 
-    local source = { id = id:upper(), uses = {}, weight = weight, traceability = traceability }
-    for _, use in ipairs(words(xmlFile:getString(key .. "#uses", RLDealerStockPolicy.ANY_USE))) do
-        source.uses[use:lower()] = true
-    end
-    source.anyUse = source.uses[RLDealerStockPolicy.ANY_USE] == true
+    local source = newSource(id:upper(), words(xmlFile:getString(key .. "#uses", RLDealerStockPolicy.ANY_USE)),
+        weight, traceability)
 
     local purposes = words(xmlFile:getString(key .. "#purposes", "*"))
     if not (#purposes == 1 and purposes[1] == "*") then
@@ -310,8 +316,9 @@ function RLDealerStockPolicy.parseConfig(xmlFile)
             table.insert(profile.purposes, purpose)
         end)
 
-        local sourceIds = {}
+        local sourceIds, sourceElements = {}, 0
         xmlFile:iterate(key .. ".source", function(_, sourceKey)
+            sourceElements = sourceElements + 1
             local source = readSource(xmlFile, sourceKey, name)
             if source == nil then return end
             if sourceIds[source.id] then
@@ -330,15 +337,13 @@ function RLDealerStockPolicy.parseConfig(xmlFile)
             end
             table.insert(profile.sources, source)
         end)
-        if #profile.sources == 0 then
+        if sourceElements == 0 and #profile.purposes > 0 then
             -- A file from before sources (version 1): one source of unknown history that supplies
-            -- every purpose of any breed, so the profile keeps selling as it did.
-            table.insert(profile.sources, { id = RLDealerStockPolicy.DEFAULT_SOURCE, uses = { [RLDealerStockPolicy.ANY_USE] = true },
-                anyUse = true, weight = 1, traceability = "UNKNOWN" })
-            if #profile.purposes > 0 then
-                Log:warning("RLDealerStockPolicy: profile %s has no source; its purposes come from one source, %s "
-                    .. "(any breed, history unknown), until the file names its sources", name, RLDealerStockPolicy.DEFAULT_SOURCE)
-            end
+            -- every purpose of any breed, so the profile keeps selling as it did. Not for a profile
+            -- whose sources were all invalid: those were warned about and it offers nothing.
+            table.insert(profile.sources, newSource(RLDealerStockPolicy.DEFAULT_SOURCE, { RLDealerStockPolicy.ANY_USE }, 1, "UNKNOWN"))
+            Log:warning("RLDealerStockPolicy: profile %s has no source; its purposes come from one source, %s "
+                .. "(any breed, history unknown), until the file names its sources", name, RLDealerStockPolicy.DEFAULT_SOURCE)
         end
 
         if config.profiles[name] ~= nil then
@@ -806,14 +811,14 @@ function RLDealerStockPolicy.planReproduction(purpose, entry, subType, age, rand
 end
 
 
---- Whether a mother milks now: a female, since her last birth, for lactationMonths (ctx.lactates:
---- the species milks at all). The game's own rule (RLLactation), so a listing stays in step
+--- Whether a mother milks now: a female, since her last birth, within RLLactation.MONTHS
+--- (ctx.lactates: the species milks at all). The game's own rule (RLLactation), so a listing stays in step
 --- as it ages on the shelf.
---- @param ctx table {lactates, lactationMonths}
+--- @param ctx table {lactates}
 --- @return boolean
 function RLDealerStockPolicy.isInMilk(gender, isParent, monthsSinceLastBirth, ctx)
     return ctx.lactates == true and gender == "female" and isParent == true
-        and (monthsSinceLastBirth or 0) < (ctx.lactationMonths or 0)
+        and RLLactation.isWithin(monthsSinceLastBirth)
 end
 
 
@@ -845,7 +850,7 @@ end
 --- @param animal table {age, gender, isParent, monthsSinceLastBirth, isPregnant, pregnancy,
 ---        reproduction (0..100), isLactating, isCastrated, health, weight, targetWeight,
 ---        getHasAnyDisease|nil, sale|nil {source, parity}}
---- @param ctx table {maxBuyAge, weaningMonth|nil, union|nil, lactates|nil, lactationMonths}
+--- @param ctx table {maxBuyAge, weaningMonth|nil, union|nil, lactates|nil}
 ---        (lactates nil: milk not checked)
 --- @param onShelf boolean|nil See above
 --- @return boolean ok

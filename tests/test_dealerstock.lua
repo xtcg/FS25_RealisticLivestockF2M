@@ -63,8 +63,7 @@ local function ctxFor(subType, maxBuyAge)
     maxBuyAge = maxBuyAge or 72
     return { maxBuyAge = maxBuyAge, weaningMonth = RLCalfRearing.getWeaningMonthForSubType(subType),
         union = P.getBuyableAgeUnion(subType, maxBuyAge),
-        lactates = RLLactation.startsAtBirth(subType.typeIndex, subType.name),
-        lactationMonths = RLLactation.MONTHS }
+        lactates = RLLactation.startsAtBirth(subType.typeIndex, subType.name) }
 end
 
 local function describe(candidates)
@@ -250,6 +249,14 @@ local curve = {}
 for m = 0, 10 do table.insert(curve, string.format("%.3f", RLLactation.getYieldFactor(m))) end
 check("milk yield curve as before: " .. table.concat(curve, " "), table.concat(curve, " ")
     == "0.800 0.967 1.133 1.300 1.267 1.200 1.133 1.067 1.000 0.933 0.000")
+check("unknown months since birth: dry, no yield", not RLLactation.isWithin(nil) and RLLactation.getYieldFactor(nil) == 0)
+do
+    local saved = AnimalType
+    AnimalType = nil
+    local ok, goat = pcall(RLLactation.startsAtBirth, 1, "GOAT")
+    AnimalType = saved
+    check("milk rule without the AnimalType global: goats still, no error", ok and goat)
+end
 
 
 -- Draws -----------------------------------------------------------------------------------------
@@ -720,6 +727,10 @@ check("listing from before sources: given one (" .. tostring(d1Listing.sale.sour
     keep and why == "MIGRATED" and d1Listing.sale.source == "DAIRY_HERD")
 keep, why = system:_checkSaleListing(listing({ day = 1, purpose = "HEIFER_REPLACEMENT", source = "REARING_UNIT", parity = 0 }))
 check("current listing: kept as it is", keep and why == nil)
+local fallbackListing = listing({ day = 1, purpose = "HEIFER_REPLACEMENT", source = "UNSPECIFIED", parity = 0 })
+keep, why = system:_checkSaleListing(fallbackListing)
+check("listing from the fallback source of a file without sources: given a named one when the file names them",
+    keep and why == "MIGRATED" and fallbackListing.sale.source == "REARING_UNIT")
 keep, why = system:_checkSaleListing(listing({ day = 1, purpose = "HEIFER_REPLACEMENT", source = "REARING_UNIT", parity = 0 },
     { getHasAnyDisease = function() return true end }))
 check("listing that fell ill: withdrawn (SICK)", not keep and why == R.SICK)
@@ -729,7 +740,7 @@ check("old listing that is ill: withdrawn, not given a source", not keep and sic
 
 
 -- The old rules can make a male of a milking type a "parent"; he is never in milk.
-check("a male is never in milk", not P.isInMilk("male", true, 3, { lactates = true, lactationMonths = 10 }))
+check("a male is never in milk", not P.isInMilk("male", true, 3, { lactates = true }))
 local stableBull = { name = "BULL", breed = "BULL", gender = "male", visuals = visuals({ 0, true }),
     supportsReproduction = false, reproductionMinAgeMonth = 12, reproductionDurationMonth = 9, index = 8,
     typeIndex = 1, minWeight = 40, targetWeight = 1000, maxWeight = 1400 }
@@ -760,6 +771,11 @@ do
         <source id="FARM" purposes="YOUNG YUNG YOUNG:male" traceability="SOMETIMES"/>
         <source id="FARM2" purposes="YOUNG YUNG YOUNG:male"/>
     </profile>
+    <profile name="BROKEN" maxFemaleAgeMonth="12" maxMaleAgeMonth="12">
+        <purpose id="YOUNG" gender="female" minAgeMonth="1" maxAgeMonth="6"/>
+        <source id="X" weight="0"/>
+    </profile>
+    <profile name="EMPTY" maxFemaleAgeMonth="12" maxMaleAgeMonth="12"/>
 </dealerStock>]])
     handle:close()
     local before = #LOG
@@ -775,6 +791,8 @@ do
         and warnings:find("source FARM2 names purpose YOUNG for male", 1, true) ~= nil)
     check("source with an unknown traceability: ignored with a warning", #parsed.profiles.TYPO.sources == 1
         and warnings:find("source FARM ignored: traceability", 1, true) ~= nil)
+    check("only invalid sources: no fallback (offers nothing); no purposes: no fallback either",
+        #parsed.profiles.BROKEN.sources == 0 and #parsed.profiles.EMPTY.sources == 0)
     for i = #LOG, before + 1, -1 do table.remove(LOG, i) end
 
     path = os.tmpname()
