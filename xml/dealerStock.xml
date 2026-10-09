@@ -24,8 +24,9 @@
       id, gender         female, male or any. One id may appear once per sex.
       minAgeMonth, maxAgeMonth            [min, max) months
       slowMinAgeMonth, slowMaxAgeMonth    range for a breed marked slowMaturing (default: same)
-      weight             relative share among the purposes of the same sex (default 1)
-      enabled            false switches the purpose off
+      weight             relative share among the purposes of the same sex (default 1); 0 is off,
+                         like enabled="false": no new animals, and listings for it are withdrawn
+      enabled            false switches the purpose off (listings for it are withdrawn too)
       parent             never | always | optional: has calved (lambed, farrowed) before. With
       parentChance       optional, the share that has. A parent calved at the earliest at the
                          breeding age + gestation, and at least a month ago.

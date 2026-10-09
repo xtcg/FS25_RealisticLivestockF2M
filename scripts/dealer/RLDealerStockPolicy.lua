@@ -247,20 +247,11 @@ end
 -- Entries: what a subtype resolves to
 -- =============================================================================
 
---- Look a layer attribute up: subType, then breed within its type, then type.
+--- Look a layer attribute up: subType, then breed within its type, then type (the lookup
+--- breedTraits.xml and calfRearing.xml use).
 --- @return any|nil
 function RLDealerStockPolicy.lookup(config, typeName, breed, subTypeName, attr)
-    local layers = config.layers
-    local own = subTypeName ~= nil and layers.subTypes[subTypeName] or nil
-    if own ~= nil and own[attr] ~= nil then return own[attr] end
-    if typeName ~= nil then
-        local breeds = layers.breeds[typeName]
-        local breedLayer = breeds ~= nil and breed ~= nil and breeds[breed] or nil
-        if breedLayer ~= nil and breedLayer[attr] ~= nil then return breedLayer[attr] end
-        local typeLayer = layers.types[typeName]
-        if typeLayer ~= nil and typeLayer[attr] ~= nil then return typeLayer[attr] end
-    end
-    return nil
+    return RLBreedTraits.resolveNamed(config.layers, typeName, breed, subTypeName, attr, nil)
 end
 
 
@@ -323,9 +314,11 @@ function RLDealerStockPolicy.findPurpose(entry, gender, id)
 end
 
 
---- Draw a subtype: a breed first, all breeds alike (a breed with several subtypes of one sex,
---- such as map aliases, is not drawn more often), then its sex by femaleShare, then one of its
---- subtypes of that sex. A breed with only one sex gives that sex.
+--- Draw a subtype: a breed first, then its sex by femaleShare, then one of its subtypes of that
+--- sex. A breed is drawn by the number of sexes it has (a breed with cows and bulls twice as often
+--- as one with bulls only, as when every subtype was drawn alike), but several subtypes of one
+--- breed and sex, such as map aliases, do not make it more likely. A breed with only one sex
+--- gives that sex.
 --- @param subTypes table[] {{index, name, breed, gender}, ...}
 --- @param typeName string|nil
 --- @param randomFn function `function(lo, hi) -> int`
@@ -344,7 +337,17 @@ function RLDealerStockPolicy.pickSubType(config, subTypes, typeName, randomFn)
     end
     if #order == 0 then return nil end
 
-    local breed = order[randomFn(1, #order)]
+    local total = 0
+    for _, key in ipairs(order) do
+        local group = groups[key]
+        group.weight = (#group.female > 0 and 1 or 0) + (#group.male > 0 and 1 or 0)
+        total = total + group.weight
+    end
+    local roll, breed = randomFn(1, total), order[#order]
+    for _, key in ipairs(order) do
+        roll = roll - groups[key].weight
+        if roll <= 0 then breed = key break end
+    end
     local group = groups[breed]
     local list
     if #group.male == 0 then
@@ -423,7 +426,7 @@ end
 --- Whether a purpose can ever be offered for the subtype, regardless of age.
 --- @return string|nil reason
 local function getStaticReason(purpose, entry, subType)
-    if not purpose.enabled then return REASON.DISABLED end
+    if not purpose.enabled or purpose.weight <= 0 then return REASON.DISABLED end
     if purpose.breedingWeight and entry.breedingWeightRatio == nil then return REASON.NO_BREEDING_WEIGHT end
     if (purpose.parent == "always" or purpose.pregnant == "always")
         and (subType.gender ~= "female" or not subType.supportsReproduction) then
@@ -455,7 +458,7 @@ end
 
 
 --- Every purpose for the subtype's sex with the ages it can be offered at, and why the others cannot.
---- @return table[] candidates {{purpose, segments, lo, hi}, ...} with weight > 0
+--- @return table[] candidates {{purpose, segments, lo, hi}, ...}
 --- @return table[] gaps {{purpose, reason}, ...}
 function RLDealerStockPolicy.getCandidates(entry, subType, ctx)
     local candidates, gaps = {}, {}
@@ -463,7 +466,7 @@ function RLDealerStockPolicy.getCandidates(entry, subType, ctx)
         local segments, reason, lo, hi = RLDealerStockPolicy.getSegments(purpose, entry, subType, ctx)
         if segments == nil then
             table.insert(gaps, { purpose = purpose, reason = reason })
-        elseif purpose.weight > 0 then
+        else
             table.insert(candidates, { purpose = purpose, segments = segments, lo = lo, hi = hi })
         end
     end
@@ -574,12 +577,19 @@ end
 -- =============================================================================
 
 --- Whether an animal qualifies for a purpose now. No draws, no side effects.
+--- When a pregnant animal conceived is read back from its gestation progress (reproduction) as
+--- nominal months (progress x gestation). That holds when the animal is generated, but on the shelf
+--- progress rises at least 1% a day (AnimalReproduction.changeReproduction), so with long months it
+--- runs ahead of the calendar (28 days a month: 28% a month, 2.8 nominal cow months). `onShelf`
+--- therefore skips the two conception-time checks for a listing that already passed them when it
+--- was generated; its ages, breeding state and progress limit are still checked.
 --- @param animal table {age, gender, isParent, monthsSinceLastBirth, isPregnant, pregnancy,
 ---        reproduction (0..100), isCastrated, weight, targetWeight}
 --- @param ctx table {maxBuyAge, weaningMonth|nil, union|nil}
+--- @param onShelf boolean|nil See above
 --- @return boolean ok
 --- @return string[] reasons
-function RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx)
+function RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx, onShelf)
     local reasons = {}
     local function fail(reason) table.insert(reasons, reason) end
 
@@ -629,10 +639,10 @@ function RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx)
     if isParent then
         local sinceBirth = animal.monthsSinceLastBirth or 0
         if sinceBirth < 1 or age - sinceBirth < breedingAge + (subType.reproductionDurationMonth or 0) - slack
-            or (isPregnant and sinceBirth - pregnancyMonths < profile.minRecoveryMonth - slack) then
+            or (isPregnant and not onShelf and sinceBirth - pregnancyMonths < profile.minRecoveryMonth - slack) then
             fail(REASON.TIMELINE)
         end
-    elseif isPregnant and age - pregnancyMonths < breedingAge - slack then
+    elseif isPregnant and not onShelf and age - pregnancyMonths < breedingAge - slack then
         fail(REASON.TIMELINE)
     end
 
@@ -659,4 +669,16 @@ function RLDealerStockPolicy.classify(animal, entry, subType, ctx)
         firstReason = firstReason or reasons[1]
     end
     return nil, firstReason or REASON.NO_PURPOSE
+end
+
+
+--- "KEY=n KEY=n", sorted, of a count map; "" when empty. One format for every RLDEALER and dealer
+--- summary line, so log readers can parse them alike.
+--- @param counts table|nil {[key] = count}
+--- @return string
+function RLDealerStockPolicy.formatCounts(counts)
+    local parts = {}
+    for key, count in pairs(counts or {}) do table.insert(parts, string.format("%s=%d", tostring(key), count)) end
+    table.sort(parts)
+    return table.concat(parts, " ")
 end

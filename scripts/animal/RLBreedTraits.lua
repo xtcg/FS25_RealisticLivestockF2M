@@ -112,22 +112,29 @@ end
 --- @param default any Returned when no layer sets it
 --- @return any
 function RLBreedTraits.resolve(layers, subType, attr, default)
-    if subType ~= nil then
-        local own = subType.name ~= nil and layers.subTypes[subType.name] or nil
-        if own ~= nil and own[attr] ~= nil then return own[attr] end
+    if subType == nil then return RLBreedTraits.resolveNamed(layers, nil, nil, nil, attr, default) end
+    return RLBreedTraits.resolveNamed(layers, RLBreedTraits.getTypeName(subType), subType.breed, subType.name, attr, default)
+end
 
-        local typeName = RLBreedTraits.getTypeName(subType)
-        if typeName ~= nil then
-            local breeds = layers.breeds[typeName]
-            local breed = breeds ~= nil and subType.breed ~= nil and breeds[subType.breed] or nil
-            if breed ~= nil and breed[attr] ~= nil then return breed[attr] end
 
-            local animalType = layers.types[typeName]
-            if animalType ~= nil and animalType[attr] ~= nil then return animalType[attr] end
-        end
+--- The same lookup by names, for callers without a live subtype (the dealer draws a breed before a
+--- subtype): subTypeName, then breed within typeName, then typeName, then root. Any name may be nil;
+--- a layers table without a root skips it.
+--- @return any
+function RLBreedTraits.resolveNamed(layers, typeName, breed, subTypeName, attr, default)
+    local own = subTypeName ~= nil and layers.subTypes[subTypeName] or nil
+    if own ~= nil and own[attr] ~= nil then return own[attr] end
+
+    if typeName ~= nil then
+        local breeds = layers.breeds[typeName]
+        local breedLayer = breeds ~= nil and breed ~= nil and breeds[breed] or nil
+        if breedLayer ~= nil and breedLayer[attr] ~= nil then return breedLayer[attr] end
+
+        local animalType = layers.types[typeName]
+        if animalType ~= nil and animalType[attr] ~= nil then return animalType[attr] end
     end
 
-    local value = layers.root[attr]
+    local value = layers.root ~= nil and layers.root[attr] or nil
     if value ~= nil then return value end
     return default
 end

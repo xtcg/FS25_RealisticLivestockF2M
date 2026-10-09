@@ -56,8 +56,13 @@ function RLDealerConsole.catalog(_, typeFilter)
     local config = RLDealerStockPolicy.getConfig()
     typeFilter = typeFilter ~= nil and typeFilter ~= "" and typeFilter:upper() or nil
 
+    -- The type table can have holes (maps and bridges), so walk it with pairs, in index order.
+    local types = {}
+    for _, animalType in pairs(animalSystem:getTypes()) do table.insert(types, animalType) end
+    table.sort(types, function(a, b) return (a.typeIndex or 0) < (b.typeIndex or 0) end)
+
     local lines = 0
-    for _, animalType in ipairs(animalSystem:getTypes()) do
+    for _, animalType in ipairs(types) do
         if typeFilter == nil or animalType.name == typeFilter then
             for _, subTypeIndex in ipairs(animalType.subTypes) do
                 local subType = animalSystem:getSubTypeByIndex(subTypeIndex)
@@ -74,11 +79,8 @@ function RLDealerConsole.catalog(_, typeFilter)
                 local key = animal.sale ~= nil and animal.sale.purpose or "-"
                 byPurpose[key] = (byPurpose[key] or 0) + 1
             end
-            local parts = {}
-            for key, count in pairs(byPurpose) do table.insert(parts, string.format("%s=%d", key, count)) end
-            table.sort(parts)
             Log:info("RLDEALER POOL type=%s listings=%d byPurpose={%s} generationFailures={%s}",
-                tostring(animalType.name), total, table.concat(parts, " "),
+                tostring(animalType.name), total, RLDealerStockPolicy.formatCounts(byPurpose),
                 AnimalSystem._formatSaleGenerationFailures(animalType.typeIndex, false, true))
         end
     end

@@ -1561,22 +1561,20 @@ local function countSaleGenerationFailure(animalTypeIndex, reason)
 end
 
 
---- "REASON=n REASON=n" of the failures counted for a type, and clear them when `clear`.
+--- "REASON=n REASON=n" of the failures counted for a type since the last clear (or, with
+--- `totals`, since the map load), and clear the former when `clear`.
 ---@return string
 function AnimalSystem._formatSaleGenerationFailures(animalTypeIndex, clear, totals)
-    local counts = (totals and saleGenerationFailureTotals or saleGenerationFailures)[animalTypeIndex]
-    if counts == nil then return "none" end
-    local parts = {}
-    for reason, count in pairs(counts) do table.insert(parts, string.format("%s=%d", reason, count)) end
-    table.sort(parts)
+    local text = RLDealerStockPolicy.formatCounts((totals and saleGenerationFailureTotals or saleGenerationFailures)[animalTypeIndex])
     if clear then saleGenerationFailures[animalTypeIndex] = nil end
-    return #parts > 0 and table.concat(parts, " ") or "none"
+    return text ~= "" and text or "none"
 end
 
 
---- Pick the source farm a new sale animal of this type comes from and take its next animal id
---- there. 88% of first picks are the map's own country.
----@return table|nil source {farmId, quality, countryIndex, lastAnimalId}; nil when no farm keeps the type
+--- Pick the source farm a new sale animal of this type comes from, and the next animal id there.
+--- 88% of first picks are the map's own country. The id is only taken (farm.ids advanced) by
+--- commitSaleSourceFarm once the animal is accepted, so a rejected attempt wastes no id.
+---@return table|nil source {farm, farmId, quality, countryIndex, lastAnimalId}; nil when no farm keeps the type
 function AnimalSystem:_pickSaleSourceFarm(animalTypeIndex, animalType)
     local attemptedCountryIndexes = {}
 
@@ -1615,9 +1613,8 @@ function AnimalSystem:_pickSaleSourceFarm(animalTypeIndex, animalType)
 
         if #validFarms > 0 then
             local farm = country.farms[validFarms[math.random(1, #validFarms)]]
-            farm.ids[animalTypeIndex] = (farm.ids[animalTypeIndex] or 0) + 1
-            return { farmId = farm.id, quality = farm.quality, countryIndex = countryIndex,
-                lastAnimalId = farm.ids[animalTypeIndex] }
+            return { farm = farm, farmId = farm.id, quality = farm.quality, countryIndex = countryIndex,
+                lastAnimalId = (farm.ids[animalTypeIndex] or 0) + 1 }
         end
 
         if wasMapPick then
@@ -1974,11 +1971,13 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
 
     -- The finished animal must still qualify: a purpose that needs a pregnancy loses it with the
     -- offspring above, and the weight a heifer needs to be ready to breed is only known now.
-    -- Its id stays used (ids are never handed out twice).
+    -- A rejected animal never took its id, so the farm's next animal gets it.
     if purpose ~= nil then
         local ok, reasons = RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx)
         if not ok then return nil, reasons[1] end
     end
+
+    source.farm.ids[animalTypeIndex] = source.lastAnimalId
 
     return animal
 
@@ -2409,21 +2408,28 @@ end
 --- qualifies for, or is withdrawn. A subtype the file does not cover is not checked.
 --- No draws, server only.
 ---@param animal table Sale listing (has `sale`)
+---@param cache table|nil Per-tick {[subTypeIndex] = {subType, entry, ctx}}; they depend only on the subtype
 ---@return boolean keep
 ---@return string|nil reason Why not, or "MIGRATED" when a purpose was assigned
-function AnimalSystem:_checkSaleListing(animal)
-    local subType = self:getSubTypeByIndex(animal.subTypeIndex)
-    local animalType = subType ~= nil and self:getTypeByIndex(subType.typeIndex) or nil
-    if subType == nil or animalType == nil then return true end
+function AnimalSystem:_checkSaleListing(animal, cache)
+    local resolved = cache ~= nil and cache[animal.subTypeIndex] or nil
+    if resolved == nil then
+        local subType = self:getSubTypeByIndex(animal.subTypeIndex)
+        local animalType = subType ~= nil and self:getTypeByIndex(subType.typeIndex) or nil
+        resolved = { subType = subType }
+        if animalType ~= nil then
+            resolved.entry = RLDealerStockPolicy.getEntry(RLDealerStockPolicy.getConfig(), subType, animalType.name)
+            resolved.ctx = self:getSaleAgeContext(animalType, subType)
+        end
+        if cache ~= nil and animal.subTypeIndex ~= nil then cache[animal.subTypeIndex] = resolved end
+    end
 
-    local entry = RLDealerStockPolicy.getEntry(RLDealerStockPolicy.getConfig(), subType, animalType.name)
-    if entry.status ~= RLDealerStockPolicy.COVERED then return true end
-
-    local ctx = self:getSaleAgeContext(animalType, subType)
+    local subType, entry, ctx = resolved.subType, resolved.entry, resolved.ctx
+    if entry == nil or entry.status ~= RLDealerStockPolicy.COVERED then return true end
 
     if animal.sale.purpose ~= nil then
         local purpose = RLDealerStockPolicy.findPurpose(entry, animal.gender, animal.sale.purpose)
-        local ok, reasons = RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx)
+        local ok, reasons = RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx, true)
         return ok, reasons[1]
     end
 
@@ -2452,6 +2458,7 @@ function AnimalSystem:onHourChanged()
         -- the one this stock was generated under.
         local activePreset = RLDealerQualityModel.getPreset(RLDealerQualityResolver.getActiveIndex())
         local bandMidpoint = (activePreset.lo + activePreset.hi) / 2
+        local listingCache = {}
 
         for animalTypeIndex, animals in pairs(self.animals) do
 
@@ -2475,7 +2482,7 @@ function AnimalSystem:onHourChanged()
                     -- Purpose check first: a listing that no longer qualifies is withdrawn even
                     -- on the day it was listed. Contained like the rotation below; a failure keeps it.
                     local keep, checkReason = RmSafeUtils.safeAnimalCall(animal, "AnimalSystem:_checkSaleListing", function()
-                        return self:_checkSaleListing(animal)
+                        return self:_checkSaleListing(animal, listingCache)
                     end, { true, "error" })
 
                     if checkReason == "MIGRATED" then migrated = migrated + 1 end
@@ -2542,6 +2549,10 @@ function AnimalSystem:onHourChanged()
             local threshold = math.random(10, self.maxDealerAnimals)
             local creationsAttempted, creationsSucceeded = 0, 0
 
+            -- Only this restock's failures go into the summary below (the map load's fill, a dealer
+            -- reset and a sale-availability repopulate also generate).
+            AnimalSystem._formatSaleGenerationFailures(animalTypeIndex, true)
+
             if #animals < threshold then
 
                 for i = #animals + 1, threshold do
@@ -2574,7 +2585,7 @@ function AnimalSystem:onHourChanged()
 
             -- Suppressed on a quiet tick: without this the summary alone is five
             -- lines an hour, 120 a game day, at the dev DEBUG default.
-            if rotatedTotal > 0 or creationsAttempted > 0 then
+            if rotatedTotal > 0 or creationsAttempted > 0 or migrated > 0 then
 
                 local poolAfter = 0
 
@@ -2594,11 +2605,8 @@ function AnimalSystem:onHourChanged()
                 -- Why listings no longer qualified, and why generation attempts failed (each failed
                 -- place is maxAttempts attempts plus SLOT_LEFT_EMPTY).
                 if withdrawn > 0 or migrated > 0 or creationsSucceeded < creationsAttempted then
-                    local parts = {}
-                    for key, count in pairs(withdrawnReasons) do table.insert(parts, string.format("%s=%d", key, count)) end
-                    table.sort(parts)
                     Log:debug("Dealer stock type=%d: withdrawn {%s}, old listings given a purpose %d, generation failures {%s}",
-                        animalTypeIndex, table.concat(parts, " "), migrated,
+                        animalTypeIndex, RLDealerStockPolicy.formatCounts(withdrawnReasons), migrated,
                         AnimalSystem._formatSaleGenerationFailures(animalTypeIndex, true))
                 end
 

@@ -197,6 +197,22 @@ check(string.format("breed A (4 subtypes) %.1f%% vs breed B (2) - each about hal
     (picks[1] + picks[2] + picks[3]) / n * 100), math.abs(breedA - 0.5) < 0.015
     and math.abs((picks[1] + picks[2] + picks[3]) / n - 0.25) < 0.015)
 
+-- Hof Bergmann's cattle: 7 breeds with cows and bulls, and the bull stable's BULL (bulls only, its
+-- name as breed). A breed counts once per sex, so BULL keeps the 1 in 15 it had when every subtype
+-- was drawn alike, instead of 1 in 8.
+local hb = {}
+for i = 1, 7 do
+    table.insert(hb, { index = 2 * i - 1, breed = "B" .. i, gender = "female" })
+    table.insert(hb, { index = 2 * i, breed = "B" .. i, gender = "male" })
+end
+table.insert(hb, { index = 15, name = "BULL", breed = "BULL", gender = "male" })
+local stableBulls = 0
+for _ = 1, n do
+    if P.pickSubType(config, hb, "COW", math.random) == 15 then stableBulls = stableBulls + 1 end
+end
+check(string.format("bull stable bull %.1f%% of cattle (1/15 = 6.7%%)", stableBulls / n * 100),
+    math.abs(stableBulls / n - 1 / 15) < 0.01)
+
 
 -- Histories -------------------------------------------------------------------------------------
 
@@ -286,6 +302,34 @@ cow.monthsSinceLastBirth, cow.reproduction = 8, 40
 check("a month on: still ok", reasonsOf(cow, first) == "ok")
 cow.age, cow.monthsSinceLastBirth, cow.reproduction = 35, 12, 80
 check("past 75% of gestation: withdrawn", reasonsOf(cow, first) == R.PREGNANCY_PROGRESS)
+
+-- 28 days a month: gestation rises at least 1% a day, 28% a month, so read as months it runs
+-- ahead of the calendar. A cow bred again exactly 3 months after calving, a month on the shelf:
+local fast = { age = 31, gender = "female", isParent = true, monthsSinceLastBirth = 7, isPregnant = true,
+    reproduction = 40, pregnancy = { duration = 10 } }
+check("generated: bred 3 months after calving, 4 months gone: ok", reasonsOf(fast, first) == "ok")
+fast.age, fast.monthsSinceLastBirth, fast.reproduction = 32, 8, 68
+local function shelfReasons(animal, purpose)
+    local ok, reasons = P.validate(animal, purpose, entry, holstein, ctx, true)
+    return ok and "ok" or table.concat(reasons, ",")
+end
+check("a 28-day month later: generation's check would say TIMELINE, the shelf check keeps it",
+    reasonsOf(fast, first) == R.TIMELINE and shelfReasons(fast, first) == "ok")
+fast.reproduction = 76
+check("on the shelf it is still withdrawn past 75%", shelfReasons(fast, first) == R.PREGNANCY_PROGRESS)
+
+-- weight 0 is off, like enabled="false".
+local zero = table.clone(config, 6)
+for _, purpose in ipairs(zero.profiles.CATTLE.purposes) do
+    if purpose.id == "HEIFER_REPLACEMENT" then purpose.weight = 0 end
+end
+local zeroEntry = P.getEntry(zero, holstein, "COW")
+local zeroCandidates, zeroGaps = P.getCandidates(zeroEntry, holstein, ctx)
+local openHeifer = { age = 12, gender = "female", weight = 300, targetWeight = 670 }
+check("weight 0: not offered, listed as DISABLED, its listings withdrawn and not migrated into",
+    not describe(zeroCandidates):find("HEIFER_REPLACEMENT", 1, true) and gapsOf(zeroGaps):find("HEIFER_REPLACEMENT:DISABLED", 1, true)
+    and not P.validate(openHeifer, P.findPurpose(zeroEntry, "female", "HEIFER_REPLACEMENT"), zeroEntry, holstein, ctx)
+    and P.classify(openHeifer, zeroEntry, holstein, ctx) == nil)
 cow.age, cow.reproduction = 36, 70
 check("at 36 months: withdrawn (first-calvers are 24-35)", reasonsOf(cow, first) == R.AGE)
 
@@ -389,6 +433,8 @@ check("none at or over its sex's cap (cows 48, bulls 36, Highland bulls 42), wha
 check("each one qualifies for the purpose it is listed as", outside == 0)
 check("none heavier than its own target weight", heavy == 0)
 check("pregnant exactly when it carries a pregnancy", pregnantBad == 0)
+check(string.format("one farm id per accepted animal (%d ids, %d animals; rejected heifers took none)",
+    system.countries[1].farms[1].ids[1], #generated), system.countries[1].farms[1].ids[1] == #generated)
 
 local maxBull, maxHighland, maxCow = 0, 0, 0
 for _, animal in ipairs(generated) do
