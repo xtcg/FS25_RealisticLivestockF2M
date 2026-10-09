@@ -1567,6 +1567,12 @@ function AnimalSystem._clearSaleGenerationFailures(animalTypeIndex)
 end
 
 
+--- Whether any failure was counted for a type since the last summary.
+function AnimalSystem._hasSaleGenerationFailures(animalTypeIndex)
+    return saleGenerationFailures[animalTypeIndex] ~= nil
+end
+
+
 --- "REASON=n REASON=n" of the failures counted for a type since the last clear (or, with
 --- `totals`, since the map load), and clear the former when `clear`.
 ---@return string
@@ -1929,7 +1935,7 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
     -- so it never reads further on than the months planned). The old rules' pregnancy has just
     -- been conceived (0).
     if plan.isPregnant and plan.pregnancyMonths > 0 then
-        animal.reproduction = math.floor(plan.pregnancyMonths / subType.reproductionDurationMonth * 10000) / 100
+        animal.reproduction = math.floor(plan.pregnancyMonths / plan.duration * 10000) / 100
     end
 
     -- Check the animal against its purpose before it takes an id, a disease draw or offspring, so a
@@ -1992,10 +1998,12 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
         AnimalReproduction._clearOrphanedPregnancy(animal, "pregnancy-nil")
     end
 
-    -- A purpose that needs a pregnancy loses it when no offspring were drawn above. Rare; that
-    -- animal's id stays used, as ids are never handed out twice.
-    if purpose ~= nil and purpose.pregnant == "always" and not animal.isPregnant then
-        return nil, RLDealerStockPolicy.REASON.PREGNANCY
+    -- And the finished animal once more: a purpose that needs a pregnancy loses it when no
+    -- offspring were drawn above, and whatever the steps since the first check change is caught
+    -- here. Rare; that animal's id stays used, as ids are never handed out twice.
+    if purpose ~= nil then
+        local ok, reasons = RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx)
+        if not ok then return nil, reasons[1] end
     end
 
     return animal
@@ -2624,10 +2632,11 @@ function AnimalSystem:onHourChanged()
                 -- Why listings no longer qualified, and why generation attempts failed (each failed
                 -- place is maxAttempts attempts plus SLOT_LEFT_EMPTY).
                 -- Retried attempts count even when a later one filled the place.
-                local failures = AnimalSystem._formatSaleGenerationFailures(animalTypeIndex, true)
-                if withdrawn > 0 or migrated > 0 or failures ~= "none" then
+                if withdrawn > 0 or migrated > 0 or creationsSucceeded < creationsAttempted
+                    or AnimalSystem._hasSaleGenerationFailures(animalTypeIndex) then
                     Log:debug("Dealer stock type=%d: withdrawn {%s}, old listings given a purpose %d, generation failures {%s}",
-                        animalTypeIndex, RLDealerStockPolicy.formatCounts(withdrawnReasons), migrated, failures)
+                        animalTypeIndex, RLDealerStockPolicy.formatCounts(withdrawnReasons), migrated,
+                        AnimalSystem._formatSaleGenerationFailures(animalTypeIndex, true))
                 end
 
                 -- A tick that clears more than half the shelf is worth finding by

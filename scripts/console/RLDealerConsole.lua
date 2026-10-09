@@ -56,8 +56,8 @@ function RLDealerConsole.catalog(_, typeFilter)
     local config = RLDealerStockPolicy.getConfig()
     typeFilter = typeFilter ~= nil and typeFilter ~= "" and typeFilter:upper() or nil
 
-    local lines = 0
-    for _, animalType in ipairs(RLDealerSaleCatalog.sortedTypes(animalSystem:getTypes())) do
+    local lines, counters = 0, { typesSkipped = 0 }
+    for _, animalType in ipairs(RLDealerSaleCatalog.sortedTypes(animalSystem:getTypes(), counters)) do
         if typeFilter == nil or animalType.name == typeFilter then
             for _, subTypeIndex in ipairs(animalType.subTypes) do
                 local subType = animalSystem:getSubTypeByIndex(subTypeIndex)
@@ -80,5 +80,6 @@ function RLDealerConsole.catalog(_, typeFilter)
         end
     end
 
-    return string.format("rlDealerCatalog: %d subtype(s), see log.txt (RLDEALER CATALOG / POOL)", lines)
+    return string.format("rlDealerCatalog: %d subtype(s)%s, see log.txt (RLDEALER CATALOG / POOL)", lines,
+        counters.typesSkipped > 0 and string.format(", %d type(s) without a type index skipped", counters.typesSkipped) or "")
 end

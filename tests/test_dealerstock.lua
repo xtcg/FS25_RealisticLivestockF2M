@@ -395,7 +395,8 @@ function system:getVisualByAge() return { visualAnimal = { variations = { 1 } } 
 local animalMt = { __index = {
     getIdentifiers = function() return "id" end,
     setGenetics = function(self, g) self.genetics = g end,
-    generateRandomOffspring = function() return 1 end,
+    -- Now and then no offspring, so an in-calf heifer loses her pregnancy after taking her id.
+    generateRandomOffspring = function() return math.random(1, 50) == 1 and 0 or 1 end,
 } }
 Animal = { new = function(cfg)
     local subType = SUBTYPES[cfg.subTypeIndex]
@@ -438,8 +439,10 @@ check("none at or over its sex's cap (cows 48, bulls 36, Highland bulls 42), wha
 check("each one qualifies for the purpose it is listed as", outside == 0)
 check("none heavier than its own target weight", heavy == 0)
 check("pregnant exactly when it carries a pregnancy", pregnantBad == 0)
-check(string.format("one farm id per accepted animal (%d ids, %d animals; rejected heifers took none)",
-    system.countries[1].farms[1].ids[1], #generated), system.countries[1].farms[1].ids[1] == #generated)
+local lostPregnancies = tonumber(AnimalSystem._formatSaleGenerationFailures(1, false, true):match("PREGNANCY=(%d+)") or 0)
+check(string.format("farm ids: one per accepted animal plus one per pregnancy lost after it (%d = %d + %d); light heifers took none",
+    system.countries[1].farms[1].ids[1], #generated, lostPregnancies),
+    system.countries[1].farms[1].ids[1] == #generated + lostPregnancies and lostPregnancies > 0)
 
 local maxBull, maxHighland, maxCow = 0, 0, 0
 for _, animal in ipairs(generated) do
