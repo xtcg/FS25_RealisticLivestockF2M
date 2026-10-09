@@ -35,6 +35,8 @@ end
 --- @param animal table Animal instance
 --- @param foodFactor number Food factor (0.0-1.0)
 function AnimalHealth.updateHealth(animal, foodFactor)
+    -- In a calf rearing pen each animal has its own factor from what it could eat at its age.
+    foodFactor = RLCalfRearing.getFoodFactor(animal, foodFactor)
     AnimalHealth.updateHealthOnly(animal, foodFactor)
 
     if RLBodyCondition.step(animal) then

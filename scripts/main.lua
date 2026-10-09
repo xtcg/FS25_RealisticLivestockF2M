@@ -25,6 +25,7 @@ source(modDirectory .. "scripts/gui/MPLoadingScreen.lua")
 -- SECTION 2b: Utilities
 source(modDirectory .. "scripts/utils/RmSafeUtils.lua")
 source(modDirectory .. "scripts/utils/RLAnimalUtil.lua")
+source(modDirectory .. "scripts/utils/RLPenLog.lua")
 source(modDirectory .. "scripts/utils/RLPermissionHelper.lua")
 source(modDirectory .. "scripts/utils/RLScaleHelper.lua")
 source(modDirectory .. "scripts/utils/RLAnimalDisplayHelper.lua")
@@ -51,6 +52,7 @@ source(modDirectory .. "scripts/animal/RLLivestockPrices.lua")
 source(modDirectory .. "scripts/nutrition/RLNutritionMath.lua")
 source(modDirectory .. "scripts/nutrition/RLBodyConditionConfig.lua")
 source(modDirectory .. "scripts/nutrition/RLBodyCondition.lua")
+source(modDirectory .. "scripts/nutrition/RLCalfRearing.lua")
 
 -- SECTION 3: Animal Husbandry - Cluster System
 source(modDirectory .. "scripts/animals/husbandry/cluster/RealisticLivestock_AnimalCluster.lua")
@@ -127,6 +129,7 @@ source(modDirectory .. "scripts/bridge/RLVersionSpec.lua")
 source(modDirectory .. "scripts/bridge/RLMapBridge.lua")
 source(modDirectory .. "scripts/bridge/RLModBridge.lua")
 source(modDirectory .. "scripts/bridge/RLHusbandryProfiles.lua")
+source(modDirectory .. "scripts/bridge/RLPenConstruction.lua")
 
 -- SECTION 11b: Breeding Mathematics
 source(modDirectory .. "scripts/animal/BreedingMath.lua")
@@ -380,6 +383,7 @@ source(modDirectory .. "scripts/core/RealisticLivestock_FSBaseMission.lua")
 -- SECTION 20i: Console commands
 source(modDirectory .. "scripts/console/RLBodyConditionConsole.lua")
 source(modDirectory .. "scripts/console/RLTradeReportConsole.lua")
+source(modDirectory .. "scripts/console/RLPenConsole.lua")
 source(modDirectory .. "scripts/console/RLConsoleCommandManager.lua")
 
 -- SECTION 20j: Messaging
