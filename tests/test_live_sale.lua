@@ -117,7 +117,7 @@ NetworkUtil = { readNodeObject = function() return table.remove(wireQueue, 1) en
 streamReadUInt16 = function() return table.remove(wireQueue, 1) end
 streamReadFloat32 = function() return table.remove(wireQueue, 1) end
 AnimalMarkEvent = { new = function(_, animal, key) return { mark = key, animal = animal } end }
-RLHusbandryProfiles = { checkAnimal = function() return true end }
+RLHusbandryProfiles = { checkAnimal = function() return true end, logDecision = function() end }
 
 loadMod("tests/fixtures/fs25_cluster_queue.lua")
 loadGiantsMod("scripts/animals/husbandry/cluster/RealisticLivestock_AnimalClusterSystem.lua")
