@@ -17,7 +17,7 @@ RLBreedTraits.CONFIG_FILE = "breedTraits.xml"
 --- Per-animal trait attributes. All but matureAgeMonth, priceTargetWeight and priceMatureAgeMonth are
 --- multipliers, 1 = unchanged.
 RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrowth", "matureAgeMonth",
-    "priceTargetWeight", "priceMatureAgeMonth", "maleMaxSaleAgeMonth", "femaleMaxSaleAgeMonth" }
+    "priceTargetWeight", "priceMatureAgeMonth" }
 
 --- Female growth relative to male, where the file sets none (the mod's original rule).
 RLBreedTraits.DEFAULT_FEMALE_GROWTH = 0.6
@@ -31,7 +31,6 @@ RLBreedTraits.DEFAULTS = {
     bodyWeightExponent = 0.35,
     minBodyRatio = 0.5,
     maxBodyRatio = 1.5,
-    eliteSaleGenetics = 1.45,
 }
 
 local modDirectory = g_currentModDirectory
@@ -244,34 +243,6 @@ function RLBreedTraits.getExpectedWeight(subType, targetWeight, age)
     local matureAge = RLBreedTraits.getMatureAge(subType)
     local grown = matureAge > 0 and math.clamp((age or matureAge) / matureAge, 0, 1) or 1
     return minWeight + (targetWeight - minWeight) * grown
-end
-
-
---- Oldest age in months the dealer normally offers an animal of this subtype and sex at
---- (maleMaxSaleAgeMonth / femaleMaxSaleAgeMonth); nil when the file sets none (no limit but the
---- animal type's maxBuyAge). Older stock is offered only when its genetics are elite
---- (isEliteForSale): a breeder sells a grown animal only when it is worth more than a young one.
---- @param subType table|nil
---- @param gender string|nil
---- @return number|nil
-function RLBreedTraits.getMaxSaleAge(subType, gender)
-    if subType == nil then return nil end
-    local trait = (gender or subType.gender) == "male" and "maleMaxSaleAgeMonth" or "femaleMaxSaleAgeMonth"
-    return RLBreedTraits.resolve(RLBreedTraits.getConfig().layers, subType, trait, nil)
-end
-
-
---- Whether a dealer animal's genetics are good enough to be offered past its maximum sale age: the
---- mean of its genes at least eliteSaleGenetics (1.45 by default, about the best 11% of the dealer's draw).
---- @param genetics table|nil
---- @return boolean
-function RLBreedTraits.isEliteForSale(genetics)
-    if type(genetics) ~= "table" then return false end
-    local total, count = 0, 0
-    for _, value in pairs(genetics) do
-        if type(value) == "number" then total, count = total + value, count + 1 end
-    end
-    return count > 0 and total / count >= RLBreedTraits.getConfig().eliteSaleGenetics
 end
 
 

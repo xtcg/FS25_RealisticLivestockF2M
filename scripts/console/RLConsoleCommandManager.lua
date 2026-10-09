@@ -41,6 +41,7 @@ function RLConsoleCommandManager.new()
     -- Read-only debug commands - safe on SP, MP host, and MP client.
     addConsoleCommand("rlDumpSettings", "Dump effective RL settings to the log", "dumpSettings", self, "")
     addConsoleCommand("rlPenReport", "Log each profiled pen's rule, map filter, feed and animals (RLPEN PEN_REPORT)", "report", RLPenConsole, "[pen]")
+    addConsoleCommand("rlDealerCatalog", "Log what the dealer can sell per subtype (dealerStock.xml purposes, ages, gaps) and its pool (RLDEALER)", "catalog", RLDealerConsole, "[animalType]")
 
 	return self
 

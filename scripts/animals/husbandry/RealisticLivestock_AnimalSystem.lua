@@ -1202,6 +1202,9 @@ function AnimalSystem:loadFromXMLFile()
 
             animal.sale = {
                 ["day"] = xmlFile:getInt(key .. ".sale#day", 1),
+                -- dealerStock.xml purpose; absent in saves from before purposes, and for subtypes
+                -- sold by the old rules. The hourly check gives an old listing a purpose or withdraws it.
+                ["purpose"] = xmlFile:getString(key .. ".sale#purpose"),
                 --["month"] = xmlFile:getInt(key .. ".sale#month"),
                 --["year"] = xmlFile:getInt(key .. ".sale#year")
             }
@@ -1314,6 +1317,7 @@ function AnimalSystem:saveToXMLFile(_)
 
         animal:saveToXMLFile(xmlFile, key)
         xmlFile:setInt(key .. ".sale#day", animal.sale.day)
+        if animal.sale.purpose ~= nil then xmlFile:setString(key .. ".sale#purpose", animal.sale.purpose) end
 
     end)
 
@@ -1377,32 +1381,8 @@ end
 function AnimalSystem:_pickSaleAnimalAge(subType, averageBuyAge, maxBuyAge, randomFn)
     randomFn = randomFn or math.random
 
-    -- 1. Build buyable union: ascending list of [lo, hi] integer intervals.
-    local union = {}
-    if subType ~= nil and subType.visuals ~= nil then
-        local n = #subType.visuals
-        for i = 1, n do
-            local visual = subType.visuals[i]
-            if visual.store ~= nil and visual.store.canBeBought then
-                local lo = visual.minAge
-                local hi
-                if i < n then
-                    hi = subType.visuals[i + 1].minAge - 1
-                else
-                    hi = maxBuyAge
-                end
-                if hi >= lo then
-                    -- Merge with previous if adjacent / overlapping.
-                    local last = union[#union]
-                    if last ~= nil and lo <= last[2] + 1 then
-                        last[2] = math.max(last[2], hi)
-                    else
-                        table.insert(union, { lo, hi })
-                    end
-                end
-            end
-        end
-    end
+    -- 1. Buyable union: ascending, merged [lo, hi] integer intervals.
+    local union = RLDealerStockPolicy.getBuyableAgeUnion(subType, maxBuyAge)
 
     if #union == 0 then
         Log:warning("_pickSaleAnimalAge: empty buyable union for subType=%s (buyableSubTypes filter should have excluded this)",
@@ -1516,66 +1496,91 @@ function AnimalSystem:_pickSaleAnimalAge(subType, averageBuyAge, maxBuyAge, rand
 end
 
 
---- Build a new sale animal for the dealer of the given animal type.
---- Selects a buyable subtype (respecting bridge `canBeBought` overrides), assigns
---- random genetics + age, and may create an in-progress pregnancy. If the
---- pregnancy block produces no children, the orphaned-state cleanup at the
---- tail of this function delegates to AnimalReproduction._clearOrphanedPregnancy
---- so the canonical four-field clear runs (pregnancy + impregnatedBy +
---- isPregnant + reproduction) - mirrors the in-game pen-side cleanup so the
---- invariant `isPregnant <=> pregnancy ~= nil` holds for sale animals too.
---- Age picker honours per-visual `canBeBought` via `_pickSaleAnimalAge`.
---- Genetics come from `RLGeneticsDraw.draw`, which is called before `Animal.new`
---- so stored health, genetic diseases and offspring all derive from them.
---- @param animalTypeIndex number Index into the animal-type registry
---- @return table|nil animal Newly built sale animal, or nil if the animal-type lookup fails
-function AnimalSystem:createNewSaleAnimal(animalTypeIndex)
+--- Ages the dealer may offer a subtype at, for RLDealerStockPolicy: the type's maxBuyAge, the
+--- ages whose visual can be bought, and the calf rearing weaning month.
+---@param animalType table
+---@param subType table
+---@return table ctx {maxBuyAge, weaningMonth, union}
+function AnimalSystem:getSaleAgeContext(animalType, subType)
+    local maxBuyAge = animalType.maxBuyAge or 60
+    return {
+        maxBuyAge = maxBuyAge,
+        weaningMonth = RLCalfRearing.getWeaningMonthForSubType(subType),
+        union = RLDealerStockPolicy.getBuyableAgeUnion(subType, maxBuyAge),
+    }
+end
 
-    local animalType = self:getTypeByIndex(animalTypeIndex)
 
-    if animalType == nil then
-        noteSaleGenerationBail("noAnimalType", animalTypeIndex, "debug", string.format(
-            "createNewSaleAnimal: no animal type is registered at index %d, so the dealer cannot "
-            .. "generate stock for it. Further attempts this map load are silent.",
-            animalTypeIndex))
-        return nil
+--- The old dealer's birth and pregnancy roll, for subtypes dealerStock.xml does not cover: a
+--- parent with a chance growing with its age past the first possible birth, and 5% of females of
+--- breeding age pregnant (just conceived).
+---@return table plan See RLDealerStockPolicy.planReproduction
+local function planLegacySaleReproduction(subType, animalGender, age)
+    local plan = { isParent = false, monthsSinceLastBirth = 12, isPregnant = false, pregnancyMonths = 0,
+        duration = subType.reproductionDurationMonth }
+
+    local viableReproductionMonths = age - (subType.reproductionMinAgeMonth + subType.reproductionDurationMonth)
+
+    if viableReproductionMonths >= 0 and math.random(0, 100) <= viableReproductionMonths then
+        plan.isParent = true
+        plan.monthsSinceLastBirth = math.random(0, viableReproductionMonths)
     end
 
-    -- Filter to subtypes with at least one buyable visual (respects bridge canBeBought overrides)
-    local buyableSubTypes = {}
-    for _, stIdx in ipairs(animalType.subTypes) do
-        local st = self:getSubTypeByIndex(stIdx)
-        if st ~= nil and st.visuals ~= nil then
-            for _, visual in ipairs(st.visuals) do
-                if visual.store ~= nil and visual.store.canBeBought then
-                    table.insert(buyableSubTypes, stIdx)
-                    break
-                end
-            end
-        end
+    -- Guard against pregnancy for non-reproductive subtypes (e.g. BULL, DOG).
+    -- Without this, gender auto-detection mismatches can create pregnant males.
+    if subType.supportsReproduction and animalGender == "female" and age - subType.reproductionMinAgeMonth >= 0 and math.random() >= 0.95 then
+        plan.isPregnant = true
     end
 
-    -- Player-facing (INFO): this is the answer to "why does the dealer never have
-    -- any cows". Every subtype of the type is marked not-buyable - by the dealer
-    -- sale-availability settings, or by a map/bridge canBeBought override - so the
-    -- hourly restock will keep attempting and keep producing nothing.
-    if #buyableSubTypes == 0 then
-        noteSaleGenerationBail("noBuyableSubTypes", animalTypeIndex, "info", string.format(
-            "The animal dealer will not stock %s: every subtype is currently set to not buyable "
-            .. "(dealer sale-availability settings, or a map/mod override). Change it in the "
-            .. "Realistic Livestock settings if that was not intended. Said once per map load.",
-            RLAnimalUtil.getAnimalTypeDisplayName(animalType)))
-        return nil
+    return plan
+end
+
+
+--- Say once per subtype per map load that the dealer sells it by the old rules.
+local function noteSaleCoverageGap(animalType, subType, entry)
+    local latchKey = "coverage:" .. tostring(subType.name)
+    if saleGenerationBailLatches[latchKey] then return end
+    Log:info("Dealer stock: %s %s is sold by the old dealer rules (%s%s, weight %s), not by dealerStock.xml purposes.",
+        tostring(animalType.name), tostring(subType.name), entry.status,
+        entry.missingProfile ~= nil and (", profile " .. entry.missingProfile .. " not found") or "",
+        RLDealerStockPolicy.WEIGHT_MODEL)
+    saleGenerationBailLatches[latchKey] = true
+end
+
+
+-- Why generation attempts produced nothing, per animal type, since the last hourly summary
+-- (the restock loop prints and clears them) and since the map load (rlDealerCatalog).
+local saleGenerationFailures = {}
+local saleGenerationFailureTotals = {}
+
+local function countSaleGenerationFailure(animalTypeIndex, reason)
+    for _, counts in ipairs({ saleGenerationFailures, saleGenerationFailureTotals }) do
+        counts[animalTypeIndex] = counts[animalTypeIndex] or {}
+        counts[animalTypeIndex][reason] = (counts[animalTypeIndex][reason] or 0) + 1
     end
+end
 
-    local subTypeIndex = buyableSubTypes[math.random(1, #buyableSubTypes)]
-    local subType = self:getSubTypeByIndex(subTypeIndex)
 
-    local farmId, farmQuality, farmCountryIndex, lastAnimalId
+--- "REASON=n REASON=n" of the failures counted for a type, and clear them when `clear`.
+---@return string
+function AnimalSystem._formatSaleGenerationFailures(animalTypeIndex, clear, totals)
+    local counts = (totals and saleGenerationFailureTotals or saleGenerationFailures)[animalTypeIndex]
+    if counts == nil then return "none" end
+    local parts = {}
+    for reason, count in pairs(counts) do table.insert(parts, string.format("%s=%d", reason, count)) end
+    table.sort(parts)
+    if clear then saleGenerationFailures[animalTypeIndex] = nil end
+    return #parts > 0 and table.concat(parts, " ") or "none"
+end
+
+
+--- Pick the source farm a new sale animal of this type comes from and take its next animal id
+--- there. 88% of first picks are the map's own country.
+---@return table|nil source {farmId, quality, countryIndex, lastAnimalId}; nil when no farm keeps the type
+function AnimalSystem:_pickSaleSourceFarm(animalTypeIndex, animalType)
     local attemptedCountryIndexes = {}
 
-
-    while farmId == nil do
+    while true do
 
         if #attemptedCountryIndexes == #self.countries then
             noteSaleGenerationBail("noValidFarms", animalTypeIndex, "debug", string.format(
@@ -1605,46 +1610,235 @@ function AnimalSystem:createNewSaleAnimal(animalTypeIndex)
         local validFarms = {}
 
         for i = 1, #country.farms do
-        
-            local farm = country.farms[i]
-
-            if farm.ids[animalTypeIndex] ~= nil then table.insert(validFarms, i) end
-
+            if country.farms[i].ids[animalTypeIndex] ~= nil then table.insert(validFarms, i) end
         end
 
-        if #validFarms == 0 then
-            if wasMapPick then
-                Log:debug("createNewSaleAnimal: map/override country %d has no valid farms for animalTypeIndex=%d; cycling random countries", countryIndex, animalTypeIndex)
+        if #validFarms > 0 then
+            local farm = country.farms[validFarms[math.random(1, #validFarms)]]
+            farm.ids[animalTypeIndex] = (farm.ids[animalTypeIndex] or 0) + 1
+            return { farmId = farm.id, quality = farm.quality, countryIndex = countryIndex,
+                lastAnimalId = farm.ids[animalTypeIndex] }
+        end
+
+        if wasMapPick then
+            Log:debug("createNewSaleAnimal: map/override country %d has no valid farms for animalTypeIndex=%d; cycling random countries", countryIndex, animalTypeIndex)
+        end
+
+    end
+end
+
+
+--- Give a pregnant sale animal its offspring and expected birth date. A plan from
+--- dealerStock.xml is `plan.pregnancyMonths` into its gestation (reproduction set to match);
+--- the old rules' pregnancy has just been conceived, with a 1% chance of a gestation 1-2 months
+--- off the subtype's.
+local function createSalePregnancy(self, animal, animalType, subType, subTypeIndex, genetics, plan, month, year)
+
+    local childNum = animal:generateRandomOffspring()
+    local children = {}
+
+    Log:trace("createNewSaleAnimal: generating %d offspring for %s(%d)",
+        childNum, subType.name or "?", subTypeIndex)
+
+    local minMetabolism, maxMetabolism = genetics.metabolism * 0.9, genetics.metabolism * 1.1
+    local minMeat, maxMeat = genetics.quality * 0.9, genetics.quality * 1.1
+    local minHealth, maxHealth = genetics.health * 0.9, genetics.health * 1.1
+    local minFertility, maxFertility = genetics.fertility * 0.9, genetics.fertility * 1.1
+    local minProductivity, maxProductivity
+
+    if genetics.productivity ~= nil then minProductivity, maxProductivity = genetics.productivity * 0.9, genetics.productivity * 1.1 end
+
+    for i = 1, childNum do
+
+        local gender = math.random() >= 0.5 and "male" or "female"
+        local childSubTypeIndex = subTypeIndex + (gender == "male" and 1 or 0)
+
+        -- Validate subtype index - the +1 arithmetic assumes adjacent
+        -- male/female subtypes, which fails for bridge-added exotic types.
+        local candidateSubType = self:getSubTypeByIndex(childSubTypeIndex)
+
+        if candidateSubType == nil or candidateSubType.gender ~= gender or candidateSubType.typeIndex ~= animalType.typeIndex then
+            local breedFallback = nil
+            local genderFallback = nil
+
+            for _, stIndex in pairs(animalType.subTypes) do
+                local st = self:getSubTypeByIndex(stIndex)
+                if st ~= nil and st.gender == gender then
+                    if genderFallback == nil then
+                        genderFallback = stIndex
+                    end
+                    if st.breed == subType.breed then
+                        breedFallback = stIndex
+                        break
+                    end
+                end
             end
-            continue
+
+            local fallbackIndex = breedFallback or genderFallback
+
+            if fallbackIndex ~= nil then
+                Log:debug("createNewSaleAnimal: child[%d] subtype fallback for gender '%s' breed '%s': index %d -> %d (breedMatch=%s)",
+                    i, gender, subType.breed or "?", childSubTypeIndex, fallbackIndex, tostring(breedFallback ~= nil))
+                childSubTypeIndex = fallbackIndex
+            else
+                Log:debug("createNewSaleAnimal: child[%d] no fallback found for gender '%s' in type %d, keeping index %d",
+                    i, gender, animalType.typeIndex, childSubTypeIndex)
+            end
         end
 
-        local farmIndex = validFarms[math.random(1, #validFarms)]
-        local farm = country.farms[farmIndex]
+        local resolvedSubType = self:getSubTypeByIndex(childSubTypeIndex)
+        local childBreed = resolvedSubType and resolvedSubType.breed or "?"
+        local childSubTypeName = resolvedSubType and resolvedSubType.name or "?"
+        Log:debug("createNewSaleAnimal child[%d]: gender=%s, parent=%s(idx=%d) breed=%s -> child=%s(idx=%d) breed=%s",
+            i, gender, subType.name, subTypeIndex, subType.breed or "?",
+            childSubTypeName, childSubTypeIndex, childBreed)
 
-        farmId = farm.id
-        farmQuality = farm.quality
-        farmCountryIndex = countryIndex
+        if childBreed ~= "?" and childBreed ~= (subType.breed or "") then
+            Log:warning("Sale animal breed switch: parent=%s child got %s (idx=%d %s)",
+                subType.breed or "?", childBreed, childSubTypeIndex, childSubTypeName)
+        end
 
-        farm.ids[animalTypeIndex] = (farm.ids[animalTypeIndex] or 0) + 1
-        lastAnimalId = farm.ids[animalTypeIndex]
+        local child = Animal.new({
+            age = -1, health = 100, gender = gender,
+            subTypeIndex = childSubTypeIndex,
+            motherId = animal:getIdentifiers()
+        })
+
+        local metabolism = math.random(minMetabolism * 100, maxMetabolism * 100) / 100
+        local quality = math.random(minMeat * 100, maxMeat * 100) / 100
+        local healthGenetics = math.random(minHealth * 100, maxHealth * 100) / 100
+        local fertility = math.random(minFertility * 100, maxFertility * 100) / 100
+        local productivity = nil
+
+        if genetics.productivity ~= nil then productivity = math.clamp(math.random(minProductivity * 100, maxProductivity * 100) / 100, 0.25, 1.75) end
+
+
+        child:setGenetics({
+            ["metabolism"] = math.clamp(metabolism, 0.25, 1.75),
+            ["quality"] = math.clamp(quality, 0.25, 1.75),
+            ["health"] = math.clamp(healthGenetics, 0.25, 1.75),
+            ["fertility"] = math.clamp(fertility, 0.25, 1.75),
+            ["productivity"] = productivity
+        })
+
+
+        for _, disease in pairs(animal.diseases) do
+
+            disease:affectReproduction(child)
+
+        end
+
+
+        table.insert(children, child)
 
     end
 
 
-    local averageBuyAge = animalType.averageBuyAge or 12
-    local maxBuyAge = animalType.maxBuyAge or 60
+    local reproductionDuration = subType.reproductionDurationMonth
+    local remaining
 
-    -- per-stage canBeBought-aware age picker. Helper guarantees range and
-    -- returns nil only if subType has zero buyable visuals (which the
-    -- buyableSubTypes filter above already excludes).
-    local age = self:_pickSaleAnimalAge(subType, averageBuyAge, maxBuyAge)
-    if age == nil then return nil end
+    if plan.pregnancyMonths > 0 then
+
+        remaining = reproductionDuration - plan.pregnancyMonths
+        -- Two decimals, rounded down like the daily advance, so the progress never reads further on
+        -- than the months planned.
+        animal.reproduction = math.floor(plan.pregnancyMonths / reproductionDuration * 10000) / 100
+
+    else
+
+        if math.random() >= 0.99 then
+
+            if math.random() >= 0.95 then
+                reproductionDuration = reproductionDuration + (math.random() >= 0.75 and -2 or 2)
+            else
+                reproductionDuration = reproductionDuration + (math.random() >= 0.85 and -1 or 1)
+            end
+
+            reproductionDuration = math.max(reproductionDuration, 2)
+
+        end
+
+        remaining = reproductionDuration
+
+    end
+
+    local expectedYear = year + math.floor(remaining / 12)
+    local expectedMonth = month + (remaining % 12)
+
+    while expectedMonth > 12 do
+        expectedMonth = expectedMonth - 12
+        expectedYear = expectedYear + 1
+    end
+
+    local expectedDay = math.random(1, getDaysInMonth(expectedMonth))
+
+    if #children > 0 then
+
+        animal.pregnancy = {
+            ["duration"] = reproductionDuration,
+            ["expected"] = {
+                ["day"] = expectedDay,
+                ["month"] = expectedMonth,
+                ["year"] = expectedYear
+            },
+            ["pregnancies"] = children
+        }
+
+    end
+
+end
+
+
+--- One attempt at a sale animal of this type: a subtype, then (for a subtype dealerStock.xml
+--- covers) a purpose, an age from that purpose's ages and a birth and pregnancy history that fits
+--- it, then the source farm, genetics and the animal, which must still qualify for the purpose.
+--- A subtype the file does not cover gets the old dealer rules.
+---@return table|nil animal
+---@return string|nil reason Why not; "noValidFarms" means no attempt for this type can succeed
+function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableSubTypes, config)
+
+    local subTypeIndex = RLDealerStockPolicy.pickSubType(config, buyableSubTypes, animalType.name, math.random)
+    local subType = self:getSubTypeByIndex(subTypeIndex)
     local animalGender = subType.gender
+    local entry = RLDealerStockPolicy.getEntry(config, subType, animalType.name)
+    local ctx = self:getSaleAgeContext(animalType, subType)
+
+    local age, purpose, plan
+
+    if entry.status == RLDealerStockPolicy.COVERED then
+
+        local candidate = RLDealerStockPolicy.pickCandidate(RLDealerStockPolicy.getCandidates(entry, subType, ctx), math.random)
+        if candidate == nil then return nil, RLDealerStockPolicy.REASON.NO_PURPOSE end
+
+        purpose = candidate.purpose
+        age = RLDealerStockPolicy.pickAge(candidate, math.random)
+
+        local reason
+        plan, reason = RLDealerStockPolicy.planReproduction(purpose, entry, subType, age, math.random)
+        if plan == nil then return nil, reason end
+
+    else
+
+        noteSaleCoverageGap(animalType, subType, entry)
+
+        -- per-stage canBeBought-aware age picker; nil only when the subtype has no buyable visual,
+        -- which the buyableSubTypes filter already excludes.
+        age = self:_pickSaleAnimalAge(subType, animalType.averageBuyAge or 12, ctx.maxBuyAge)
+        if age == nil then return nil, RLDealerStockPolicy.REASON.NOT_BUYABLE end
+
+        plan = planLegacySaleReproduction(subType, animalGender, age)
+
+    end
+
+    if plan.isPregnant then
+        Log:debug("createNewSaleAnimal: pregnant %s(%d) age=%d", subType.name or "?", subTypeIndex, age)
+    end
 
 
+    local source = self:_pickSaleSourceFarm(animalTypeIndex, animalType)
+    if source == nil then return nil, "noValidFarms" end
 
-    local uniqueId = RLAnimalUtil.generateUniqueId(farmId, lastAnimalId)
+    local uniqueId = RLAnimalUtil.generateUniqueId(source.farmId, source.lastAnimalId)
 
 
     -- Genetics come from the shared bell draw, which centres every sale animal
@@ -1664,7 +1858,8 @@ function AnimalSystem:createNewSaleAnimal(animalTypeIndex)
     -- non-default preset the reshape consumes an outlier draw from the SHARED
     -- math.random stream, so moving it past the name draw would change which
     -- animals get names. Standard is the identity preset - it returns the table
-    -- unchanged and consumes no draw at all.
+    -- unchanged and consumes no draw at all. Genetics never decide which ages or
+    -- purposes an animal can be offered at: those were fixed above.
     local presetIndex = RLDealerQualityResolver.getActiveIndex()
     local reshaped, wasOutlier = RLDealerQualityModel.reshapeGenetics(genetics, presetIndex)
 
@@ -1674,33 +1869,6 @@ function AnimalSystem:createNewSaleAnimal(animalTypeIndex)
         warnedReshapeReturnedNil = true
         Log:warning("createNewSaleAnimal: reshapeGenetics returned nil (preset=%s); keeping raw genetics",
             tostring(presetIndex))
-    end
-
-
-    -- Past its maximum sale age (xml/breedTraits.xml) a breeder sells an animal only when it is elite;
-    -- any other animal drawn that old is drawn again within the limit. Needs the genetics, so it and the
-    -- age-dependent parent and pregnancy rolls below come after the draw.
-    local maxSaleAge = RLBreedTraits.getMaxSaleAge(subType, animalGender)
-    if maxSaleAge ~= nil and age > maxSaleAge and not RLBreedTraits.isEliteForSale(genetics) then
-        local capped = self:_pickSaleAnimalAge(subType, averageBuyAge, math.min(maxBuyAge, maxSaleAge))
-        Log:trace("createNewSaleAnimal: %s age %d over the sale limit %d, not elite -> %s",
-            subType.name or "?", age, maxSaleAge, tostring(capped))
-        if capped ~= nil then age = capped end
-    end
-
-    local viableReproductionMonths = age - (subType.reproductionMinAgeMonth + subType.reproductionDurationMonth)
-    local isParent, isPregnant, monthsSinceLastBirth = false, false, 12
-
-    if viableReproductionMonths >= 0 and math.random(0, 100) <= viableReproductionMonths then
-        isParent = true
-        monthsSinceLastBirth = math.random(0, viableReproductionMonths)
-    end
-
-    -- Guard against pregnancy for non-reproductive subtypes (e.g. BULL, DOG).
-    -- Without this, gender auto-detection mismatches can create pregnant males.
-    if subType.supportsReproduction and animalGender == "female" and age - subType.reproductionMinAgeMonth >= 0 and math.random() >= 0.95 then
-        isPregnant = true
-        Log:debug("createNewSaleAnimal: pregnant %s(%d) age=%d", subType.name or "?", subTypeIndex, age)
     end
 
 
@@ -1730,30 +1898,31 @@ function AnimalSystem:createNewSaleAnimal(animalTypeIndex)
     -- pass/fail surface - the values are rounded, and the ratio only discriminates
     -- on rows below the 100 clamp.
     if Log.level >= RmLogging.LOG_LEVEL.DEBUG then
-        Log:debug("createNewSaleAnimal: reshaped genetics preset=%d(%s) outlier=%s met=%.3f qua=%.3f fer=%.3f hea=%.3f health=%.2f prd=%s",
+        Log:debug("createNewSaleAnimal: reshaped genetics preset=%d(%s) outlier=%s met=%.3f qua=%.3f fer=%.3f hea=%.3f health=%.2f prd=%s purpose=%s age=%d",
             presetIndex, RLDealerQualityModel.getPreset(presetIndex).key, tostring(wasOutlier),
             genetics.metabolism, genetics.quality, genetics.fertility, genetics.health, storedHealth,
-            genetics.productivity ~= nil and string.format("%.3f", genetics.productivity) or "-")
+            genetics.productivity ~= nil and string.format("%.3f", genetics.productivity) or "-",
+            purpose ~= nil and purpose.id or entry.status, age)
     end
 
 
     local animal = Animal.new({
         age = age,
         health = storedHealth,
-        monthsSinceLastBirth = monthsSinceLastBirth,
+        monthsSinceLastBirth = plan.monthsSinceLastBirth,
         gender = animalGender,
         subTypeIndex = subTypeIndex,
-        isParent = isParent,
-        isPregnant = isPregnant,
+        isParent = plan.isParent,
+        isPregnant = plan.isPregnant,
         isLactating = animalTypeIndex == AnimalType.COW and animalGender == "female"
-            and isParent and monthsSinceLastBirth < 10,
+            and plan.isParent and plan.monthsSinceLastBirth < 10,
         name = name,
         genetics = genetics
     })
 
-    animal.farmId = tostring(farmId)
+    animal.farmId = tostring(source.farmId)
     animal.uniqueId = uniqueId
-    animal.birthday.country = farmCountryIndex
+    animal.birthday.country = source.countryIndex
 
     local variations = self:getVisualByAge(subTypeIndex, age).visualAnimal.variations
     local variationIndex = 1
@@ -1777,153 +1946,14 @@ function AnimalSystem:createNewSaleAnimal(animalTypeIndex)
     g_diseaseManager:setGeneticDiseasesForSaleAnimal(animal)
 
 
-    if isPregnant then
-
-        local childNum = animal:generateRandomOffspring()
-        local children = {}
-
-        Log:trace("createNewSaleAnimal: generating %d offspring for %s(%d)",
-            childNum, subType.name or "?", subTypeIndex)
-
-        local minMetabolism, maxMetabolism = genetics.metabolism * 0.9, genetics.metabolism * 1.1
-        local minMeat, maxMeat = genetics.quality * 0.9, genetics.quality * 1.1
-        local minHealth, maxHealth = genetics.health * 0.9, genetics.health * 1.1
-        local minFertility, maxFertility = genetics.fertility * 0.9, genetics.fertility * 1.1
-        local minProductivity, maxProductivity
-        
-        if genetics.productivity ~= nil then minProductivity, maxProductivity = genetics.productivity * 0.9, genetics.productivity * 1.1 end
-
-        for i = 1, childNum do
-
-            local gender = math.random() >= 0.5 and "male" or "female"
-            local childSubTypeIndex = subTypeIndex + (gender == "male" and 1 or 0)
-
-            -- Validate subtype index - the +1 arithmetic assumes adjacent
-            -- male/female subtypes, which fails for bridge-added exotic types.
-            local candidateSubType = self:getSubTypeByIndex(childSubTypeIndex)
-
-            if candidateSubType == nil or candidateSubType.gender ~= gender or candidateSubType.typeIndex ~= animalType.typeIndex then
-                local breedFallback = nil
-                local genderFallback = nil
-
-                for _, stIndex in pairs(animalType.subTypes) do
-                    local st = self:getSubTypeByIndex(stIndex)
-                    if st ~= nil and st.gender == gender then
-                        if genderFallback == nil then
-                            genderFallback = stIndex
-                        end
-                        if st.breed == subType.breed then
-                            breedFallback = stIndex
-                            break
-                        end
-                    end
-                end
-
-                local fallbackIndex = breedFallback or genderFallback
-
-                if fallbackIndex ~= nil then
-                    Log:debug("createNewSaleAnimal: child[%d] subtype fallback for gender '%s' breed '%s': index %d -> %d (breedMatch=%s)",
-                        i, gender, subType.breed or "?", childSubTypeIndex, fallbackIndex, tostring(breedFallback ~= nil))
-                    childSubTypeIndex = fallbackIndex
-                else
-                    Log:debug("createNewSaleAnimal: child[%d] no fallback found for gender '%s' in type %d, keeping index %d",
-                        i, gender, animalType.typeIndex, childSubTypeIndex)
-                end
-            end
-
-            local resolvedSubType = self:getSubTypeByIndex(childSubTypeIndex)
-            local childBreed = resolvedSubType and resolvedSubType.breed or "?"
-            local childSubTypeName = resolvedSubType and resolvedSubType.name or "?"
-            Log:debug("createNewSaleAnimal child[%d]: gender=%s, parent=%s(idx=%d) breed=%s -> child=%s(idx=%d) breed=%s",
-                i, gender, subType.name, subTypeIndex, subType.breed or "?",
-                childSubTypeName, childSubTypeIndex, childBreed)
-
-            if childBreed ~= "?" and childBreed ~= (subType.breed or "") then
-                Log:warning("Sale animal breed switch: parent=%s child got %s (idx=%d %s)",
-                    subType.breed or "?", childBreed, childSubTypeIndex, childSubTypeName)
-            end
-
-            local child = Animal.new({
-                age = -1, health = 100, gender = gender,
-                subTypeIndex = childSubTypeIndex,
-                motherId = animal:getIdentifiers()
-            })
-
-            local metabolism = math.random(minMetabolism * 100, maxMetabolism * 100) / 100
-            local quality = math.random(minMeat * 100, maxMeat * 100) / 100
-            local healthGenetics = math.random(minHealth * 100, maxHealth * 100) / 100
-            local fertility = math.random(minFertility * 100, maxFertility * 100) / 100
-            local productivity = nil
-                        
-            if genetics.productivity ~= nil then productivity = math.clamp(math.random(minProductivity * 100, maxProductivity * 100) / 100, 0.25, 1.75) end
-
-
-            child:setGenetics({
-                ["metabolism"] = math.clamp(metabolism, 0.25, 1.75),
-                ["quality"] = math.clamp(quality, 0.25, 1.75),
-                ["health"] = math.clamp(healthGenetics, 0.25, 1.75),
-                ["fertility"] = math.clamp(fertility, 0.25, 1.75),
-                ["productivity"] = productivity
-            })
-        
-        
-            for _, disease in pairs(animal.diseases) do
-
-                disease:affectReproduction(child)
-
-            end
-
-
-            table.insert(children, child)
-
-        end
-
-
-        local reproductionDuration = subType.reproductionDurationMonth
-                    
-        if math.random() >= 0.99 then
-
-            if math.random() >= 0.95 then
-                reproductionDuration = reproductionDuration + math.random() >= 0.75 and -2 or 2
-            else
-                reproductionDuration = reproductionDuration + math.random() >= 0.85 and -1 or 1
-            end
-
-            reproductionDuration = math.max(reproductionDuration, 2)
-
-        end
-
-        local expectedYear = year + math.floor(reproductionDuration / 12)
-        local expectedMonth = month + (reproductionDuration % 12)
-
-        while expectedMonth > 12 do
-            expectedMonth = expectedMonth - 12
-            expectedYear = expectedYear + 1
-        end
-
-        local expectedDay = math.random(1, getDaysInMonth(expectedMonth))
-
-        if #children > 0 then
-
-            animal.pregnancy = {
-                ["duration"] = reproductionDuration,
-                ["expected"] = {
-                    ["day"] = expectedDay,
-                    ["month"] = expectedMonth,
-                    ["year"] = expectedYear
-                },
-                ["pregnancies"] = children
-            }
-
-        end
-
+    if plan.isPregnant then
+        createSalePregnancy(self, animal, animalType, subType, subTypeIndex, genetics, plan, month, year)
     end
 
     animal.sale = {
-        --["day"] = day,
-        --["month"] = month,
-        --["year"] = year
-        ["day"] = environment.currentMonotonicDay
+        ["day"] = environment.currentMonotonicDay,
+        -- dealerStock.xml purpose id; nil for a subtype sold by the old rules.
+        ["purpose"] = purpose ~= nil and purpose.id or nil
     }
 
     -- Orphaned pregnancy state cleanup for sale animals: the children
@@ -1934,15 +1964,90 @@ function AnimalSystem:createNewSaleAnimal(animalTypeIndex)
     -- reproduction).
     --
     -- Guard differs from site 1 (advancePregnancy) on purpose: this flow
-    -- never assigns animal.reproduction, so the pen-side `reproduction > 0`
-    -- precondition would be unreachable here (Animal.new defaults
-    -- reproduction to 0). Gate on the actual invariant violation instead:
-    -- isPregnant=true paired with no usable pregnancy data.
+    -- sets animal.reproduction only together with a pregnancy that has
+    -- children, so the pen-side `reproduction > 0` precondition says nothing
+    -- here. Gate on the actual invariant violation instead: isPregnant=true
+    -- paired with no usable pregnancy data.
     if animal.isPregnant and (animal.pregnancy == nil or #animal.pregnancy.pregnancies == 0) then
         AnimalReproduction._clearOrphanedPregnancy(animal, "pregnancy-nil")
     end
 
+    -- The finished animal must still qualify: a purpose that needs a pregnancy loses it with the
+    -- offspring above, and the weight a heifer needs to be ready to breed is only known now.
+    -- Its id stays used (ids are never handed out twice).
+    if purpose ~= nil then
+        local ok, reasons = RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx)
+        if not ok then return nil, reasons[1] end
+    end
+
     return animal
+
+end
+
+
+--- Build a new sale animal for the dealer of the given animal type.
+--- dealerStock.xml decides what the dealer sells: each animal is generated for a purpose (weaned
+--- calf, store bull, heifer ready to breed...) at an age, sex and birth and pregnancy history the
+--- purpose allows; good genetics are no exemption. A subtype the file does not cover keeps the
+--- old rules (any buyable age up to the type's maxBuyAge). An attempt that cannot be made
+--- consistent is drawn again, at most maxAttempts times; then the place stays empty and the
+--- reasons go into the hourly dealer summary.
+--- Genetics come from `RLGeneticsDraw.draw`, which is called before `Animal.new`
+--- so stored health, genetic diseases and offspring all derive from them.
+--- If the pregnancy block produces no children, the orphaned-state cleanup delegates to
+--- AnimalReproduction._clearOrphanedPregnancy so the canonical four-field clear runs.
+--- @param animalTypeIndex number Index into the animal-type registry
+--- @return table|nil animal Newly built sale animal, or nil if none could be made
+function AnimalSystem:createNewSaleAnimal(animalTypeIndex)
+
+    local animalType = self:getTypeByIndex(animalTypeIndex)
+
+    if animalType == nil then
+        noteSaleGenerationBail("noAnimalType", animalTypeIndex, "debug", string.format(
+            "createNewSaleAnimal: no animal type is registered at index %d, so the dealer cannot "
+            .. "generate stock for it. Further attempts this map load are silent.",
+            animalTypeIndex))
+        return nil
+    end
+
+    -- Filter to subtypes with at least one buyable visual (respects bridge canBeBought overrides)
+    local buyableSubTypes = {}
+    for _, stIdx in ipairs(animalType.subTypes) do
+        local st = self:getSubTypeByIndex(stIdx)
+        if st ~= nil and st.visuals ~= nil then
+            for _, visual in ipairs(st.visuals) do
+                if visual.store ~= nil and visual.store.canBeBought then
+                    table.insert(buyableSubTypes, { index = stIdx, name = st.name, breed = st.breed, gender = st.gender })
+                    break
+                end
+            end
+        end
+    end
+
+    -- Player-facing (INFO): this is the answer to "why does the dealer never have
+    -- any cows". Every subtype of the type is marked not-buyable - by the dealer
+    -- sale-availability settings, or by a map/bridge canBeBought override - so the
+    -- hourly restock will keep attempting and keep producing nothing.
+    if #buyableSubTypes == 0 then
+        noteSaleGenerationBail("noBuyableSubTypes", animalTypeIndex, "info", string.format(
+            "The animal dealer will not stock %s: every subtype is currently set to not buyable "
+            .. "(dealer sale-availability settings, or a map/mod override). Change it in the "
+            .. "Realistic Livestock settings if that was not intended. Said once per map load.",
+            RLAnimalUtil.getAnimalTypeDisplayName(animalType)))
+        return nil
+    end
+
+    local config = RLDealerStockPolicy.getConfig()
+
+    for _ = 1, config.maxAttempts do
+        local animal, reason = self:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableSubTypes, config)
+        if animal ~= nil then return animal end
+        if reason == "noValidFarms" then return nil end
+        countSaleGenerationFailure(animalTypeIndex, reason or "?")
+    end
+
+    countSaleGenerationFailure(animalTypeIndex, "SLOT_LEFT_EMPTY")
+    return nil
 
 end
 
@@ -2297,6 +2402,38 @@ function AnimalSystem._shouldRotateSaleAnimal(animal, day, bandMidpoint, randomF
 end
 
 
+--- Whether a dealer listing still qualifies for what it is sold as (dealerStock.xml). A listing
+--- ages on the shelf, and its pregnancy advances, so one can outgrow its purpose's ages, its
+--- sex's absolute cap, or come too close to giving birth; it is then withdrawn at once, however
+--- recently it was listed. A listing saved before purposes existed takes the first purpose it
+--- qualifies for, or is withdrawn. A subtype the file does not cover is not checked.
+--- No draws, server only.
+---@param animal table Sale listing (has `sale`)
+---@return boolean keep
+---@return string|nil reason Why not, or "MIGRATED" when a purpose was assigned
+function AnimalSystem:_checkSaleListing(animal)
+    local subType = self:getSubTypeByIndex(animal.subTypeIndex)
+    local animalType = subType ~= nil and self:getTypeByIndex(subType.typeIndex) or nil
+    if subType == nil or animalType == nil then return true end
+
+    local entry = RLDealerStockPolicy.getEntry(RLDealerStockPolicy.getConfig(), subType, animalType.name)
+    if entry.status ~= RLDealerStockPolicy.COVERED then return true end
+
+    local ctx = self:getSaleAgeContext(animalType, subType)
+
+    if animal.sale.purpose ~= nil then
+        local purpose = RLDealerStockPolicy.findPurpose(entry, animal.gender, animal.sale.purpose)
+        local ok, reasons = RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx)
+        return ok, reasons[1]
+    end
+
+    local purpose, reason = RLDealerStockPolicy.classify(animal, entry, subType, ctx)
+    if purpose == nil then return false, reason end
+    animal.sale.purpose = purpose.id
+    return true, "MIGRATED"
+end
+
+
 function AnimalSystem:onHourChanged()
     RmSafeUtils.safeCall("AnimalSystem:onHourChanged", function()
 
@@ -2326,12 +2463,22 @@ function AnimalSystem:onHourChanged()
             local poolBefore = 0
             local rotatedByAge, rotatedByGenetics, rotatedMalformed = 0, 0, 0
             local rotatedUnclassified = 0
+            local withdrawn, migrated = 0, 0
+            local withdrawnReasons = {}
 
             for i, animal in pairs(animals) do
 
                 if animal.sale ~= nil then
 
                     poolBefore = poolBefore + 1
+
+                    -- Purpose check first: a listing that no longer qualifies is withdrawn even
+                    -- on the day it was listed. Contained like the rotation below; a failure keeps it.
+                    local keep, checkReason = RmSafeUtils.safeAnimalCall(animal, "AnimalSystem:_checkSaleListing", function()
+                        return self:_checkSaleListing(animal)
+                    end, { true, "error" })
+
+                    if checkReason == "MIGRATED" then migrated = migrated + 1 end
 
                     -- Per-listing containment. This handler's whole body is one
                     -- safeCall xpcall, so an unguarded raise here would abort
@@ -2344,9 +2491,17 @@ function AnimalSystem:onHourChanged()
                     -- tick; that is loud by design, and the malformed guards
                     -- inside the predicate exist so it never fires for the
                     -- known-bad shapes. A recurring one is a real defect signal.
-                    local shouldRotate, reason = RmSafeUtils.safeAnimalCall(animal, "AnimalSystem:onHourChanged", function()
-                        return AnimalSystem._shouldRotateSaleAnimal(animal, day, bandMidpoint)
-                    end, { false, "error" })
+                    local shouldRotate, reason
+
+                    if not keep then
+                        shouldRotate, reason = true, "withdrawn"
+                        local key = tostring(checkReason)
+                        withdrawnReasons[key] = (withdrawnReasons[key] or 0) + 1
+                    else
+                        shouldRotate, reason = RmSafeUtils.safeAnimalCall(animal, "AnimalSystem:onHourChanged", function()
+                            return AnimalSystem._shouldRotateSaleAnimal(animal, day, bandMidpoint)
+                        end, { false, "error" })
+                    end
 
                     if shouldRotate then
 
@@ -2362,7 +2517,9 @@ function AnimalSystem:onHourChanged()
                         -- a catch-all silently files any future reason under
                         -- genetics, which is invisible in the summary below and
                         -- exactly the kind of drift a counter is supposed to expose.
-                        if reason == "age" then
+                        if reason == "withdrawn" then
+                            withdrawn = withdrawn + 1
+                        elseif reason == "age" then
                             rotatedByAge = rotatedByAge + 1
                         elseif reason == "malformed" then
                             rotatedMalformed = rotatedMalformed + 1
@@ -2403,7 +2560,7 @@ function AnimalSystem:onHourChanged()
 
             end
 
-            local rotatedTotal = rotatedByAge + rotatedByGenetics + rotatedMalformed + rotatedUnclassified
+            local rotatedTotal = rotatedByAge + rotatedByGenetics + rotatedMalformed + rotatedUnclassified + withdrawn
 
             -- Never expected: every reason the predicate can return is counted
             -- above. Reaching this means a reason was added without updating the
@@ -2429,10 +2586,21 @@ function AnimalSystem:onHourChanged()
                 -- nil - a legitimate outcome when an owner has disabled every
                 -- buyable subtype for this type - and that divergence is the thing
                 -- a reader is diagnosing, so report both rather than one "created".
-                Log:debug("Dealer rotation type=%d: pool %d -> %d, rotated %d (age=%d genetics=%d malformed=%d), restocked %d of %d attempted",
+                Log:debug("Dealer rotation type=%d: pool %d -> %d, rotated %d (age=%d genetics=%d malformed=%d withdrawn=%d), restocked %d of %d attempted",
                     animalTypeIndex, poolBefore, poolAfter, rotatedTotal,
-                    rotatedByAge, rotatedByGenetics, rotatedMalformed,
+                    rotatedByAge, rotatedByGenetics, rotatedMalformed, withdrawn,
                     creationsSucceeded, creationsAttempted)
+
+                -- Why listings no longer qualified, and why generation attempts failed (each failed
+                -- place is maxAttempts attempts plus SLOT_LEFT_EMPTY).
+                if withdrawn > 0 or migrated > 0 or creationsSucceeded < creationsAttempted then
+                    local parts = {}
+                    for key, count in pairs(withdrawnReasons) do table.insert(parts, string.format("%s=%d", key, count)) end
+                    table.sort(parts)
+                    Log:debug("Dealer stock type=%d: withdrawn {%s}, old listings given a purpose %d, generation failures {%s}",
+                        animalTypeIndex, table.concat(parts, " "), migrated,
+                        AnimalSystem._formatSaleGenerationFailures(animalTypeIndex, true))
+                end
 
                 -- A tick that clears more than half the shelf is worth finding by
                 -- grep rather than inferring from the counters above: it is what a
