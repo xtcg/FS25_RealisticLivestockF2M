@@ -432,27 +432,6 @@ end
 -- Hourly step
 -- =============================================================================
 
---- The animal's growth at full feed for one period: its full-feed line's gain at its age
---- (RLBreedTraits.getLineGain: base gain x sex x age x metabolism x breed growth, never negative)
---- x castration x disease weight gain (Animal:updateWeight's increase with nutrition 1, and without
---- the lactating x 0.75 the budget now replaces).
---- @param animal table
---- @return number growthKg per period (>= 0)
---- @return number healthyGrowthKg the same without the disease (>= 0)
-function RLBodyCondition.getPotentialGrowth(animal)
-    local increase = RLBreedTraits.getLineGain(animal:getSubType(), animal.gender, animal.targetWeight, animal.age,
-        animal.genetics.metabolism)
-
-    if animal.isCastrated then increase = increase * 1.15 end
-
-    local healthy = increase
-    local multipliers = animal:getDiseaseMultipliers("updateWeight")
-    if multipliers ~= nil then increase = increase * multipliers.weightGain end
-
-    return increase, healthy
-end
-
-
 --- What prices the liters an animal eats under the fixed price (fixedFeedPrice): an animal of its
 --- own genes on its full-feed line at its age (RLBreedTraits.getGrownLine), intact and healthy, in
 --- its state (lactating, pregnant). Its weight on the line, the liters it requests at that weight,
@@ -487,13 +466,14 @@ end
 --- @param intakeLiters number Liters of TMR ration eaten per period (energy and digestion applied)
 --- @param waterCoverage number
 --- @param dtMonths number
---- @return table
+--- @return table input
+--- @return number ownReferenceLiters What the animal itself requests on full feed (for the report)
 function RLBodyCondition.buildStepInput(animal, state, intakeLiters, waterCoverage, dtMonths)
-    local growthKg, healthyGrowthKg = RLBodyCondition.getPotentialGrowth(animal)
+    local growthKg, healthyGrowthKg = animal:getFullFeedGain()
     local progress, fetuses = getPregnancy(animal)
     local milk = animal.rlMilk
     local subType = animal:getSubType()
-    local fixedPrice = RLBodyCondition.getConfig().fixedFeedPrice == true
+    local ownReference = RLBodyCondition.getReferenceIntake(animal)
 
     local input = {
         dtMonths = dtMonths,
@@ -504,7 +484,6 @@ function RLBodyCondition.buildStepInput(animal, state, intakeLiters, waterCovera
         targetWeight = animal.targetWeight,
         potentialGrowthKg = growthKg,
         potentialMilk = milk ~= nil and milk.potential * waterCoverage or 0,
-        anchorMilk = milk ~= nil and milk.anchor or 0,
         isLactating = animal.isLactating and milk ~= nil and milk.potential > 0,
         pregnancyProgress = progress,
         numFetuses = fetuses,
@@ -514,17 +493,19 @@ function RLBodyCondition.buildStepInput(animal, state, intakeLiters, waterCovera
         reserveCeiling = RLBodyCondition.getReserveCeiling(animal),
         balanceEMA = state.balanceEMA,
         lossRateEMA = state.lossRateEMA,
+        fixedPrice = RLBodyCondition.getConfig().fixedFeedPrice == true,
     }
 
-    if fixedPrice then
+    if input.fixedPrice then
         input.referenceLiters, input.referenceWeight, input.referenceGrowthKg = RLBodyCondition.getSupplyReference(animal)
         input.anchorMilk = milk ~= nil and milk.lineAnchor or 0
         input.diseaseLossKg = healthyGrowthKg - growthKg
     else
-        input.referenceLiters = RLBodyCondition.getReferenceIntake(animal)
+        input.referenceLiters = ownReference
+        input.anchorMilk = milk ~= nil and milk.anchor or 0
     end
 
-    return input
+    return input, ownReference
 end
 
 
@@ -590,7 +571,7 @@ function RLBodyCondition.step(animal)
     local waterCoverage = (water ~= nil and water.tick == tick) and water.coverage or 1
 
     local intakeStep, allocated = RLBodyCondition.getAllocatedIntake(animal, supply)
-    local input = RLBodyCondition.buildStepInput(animal, state, intakeStep / dtMonths, waterCoverage, dtMonths)
+    local input, ownReference = RLBodyCondition.buildStepInput(animal, state, intakeStep / dtMonths, waterCoverage, dtMonths)
     local result = RLNutritionMath.step(input, RLBodyCondition.getConfig())
 
     if result.weight ~= result.weight or result.reserve ~= result.reserve then
@@ -600,10 +581,6 @@ function RLBodyCondition.step(animal)
         animal.rlMilkPaid = { tick = tick, litersPerHour = 0, deposited = false }
         return true
     end
-
-    -- What it ate against what it asks for on full feed, for the report: the need-based price's
-    -- reference already is that; the fixed price's is its line's.
-    local ownReference = input.referenceWeight == nil and input.referenceLiters or RLBodyCondition.getReferenceIntake(animal)
 
     animal.weight = result.weight
     state.reserve = result.reserve
@@ -620,6 +597,7 @@ function RLBodyCondition.step(animal)
     animal.rlNutrition = {
         tick = tick,
         allocatedLiters = allocated,
+        -- What it ate against what it asks for on full feed (under the fixed price not its reference).
         intakeRatio = ownReference > 0 and (intakeStep / dtMonths) / ownReference or 0,
         coverage = result.coverage,
         milkShare = potentialPerHour > 0 and milkShare or nil,
@@ -639,26 +617,27 @@ end
 --- Record a cow's milk at full feed (Animal:updateOutput); her output stays that potential, which
 --- the old rules deposit for an hour the budget does not cover. Records nothing for an animal the
 --- rules do not cover.
---- Two anchors - the milk her feed is priced for. anchor: the lactation-average milk at average
---- productivity with her disease, while she gives milk at all (the need-based price).
---- lineAnchor: the same for a healthy cow, for every lactating cow, since her request is the
---- lactating one (the fixed price, fixedFeedPrice): a disease lowers her milk, not her feed's energy.
+--- Two anchors - the milk her feed is priced for, the lactation-average milk at average
+--- productivity. anchor (need-based price): with her disease, while she gives milk at all.
+--- lineAnchor (fixedFeedPrice): a healthy cow's, while she would give milk without the disease, so a
+--- disease lowers her milk, not her feed's energy.
 --- @param animal table
 --- @param potentialPerPeriod number Milk after lactation, productivity and disease
 --- @param curvePerPeriod number The age curve alone
 --- @param diseaseFactor number Disease milk multiplier (1 = none)
+--- @param healthyPerPeriod number|nil The potential without the disease (default potentialPerPeriod)
 --- @return number litersPerPeriod The potential, unchanged
-function RLBodyCondition.applyMilk(animal, potentialPerPeriod, curvePerPeriod, diseaseFactor)
+function RLBodyCondition.applyMilk(animal, potentialPerPeriod, curvePerPeriod, diseaseFactor, healthyPerPeriod)
     if not RLBodyCondition.isEligible(animal) then
         animal.rlMilk = nil
         return potentialPerPeriod
     end
 
-    local average = (curvePerPeriod or 0) * RLBodyCondition.getConfig().lactationMeanFactor
+    local average = math.max((curvePerPeriod or 0) * RLBodyCondition.getConfig().lactationMeanFactor, 0)
     animal.rlMilk = {
         potential = potentialPerPeriod,
         anchor = potentialPerPeriod > 0 and average * (diseaseFactor or 1) or 0,
-        lineAnchor = animal.isLactating and math.max(average, 0) or 0,
+        lineAnchor = (healthyPerPeriod or potentialPerPeriod) > 0 and average or 0,
     }
 
     return potentialPerPeriod

@@ -55,43 +55,40 @@ function RLWeightMath.getAgeGrowthFactor(age, matureAge)
 end
 
 
---- Weight lost in one step by the old rule's two losses: an animal above its target returns to
---- it, and a starving animal loses weight (above its target faster still; below it, by its gap to
---- the target, as before). Exact over the step at the reference hourly rates.
---- @param weight number kg
---- @param targetWeight number kg
---- @param metabolism number Metabolism gene
---- @param starving boolean The pen's food factor is 0
---- @param dtMonths number Months the step covers
---- @return number decrease kg (>= 0)
-function RLWeightMath.getLegacyDecrease(weight, targetWeight, metabolism, starving, dtMonths)
-    local hours = dtMonths * 24 * RLWeightMath.REFERENCE_DAYS_PER_PERIOD
-    local starvationRate = 1 / (math.max(2 - metabolism, 0.01) * RLWeightMath.STARVATION_HOURS)
-
-    if weight > targetWeight then
-        local rate = 1 / (math.max(metabolism, 0.01) * RLWeightMath.EXCESS_HOURS)
-        if starving then rate = rate + starvationRate end
-        return (weight - targetWeight) * (1 - (1 - math.min(rate, 1)) ^ hours)
-    end
-
-    if starving and weight < targetWeight then
-        return (targetWeight - weight) * ((1 + starvationRate) ^ hours - 1)
-    end
-
-    return 0
-end
-
-
---- One step of the old weight rule: the growth for the step, less the losses above, never below
---- MIN_WEIGHT.
+--- One step of the old weight rule: growth for the step and the old rule's two losses - an animal
+--- above its target returns to it, a starving animal loses weight (above its target faster still;
+--- below it, by its gap to the target, as before) - never below MIN_WEIGHT.
+---
+--- Exact over the step at the reference hourly rates, and the same for the step taken whole or in
+--- parts: above the target the excess E follows the old hourly recurrence E -> E x (1 - r) + g
+--- (g the growth per reference hour), whose value after n hours is E* + (E - E*) x (1 - r)^n with
+--- E* = g / r, for any n. Below the target growth adds as before. At 1 day per period n is 1 and
+--- every step is the old one.
 --- @param weight number kg
 --- @param targetWeight number kg
 --- @param gainKg number Growth this step (>= 0)
---- @param metabolism number
---- @param starving boolean
---- @param dtMonths number
+--- @param metabolism number Metabolism gene
+--- @param starving boolean The pen's food factor is 0
+--- @param dtMonths number Months the step covers
 --- @return number weight kg
 function RLWeightMath.stepLegacy(weight, targetWeight, gainKg, metabolism, starving, dtMonths)
-    local decrease = RLWeightMath.getLegacyDecrease(weight, targetWeight, metabolism, starving, dtMonths)
-    return math.max(weight + math.max(gainKg, 0) - decrease, RLWeightMath.MIN_WEIGHT)
+    local hours = dtMonths * 24 * RLWeightMath.REFERENCE_DAYS_PER_PERIOD
+    local gain = math.max(gainKg, 0)
+    local starvationRate = 1 / (math.max(2 - metabolism, 0.01) * RLWeightMath.STARVATION_HOURS)
+
+    if weight > targetWeight and hours > 0 then
+        local rate = 1 / (math.max(metabolism, 0.01) * RLWeightMath.EXCESS_HOURS)
+        if starving then rate = rate + starvationRate end
+        rate = math.min(rate, 1)
+        local settled = gain / hours / rate
+        local excess = settled + (weight - targetWeight - settled) * (1 - rate) ^ hours
+        return math.max(targetWeight + excess, RLWeightMath.MIN_WEIGHT)
+    end
+
+    local decrease = 0
+    if starving and weight < targetWeight then
+        decrease = (targetWeight - weight) * ((1 + starvationRate) ^ hours - 1)
+    end
+
+    return math.max(weight + gain - decrease, RLWeightMath.MIN_WEIGHT)
 end

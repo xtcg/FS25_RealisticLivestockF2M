@@ -125,6 +125,18 @@ do
 end
 
 do
+    -- An animal above its target that still grows: growth and the return to the target together,
+    -- exact over a step of any length (the recurrence's closed form), so the month agrees too.
+    local weights = {}
+    for _, days in ipairs({ 1, 3, 7, 28 }) do
+        weights[#weights + 1] = month(makeAnimal("BULL_ANGUS", { weight = 1100, targetWeight = 1000, age = 20 }), 1, days)
+    end
+    check(string.format("old rule: a growing animal above its target weighs the same after a month at 1/3/7/28 days per period "
+        .. "(%.6f %.6f %.6f %.6f)", weights[1], weights[2], weights[3], weights[4]), near(weights[2], weights[1], 1e-6)
+        and near(weights[3], weights[1], 1e-6) and near(weights[4], weights[1], 1e-6) and weights[1] > 1000)
+end
+
+do
     -- Growth already was per period; with the losses integrated the whole month agrees too.
     local weights = {}
     for _, days in ipairs({ 1, 3, 7, 28 }) do
@@ -216,13 +228,15 @@ do
         for k, v in pairs(extra or {}) do input[k] = v end
         return M.step(input, config).supplyNU
     end
-    local fixed = { referenceWeight = 600, referenceGrowthKg = 10 }
+    local fixed = { fixedPrice = true, referenceWeight = 600, referenceGrowthKg = 10 }
     check(string.format("price: need-based, the same 100 liters are worth %.2f NU to an animal growing 10 kg and %.2f to one "
         .. "growing 20 (audit 945.54 / 1345.54)", supply(10), supply(20)), near(supply(10), 945.54, 0.01) and near(supply(20), 1345.54, 0.01))
     check(string.format("price: fixed, they are worth %.2f NU to both", supply(10, fixed)),
         near(supply(10, fixed), supply(20, fixed), 1e-9) and near(supply(10, fixed), supply(10), 1e-9))
     check("price: fixed, a heavier animal gets nothing more for the same liters",
-        near(supply(10, { weight = 800, referenceWeight = 600, referenceGrowthKg = 10 }), supply(10, fixed), 1e-9))
+        near(supply(10, { fixedPrice = true, weight = 800, referenceWeight = 600, referenceGrowthKg = 10 }), supply(10, fixed), 1e-9))
+    check("price: a reference given without fixedPrice changes nothing - the mode is the flag, not the field",
+        near(supply(20, { referenceWeight = 600, referenceGrowthKg = 10, diseaseLossKg = 5 }), supply(20), 1e-9))
 end
 
 do
@@ -230,7 +244,7 @@ do
     -- down the same reserve and the same frame share as before, the rest is spent on the disease.
     local base = { dtMonths = 1, weight = 400, reserve = 0.45, capacityKg = 200, minWeight = 35, targetWeight = 1000,
         intakeLiters = 100, referenceLiters = 100, intakeCapacity = 1.1, reserveCeiling = 0.6,
-        referenceWeight = 400, referenceGrowthKg = 20 }
+        fixedPrice = true, referenceWeight = 400, referenceGrowthKg = 20 }
     local function run(growth, disease)
         local input = {}
         for k, v in pairs(base) do input[k] = v end
@@ -243,6 +257,15 @@ do
         healthy.frameGainKg, sick.reserveKg, healthy.reserveKg, unaccounted.reserveKg),
         near(sick.frameGainKg, healthy.frameGainKg / 2, 1e-9) and near(sick.reserveKg, healthy.reserveKg, 1e-9)
         and unaccounted.reserveKg > healthy.reserveKg + 1)
+    local stopped = run(0, 20)
+    check(string.format("price: fixed, a disease that stops all growth still spends it (reserve %.2f kg, healthy %.2f)",
+        stopped.reserveKg, healthy.reserveKg), stopped.frameGainKg == 0 and near(stopped.reserveKg, healthy.reserveKg, 1e-9))
+    local grown = run(20, 0)
+    base.targetWeight = 380
+    local atTarget = run(0, 20)
+    base.targetWeight = 1000
+    check("price: fixed, an animal at its target frame grows nothing and pays no disease cost",
+        atTarget.frameGainKg == 0 and atTarget.paidNU < grown.paidNU)
 end
 
 do
@@ -255,14 +278,14 @@ do
             capacityKg = 50 + rand() * 200, targetWeight = 300 + rand() * 900, potentialGrowthKg = rand() * 40,
             diseaseLossKg = rand() < 0.5 and rand() * 20 or 0, potentialMilk = rand() < 0.3 and rand() * 500 or 0,
             anchorMilk = rand() * 400, isLactating = rand() < 0.3, pregnancyProgress = rand(), numFetuses = rand() < 0.3 and 1 or 0,
-            intakeLiters = rand() * 600, referenceLiters = 300, referenceWeight = 200 + rand() * 800,
+            intakeLiters = rand() * 600, referenceLiters = 300, fixedPrice = true, referenceWeight = 200 + rand() * 800,
             referenceGrowthKg = rand() * 40, intakeCapacity = 0.9 + rand() * 0.7, minWeight = rand() * 300,
             reserveTarget = rand() < 0.5 and rand() or nil, reserveCeiling = rand(), balanceEMA = 0, lossRateEMA = 0 }
         local r = M.step(input, config)
         local inflow = r.supplyNU + r.mobilizedNU + r.catabolismNU
         local outflow = r.paidNU + r.depositNU + r.lostNU
         if math.abs(inflow - outflow) > 1e-6 * math.max(inflow, 1) then ledgerOk = false end
-        local expected = input.weight + r.frameGainKg + r.reserveKg - r.ageLossKg - r.catabolismKg - r.excessDecayKg
+        local expected = input.weight + r.frameGainKg + r.reserveKg - r.catabolismKg - r.excessDecayKg
         if math.abs(r.weight - expected) > 1e-9 * input.weight then weightOk = false end
     end
     check("price: fixed, supply + mobilised + catabolism = paid + deposited + lost, for any input", ledgerOk)
@@ -367,11 +390,15 @@ do
         and near(sickInput.diseaseLossKg, healthyInput.potentialGrowthKg / 2, 1e-9)
         and near(sickInput.potentialGrowthKg + sickInput.diseaseLossKg, healthyInput.potentialGrowthKg, 1e-9))
 
-    -- A cow's feed is priced for the milk of a healthy cow while she is lactating.
+    -- A cow's feed is priced for the milk of a healthy cow while she would give milk.
     local cow = makeCovered("COW_HOLSTEIN", { age = 48, weight = 730, isParent = true, isLactating = true })
-    RLBodyCondition.applyMilk(cow, 0, 300, 0)
-    check("adapter: a milking cow whose disease stops her milk keeps the need-based anchor 0 and the fixed anchor of a healthy cow",
-        cow.rlMilk.anchor == 0 and near(cow.rlMilk.lineAnchor, 300 * config.lactationMeanFactor, 1e-9))
+    RLBodyCondition.applyMilk(cow, 0, 300, 0, 290)
+    local sickAnchor, sickLine = cow.rlMilk.anchor, cow.rlMilk.lineAnchor
+    RLBodyCondition.applyMilk(cow, 0, 300, 1, 0)
+    check("adapter: a cow whose disease stops her milk keeps the need-based anchor 0 and the fixed anchor of a healthy cow; "
+        .. "one that would give none anyway (lactation factor 0) has neither",
+        sickAnchor == 0 and near(sickLine, 300 * config.lactationMeanFactor, 1e-9) and cow.rlMilk.anchor == 0
+        and cow.rlMilk.lineAnchor == 0)
 
     config.fixedFeedPrice = false
 end
@@ -385,10 +412,9 @@ do
     local input = RLBodyCondition.buildStepInput(cow, cow.bodyCondition, 0, 1, 1)
     input.intakeLiters = input.referenceLiters
     local result = M.step(input, config)
-    local frameChange = result.frameGainKg - result.catabolismKg - result.excessDecayKg - result.ageLossKg
+    local frameChange = result.frameGainKg - result.catabolismKg - result.excessDecayKg
     check(string.format("age: a 10-year-old cow in the budget on her full ration loses no frame to age (frame %+.3f kg a month)",
-        frameChange), input.ageLossKg == nil and result.ageLossKg == 0 and input.potentialGrowthKg == 0
-        and math.abs(frameChange) < 1e-9)
+        frameChange), input.potentialGrowthKg == 0 and math.abs(frameChange) < 1e-9)
 end
 
 do

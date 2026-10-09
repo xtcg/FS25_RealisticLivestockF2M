@@ -76,7 +76,9 @@ end
 ---     The same liters are worth more to an animal that needs more (a heavier body, a steer).
 ---   fixed price (referenceWeight given): the demand of a reference animal - maintenance at
 ---     referenceWeight, pregnancy, growth referenceGrowthKg, milk anchorMilk - whatever this
----     animal needs now. A disease's lost growth (diseaseLossKg) is then spent on the disease.
+---     animal needs now. A disease's lost growth (diseaseLossKg) is then spent on the disease. An
+---     animal ahead of its line (a steer's x1.15, a frame grown before the line's) gets the
+---     line's growth energy it cannot use as surplus, into the reserve up to its ceiling.
 --- An animal eating its reference ration at its reference meets its demand and the old growth
 --- line holds; one that eats more liters (a high-yield cow's extra intake, a bigger frame, more of
 --- the trough) gets more, one that eats fewer or poorer liters gets less.
@@ -90,9 +92,9 @@ end
 --- Growth to reserve. While the reserve is below the stage target, part of the growth line is
 --- laid down as reserve instead of frame, so the total gain is the old growth line.
 ---
---- Weight floor. No step takes the animal below minWeight: age loss, reserve drawn and frame
---- catabolised are limited before they are booked, so the weight change is always the sum of its
---- parts and the energy ledger closes.
+--- Weight floor. No step takes the animal below minWeight: reserve drawn and frame catabolised are
+--- limited before they are booked, so the weight change is always the sum of its parts and the
+--- energy ledger closes. There is no loss with age: a fed old animal keeps its frame.
 ---
 --- @param input table See the field list at the top of the function
 --- @param cfg table RLBodyConditionConfig values
@@ -103,13 +105,13 @@ function RLNutritionMath.step(input, cfg)
     --   weight, reserve, capacityKg, minWeight
     --   targetWeight          frame weight the animal grows to
     --   potentialGrowthKg     growth line at full feed (>= 0)
-    --   ageLossKg             age-driven frame loss (>= 0)
     --   potentialMilk         milk at full feed after the water cap (liters)
     --   anchorMilk            lactation-average milk at average productivity (liters)
     --   isLactating, pregnancyProgress (0..1), numFetuses
     --   intakeLiters          liters of full TMR ration it ate (energy and digestion applied)
     --   referenceLiters       liters the reference animal requests on full feed
-    --   referenceWeight       fixed price: the reference animal's weight (nil = need-based price)
+    --   fixedPrice            true: the fixed price below; false / nil: the need-based price
+    --   referenceWeight       fixed price: the reference animal's weight
     --   referenceGrowthKg     fixed price: the reference animal's growth
     --   diseaseLossKg         fixed price: growth a disease takes (paid with growth, gains nothing)
     --   intakeCapacity        kappa for the animal's state
@@ -126,8 +128,8 @@ function RLNutritionMath.step(input, cfg)
     local frame = W - RLNutritionMath.getReserveWeightOffset(r, K, cfg.referenceReserve)
 
     -- Growth line, split between frame and reserve. Above the target frame no frame grows.
-    local growthKg = math.max(input.potentialGrowthKg or 0, 0)
-    if frame >= input.targetWeight then growthKg = 0 end
+    local growing = frame < input.targetWeight
+    local growthKg = growing and math.max(input.potentialGrowthKg or 0, 0) or 0
 
     local divertKg = 0
     if input.reserveTarget ~= nil and r < input.reserveTarget and growthKg > 0 and dt > 0 then
@@ -135,8 +137,10 @@ function RLNutritionMath.step(input, cfg)
         divertKg = math.min(growthKg, wantedDelta * K / dt)
     end
     local frameGrowthKg = growthKg - divertKg
-    local fixedPrice = input.referenceWeight ~= nil
-    local diseaseKg = (fixedPrice and growthKg > 0) and math.max(input.diseaseLossKg or 0, 0) or 0
+    local fixedPrice = input.fixedPrice == true
+    -- Fixed price: the growth a disease takes while the animal could grow is paid like growth, even
+    -- when the disease stops all of it, and gains nothing.
+    local diseaseKg = (fixedPrice and growing) and math.max(input.diseaseLossKg or 0, 0) or 0
 
     -- Demands (NU per period).
     local maintenance = cfg.maintenancePerKgMetabolic * math.max(W, 1) ^ 0.75
@@ -148,7 +152,7 @@ function RLNutritionMath.step(input, cfg)
     -- Supply (NU per period): the liters eaten, valued at what the reference intake pays for.
     local anchor
     if fixedPrice then
-        local referenceMaintenance = cfg.maintenancePerKgMetabolic * math.max(input.referenceWeight, 1) ^ 0.75
+        local referenceMaintenance = cfg.maintenancePerKgMetabolic * math.max(input.referenceWeight or W, 1) ^ 0.75
         anchor = referenceMaintenance * (1 + cfg.pregnancyFactor * (input.numFetuses or 0) * ramp)
             + math.max(input.referenceGrowthKg or 0, 0) * cfg.growthNUPerKg
     else
@@ -178,10 +182,8 @@ function RLNutritionMath.step(input, cfg)
         paidL = math.min(needL, avail - paidG)
     end
 
-    -- Weight that may still be lost this step: age loss first, then reserve, then frame.
+    -- Weight that may still be lost this step: reserve first, then frame.
     local lossRoom = W - floor
-    local ageLossKg = math.min(math.max(input.ageLossKg or 0, 0) * dt, lossRoom)
-    lossRoom = lossRoom - ageLossKg
 
     -- Reserve mobilisation, capped by the floor, the monthly loss rate, how easily a thin animal
     -- gives up what it has left, and the weight floor.
@@ -235,7 +237,7 @@ function RLNutritionMath.step(input, cfg)
 
     -- Frame changes.
     local frameGainKg = frameGrowthKg * dt * growthFraction
-    local frameAfter = frame + frameGainKg - ageLossKg - catabolismKg
+    local frameAfter = frame + frameGainKg - catabolismKg
     local excessDecayKg = 0
     if frameAfter > input.targetWeight then
         excessDecayKg = (frameAfter - input.targetWeight) * (1 - math.exp(-dt / cfg.frameExcessTauMonths))
@@ -244,7 +246,7 @@ function RLNutritionMath.step(input, cfg)
 
     local reserveKg = divertedKg + depositKg - mobilizedKg
     local newReserve = K > 0 and r + reserveKg / K or r
-    local newWeight = W + frameGainKg + reserveKg - ageLossKg - catabolismKg - excessDecayKg
+    local newWeight = W + frameGainKg + reserveKg - catabolismKg - excessDecayKg
 
     -- Trends.
     local demand = maintenance + pregnancy + growthNeed + milkNeed
@@ -263,7 +265,6 @@ function RLNutritionMath.step(input, cfg)
         growthFraction = growthFraction,
         frameGainKg = frameGainKg,
         reserveKg = reserveKg,
-        ageLossKg = ageLossKg,
         excessDecayKg = excessDecayKg,
         catabolismKg = catabolismKg,
         coverage = demand > 0 and supply / demand or 1,
