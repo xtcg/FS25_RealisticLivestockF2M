@@ -585,8 +585,7 @@ function RLBodyCondition.step(animal)
 
     state = RLBodyCondition.ensureState(animal, "legacy")
 
-    local environment = g_currentMission.environment
-    local dtMonths = 1 / (24 * math.max(environment.daysPerPeriod or 1, 1))
+    local dtMonths = RLWeightMath.getHourMonths(g_currentMission.environment.daysPerPeriod)
     local water = foodSpec.rlWaterCoverage
     local waterCoverage = (water ~= nil and water.tick == tick) and water.coverage or 1
 
@@ -602,8 +601,9 @@ function RLBodyCondition.step(animal)
         return true
     end
 
-    -- What it ate against what it asks for on full feed, for the report (the price is the line's).
-    local ownReference = RLBodyCondition.getReferenceIntake(animal)
+    -- What it ate against what it asks for on full feed, for the report: the need-based price's
+    -- reference already is that; the fixed price's is its line's.
+    local ownReference = input.referenceWeight == nil and input.referenceLiters or RLBodyCondition.getReferenceIntake(animal)
 
     animal.weight = result.weight
     state.reserve = result.reserve

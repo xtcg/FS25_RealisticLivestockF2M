@@ -352,18 +352,20 @@ do
     check(string.format("adapter: fixed, a steer's liters are worth what a bull's are (%.3f / %.3f NU), not 15%% more",
         steerSupply, bullSupply), near(steerSupply, bullSupply, 1e-9))
 
-    -- A sick bull (half its growth) gets the same feed value, spends the rest on the disease and
-    -- lays down no more reserve than a healthy one.
+    -- A sick bull (half its growth): its feed is valued as a healthy one's, the growth it loses is
+    -- handed to the step as the disease's (the step's own check above shows it gains nothing).
     local healthy, _, healthyPen = makeCovered("BULL_ANGUS", { age = 12, weight = 380 })
     local sick, _, sickPen = makeCovered("BULL_ANGUS", { age = 12, weight = 380 })
     sick.getDiseaseMultipliers = function() return { weightGain = 0.5 }, 1 end
-    for _ = 1, 24 * 3 do hour(healthy, healthyPen); hour(sick, sickPen) end
+    hour(healthy, healthyPen); hour(sick, sickPen)
     local sickInput = RLBodyCondition.buildStepInput(sick, sick.bodyCondition, 100, 1, 1 / 24)
     local healthyInput = RLBodyCondition.buildStepInput(healthy, healthy.bodyCondition, 100, 1, 1 / 24)
-    check(string.format("adapter: fixed, a sick bull grows less (%.1f / %.1f kg in 3 months) and is no fatter (reserve %.3f / %.3f)",
-        sick.weight - 380, healthy.weight - 380, sick.bodyCondition.reserve, healthy.bodyCondition.reserve),
-        sick.weight < healthy.weight and sick.bodyCondition.reserve <= healthy.bodyCondition.reserve + 1e-9
-        and sickInput.diseaseLossKg > 0 and near(sickInput.referenceGrowthKg, healthyInput.referenceGrowthKg, 1e-9))
+    local sickSupply, healthySupply = M.step(sickInput, config).supplyNU, M.step(healthyInput, config).supplyNU
+    check(string.format("adapter: fixed, a sick bull's liters are worth a healthy one's (%.3f / %.3f NU); the growth it loses "
+        .. "(%.2f of %.2f kg a month) is the disease's", sickSupply, healthySupply, sickInput.diseaseLossKg,
+        healthyInput.potentialGrowthKg), near(sickSupply, healthySupply, 1e-9)
+        and near(sickInput.diseaseLossKg, healthyInput.potentialGrowthKg / 2, 1e-9)
+        and near(sickInput.potentialGrowthKg + sickInput.diseaseLossKg, healthyInput.potentialGrowthKg, 1e-9))
 
     -- A cow's feed is priced for the milk of a healthy cow while she is lactating.
     local cow = makeCovered("COW_HOLSTEIN", { age = 48, weight = 730, isParent = true, isLactating = true })
@@ -372,6 +374,21 @@ do
         cow.rlMilk.anchor == 0 and near(cow.rlMilk.lineAnchor, 300 * config.lactationMeanFactor, 1e-9))
 
     config.fixedFeedPrice = false
+end
+
+do
+    -- The budget has no age loss either: a 10-year-old cow (past mature age + 75 months) at her
+    -- target on a full ration keeps her frame (dev took 4.5 kg of it a month).
+    local cow, _, pen = makeCovered("COW_HOLSTEIN", { age = 120, isParent = true })
+    cow.weight = cow.targetWeight
+    hour(cow, pen)
+    local input = RLBodyCondition.buildStepInput(cow, cow.bodyCondition, 0, 1, 1)
+    input.intakeLiters = input.referenceLiters
+    local result = M.step(input, config)
+    local frameChange = result.frameGainKg - result.catabolismKg - result.excessDecayKg - result.ageLossKg
+    check(string.format("age: a 10-year-old cow in the budget on her full ration loses no frame to age (frame %+.3f kg a month)",
+        frameChange), input.ageLossKg == nil and result.ageLossKg == 0 and input.potentialGrowthKg == 0
+        and math.abs(frameChange) < 1e-9)
 end
 
 do
