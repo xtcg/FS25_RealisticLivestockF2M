@@ -86,8 +86,8 @@
 2. **游戏写出资产**：每个参与者文件根上写 `lineage:G`。
 3. **后置钩子**（在 RLRM 之后）：
    - 写账本 → `save()` → 回读账本（schema、digest、G）→ 回读三个参与者文件（标过的必须是 G，没标过的必须无标记）；
-   - 全部通过后，才给 careerSavegame 写提交标记并再存一次 → `WRITTEN`；
-   - 引擎回调 `onSaveComplete` 成功则为 `COMMITTED`，否则为 `FAILED`。
+   - 全部通过后，才把提交标记写进 career 内存文档 → `WRITTEN`。career 文档由 `FSCareerMissionInfo` 以空文件名创建，`saveXMLFile` 对它必然失败；引擎在本轮之后用 `saveXMLFileToMemory` 序列化它，由 `saveWriteSavegameFinish` 写成 careerSavegame.xml（PERSIST01-01：旧实现要求 `saveXMLFile` 成功，每次保存都误报 `CAREER_MARK_FAILED`）；
+   - 引擎回调 `onSaveComplete` 报错 → `FAILED`；成功则从最终存档目录回读 career 标记、账本（digest、G）和三个参与者标记，全部一致才 `COMMITTED`，否则 `INCOMPLETE`（`CAREER_MARK_NOT_IN_SAVE`、`LEDGER_NOT_IN_SAVE`、`PARTICIPANT_NOT_IN_SAVE`）。`WRITTEN` 到回调之间文件已不再变化，T02 保持开放。
 4. **任何一步失败或中断**（`INCOMPLETE`、`ABORTED`、`FAILED`）：本次运行内新 T02 事务关闭（`LAST_SAVE_…`），直到下一次保存完整完成；加载时一定判为混代或缺失。
 5. 门禁只能挡住经过 T02 的入口。保存期间其他 mod 或旧路径的同步改动由游戏写入其后的文件中（J05），账本不对它们作任何声明。
 
@@ -136,7 +136,7 @@
 | 编码 | 任意字节字符串、逐位一致的数值、布尔、嵌套、整数键都能往返；存储文本是纯 ASCII；解析拒绝 10 类非法输入；check 拒绝 NaN、inf、函数、非整数键、环、过深、过多、过长 |
 | J01 | 正常保存并重载：READY L1；钱、圈舍、订单与账本来自同一存档；终态只能重放；未知收据的出售保持待核对且锁定（含农场现金）；另一农场的无关出售可以运行；第二次保存 G=2 |
 | J02 | 在出售的付款步骤中触发保存：该存档加载后为 NEEDS_RECONCILIATION（原因注明 SETTLING），不续做，也不凭空生成收据；未开始的 PREPARED 记录加载后取消，无锁 |
-| J03 | 8 种文件故障（placeables 抛错、vehicles 保存失败、farms 截断或抛错、career 抛错、账本失败或截断、提交标记失败）：本次运行如实记为 ABORTED 或 INCOMPLETE，T02 关闭；加载时为 RECOVERY_REQUIRED（L2）。唯一例外：任何文件被覆盖之前就抛错 → 上一个完整存档原样加载为 READY（之后的那笔出售丢失，等同于回到存档）。引擎报错 → FAILED；随后一次完整保存即重新开放 |
+| J03 | 8 种文件故障（placeables 抛错、vehicles 保存失败、farms 截断或抛错、账本失败或截断、引擎写 career 失败或截断）：本次运行如实记为 ABORTED、INCOMPLETE 或 FAILED，T02 关闭；加载时为 RECOVERY_REQUIRED（L2）。唯一例外：任何文件被覆盖之前就抛错 → 上一个完整存档原样加载为 READY（之后的那笔出售丢失，等同于回到存档）。引擎报错 → FAILED；随后一次完整保存即重新开放 |
 | J04 | 写出顺序：资产 → RLRM → 账本 → 提交标记；保存期间 begin 被拒（SAVE_IN_PROGRESS），保存后重新开放 |
 | J05 | 保存期间非 T02 的合法改钱写入其后的 farms.xml |
 | J06 | 设置保存不写账本，也不推进 generation |
@@ -158,6 +158,7 @@
 | J22 | 本 epoch 内不修剪；进入下一 epoch 后为 100 + 500，最旧的被修剪；待核对记录和 UNKNOWN 收据保留；工资收据保留 500；保留的 ID 仍可 REPLAY；达到上限 → LEDGER_FULL |
 | J23 | 2000 条记录（含一笔 1000 头）：保存约 0.7 s、加载约 0.4 s（替身 XML，不代表引擎耗时），账本约 1.6 MB |
 | J24 | 报告显示账本状态、generation、加载判定、身份修复次数，以及每把锁指向的资源；报告只读；没有解锁或补款命令；RECOVERY_REQUIRED 时报告写明原因，TEST 被拒（附原因），SHADOW 和 OFF 仍可设置 |
+| J25 | PERSIST01-01 回归：career 文档无文件路径（`saveXMLFile` 失败，与游戏一致），正常保存仍为 `COMMITTED`；pass 之后、引擎结束之前为 `WRITTEN`，磁盘 career 仍是上一代标记，T02 开放；保存后继续出售被接受；关闭模式后再存仍 `COMMITTED`；重载 READY 且保留保存后的出售。引擎报 OK 但最终目录账本缺失或参与者混代 → `INCOMPLETE`、T02 关闭、加载 RECOVERY_REQUIRED；随后一次完整保存重新开放 |
 
 全套：
 

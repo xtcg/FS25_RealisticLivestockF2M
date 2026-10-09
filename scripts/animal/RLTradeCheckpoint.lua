@@ -12,9 +12,15 @@
         markers (in the pass) "<lineage>:G" written at the root of placeables.xml, vehicles.xml
                               and farms.xml through the game's own open document, before it saves
         end     (appended,    rm_RlTradeLedger.xml written and read back (schema, digest, G);
-                 after RLRM)  only then "<lineage>:G" at the root of careerSavegame.xml, saved
-                              again: the commit mark. The gate reopens.
-        engine result         SavegameController:onSaveComplete's error code is recorded.
+                 after RLRM)  only then "<lineage>:G" at the root of the career document: the
+                              commit mark. WRITTEN; the gate reopens.
+        engine result         SavegameController:onSaveComplete. The career document has no file
+                              of its own (FSCareerMissionInfo creates it with an empty filename, so
+                              saveXMLFile on it fails): the engine serializes it after this pass
+                              (saveXMLFileToMemory) and writes it as careerSavegame.xml when it
+                              finishes the save. On success the finished save is read back - the
+                              four markers and the ledger's digest and G - and only then COMMITTED;
+                              an engine error is FAILED, a mismatch INCOMPLETE.
 
     The ledger, markers and pass are written only once T02 was enabled in this savegame (TEST set
     once, or a ledger loaded): a save that never used T02 gets nothing. Disabling the modes later
@@ -99,7 +105,8 @@ end
 
 
 --- RLTradeTransaction.begin's gate: closed while loading, verifying, saving, after a failed
---- check, or when this epoch's records reach the cap.
+--- check, or when this epoch's records reach the cap. Open while a WRITTEN save waits for the
+--- engine: its files no longer change, and a failure reported then closes it.
 function C.admit(store)
     if C.pass ~= nil then return false, "SAVE_IN_PROGRESS" end
     if C.state ~= C.READY then return false, "RECOVERY_GATE:" .. tostring(C.state) .. ":" .. tostring(C.reason) end
@@ -218,14 +225,11 @@ local readMarker
 
 --- Read back each participant file this pass wrote: a marked one must carry this pass's marker,
 --- an unmarked one none (its save then failed and left an older file). nil when all match.
-function C.verifyParticipants(missionInfo, pass)
-    local directory = missionInfo.savegameDirectory
-    local files = { placeables = { missionInfo.placeablesXML or (directory .. "/placeables.xml"), "placeables" },
-        vehicles = { missionInfo.vehiclesXML or (directory .. "/vehicles.xml"), "vehicles" },
-        farms = { missionInfo.farmsXML or (directory .. "/farms.xml"), "farms" } }
+--- @param pass table { marker, participants }
+function C.verifyParticipants(directory, pass)
     local wrong = {}
     for _, name in ipairs(RLTradeRecovery.PARTICIPANTS) do
-        local found = readMarker(files[name][1], files[name][2])
+        local found = readMarker(directory .. "/" .. name .. ".xml", name)
         local want = pass.participants[name] and pass.marker or nil
         if found ~= want then wrong[#wrong + 1] = name .. "=" .. tostring(found) end
     end
@@ -263,7 +267,7 @@ function C.onSaveEnd(missionInfo)
                 doc, why = RLTradePersistence.readDocument(check)
                 check:delete()
             end
-            local missing = C.verifyParticipants(missionInfo, pass)
+            local missing = C.verifyParticipants(directory, pass)
             if doc == nil or doc.meta.digest ~= digest or doc.meta.generation ~= pass.generation then
                 reason = "LEDGER_READBACK_FAILED:" .. tostring(why)
             elseif missing ~= nil then
@@ -271,18 +275,16 @@ function C.onSaveEnd(missionInfo)
             elseif missionInfo.xmlFile == nil or missionInfo.xmlFile == 0 then
                 reason = "NO_CAREER_FILE"
             else
+                -- Into the document only: the engine writes it when it finishes the save.
                 setXMLString(missionInfo.xmlFile, "careerSavegame#" .. C.MARKER, pass.marker)
-                if saveXMLFile(missionInfo.xmlFile) then
-                    status, reason = "WRITTEN", nil
-                else
-                    reason = "CAREER_MARK_FAILED"
-                end
+                status, reason, pass.digest = "WRITTEN", nil, digest
             end
         end
     end
-    C.last = { generation = pass.generation, status = status, reason = reason, participants = copy(pass.participants) }
+    C.last = { generation = pass.generation, status = status, reason = reason, participants = copy(pass.participants),
+        marker = pass.marker, digest = pass.digest, directory = missionInfo.savegameDirectory }
     if status == "WRITTEN" then
-        Log:info("RLTradeCheckpoint: generation %d written (%s)", pass.generation, pass.marker)
+        Log:info("RLTradeCheckpoint: generation %d written (%s), waiting for the engine to finish the save", pass.generation, pass.marker)
     else
         Log:error("RLTradeCheckpoint: generation %d not complete: %s - a load of this save will require recovery",
             pass.generation, tostring(reason))
@@ -290,14 +292,51 @@ function C.onSaveEnd(missionInfo)
 end
 
 
---- Appended to SavegameController:onSaveComplete.
-function C.onSaveComplete(errorCode)
+--- The finished save as the next load will see it: the career commit mark, the ledger of this
+--- generation (digest and G) and every participant's marker. nil when all match.
+function C.verifyFinal(directory, last)
+    if directory == nil then return "NO_DIRECTORY" end
+    local career = readMarker(directory .. "/careerSavegame.xml", "careerSavegame")
+    if career ~= last.marker then return "CAREER_MARK_NOT_IN_SAVE:" .. tostring(career) end
+    local check = XMLFile.loadIfExists("rlTradeLedgerCheck", directory .. "/" .. RLTradePersistence.FILENAME)
+    local doc, why = nil, "NOT_READABLE"
+    if check ~= nil then
+        doc, why = RLTradePersistence.readDocument(check)
+        check:delete()
+    end
+    if doc == nil or doc.meta.digest ~= last.digest or doc.meta.generation ~= last.generation then
+        return "LEDGER_NOT_IN_SAVE:" .. tostring(doc ~= nil and "OTHER_GENERATION" or why)
+    end
+    local missing = C.verifyParticipants(directory, last)
+    if missing ~= nil then return "PARTICIPANT_NOT_IN_SAVE:" .. missing end
+    return nil
+end
+
+
+--- Appended to SavegameController:onSaveComplete; the directory is the finished save's.
+function C.onSaveComplete(errorCode, directory)
     if C.pass ~= nil then abortPass("SAVE_ENDED_INSIDE_PASS") end
     local last = C.last
     if last == nil or last.engine ~= nil then return end
     last.engine = tostring(errorCode)
-    local ok = Savegame == nil or errorCode == Savegame.ERROR_OK
-    if last.status == "WRITTEN" then last.status = ok and "COMMITTED" or "FAILED" end
+    if last.status ~= "WRITTEN" then return end
+    if Savegame ~= nil and errorCode ~= Savegame.ERROR_OK then
+        last.status, last.reason = "FAILED", "ENGINE_ERROR"
+    else
+        local ran, wrong = pcall(C.verifyFinal, directory or last.directory, last)
+        if not ran then wrong = "FINAL_CHECK_THREW:" .. tostring(wrong) end
+        if wrong == nil then
+            last.status = "COMMITTED"
+        else
+            last.status, last.reason = "INCOMPLETE", wrong
+        end
+    end
+    if last.status == "COMMITTED" then
+        Log:info("RLTradeCheckpoint: generation %d committed (%s)", last.generation, last.marker)
+    else
+        Log:error("RLTradeCheckpoint: generation %d not committed: %s (engine %s) - T02 stays closed until a save completes",
+            last.generation, tostring(last.reason), last.engine)
+    end
 end
 
 
@@ -508,6 +547,10 @@ function C.install()
     end
     if SavegameController ~= nil and SavegameController.onSaveComplete ~= nil then
         SavegameController.onSaveComplete = Utils.appendedFunction(SavegameController.onSaveComplete,
-            guard("onSaveComplete", function(_, errorCode) C.onSaveComplete(errorCode) end))
+            guard("onSaveComplete", function(controller, errorCode, finalDirectory)
+                -- The game has already moved the savegame to its final directory.
+                local savegame = controller ~= nil and controller.currentSavegame or nil
+                C.onSaveComplete(errorCode, savegame ~= nil and savegame.savegameDirectory or finalDirectory)
+            end))
     end
 end

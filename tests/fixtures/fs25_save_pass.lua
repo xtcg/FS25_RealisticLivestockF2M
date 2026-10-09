@@ -14,9 +14,13 @@
 --
 -- Stand-ins, reduced (marked): FSCareerMissionInfo:saveToXMLFile keeps only what matters here
 -- from lines 246-375 (sha256 f56a64dfb4a11394ce488986c8f4319fe64e27d2291913be5c9a239a02a9b759),
--- in the game's order - careerSavegame document created, placeables, vehicles, farms, then the
--- careerSavegame file saved; PlaceableSystem:saveToXML / VehicleSystem.saveVehicleToXML /
--- Farm:saveToXMLFile write a few test fields; SavegameController:onSaveComplete only records.
+-- in the game's order - careerSavegame document created WITHOUT a filename, placeables,
+-- vehicles, farms, then saveXMLFile on the career document, which fails as in the game;
+-- PlaceableSystem:saveToXML / VehicleSystem.saveVehicleToXML / Farm:saveToXMLFile write a few
+-- test fields; SavegameController.finishSave stands in for the engine's end of the save
+-- (SavegameController.lua 641-647, 363-366, 668-684): the career document serialized with
+-- saveXMLFileToMemory, written as careerSavegame.xml by saveWriteSavegameFinish, then
+-- onSaveComplete(errorCode, finalSavegameDirectory); onSaveComplete itself only records.
 
 Utils = Utils or {}
 function Utils.appendedFunction(oldFunc, newFunc)
@@ -121,7 +125,7 @@ end
 FSCareerMissionInfo = {}
 FSCareerMissionInfo.__index = FSCareerMissionInfo
 function FSCareerMissionInfo:saveToXMLFile()
-	local xmlFile = createXMLFile("careerSavegameXML", self.savegameDirectory .. "/careerSavegame.xml", "careerSavegame")
+	local xmlFile = createXMLFile("careerSavegameXML", "", "careerSavegame")
 	self.xmlFile = xmlFile
 	setXMLString(xmlFile, "careerSavegame.settings.savegameName", self.savegameName or "test")
 	local mission = g_currentMission
@@ -133,7 +137,23 @@ end
 
 SavegameController = { calls = {} }
 SavegameController.__index = SavegameController
-function SavegameController:onSaveComplete(errorCode)
+function SavegameController:onSaveComplete(errorCode, finalSavegameDirectory)
 	SavegameController.calls[#SavegameController.calls + 1] = errorCode
 end
 Savegame = { ERROR_OK = 0, ERROR_SAVE_NO_SPACE = 3 }
+
+-- Stand-in: the engine's end of a save. The career document, serialized after the pass, is
+-- written only when the pass finished and the engine has no error to report; a failed write
+-- is reported as an error code. passOk = false: the pass threw; no career file is written, and
+-- onSaveComplete is still called so the run's state can be checked (what the game does after a
+-- Lua error inside its pass is not modelled).
+function SavegameController.finishSave(savegame, errorCode, passOk)
+	errorCode = errorCode or Savegame.ERROR_OK
+	if passOk ~= false and errorCode == Savegame.ERROR_OK then
+		local metadata = saveXMLFileToMemory(savegame.xmlFile)
+		local ok, written = pcall(XMLDisk.save, savegame.savegameDirectory .. "/careerSavegame.xml", metadata)
+		if not ok or not written then errorCode = Savegame.ERROR_SAVE_NO_SPACE end
+	end
+	SavegameController.onSaveComplete(nil, errorCode, savegame.savegameDirectory)
+	return errorCode
+end

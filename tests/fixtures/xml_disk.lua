@@ -115,20 +115,29 @@ local function serialize(node, depth, out)
     end
 end
 
-function Doc:save()
+function Doc:toText()
     local text = { '<?xml version="1.0" encoding="utf-8" standalone="no"?>' }
     serialize(self.root, 0, text)
-    local body = table.concat(text, "\n") .. "\n"
+    return table.concat(text, "\n") .. "\n"
+end
+--- Write bytes as a save does, through the fault injection. The engine's own writes (the career
+--- file at the end of a save) use this too.
+function XMLDisk.save(filename, body)
     local fault = nil
-    if XMLDisk.onSave ~= nil then fault = XMLDisk.onSave(self.filename) end
+    if XMLDisk.onSave ~= nil then fault = XMLDisk.onSave(filename) end
     if fault == false then return false end
     if fault == "truncate" then body = body:sub(1, math.floor(#body / 2)) end
-    local handle = io.open(self.filename, "wb")
+    local handle = io.open(filename, "wb")
     if handle == nil then return false end
     handle:write(body)
     handle:close()
-    XMLDisk.saves[#XMLDisk.saves + 1] = self.filename
+    XMLDisk.saves[#XMLDisk.saves + 1] = filename
     return true
+end
+function Doc:save()
+    -- A document created without a filename (the career document) cannot be saved by path.
+    if self.filename == nil or self.filename == "" then return false end
+    return XMLDisk.save(self.filename, self:toText())
 end
 
 local function parse(text, filename)
@@ -195,6 +204,7 @@ function setXMLBool(h, path, v) h:setBool(path, v) end
 function setXMLFloat(h, path, v) h:setFloat(path, v) end
 function getXMLString(h, path) return h:getString(path) end
 function saveXMLFile(h) return h:save() end
+function saveXMLFileToMemory(h) return h:toText() end
 
 --- Read a file's bytes, write bytes (for damaging files in tests).
 function XMLDisk.read(path)

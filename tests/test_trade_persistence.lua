@@ -154,11 +154,13 @@ function bindMission()
     for _, trailer in ipairs(world.trailers) do trailer.getClusterSystem = world.pens[1].getClusterSystem end
 end
 
--- The game's save: the pass, then the engine's completion callback.
-local function save(errorCode)
+-- The game's save: the pass, then the engine's end of the save (the career file is written
+-- there) and its completion callback. between(): runs after the pass, before the engine ends it.
+local function save(errorCode, between)
     XMLDisk.saves = {}
     local ok, err = pcall(function() g_currentMission.missionInfo:saveToXMLFile() end)
-    SavegameController.onSaveComplete(nil, errorCode or Savegame.ERROR_OK)
+    if between ~= nil then between() end
+    SavegameController.finishSave(g_currentMission.missionInfo, errorCode, ok)
     return ok, err
 end
 
@@ -431,10 +433,10 @@ do
     check("J20 modes OFF again: the armed ledger is still saved, with every marker", fileExists(world.dir .. "/rm_RlTradeLedger.xml")
         and marker(world.dir .. "/placeables.xml", "placeables") == expected and marker(world.dir .. "/vehicles.xml", "vehicles") == expected
         and marker(world.dir .. "/farms.xml", "farms") == expected and marker(world.dir .. "/careerSavegame.xml", "careerSavegame") == expected)
-    check("J04 order: assets, RLRM's own file, the ledger, then the career commit mark", (function()
+    check("J04 order: assets, RLRM's own file, the ledger, then the career file (with the commit mark) at the engine's end", (function()
         local order = {}
         for _, path in ipairs(XMLDisk.saves) do order[#order + 1] = path:match("[^/]+$") end
-        return table.concat(order, ",") == "placeables.xml,vehicles.xml,farms.xml,careerSavegame.xml,rm_RlAnimalSystem.xml,rm_RlTradeLedger.xml,careerSavegame.xml"
+        return table.concat(order, ",") == "placeables.xml,vehicles.xml,farms.xml,rm_RlAnimalSystem.xml,rm_RlTradeLedger.xml,careerSavegame.xml"
     end)())
     check("J01 engine result recorded: COMMITTED", C.last.status == "COMMITTED" and C.last.engine == "0")
     -- A client loads and saves nothing.
@@ -580,24 +582,23 @@ for _, case in ipairs({
     { file = "vehicles.xml", fault = false, run = "INCOMPLETE", load = "RECOVERY" },
     { file = "farms.xml", fault = "truncate", run = "INCOMPLETE", load = "RECOVERY" },
     { file = "farms.xml", fault = "throw", run = "ABORTED", load = "RECOVERY" },
-    { file = "careerSavegame.xml", fault = "throw", run = "ABORTED", load = "RECOVERY" },
     { file = "rm_RlTradeLedger.xml", fault = false, run = "INCOMPLETE", load = "RECOVERY" },
     { file = "rm_RlTradeLedger.xml", fault = "truncate", run = "INCOMPLETE", load = "RECOVERY" },
-    { file = "careerSavegame.xml", fault = false, last = true, run = "INCOMPLETE", load = "RECOVERY" },
+    -- The career file is written by the engine at the end of the save: a failed write is its
+    -- error code, a cut one is found by the read-back of the finished save.
+    { file = "careerSavegame.xml", fault = false, run = "FAILED", load = "RECOVERY" },
+    { file = "careerSavegame.xml", fault = "truncate", run = "INCOMPLETE", load = "RECOVERY" },
 }) do
     local dir = prepareArmed()
     local lost = sale(pen("pen1"), { "1 b 1" }, 1000)
-    local seen = 0
     XMLDisk.onSave = function(path)
         if path:match("[^/]+$") ~= case.file then return nil end
-        seen = seen + 1
-        if case.last and seen < 2 then return nil end
         if case.fault == "throw" then error("disk error on " .. case.file) end
         return case.fault
     end
     save(Savegame.ERROR_OK)
     XMLDisk.onSave = nil
-    local label = string.format("J03 %s %s%s", case.file, tostring(case.fault), case.last and " (commit mark)" or "")
+    local label = string.format("J03 %s %s", case.file, tostring(case.fault))
     check(label .. ": the run records the checkpoint " .. case.run, C.last.status == case.run and C.last.generation == 2)
     check(label .. ": new T02 work refused in this run until a save completes",
         has(select(2, T.begin(RLContractTrade.store, "z", "SALE", "fp", { "animal:x" })), "LAST_SAVE_" .. case.run))
@@ -628,6 +629,70 @@ do
     load(dir)
     check("J03 after a failed pass, the next complete save reopens the run and is READY on load", C.state == "READY"
         and C.load.generation == 4)
+end
+
+-- ===========================================================================================
+-- J25: the commit mark goes into the career document; the engine writes it (PERSIST01-01)
+-- ===========================================================================================
+
+do
+    -- In the game the career document has no file: saveXMLFile on it fails, the mark reaches
+    -- disk only when the engine finishes the save. That alone must not fail the checkpoint.
+    local dir = prepareArmed()
+    check("J25 fixture as the game: the career document cannot be saved by path",
+        saveXMLFile(g_currentMission.missionInfo.xmlFile) == false)
+    check("J25 a normal save commits: no CAREER_MARK_FAILED", C.last.status == "COMMITTED" and C.last.reason == nil
+        and C.last.engine == "0")
+    local seen = {}
+    save(nil, function()
+        seen.status = C.last.status
+        seen.career = marker(dir .. "/careerSavegame.xml", "careerSavegame")
+        seen.admit = C.admit(RLContractTrade.store)
+    end)
+    check("J25 between the pass and the engine's end: WRITTEN, the career file on disk still the previous mark, T02 open",
+        seen.status == "WRITTEN" and seen.career == C.lineage .. ":1" and seen.admit == true)
+    check("J25 after the engine's end: COMMITTED, the career file carries this generation",
+        C.last.status == "COMMITTED" and C.last.generation == 2 and marker(dir .. "/careerSavegame.xml", "careerSavegame") == C.lineage .. ":2")
+    -- Trading continues after the save, the next save keeps it, a reload shows both.
+    local after = sale(pen("pen1"), { "1 b 1" }, 400)
+    check("J25 a sale after a committed save is admitted", after ~= nil and after.state == "COMMITTED")
+    RLLiveSale.setMode("OFF")
+    save()
+    check("J25 modes OFF, saved again: COMMITTED", C.last.status == "COMMITTED" and C.last.generation == 3)
+    load(dir)
+    check("J25 reload: READY at generation 3, the sale after the save kept", C.state == "READY" and C.load.generation == 3
+        and RLContractTrade.store.records[after.id] ~= nil and RLContractTrade.store.records[after.id].state == "COMMITTED")
+end
+
+for _, case in ipairs({
+    { name = "ledger missing at the end", reason = "LEDGER_NOT_IN_SAVE", damage = function(dir)
+        os.remove(dir .. "/rm_RlTradeLedger.xml")
+    end },
+    { name = "a participant of the previous save at the end", reason = "PARTICIPANT_NOT_IN_SAVE:farms", damage = function(dir, old)
+        XMLDisk.write(dir .. "/farms.xml", old)
+    end },
+}) do
+    local dir = prepareArmed()
+    local old = XMLDisk.read(dir .. "/farms.xml")
+    sale(pen("pen1"), { "1 b 1" }, 1000)
+    save(nil, function() case.damage(dir, old) end)
+    local label = "J25 " .. case.name
+    check(label .. ": the engine reports OK, the read-back finds it - INCOMPLETE", C.last.status == "INCOMPLETE"
+        and C.last.engine == "0" and has(C.last.reason, case.reason))
+    check(label .. ": new T02 work refused in this run", has(select(2, T.begin(RLContractTrade.store, "z", "SALE", "fp", { "animal:x" })),
+        "LAST_SAVE_INCOMPLETE"))
+    load(dir)
+    check(label .. ": load requires recovery", C.state == "RECOVERY_REQUIRED")
+end
+
+do
+    -- An INCOMPLETE save is followed by a complete one: the run reopens.
+    prepareArmed()
+    save(nil, function() os.remove(world.dir .. "/rm_RlTradeLedger.xml") end)
+    local refused = select(2, T.begin(RLContractTrade.store, "z", "SALE", "fp", { "animal:x" }))
+    save()
+    check("J25 after INCOMPLETE, the next complete save commits and reopens T02", has(refused, "LAST_SAVE_INCOMPLETE")
+        and C.last.status == "COMMITTED" and C.admit(RLContractTrade.store) == true)
 end
 
 -- ===========================================================================================
@@ -822,7 +887,7 @@ do
     local hooked = { FSCareerMissionInfo.saveToXMLFile, PlaceableSystem.saveToXML, VehicleSystem.saveToXML, Farm.saveToXMLFile }
     local plain = setmetatable({}, { __index = FSCareerMissionInfo })
     FSCareerMissionInfo.saveToXMLFile = function(self)
-        local xmlFile = createXMLFile("c", self.savegameDirectory .. "/careerSavegame.xml", "careerSavegame")
+        local xmlFile = createXMLFile("c", "", "careerSavegame")
         self.xmlFile = xmlFile
         g_currentMission.placeableSystem:save(self.placeablesXML, {})
         g_currentMission.vehicleSystem:save(self.vehiclesXML, {})
