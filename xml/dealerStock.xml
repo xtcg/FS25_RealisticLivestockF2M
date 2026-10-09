@@ -13,11 +13,12 @@
         dealer sale-availability settings);
       - breeding="true": no younger than the subtype's reproduction age or the breed's
         breedingMinAgeMonth;
-      - weaned="true": past the weaning month of xml/calfRearing.xml (cattle; 4 months by default).
-    A purpose left with no age is not offered for that subtype. Each generated animal draws a
-    purpose by weight among those left, then an age leaning towards the middle of its range.
+      - weaned="true": past the weaning month (calves: xml/calfRearing.xml, from 4 months by default).
+    A purpose left with no age, or with no source that supplies it, is not offered for that
+    subtype. Each generated animal draws a purpose by weight among those left, then a source, an
+    age leaning towards the middle of its range and a birth history that fits.
     When a draw cannot be made consistent (no breeding timeline fits, too light to be ready to
-    breed) the dealer tries again, at most maxAttempts times per free place, then leaves the place
+    breed, a genetic disease showing) the dealer tries again, at most maxAttempts times per free place, then leaves the place
     empty until the next restock. rlDealerCatalog lists what each subtype can be offered as.
 
     Purpose attributes:
@@ -28,8 +29,10 @@
                          like enabled="false": no new animals, and listings for it are withdrawn
       enabled            false switches the purpose off (listings for it are withdrawn too)
       parent             never | always | optional: has calved (lambed, farrowed) before. With
-      parentChance       optional, the share that has. A parent calved at the earliest at the
-                         breeding age + gestation, and at least a month ago.
+      parentChance       optional, the share that has.
+      minParity          births a parent has had (default 1 and 1). The first at the breeding age
+      maxParity          + gestation at the earliest, each later one at least gestation +
+                         minRecoveryMonth after the one before, the last at least a month ago.
       pregnant           never | always | optional; pregnancyChance for optional. Conceived at
       pregnancyChance    the breeding age or later, or at least minRecoveryMonth after calving;
                          gestation progress between one month and maxPregnancyProgress, so no
@@ -37,12 +40,29 @@
       breeding           true: at least the breeding age (see above), and an intact male.
       breedingWeight     true: also at least breedingWeightRatio x its own target weight. A breed
                          without breedingWeightRatio is not offered for this purpose.
-      weaned             true: past the calf rearing weaning month.
+      weaned             true: past the weaning month (the profile's weaningMonth, else the calf
+                         rearing weaning month of xml/calfRearing.xml).
+    A mother milks from giving birth until 10 months after it (cows and goats, the game's own
+    rule), so a dealer cow is in milk or dry by her last calving, never by chance.
 
     Profile attributes: maxFemaleAgeMonth, maxMaleAgeMonth, slowMaxFemaleAgeMonth,
     slowMaxMaleAgeMonth (absolute caps, exclusive), maxPregnancyProgress (0..1, default 0.75),
     minRecoveryMonth (months between giving birth and conceiving again, default 3: the game lets a
-    cow conceive again from 3 months after calving).
+    cow conceive again from 3 months after calving), minHealth (default 90: dealer animals come
+    from healthy herds with health minHealth..100 whatever their health genetics, and none shows a
+    disease; a listing that falls ill or below it is withdrawn), weaningMonth (the month in which
+    the young are weaned, weaned from the next; default the calf rearing weaning month).
+
+    Sources: the kinds of farm the dealer buys from (a dairy herd, a suckler herd, a rearing unit,
+    a breeding stock farm...). Every purpose needs one that supplies it for the breed and sex, or
+    it is not offered (NO_SOURCE). Each listing names its source.
+      id                 name of the source, saved with the listing
+      uses               the breed uses it keeps (the use attribute below), or any (default)
+      purposes           purpose ids it supplies, ID for both sexes or ID:female / ID:male;
+                         * (default) for all
+      weight             relative share among the sources that supply the same animal (default 1)
+      traceability       RECORDED, PARTIAL or UNKNOWN (default): how much of the animal's history
+                         that kind of farm keeps. A label only; no certificate is implied.
 
     animalType / breed / subType attributes, looked up subType first, then breed within its
     animal type, then the animal type:
@@ -52,6 +72,9 @@
       breedingWeightRatio  weight share of its target needed for breedingWeight purposes
       breedingMinAgeMonth  breeding age of the breed, when later than the subtype's own
       femaleShare          share of the dealer's animals of this type (or breed) that are female
+      use                  what the breed is kept for (dairy, beef, dual...), matched against the
+                           sources' uses. A breed without one only comes from sources taking any
+                           breed, and rlDealerCatalog reports it.
 
     An animal type with no entry here is sold by the old rules and reported as not covered.
     Weight is not part of this file: dealer animals keep the existing weight rule
@@ -63,12 +86,12 @@
     modSettings/FS25_RealisticLivestockRM/dealerStock.xml; that copy then replaces this file
     entirely. In multiplayer the server's file applies.
 -->
-<dealerStock version="1" maxAttempts="8" femaleShare="0.5">
+<dealerStock version="2" maxAttempts="8" femaleShare="0.5">
 
     <!-- Cattle. Bulls and cows from rearing and breeding herds; no cull cows, no cows past 4 years.
          Unweaned calves need a calf rearing pen and are off until the dealer can check one. -->
     <profile name="CATTLE" maxFemaleAgeMonth="48" maxMaleAgeMonth="36" slowMaxFemaleAgeMonth="48" slowMaxMaleAgeMonth="42"
-             maxPregnancyProgress="0.75" minRecoveryMonth="3">
+             maxPregnancyProgress="0.75" minRecoveryMonth="3" minHealth="90">
         <purpose id="CALF_MILK"          gender="female" minAgeMonth="1"  maxAgeMonth="3"  weight="10" enabled="false"/>
         <purpose id="CALF_WEANED"        gender="female" minAgeMonth="3"  maxAgeMonth="8"  weight="15" weaned="true"/>
         <purpose id="HEIFER_REPLACEMENT" gender="female" minAgeMonth="6"  maxAgeMonth="18" weight="35" weaned="true"/>
@@ -79,77 +102,130 @@
         <purpose id="COW_FIRST"          gender="female" minAgeMonth="24" maxAgeMonth="36" slowMinAgeMonth="30" slowMaxAgeMonth="42" weight="8"
                  breeding="true" parent="always" pregnant="optional" pregnancyChance="0.3"/>
         <purpose id="COW_YOUNG"          gender="female" minAgeMonth="30" maxAgeMonth="48" slowMinAgeMonth="36" slowMaxAgeMonth="48" weight="2"
-                 breeding="true" parent="always" pregnant="optional" pregnancyChance="0.3"/>
+                 breeding="true" parent="always" maxParity="2" pregnant="optional" pregnancyChance="0.3"/>
 
         <purpose id="CALF_MILK"          gender="male"   minAgeMonth="1"  maxAgeMonth="3"  weight="15" enabled="false"/>
         <purpose id="CALF_WEANED"        gender="male"   minAgeMonth="3"  maxAgeMonth="8"  weight="20" weaned="true"/>
         <purpose id="FEEDER"             gender="male"   minAgeMonth="6"  maxAgeMonth="18" slowMinAgeMonth="8"  slowMaxAgeMonth="24" weight="55" weaned="true"/>
         <purpose id="BULL_YOUNG"         gender="male"   minAgeMonth="12" maxAgeMonth="30" slowMinAgeMonth="18" slowMaxAgeMonth="36" weight="10" breeding="true"/>
+
+        <!-- A dairy herd sells its heifers and cows and its bull calves young; a suckler herd its
+             heifers, cows and store cattle. Rearing units buy calves of any breed and sell them on
+             weaned, as stores or as replacement heifers. Breeding bulls and heifers to breed come
+             from breeding stock farms. -->
+        <source id="DAIRY_HERD"     uses="dairy dual"      traceability="RECORDED"
+                purposes="CALF_MILK CALF_WEANED HEIFER_REPLACEMENT HEIFER_READY HEIFER_IN_CALF COW_FIRST COW_YOUNG"/>
+        <source id="SUCKLER_HERD"   uses="beef dual"       traceability="RECORDED"
+                purposes="CALF_WEANED HEIFER_REPLACEMENT HEIFER_READY HEIFER_IN_CALF COW_FIRST COW_YOUNG FEEDER"/>
+        <source id="REARING_UNIT"   uses="any"             traceability="PARTIAL"
+                purposes="CALF_WEANED FEEDER HEIFER_REPLACEMENT"/>
+        <source id="BREEDING_STOCK" uses="dairy beef dual" traceability="RECORDED"
+                purposes="BULL_YOUNG HEIFER_READY HEIFER_IN_CALF"/>
     </profile>
 
     <!-- Pigs: weaners, growers, gilts and young breeding stock; no cull sows or boars. -->
-    <profile name="PIG" maxFemaleAgeMonth="18" maxMaleAgeMonth="18">
-        <purpose id="WEANER"         gender="any"    minAgeMonth="1" maxAgeMonth="3"  weight="30"/>
-        <purpose id="GROWER"         gender="any"    minAgeMonth="3" maxAgeMonth="6"  weight="40"/>
-        <purpose id="GILT"           gender="female" minAgeMonth="6" maxAgeMonth="10" weight="20"/>
+    <profile name="PIG" maxFemaleAgeMonth="18" maxMaleAgeMonth="18" minHealth="90" weaningMonth="0">
+        <purpose id="WEANER"         gender="any"    minAgeMonth="1" maxAgeMonth="3"  weight="30" weaned="true"/>
+        <purpose id="GROWER"         gender="any"    minAgeMonth="3" maxAgeMonth="6"  weight="40" weaned="true"/>
+        <purpose id="GILT"           gender="female" minAgeMonth="6" maxAgeMonth="10" weight="20" weaned="true"/>
         <purpose id="BREEDER_YOUNG"  gender="female" minAgeMonth="8" maxAgeMonth="18" weight="10"
-                 breeding="true" parent="optional" parentChance="0.3" pregnant="optional" pregnancyChance="0.3"/>
+                 breeding="true" parent="optional" parentChance="0.3" maxParity="2" pregnant="optional" pregnancyChance="0.3"/>
         <purpose id="BREEDER_YOUNG"  gender="male"   minAgeMonth="8" maxAgeMonth="18" weight="15" breeding="true"/>
+        <source id="PIG_UNIT" traceability="RECORDED"/>
     </profile>
 
-    <!-- Sheep and goats (one animal type in the game, separate breeds). -->
-    <profile name="SHEEP" maxFemaleAgeMonth="36" maxMaleAgeMonth="30">
-        <purpose id="WEANED"         gender="any"    minAgeMonth="3"  maxAgeMonth="12" weight="40"/>
-        <purpose id="REPLACEMENT"    gender="female" minAgeMonth="6"  maxAgeMonth="18" weight="30"/>
+    <!-- Sheep and goats share one animal type in the game; each has its own profile and source. -->
+    <profile name="SHEEP" maxFemaleAgeMonth="36" maxMaleAgeMonth="30" minHealth="90" weaningMonth="2">
+        <purpose id="WEANED"         gender="any"    minAgeMonth="3"  maxAgeMonth="12" weight="40" weaned="true"/>
+        <purpose id="REPLACEMENT"    gender="female" minAgeMonth="6"  maxAgeMonth="18" weight="30" weaned="true"/>
         <purpose id="BREEDER_YOUNG"  gender="female" minAgeMonth="12" maxAgeMonth="30" weight="20"
-                 breeding="true" parent="optional" parentChance="0.5" pregnant="optional" pregnancyChance="0.3"/>
+                 breeding="true" parent="optional" parentChance="0.5" maxParity="2" pregnant="optional" pregnancyChance="0.3"/>
         <purpose id="BREEDER_YOUNG"  gender="male"   minAgeMonth="8"  maxAgeMonth="24" weight="20" breeding="true"/>
+        <source id="SHEEP_FLOCK" traceability="RECORDED"/>
+    </profile>
+    <profile name="GOAT" maxFemaleAgeMonth="36" maxMaleAgeMonth="30" minHealth="90" weaningMonth="2">
+        <purpose id="WEANED"         gender="any"    minAgeMonth="3"  maxAgeMonth="12" weight="40" weaned="true"/>
+        <purpose id="REPLACEMENT"    gender="female" minAgeMonth="6"  maxAgeMonth="18" weight="30" weaned="true"/>
+        <purpose id="BREEDER_YOUNG"  gender="female" minAgeMonth="12" maxAgeMonth="30" weight="20"
+                 breeding="true" parent="optional" parentChance="0.5" maxParity="2" pregnant="optional" pregnancyChance="0.3"/>
+        <purpose id="BREEDER_YOUNG"  gender="male"   minAgeMonth="8"  maxAgeMonth="24" weight="20" breeding="true"/>
+        <source id="GOAT_HERD" traceability="RECORDED"/>
     </profile>
 
     <!-- Chickens: growers, point-of-lay pullets, young layers and cockerels; no day-old chicks. -->
-    <profile name="CHICKEN" maxFemaleAgeMonth="12" maxMaleAgeMonth="12">
+    <profile name="CHICKEN" maxFemaleAgeMonth="12" maxMaleAgeMonth="12" minHealth="90">
         <purpose id="GROWER"         gender="any"    minAgeMonth="1" maxAgeMonth="3"  weight="30"/>
         <purpose id="PULLET"         gender="female" minAgeMonth="3" maxAgeMonth="6"  weight="40"/>
         <purpose id="LAYER_YOUNG"    gender="female" minAgeMonth="6" maxAgeMonth="12" weight="30"/>
         <purpose id="COCKEREL"       gender="male"   minAgeMonth="4" maxAgeMonth="12" weight="70"/>
+        <source id="POULTRY_REARER" traceability="PARTIAL"/>
     </profile>
 
     <!-- Ducks and geese do not take the chicken's laying age. -->
-    <profile name="DUCK" maxFemaleAgeMonth="12" maxMaleAgeMonth="12">
+    <profile name="DUCK" maxFemaleAgeMonth="12" maxMaleAgeMonth="12" minHealth="90">
         <purpose id="GROWER"         gender="any"    minAgeMonth="1" maxAgeMonth="6"  weight="60"/>
         <purpose id="BREEDER_YOUNG"  gender="any"    minAgeMonth="6" maxAgeMonth="12" weight="40" breeding="true"/>
+        <source id="WATERFOWL_REARER" traceability="PARTIAL"/>
     </profile>
-    <profile name="GOOSE" maxFemaleAgeMonth="14" maxMaleAgeMonth="14">
+    <profile name="GOOSE" maxFemaleAgeMonth="14" maxMaleAgeMonth="14" minHealth="90">
         <purpose id="GROWER"         gender="any"    minAgeMonth="1" maxAgeMonth="6"  weight="60"/>
         <purpose id="BREEDER_YOUNG"  gender="any"    minAgeMonth="6" maxAgeMonth="12" weight="40" breeding="true"/>
+        <source id="WATERFOWL_REARER" traceability="PARTIAL"/>
     </profile>
 
-    <profile name="RABBIT" maxFemaleAgeMonth="12" maxMaleAgeMonth="12">
-        <purpose id="WEANED"         gender="any"    minAgeMonth="2" maxAgeMonth="4"  weight="60"/>
+    <profile name="RABBIT" maxFemaleAgeMonth="12" maxMaleAgeMonth="12" minHealth="90" weaningMonth="1">
+        <purpose id="WEANED"         gender="any"    minAgeMonth="2" maxAgeMonth="4"  weight="60" weaned="true"/>
         <purpose id="BREEDER_YOUNG"  gender="female" minAgeMonth="6" maxAgeMonth="10" weight="40" breeding="true"/>
         <purpose id="BREEDER_YOUNG"  gender="male"   minAgeMonth="7" maxAgeMonth="10" weight="40" breeding="true"/>
+        <source id="RABBIT_BREEDER" traceability="RECORDED"/>
     </profile>
 
     <!-- Horses: the game has no training state, so every horse is sold as untrained. -->
-    <profile name="HORSE" maxFemaleAgeMonth="120" maxMaleAgeMonth="120">
-        <purpose id="YOUNG_HORSE"    gender="any"    minAgeMonth="6"  maxAgeMonth="36"  weight="50"/>
+    <profile name="HORSE" maxFemaleAgeMonth="120" maxMaleAgeMonth="120" minHealth="90" weaningMonth="5">
+        <purpose id="YOUNG_HORSE"    gender="any"    minAgeMonth="6"  maxAgeMonth="36"  weight="50" weaned="true"/>
         <purpose id="HORSE"          gender="any"    minAgeMonth="36" maxAgeMonth="120" weight="50"/>
+        <source id="HORSE_BREEDER" traceability="RECORDED"/>
     </profile>
 
     <!-- Highland and Water Buffalo finish later. Only the dairy breeds have a weight to be ready
          to breed at (55% of their target); beef breeds and buffalo need their own before the
-         dealer offers them as ready to breed. -->
+         dealer offers them as ready to breed. Breeds of FS25_CowBreedsRLRM (_PACK) and map
+         aliases are listed by what they are kept for; a breed missing here comes from rearing
+         units only. -->
     <animalType name="COW" profile="CATTLE">
-        <breed name="HIGHLAND"      slowMaturing="true"/>
-        <breed name="WATER_BUFFALO" slowMaturing="true"/>
-        <breed name="HOLSTEIN"      breedingWeightRatio="0.55"/>
-        <breed name="SWISS_BROWN"   breedingWeightRatio="0.55"/>
+        <breed name="HOLSTEIN"              use="dairy" breedingWeightRatio="0.55"/>
+        <breed name="SWISS_BROWN"           use="dairy" breedingWeightRatio="0.55"/>
+        <breed name="WATER_BUFFALO"         use="dairy" slowMaturing="true"/>
+        <breed name="ANGUS"                 use="beef"/>
+        <breed name="LIMOUSIN"              use="beef"/>
+        <breed name="HEREFORD"              use="beef"/>
+        <breed name="HIGHLAND"              use="beef" slowMaturing="true"/>
+        <breed name="REDHOLSTEIN_PACK"      use="dairy"/>
+        <breed name="AYRSHIRE_PACK"         use="dairy"/>
+        <breed name="KERRY_PACK"            use="dairy"/>
+        <breed name="SHORTHORNMILKERS_PACK" use="dairy"/>
+        <breed name="JERSEY_PACK"           use="dairy"/>
+        <breed name="JERSEY"                use="dairy"/>
+        <breed name="GUERNSEY_PACK"         use="dairy"/>
+        <breed name="CHAROLAIS_PACK"        use="beef"/>
+        <breed name="CHAROLAISE"            use="beef"/>
+        <breed name="REDANGUS_PACK"         use="beef"/>
+        <breed name="SHORTHORN_PACK"        use="beef"/>
+        <breed name="IRISHMOILED_PACK"      use="beef"/>
+        <breed name="BRITISHBLUE_PACK"      use="beef"/>
+        <breed name="BELTEDGALLOWAY_PACK"   use="beef"/>
+        <breed name="SIMMENTAL_PACK"        use="dual"/>
+        <breed name="SIMMENTAL"             use="dual"/>
+        <breed name="MONTBELIARDE"          use="dual"/>
+        <breed name="VOSGIENNE"             use="dual"/>
     </animalType>
     <!-- Hof Bergmann's bull stable bull (semen) is not dealer young stock. -->
     <subType name="BULL" legacy="true"/>
 
     <animalType name="PIG" profile="PIG"/>
-    <animalType name="SHEEP" profile="SHEEP"/>
+    <animalType name="SHEEP" profile="SHEEP">
+        <breed name="GOAT" profile="GOAT"/>
+    </animalType>
     <animalType name="CHICKEN" profile="CHICKEN">
         <breed name="DUCK" profile="DUCK"/>  <!-- Hof Bergmann's ducks share the chicken type -->
     </animalType>

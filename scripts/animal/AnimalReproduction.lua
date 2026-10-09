@@ -18,6 +18,21 @@ AnimalReproduction = {}
 local Log = RmLogging.getLogger("RLRM")
 
 
+--- Months a mother milks after giving birth: lactation stops when monthsSinceLastBirth reaches it
+--- (Animal:advanceRecoveryPeriod).
+AnimalReproduction.LACTATION_MONTHS = 10
+
+
+--- Whether a mother of this type and subtype starts milking when she gives birth: cattle and goats.
+--- The one rule for births (reproduce, AnimalBirthEvent) and the dealer's mothers.
+--- @param animalTypeIndex number|nil
+--- @param subTypeName string|nil
+--- @return boolean
+function AnimalReproduction.lactatesAfterBirth(animalTypeIndex, subTypeName)
+    return animalTypeIndex == AnimalType.COW or subTypeName == "GOAT"
+end
+
+
 -- =============================================================================
 -- LOCAL HELPERS (not exposed on module table)
 -- =============================================================================
@@ -780,7 +795,7 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
     if childNum > 0 then
         animal.isParent = true
-        if animalType == AnimalType.COW or animal.subType == "GOAT" then animal.isLactating = true end
+        if AnimalReproduction.lactatesAfterBirth(animalType, animal.subType) then animal.isLactating = true end
     end
 
     childNum = childNum - animalsToSell

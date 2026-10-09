@@ -1253,7 +1253,7 @@ end
 --- -- reads/writes only these two fields, touches no game state and sets no
 --- dirty flag -- so MP clients can run it locally in lockstep with the server,
 --- the same property that lets aging run client-side. The isLactating flip is
---- one-directional at >= 10; re-enabling lactation is AnimalBirthEvent's job.
+--- one-directional at AnimalReproduction.LACTATION_MONTHS; re-enabling lactation is AnimalBirthEvent's job.
 --- @see RealisticLivestock_PlaceableHusbandryAnimals.onPeriodChanged (client branch)
 function Animal:advanceRecoveryPeriod()
     -- A legacy/corrupt savegame may carry a nil counter (Animal.new coerces it to
@@ -1262,7 +1262,7 @@ function Animal:advanceRecoveryPeriod()
 
     self.monthsSinceLastBirth = self.monthsSinceLastBirth + 1
 
-    if self.isLactating and self.monthsSinceLastBirth >= 10 then
+    if self.isLactating and self.monthsSinceLastBirth >= AnimalReproduction.LACTATION_MONTHS then
         self.isLactating = false
     end
 

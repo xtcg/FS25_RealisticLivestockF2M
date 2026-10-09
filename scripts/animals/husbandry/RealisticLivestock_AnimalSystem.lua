@@ -1205,6 +1205,10 @@ function AnimalSystem:loadFromXMLFile()
                 -- dealerStock.xml purpose; absent in saves from before purposes, and for subtypes
                 -- sold by the old rules. The hourly check gives an old listing a purpose or withdraws it.
                 ["purpose"] = xmlFile:getString(key .. ".sale#purpose"),
+                -- dealerStock.xml source and births before; absent in saves from before them. The
+                -- hourly check names a source; a parent without a parity is checked as unknown.
+                ["source"] = xmlFile:getString(key .. ".sale#source"),
+                ["parity"] = xmlFile:getInt(key .. ".sale#parity"),
                 --["month"] = xmlFile:getInt(key .. ".sale#month"),
                 --["year"] = xmlFile:getInt(key .. ".sale#year")
             }
@@ -1318,6 +1322,8 @@ function AnimalSystem:saveToXMLFile(_)
         animal:saveToXMLFile(xmlFile, key)
         xmlFile:setInt(key .. ".sale#day", animal.sale.day)
         if animal.sale.purpose ~= nil then xmlFile:setString(key .. ".sale#purpose", animal.sale.purpose) end
+        if animal.sale.source ~= nil then xmlFile:setString(key .. ".sale#source", animal.sale.source) end
+        if animal.sale.parity ~= nil then xmlFile:setInt(key .. ".sale#parity", animal.sale.parity) end
 
     end)
 
@@ -1496,17 +1502,20 @@ function AnimalSystem:_pickSaleAnimalAge(subType, averageBuyAge, maxBuyAge, rand
 end
 
 
---- Ages the dealer may offer a subtype at, for RLDealerStockPolicy: the type's maxBuyAge, the
---- ages whose visual can be bought, and the calf rearing weaning month.
+--- What RLDealerStockPolicy needs to know of a subtype from the game: the type's maxBuyAge, the
+--- ages whose visual can be bought, the calf rearing weaning month, and whether and how long its
+--- mothers milk (AnimalReproduction's rule).
 ---@param animalType table
 ---@param subType table
----@return table ctx {maxBuyAge, weaningMonth, union}
+---@return table ctx {maxBuyAge, weaningMonth, union, lactates, lactationMonths}
 function AnimalSystem:getSaleAgeContext(animalType, subType)
     local maxBuyAge = animalType.maxBuyAge or 60
     return {
         maxBuyAge = maxBuyAge,
         weaningMonth = RLCalfRearing.getWeaningMonthForSubType(subType),
         union = RLDealerStockPolicy.getBuyableAgeUnion(subType, maxBuyAge),
+        lactates = AnimalReproduction.lactatesAfterBirth(animalType.typeIndex, subType.name),
+        lactationMonths = AnimalReproduction.LACTATION_MONTHS,
     }
 end
 
@@ -1518,6 +1527,7 @@ end
 local function planLegacySaleReproduction(subType, animalGender, age)
     local plan = { isParent = false, monthsSinceLastBirth = 12, isPregnant = false, pregnancyMonths = 0,
         duration = subType.reproductionDurationMonth }
+    -- The old rules keep no birth count (parity stays nil: unknown).
 
     local viableReproductionMonths = age - (subType.reproductionMinAgeMonth + subType.reproductionDurationMonth)
 
@@ -1544,6 +1554,18 @@ local function noteSaleCoverageGap(animalType, subType, entry)
         tostring(animalType.name), tostring(subType.name), entry.status,
         entry.missingProfile ~= nil and (", profile " .. entry.missingProfile .. " not found") or "",
         RLDealerStockPolicy.WEIGHT_MODEL)
+    saleGenerationBailLatches[latchKey] = true
+end
+
+
+--- Say once per breed per map load that dealerStock.xml gives a covered breed no use, so only the
+--- sources that take any breed supply it.
+local function noteSaleBreedUseGap(animalType, subType, entry)
+    if entry.use ~= nil then return end
+    local latchKey = "use:" .. tostring(animalType.name) .. ":" .. tostring(subType.breed)
+    if saleGenerationBailLatches[latchKey] then return end
+    Log:info("Dealer stock: %s breed %s has no use in dealerStock.xml (dairy, beef...), so only sources that take any breed supply it.",
+        tostring(animalType.name), tostring(subType.breed))
     saleGenerationBailLatches[latchKey] = true
 end
 
@@ -1816,14 +1838,17 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
     local entry = RLDealerStockPolicy.getEntry(config, subType, animalType.name)
     local ctx = self:getSaleAgeContext(animalType, subType)
 
-    local age, purpose, plan
+    local age, purpose, plan, saleSource
 
     if entry.status == RLDealerStockPolicy.COVERED then
+
+        noteSaleBreedUseGap(animalType, subType, entry)
 
         local candidate = RLDealerStockPolicy.pickCandidate(RLDealerStockPolicy.getCandidates(entry, subType, ctx), math.random)
         if candidate == nil then return nil, RLDealerStockPolicy.REASON.NO_PURPOSE end
 
         purpose = candidate.purpose
+        saleSource = RLDealerStockPolicy.pickSource(RLDealerStockPolicy.getSources(entry, purpose, animalGender), math.random)
         age = RLDealerStockPolicy.pickAge(candidate, math.random)
 
         local reason
@@ -1889,18 +1914,26 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
 
 
     -- Bound to a local so the value handed to the constructor can be logged beside
-    -- the genetics it derives from - the two numbers whose ratio shows whether the
-    -- reshape preceded construction. Its position is load-bearing in THREE ways and
-    -- each has a different failure mode:
-    --   AFTER the reshape above  - otherwise stored health derives from unreshaped
-    --                              genetics, which IS the post-hoc dealer-quality
-    --                              defect this whole seam exists to prevent.
+    -- the genetics. A covered animal comes from a healthy herd: health minHealth..100
+    -- (dealerStock.xml), whatever its health genetics, which still set how fast it
+    -- recovers and its risks later. The old rules derive it from the genetics, so for
+    -- them the ratio of the two shows whether the reshape preceded construction. Its
+    -- position is load-bearing in THREE ways and each has a different failure mode:
+    --   AFTER the reshape above  - otherwise the old rules' health derives from
+    --                              unreshaped genetics, which IS the post-hoc
+    --                              dealer-quality defect this seam exists to prevent.
     --   AFTER the name draw      - the name gate directly above draws from the same
     --                              math.random stream, so lifting this roll over it
     --                              swaps the two draws and silently changes WHICH
     --                              animals get names for a given seed.
     --   BEFORE Animal.new        - the constructor consumes the value.
-    local storedHealth = math.clamp((math.random(650, 1000) / 10) * genetics.health, 0, 100)
+    -- One draw either way.
+    local storedHealth
+    if purpose ~= nil then
+        storedHealth = RLDealerStockPolicy.drawHealth(entry, math.random)
+    else
+        storedHealth = math.clamp((math.random(650, 1000) / 10) * genetics.health, 0, 100)
+    end
 
     -- Level-guarded: Lua evaluates call arguments before the logger can check its
     -- level, so the getPreset lookup and the string.format below would be paid on
@@ -1909,11 +1942,12 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
     -- pass/fail surface - the values are rounded, and the ratio only discriminates
     -- on rows below the 100 clamp.
     if Log.level >= RmLogging.LOG_LEVEL.DEBUG then
-        Log:debug("createNewSaleAnimal: reshaped genetics preset=%d(%s) outlier=%s met=%.3f qua=%.3f fer=%.3f hea=%.3f health=%.2f prd=%s purpose=%s age=%d",
+        Log:debug("createNewSaleAnimal: reshaped genetics preset=%d(%s) outlier=%s met=%.3f qua=%.3f fer=%.3f hea=%.3f health=%.2f prd=%s purpose=%s source=%s age=%d parity=%s",
             presetIndex, RLDealerQualityModel.getPreset(presetIndex).key, tostring(wasOutlier),
             genetics.metabolism, genetics.quality, genetics.fertility, genetics.health, storedHealth,
             genetics.productivity ~= nil and string.format("%.3f", genetics.productivity) or "-",
-            purpose ~= nil and purpose.id or entry.status, age)
+            purpose ~= nil and purpose.id or entry.status, saleSource ~= nil and saleSource.id or "-", age,
+            tostring(plan.parity))
     end
 
 
@@ -1925,11 +1959,24 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
         subTypeIndex = subTypeIndex,
         isParent = plan.isParent,
         isPregnant = plan.isPregnant,
-        isLactating = animalTypeIndex == AnimalType.COW and animalGender == "female"
-            and plan.isParent and plan.monthsSinceLastBirth < 10,
+        -- In milk by her last birth, as the game would have it (none for a male: never a parent).
+        isLactating = RLDealerStockPolicy.isInMilk(plan.isParent, plan.monthsSinceLastBirth, ctx),
+        -- No castration at the dealer: every male is sold intact.
+        isCastrated = false,
         name = name,
         genetics = genetics
     })
+
+    -- The listing record, before the checks below read its source and parity. `day` is the
+    -- monotonic day it is listed on (the rotation's shelf time).
+    animal.sale = {
+        ["day"] = g_currentMission.environment.currentMonotonicDay,
+        -- dealerStock.xml purpose and source; nil for a subtype sold by the old rules.
+        ["purpose"] = purpose ~= nil and purpose.id or nil,
+        ["source"] = saleSource ~= nil and saleSource.id or nil,
+        -- Births before (0 for none); nil under the old rules, which keep no count.
+        ["parity"] = purpose ~= nil and plan.parity or nil,
+    }
 
     -- How far the planned pregnancy is along (two decimals, rounded down like the daily advance,
     -- so it never reads further on than the months planned). The old rules' pregnancy has just
@@ -1975,12 +2022,6 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
     if plan.isPregnant then
         createSalePregnancy(self, animal, animalType, subType, subTypeIndex, genetics, plan, month, year)
     end
-
-    animal.sale = {
-        ["day"] = environment.currentMonotonicDay,
-        -- dealerStock.xml purpose id; nil for a subtype sold by the old rules.
-        ["purpose"] = purpose ~= nil and purpose.id or nil
-    }
 
     -- Orphaned pregnancy state cleanup for sale animals: the children
     -- generation block produced no usable children, so the pregnancy table
@@ -2431,9 +2472,11 @@ end
 --- Whether a dealer listing still qualifies for what it is sold as (dealerStock.xml). A listing
 --- ages on the shelf, and its pregnancy advances, so one can outgrow its purpose's ages, its
 --- sex's absolute cap, or come too close to giving birth; it is then withdrawn at once, however
---- recently it was listed. A listing saved before purposes existed takes the first purpose it
---- qualifies for, or is withdrawn. A subtype the file does not cover is not checked.
---- No draws, server only.
+--- recently it was listed; so is one that falls ill, or whose source no longer supplies it.
+--- A listing saved before purposes existed takes the first purpose it qualifies for, or is
+--- withdrawn; one saved before sources takes the first source that supplies it (a label for the
+--- kind of farm, which the old listing never had: no history is claimed by it).
+--- A subtype the file does not cover is not checked. No draws, server only.
 ---@param animal table Sale listing (has `sale`)
 ---@param cache table|nil Per-tick {[subTypeIndex] = {subType, entry, ctx}}; they depend only on the subtype
 ---@return boolean keep
@@ -2454,16 +2497,28 @@ function AnimalSystem:_checkSaleListing(animal, cache)
     local subType, entry, ctx = resolved.subType, resolved.entry, resolved.ctx
     if entry == nil or entry.status ~= RLDealerStockPolicy.COVERED then return true end
 
+    local purpose
+    local migrated = false
+
     if animal.sale.purpose ~= nil then
-        local purpose = RLDealerStockPolicy.findPurpose(entry, animal.gender, animal.sale.purpose)
+        purpose = RLDealerStockPolicy.findPurpose(entry, animal.gender, animal.sale.purpose)
         local ok, reasons = RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx, true)
-        return ok, reasons[1]
+        if not ok then return false, reasons[1] end
+    else
+        local reason
+        purpose, reason = RLDealerStockPolicy.classify(animal, entry, subType, ctx)
+        if purpose == nil then return false, reason end
+        animal.sale.purpose = purpose.id
+        migrated = true
     end
 
-    local purpose, reason = RLDealerStockPolicy.classify(animal, entry, subType, ctx)
-    if purpose == nil then return false, reason end
-    animal.sale.purpose = purpose.id
-    return true, "MIGRATED"
+    if animal.sale.source == nil then
+        -- The purpose qualified, so a source supplies it (NO_SOURCE otherwise).
+        animal.sale.source = RLDealerStockPolicy.getSources(entry, purpose, animal.gender)[1].id
+        migrated = true
+    end
+
+    return true, migrated and "MIGRATED" or nil
 end
 
 
