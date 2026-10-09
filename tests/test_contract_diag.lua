@@ -55,7 +55,9 @@ g_currentModDirectory = REPO
 string.contains = function(text, part) return text:find(part, 1, true) ~= nil end
 getTimeSec = os.clock
 g_server = { netIsRunning = false, broadcastEvent = function() end }
-g_messageCenter = { publish = function() end }
+-- MessageCenter:publish calls subscribers at once; a LivestockTrailer subscribes its updatedClusters
+-- (LivestockTrailer:onLoad), which redraws its slots before the flush returns.
+g_messageCenter = { publish = function(_, _, owner) if owner ~= nil and owner.updatedClusters ~= nil then owner:updatedClusters(owner) end end }
 AnimalClusterUpdateEvent = { new = function(owner, animals) return { owner = owner, count = #animals } end }
 removeHusbandryAnimal = function() end
 RLAnimalUtil = {
@@ -141,7 +143,7 @@ local function newSource(kind, farmId, animals)
         -- Engine stand-in for LivestockTrailer:updateAnimals: one used slot per animal.
         local place = { usedSlots = 0 }
         source.spec_livestockTrailer = { animalTypeIndexToPlaces = { [1] = place } }
-        function source:updatedClusters() place.usedSlots = #self.clusterSystem.animals end
+        function source:updatedClusters(trailer) if trailer == self then place.usedSlots = #self.clusterSystem.animals end end
     end
     function source:getName() return kind .. self.uniqueId end
     function source:getOwnerFarmId() return farmId end
@@ -150,7 +152,7 @@ local function newSource(kind, farmId, animals)
     source.clusterSystem = AnimalClusterSystem.new(true, source)
     for _, a in ipairs(animals) do source.clusterSystem:addPendingAddCluster(a) end
     source.clusterSystem:updateNow()
-    if source.updatedClusters ~= nil then source:updatedClusters() end
+    if source.updatedClusters ~= nil then source:updatedClusters(source) end
     return source
 end
 
@@ -358,10 +360,10 @@ do
     local trailer = newSource("TRAILER", 1, { bull })
     local code = runEvent(trailer, house, { bull })
     local request, result, scopes = only("CT_REQUEST"), only("CT_RESULT"), records("CT_SCOPE")
-    check("D07 trailer: COMMITTED, source kind TRAILER, used slots 1 before",
+    check("D07 trailer: COMMITTED, source kind TRAILER, used slots 1 before and 0 after (the flush's publish redraws them)",
         code == 0 and result.state == "COMMITTED" and request.source.kind == "TRAILER"
         and scopes[1].data.scope.source.kind == "TRAILER" and scopes[1].data.scope.source.visual == 1
-        and scopes[2].data.scope.source.count == 0)
+        and scopes[2].data.scope.source.count == 0 and scopes[2].data.scope.source.visual == 0)
 end
 
 -- D08: preview reads only ----------------------------------------------------------------------------
