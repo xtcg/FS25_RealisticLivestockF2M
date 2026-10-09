@@ -931,6 +931,23 @@ function AnimalMoveEvent:run(connection)
 
 		Log:debug("AnimalMoveEvent:run: all %d animals validated, starting transfer", validatedCount)
 
+		-- T02 (RLContractTrade): in TEST mode a contract slaughterhouse takes the batch as one
+		-- server transaction, whole or not at all, and never falls back to the path below;
+		-- SHADOW only logs what TEST would do. OFF (the default) leaves the old path alone.
+		if RLContractTrade ~= nil and RLContractTrade.getMode() ~= RLContractTrade.MODE_OFF
+			and AnimalMoveEvent._isWeighedContractTarget(self.targetObject, farmId) then
+			local request = { farmId = farmId, source = self.sourceObject, target = self.targetObject,
+				animals = self.animals, connection = connection }
+			if RLContractTrade.getMode() == RLContractTrade.MODE_TEST then
+				local record, reason = RLContractTrade.execute(request)
+				local errorCode = RLContractTrade.toMoveErrorCode(record, reason)
+				connection:sendEvent(AnimalMoveEvent.newServerToClient(errorCode))
+				if errorCode == AnimalMoveEvent.MOVE_SUCCESS then self:addMovedMessage() end
+				return
+			end
+			RLContractTrade.shadow(request)
+		end
+
 		local clusterSystemSource = self.sourceObject:getClusterSystem()
 		Log:trace("AnimalMoveEvent:run: got source cluster system: %s", tostring(clusterSystemSource))
 
@@ -1066,28 +1083,34 @@ function AnimalMoveEvent:run(connection)
 			return
 		end
 
-		if g_server ~= nil and not g_server.netIsRunning then return end
-
-		local husbandry, trailer
-
-		if self.moveType == "SOURCE" then
-			husbandry, trailer = self.sourceObject, self.targetObject
-		else
-			husbandry, trailer = self.targetObject, self.sourceObject
-		end
-
-		if husbandry.addRLMessage ~= nil then
-			if #self.animals == 1 then
-				husbandry:addRLMessage(string.format("MOVED_ANIMALS_%s_SINGLE", self.moveType), nil, { trailer:getName() })
-			elseif #self.animals > 0 then
-				husbandry:addRLMessage(string.format("MOVED_ANIMALS_%s_MULTIPLE", self.moveType), nil, { #self.animals, trailer:getName() })
-			end
-		end
+		self:addMovedMessage()
 
 		Log:debug("AnimalMoveEvent:run: complete")
 
 	end)
 
+end
+
+
+--- The pen's "animals moved" message after a successful move.
+function AnimalMoveEvent:addMovedMessage()
+	if g_server ~= nil and not g_server.netIsRunning then return end
+
+	local husbandry, trailer
+
+	if self.moveType == "SOURCE" then
+		husbandry, trailer = self.sourceObject, self.targetObject
+	else
+		husbandry, trailer = self.targetObject, self.sourceObject
+	end
+
+	if husbandry.addRLMessage ~= nil then
+		if #self.animals == 1 then
+			husbandry:addRLMessage(string.format("MOVED_ANIMALS_%s_SINGLE", self.moveType), nil, { trailer:getName() })
+		elseif #self.animals > 0 then
+			husbandry:addRLMessage(string.format("MOVED_ANIMALS_%s_MULTIPLE", self.moveType), nil, { #self.animals, trailer:getName() })
+		end
+	end
 end
 
 

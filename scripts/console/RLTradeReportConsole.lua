@@ -26,6 +26,60 @@ RLTradeReportConsole = {}
 
 RLTradeReportConsole.MAX_ANIMALS = 40
 
+-- Unlike the per-animal report, this includes the entire selection; never silently
+-- prepare only the first 40. SHADOW_OK means budget/capacity only, not trade permission.
+function RLTradeReportConsole:plan(facilityArg, animalArg, farmArg)
+    if facilityArg == nil or animalArg == nil then
+        return "rlTradePlan <facility number> <uniqueId|pen:NAME> [farmId]; read-only, shadow budget only"
+    end
+    local facilities = RLTradeReportConsole.getFacilities()
+    local target, name
+    local index = tonumber(facilityArg)
+    if index ~= nil then
+        local facility = facilities[index]
+        if facility ~= nil then target, name = facility.target, facility.name end
+    else
+        for _, facility in ipairs(facilities) do
+            if facility.name:lower():find(facilityArg:lower(), 1, true) ~= nil then
+                if target ~= nil then return "rlTradePlan: AMBIGUOUS facility name; use its number from rlTradeReport" end
+                target, name = facility.target, facility.name
+            end
+        end
+    end
+    if target == nil then return "rlTradePlan: facility not found; run rlTradeReport" end
+    local selected, penFilter = {}, nil
+    if animalArg:lower():sub(1, 4) == "pen:" then penFilter = animalArg:sub(5):lower() end
+    if penFilter == "" then return "rlTradePlan: pen name required" end
+    for _, pen in ipairs(g_currentMission.husbandrySystem ~= nil and g_currentMission.husbandrySystem.placeables or {}) do
+        local matches = penFilter ~= nil and pen:getName():lower():find(penFilter, 1, true) ~= nil
+        if penFilter == nil or matches then
+            for _, animal in ipairs(pen.getClusters ~= nil and pen:getClusters() or {}) do
+                if matches or tostring(animal.uniqueId) == animalArg then selected[#selected + 1] = animal end
+            end
+        end
+    end
+    if penFilter == nil and #selected > 1 then
+        return "rlTradePlan: AMBIGUOUS uniqueId; select a pen (identity includes herd and country)"
+    end
+    local farmId = tonumber(farmArg)
+    if farmArg ~= nil and farmId == nil then return "rlTradePlan: invalid farmId" end
+    if farmId == nil and g_currentMission.getFarmId ~= nil then farmId = g_currentMission:getFarmId() end
+    local ok, result, reason = pcall(RLContractPreview.prepare, selected, target, farmId)
+    if not ok then return "rlTradePlan: snapshot failed: " .. tostring(result) end
+    if result == nil then return "rlTradePlan: REFUSED " .. tostring(reason) end
+    print(string.format("== %s, farm %s: %d animals, SHADOW_OK (budget only)", name, tostring(farmId), #result.entries))
+    print(string.format("   fee %.2f; credit %.2f; cash %.2f; wallet %.2f -> %.2f",
+        result.fee, result.creditUse, result.cashDue, result.moneyBefore, result.moneyAfter))
+    local fillTypes = {}
+    for fillType in pairs(result.inputs) do fillTypes[#fillTypes + 1] = fillType end
+    table.sort(fillTypes)
+    for _, fillType in ipairs(fillTypes) do
+        local input = result.inputs[fillType]
+        print(string.format("   input %s: %.6f standard batches (not kg), room %.6f", tostring(fillType), input.amount, input.room))
+    end
+    return "rlTradePlan: shadow only; no authorization, reservation, delivery or charge"
+end
+
 
 local function out(text)
     print(text)
@@ -243,4 +297,71 @@ function RLTradeReportConsole:report(...)
         end
     end
     return "rlTradeReport: recipe figures are nominal, not output made or money paid"
+end
+
+
+--- rlTradeTxMode [OFF|SHADOW|TEST]: show or set the T02 contract delivery mode (server only, this run only).
+function RLTradeReportConsole:txMode(mode)
+    if not g_currentMission:getIsServer() then return "rlTradeTxMode: server only" end
+    if mode == nil then
+        return string.format("rlTradeTxMode: %s (OFF old path; SHADOW logs what TEST would do; TEST transactions, test saves only)",
+            RLContractTrade.getMode())
+    end
+    if not RLContractTrade.setMode(mode) then return "rlTradeTxMode: OFF, SHADOW or TEST" end
+    if RLContractTrade.getMode() == RLContractTrade.MODE_TEST then
+        return "rlTradeTxMode: TEST - contract deliveries run as transactions; records are not saved, use a test save"
+    end
+    return "rlTradeTxMode: " .. RLContractTrade.getMode()
+end
+
+
+--- rlTradeTxReport [txId]: this run's contract transactions. Reads only; never settles, unlocks or retries.
+function RLTradeReportConsole:txReport(txId)
+    if not g_currentMission:getIsServer() then return "rlTradeTxReport: server only (transactions run on the server)" end
+    local store = RLContractTrade.store
+    local ids = {}
+    for id in pairs(store.records) do
+        if txId == nil or id == txId then ids[#ids + 1] = id end
+    end
+    table.sort(ids, function(a, b) return store.records[a].sequence < store.records[b].sequence end)
+    if #ids == 0 then
+        return txId ~= nil and ("rlTradeTxReport: no transaction " .. txId) or
+            ("rlTradeTxReport: no transactions this run (mode " .. RLContractTrade.getMode() .. ")")
+    end
+    local held = 0
+    for _ in pairs(store.locks) do held = held + 1 end
+    for _, id in ipairs(ids) do
+        local record, receipt = store.records[id], RLContractTrade.receipts[id] or {}
+        out(string.format("== %s %s%s", id, record.state, record.reason ~= nil and (" (" .. record.reason .. ")") or ""))
+        out("   stages: " .. table.concat(record.history, " > "))
+        if receipt.keys ~= nil then
+            out(string.format("   farm %s, %d animal(s), %.6f standard batches (not kg), order %s; plan fee %.2f credit %.2f cash %.2f",
+                tostring(receipt.farmId), #receipt.keys, receipt.amount or 0, tostring(receipt.target and receipt.target.orderId),
+                receipt.plan.fee, receipt.plan.creditUse, receipt.plan.cashDue))
+        end
+        local t = receipt.target
+        if t ~= nil and t.before ~= nil and t.after ~= nil then
+            out(string.format("   target %s: accepted %s, buffered %s -> %s, credit %s -> %s, money %s -> %s%s%s",
+                tostring(t.stage), tostring(t.accepted), tostring(t.before.buffered), tostring(t.after.buffered),
+                tostring(t.before.feeCredit), tostring(t.after.feeCredit), tostring(t.moneyBefore), tostring(t.moneyAfter),
+                t.verifyError ~= nil and (" verify:" .. t.verifyError) or "", t.rollbackError ~= nil and (" rollback:" .. t.rollbackError) or ""))
+        end
+        local src = receipt.source
+        if t ~= nil and t.paymentStatus ~= nil then
+            local before, after, refund = t.financeBefore or {}, t.financeAfter or {}, t.financeRefund or {}
+            out(string.format("   payment %s, refund %s: productionCosts %s -> %s -> %s, finance version %s -> %s -> %s",
+                t.paymentStatus, tostring(t.refundStatus or "not attempted"), tostring(before.productionCosts),
+                tostring(after.productionCosts), tostring(refund.productionCosts), tostring(before.version),
+                tostring(after.version), tostring(refund.version)))
+        end
+        if src ~= nil then
+            out(string.format("   source %s %s: removed %d, restored %d%s%s", tostring(src.kind), tostring(src.stage),
+                #(src.removed or {}), #(src.restored or {}), src.error ~= nil and (" error:" .. src.error) or "",
+                src.rollbackError ~= nil and (" rollback:" .. src.rollbackError) or ""))
+        end
+        if record.state == "NEEDS_RECONCILIATION" then
+            out("   locks held: " .. table.concat(record.resources, ", "))
+        end
+    end
+    return string.format("rlTradeTxReport: %d transaction(s), %d lock(s) held, mode %s", #ids, held, RLContractTrade.getMode())
 end

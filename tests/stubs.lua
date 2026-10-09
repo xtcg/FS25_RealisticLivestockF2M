@@ -59,7 +59,7 @@ end
 function loadXMLFileFromDisk(path)
     local handle = io.open(path, "r")
     if handle == nil then return nil end
-    local text = handle:read("a"):gsub("<!%-%-.-%-%->", ""):gsub("<%?.-%?>", "")
+    local text = handle:read("*a"):gsub("<!%-%-.-%-%->", ""):gsub("<%?.-%?>", "")
     handle:close()
 
     local nodes, counts, stack = {}, {}, {}
@@ -117,7 +117,7 @@ end
 -- `continue`, which stock Lua cannot parse. Animal is created if missing.
 function loadAnimalSection(first, last)
     local handle = assert(io.open(REPO .. "scripts/animal/RealisticLivestock_Animal.lua", "r"))
-    local text = handle:read("a")
+    local text = handle:read("*a")
     handle:close()
     local from = assert(text:find(first, 1, true), first)
     from = text:sub(1, from):match(".*()\n") or 1
