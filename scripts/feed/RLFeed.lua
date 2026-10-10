@@ -60,6 +60,51 @@ RLFeed.GAIN_TAU_MONTHS = 0.5
 
 
 -- =============================================================================
+-- Observers (TestDiagnostics)
+-- =============================================================================
+
+local observers = {}
+
+--- Register a function called with (kind, data) at each point of the mode's run, read-only:
+--- PEN_HOUR (a pen's feeding starts: active, reason, config), STEP (a step's plan, what the trough
+--- lost and each animal's share, budget and weight/health before and after), HOUR (the pen's hour
+--- put together), MILK (what a store was paid, asked and took). An observer that fails is logged
+--- and never stops the game. Nothing is built for observers while none is registered.
+function RLFeed.addObserver(fn)
+    if type(fn) ~= "function" then return false end
+    for _, existing in ipairs(observers) do if existing == fn then return true end end
+    table.insert(observers, fn)
+    return true
+end
+
+
+function RLFeed.removeObserver(fn)
+    for i, existing in ipairs(observers) do
+        if existing == fn then table.remove(observers, i) return true end
+    end
+    return false
+end
+
+
+function RLFeed.hasObservers()
+    return #observers > 0
+end
+
+
+local observerErrors = 0
+
+function RLFeed.notify(kind, data)
+    for _, fn in ipairs(observers) do
+        local ok, err = pcall(fn, kind, data)
+        if not ok then
+            observerErrors = observerErrors + 1
+            if observerErrors <= 5 then Log:warning("RLFeed: an observer failed on %s: %s (game unaffected)", tostring(kind), tostring(err)) end
+        end
+    end
+end
+
+
+-- =============================================================================
 -- Mode
 -- =============================================================================
 
@@ -495,6 +540,13 @@ function RLFeed.beginFeeding(placeable)
     local active, reason = RLFeed.evaluatePen(placeable)
     spec.rlFeedPen = { tick = tick, active = active, reason = reason }
     spec.rlFeedWindow = active and { tick = tick } or nil
+    if #observers > 0 then
+        local config = RLFeed.getConfig()
+        local environment = g_currentMission.environment
+        RLFeed.notify("PEN_HOUR", { placeable = placeable, tick = tick, active = active, reason = reason, hash = config.hash,
+            scale = config.resourceScale, stepDays = config.stepDays, realDaysPerPeriod = config.realDaysPerPeriod,
+            daysPerPeriod = environment.daysPerPeriod, pendingDays = spec.rlFeedClock ~= nil and spec.rlFeedClock.pendingDays or 0 })
+    end
     return active
 end
 
@@ -590,7 +642,7 @@ function RLFeed.runStep(placeable, window, stepDays)
     hour.unconfigured = unconfigured
 
     -- Take it from the trough (and meadow) now; a feed the trough gave less of is shared as given.
-    local indices, ratio = {}, {}
+    local indices, ratio, removedLiters = {}, {}, {}
     for _, list in ipairs({ forage, concentrate, milk }) do
         for _, entry in ipairs(list) do indices[entry.name] = entry.index end
     end
@@ -598,9 +650,12 @@ function RLFeed.runStep(placeable, window, stepDays)
         local index = indices[name]
         if index ~= nil and liters > 0 then
             local removed = placeable:removeFood(liters, index) or 0
+            removedLiters[name] = removed
             ratio[name] = math.clamp(removed / liters, 0, 1)
         end
     end
+    local observed = #observers > 0 and { placeable = placeable, tick = tick, stepDays = stepDays, scale = config.resourceScale,
+        withdraw = plan.withdraw, removed = removedLiters, animals = {} } or nil
 
     local water = spec.rlWaterCoverage
     local waterCoverage = (water ~= nil and water.tick ~= nil and tick - water.tick <= 1) and water.coverage or 1
@@ -617,7 +672,13 @@ function RLFeed.runStep(placeable, window, stepDays)
             plannedMe = a.plannedMe, class = a.class, target = a.target, concShare = a.cEaten, concLimit = a.concLimit,
             intakeLimit = a.intakeLimit, proteinFactor = RLFeedMath.getProteinFactor(a.cp, a.proteinNeed, protein.maintenance),
             proteinNeed = a.proteinNeed, dtDays = stepDays, water = waterCoverage }
+        local before = observed ~= nil and { weight = animal.weight, health = animal.health, healthCarry = animal.rlHealthCarry or 0 } or nil
         RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
+        if observed ~= nil then
+            table.insert(observed.animals, { animal = animal, feed = feed, result = feed.result, weightBefore = before.weight,
+                weightAfter = animal.weight, healthBefore = before.health, healthAfter = animal.health,
+                healthCarryBefore = before.healthCarry, healthCarryAfter = animal.rlHealthCarry or 0 })
+        end
         animal.rlFeedPlanLiters = a.litersPerPeriod
         for name, liters in pairs(a.plannedByFill or {}) do hour.plannedPerMonth[name] = (hour.plannedPerMonth[name] or 0) + liters end
         for name, fill in pairs(a.byFill) do
@@ -630,7 +691,7 @@ function RLFeed.runStep(placeable, window, stepDays)
         local limit = a.concLimit or a.intakeLimit
         if limit ~= nil then hour.limits[limit] = (hour.limits[limit] or 0) + 1 end
     end
-    if RLFeed.observe ~= nil then RLFeed.observe("STEP", { placeable = placeable, tick = tick, plan = plan, ratio = ratio, stepDays = stepDays }) end
+    if observed ~= nil then RLFeed.notify("STEP", observed) end
 end
 
 
@@ -706,7 +767,7 @@ function RLFeed.endFeeding(placeable)
     if supply ~= nil and supply.tick == tick and hour.steps > 0 then supply.energyShare = { ME = math.clamp(hour.coverage, 0, 1) } end
     if hour.steps > 0 then spec.rlFeedLast = hour end
     RLFeed.addToMonth(placeable, hour)
-    if RLFeed.observe ~= nil then RLFeed.observe("HOUR", { placeable = placeable, tick = tick, hour = hour }) end
+    if #observers > 0 then RLFeed.notify("HOUR", { placeable = placeable, tick = tick, hour = hour }) end
 end
 
 

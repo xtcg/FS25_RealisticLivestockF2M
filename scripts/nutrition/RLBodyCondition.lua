@@ -718,7 +718,7 @@ end
 --- @param litersPerHour table fillType -> liters per hour (the spec's)
 --- @param contributions table|nil array of {animal, fillType, liters}
 --- @param superFunc function The rest of the updateOutput chain
---- @param deposit function(fillType, liters) Puts liters into the store
+--- @param deposit function(fillType, liters) Puts liters into the store; returns what it took
 function RLBodyCondition.depositMilk(placeable, litersPerHour, contributions, superFunc, deposit)
     local tick = RLBodyCondition.getTickId()
     if contributions == nil or #contributions == 0 or tick == nil then
@@ -763,9 +763,16 @@ function RLBodyCondition.depositMilk(placeable, litersPerHour, contributions, su
     end
 
     local timeAdjustment = g_currentMission.environment.timeAdjustment
+    local deposits = RLFeed ~= nil and RLFeed.hasObservers() and {} or nil
     for fillType, liters in pairs(paid) do
-        if saved[fillType] ~= nil and liters > 0 and nonFeed > 0 then deposit(fillType, liters * nonFeed * timeAdjustment) end
+        if saved[fillType] ~= nil and liters > 0 and nonFeed > 0 then
+            local requested = liters * nonFeed * timeAdjustment
+            local added = deposit(fillType, requested)
+            if deposits ~= nil then deposits[fillType] = { paid = liters * timeAdjustment, requested = requested, added = added } end
+        end
     end
+    -- Observers (TestDiagnostics): what each store was paid, asked and took this hour.
+    if deposits ~= nil then RLFeed.notify("MILK", { placeable = placeable, tick = tick, nonFeed = nonFeed, deposits = deposits }) end
 end
 
 

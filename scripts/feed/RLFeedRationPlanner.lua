@@ -384,6 +384,7 @@ function RLFeedRationPlanner.plan(request)
                         fill.liters = fill.liters + RLFeedUnits.kgToLiters(got, scale, entry.profile.density, entry.profile.dm)
                         fill.me = fill.me + got * entry.profile.me * factor
                         fill.cpKg = fill.cpKg + got * entry.profile.cp
+                        fill.factor = factor
                         a.byFill[entry.name] = fill
                     end
                 end

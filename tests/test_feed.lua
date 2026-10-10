@@ -882,4 +882,35 @@ do
     check("steps: a pen's model clock is saved and loaded", within(copy.spec_husbandryFood.rlFeedClock.pendingDays, 0.123, 1e-6))
 end
 
+
+-- FEED-09: observers ------------------------------------------------------------------------------------
+
+do
+    local seen, steps = {}, {}
+    local observer = function(kind, data)
+        seen[kind] = (seen[kind] or 0) + 1
+        if kind == "STEP" then steps[#steps + 1] = data end
+    end
+    local broken = function() error("observer bug") end
+    check("observers: none registered by default (nothing is built for them)", not RLFeed.hasObservers())
+    RLFeed.addObserver(observer)
+    RLFeed.addObserver(broken)
+    local bull = GrowthSim.makeAnimal("BULL_ANGUS", { age = 12 })
+    local pen = FeedSim.makePen({ bull }, {})
+    local logged = #LOG
+    FeedSim.months(pen, 1, { refill = FeedSim.keepStocked({ DRYGRASS_WINDROW = 1e6, MAIZE = 1e5 }) })
+    local warned = 0
+    for i = #LOG, logged + 1, -1 do if LOG[i]:find("an observer failed", 1, true) then warned = warned + 1; table.remove(LOG, i) end end
+    RLFeed.removeObserver(observer)
+    RLFeed.removeObserver(broken)
+    local step = steps[1]
+    local shared = 0
+    for _, entry in ipairs(step.animals) do shared = shared + (entry.feed.byFill.DRYGRASS_WINDROW or { liters = 0 }).liters end
+    check("observers: PEN_HOUR, STEP and HOUR reach an observer each hour and step; one that fails is logged, feeding goes on",
+        seen.PEN_HOUR == 24 and seen.HOUR == 24 and seen.STEP == 120 and warned >= 1 and warned <= 5 and bull.age == 13
+        and bull.rlFeedIntake ~= nil and not RLFeed.hasObservers())
+    check("observers: a STEP carries what the trough lost and each animal's share of it (they agree)",
+        within(shared, step.removed.DRYGRASS_WINDROW, 1e-9) and step.animals[1].result ~= nil and step.scale == config.resourceScale)
+end
+
 FeedSim.setMode(false)
