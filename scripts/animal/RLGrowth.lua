@@ -21,7 +21,7 @@
     the slaughter reference (target x maturity), the finishing reserve curve and the finish
     verdict are calibrated on it, and the design's arrival points sit on it (a Charolais pack bull
     is finished at 1050 x 0.75 = 787.5 kg, its curve passing 790 kg at 20 months, while it grows
-    on to 1260 kg). For this mod's breeds the two are the same.
+    on to 1260 kg). For this mod's breeds the two are the same at average genes.
 
     Metabolism gene m (0.25..1.75), z = clamp((m - 1) / geneSpan, -1, 1), acts three ways, each
     bounded: adult size 1 + sizeGeneEffect x z, development speed 1 + speedGeneEffect x z,
@@ -50,7 +50,8 @@
     underweight check would jump on load. Its legacy anchor (new curve / old line at its age when
     it was taken over) keeps all three exactly where the old rules had them, and fades out over
     migrationBlendMonths, after which it is measured against its curve like any other. Its food
-    request's gene factor moves from the old one (m) to the new one the same way.
+    request's gene factor (m to 1 + 0.15 z), its target weight (the old 1 + 0.4 (m - 1) to the size
+    gene) and its underweight threshold (the old minWeight rule to the curve's) move the same way.
 ]]
 
 RLGrowth = {}
@@ -313,24 +314,33 @@ end
 --- @param metabolism number|nil
 --- @return number kg
 function RLGrowth.getLegacyTarget(subType, metabolism)
-    local target = subType.targetWeight or 0
-    return target + ((target * (metabolism or 1)) - target) / 2.5
+    return RLBreedTraits.getGeneTarget(subType.targetWeight, metabolism)
 end
 
 
---- The old full-feed line of an animal of these genes at `age` (with its old-rule target).
+--- Whether the subtype had an old full-feed line at all: a mature age and a target above its
+--- minWeight (otherwise the old line is a constant and nothing was calibrated on it).
+function RLGrowth.hasLegacyLine(subType, metabolism)
+    return RLBreedTraits.getMatureAge(subType) > 0 and RLGrowth.getLegacyTarget(subType, metabolism) > (subType.minWeight or 0)
+end
+
+
+--- The old full-feed line of an animal of these genes at `age` (with its old-rule target); nil
+--- for a subtype without one.
 function RLGrowth.getLegacyLine(subType, gender, metabolism, age)
+    if not RLGrowth.hasLegacyLine(subType, metabolism) then return nil end
     return RLBreedTraits.getGrownWeight(subType, gender, RLGrowth.getLegacyTarget(subType, metabolism), age, metabolism)
 end
 
 
 --- The old body factor of an animal on the old full-feed line at `age`: (line / expected)
---- before the exponent. 1 for a subtype without a growth line (no mature age).
+--- before the exponent. 1 for a subtype without a growth line.
 local function getLegacyBodyRatio(subType, gender, metabolism, age)
-    if RLBreedTraits.getMatureAge(subType) <= 0 then return 1 end
+    local line = RLGrowth.getLegacyLine(subType, gender, metabolism, age)
+    if line == nil then return 1 end
     local expected = RLBreedTraits.getExpectedWeight(subType, RLGrowth.getLegacyTarget(subType, metabolism), age)
     if expected <= 0 then return 1 end
-    return RLGrowth.getLegacyLine(subType, gender, metabolism, age) / expected
+    return line / expected
 end
 
 
@@ -344,7 +354,7 @@ function RLGrowth.getLegacyAnchor(animal, curve)
     local age = math.max(animal.age or 0, 0)
     local line = RLGrowth.getLegacyLine(animal:getSubType(), animal.gender, animal.genetics.metabolism, age)
     local reference = curve:value(age)
-    if line <= 0 or reference <= 0 then return 1 end
+    if line == nil or line <= 0 or reference <= 0 then return 1 end
     return math.clamp(reference / line, RLGrowth.ANCHOR_MIN, RLGrowth.ANCHOR_MAX)
 end
 
@@ -439,7 +449,7 @@ function RLGrowth.deriveState(animal, source)
     local reserve = animal.bodyCondition ~= nil and animal.bodyCondition.reserve or bc.initialReserve
     local frameTarget = RLGrowth.getFrameTarget(animal, binding)
     local birth = RLGrowth.getBirthWeight(animal, binding)
-    local curve = RLGrowth.buildCurve(binding, frameTarget, birth)
+    local curve = RLGrowth.getCurve(animal)
     local frame, reserveKg = RLGrowthMath.split(math.max(animal.weight or 0, 0), reserve, kappa)
     source = source or "derived"
 
@@ -556,19 +566,31 @@ function RLGrowth.getTargetWeight(subType, genetics)
 end
 
 
+--- The target weight a covered animal has now: the model's (getTargetWeight); an animal not yet
+--- taken over from the old rules (no state) keeps the old rules' (subtype target moved by
+--- 0.4 x (m - 1)), and one taken over moves from that to the model's as its legacy anchor fades,
+--- so the slaughter reference, finishing and the slaughter-value floor do not jump on load.
+--- @param animal table A covered animal
+--- @return number kg
+function RLGrowth.getAnimalTargetWeight(animal)
+    local subType = animal:getSubType()
+    local target = RLGrowth.getTargetWeight(subType, animal.genetics) or 0
+    local legacy = RLGrowth.getLegacyTarget(subType, animal.genetics.metabolism)
+    local state = animal.rlGrowth
+    if state == nil then return legacy end
+    local remaining = RLGrowth.getAnchorRemaining(animal, state)
+    if remaining <= 0 or target <= 0 or legacy <= 0 then return target end
+    return target * (legacy / target) ^ remaining
+end
+
+
 --- Weight of an animal that appears with none of its own (dealer stock, a new game's herds, a
 --- converted cluster): its curve at its age (mean birth weight x its birth gene), at the neutral
 --- reserve. Deterministic: it draws no random number.
---- @param subType table
---- @param genetics table
---- @param age number|nil Months
+--- @param animal table A covered animal without a state
 --- @return number kg
-function RLGrowth.getNewAnimalWeight(subType, genetics, age)
-    local binding = RLGrowth.getBinding(subType)
-    local size, _, _, birth = RLGrowth.getGeneFactors(genetics.metabolism)
-    local adult = RLGrowth.getAdultReference(binding)
-    local curve = RLGrowth.buildCurve(binding, adult * size, RLGrowth.getBirthMean(binding) * birth)
-    return curve:value(math.max(age or 0, 0))
+function RLGrowth.getNewAnimalWeight(animal)
+    return RLGrowth.getCurve(animal):value(math.max(animal.age or 0, 0))
 end
 
 
@@ -793,19 +815,40 @@ end
 function RLGrowth.getPriceWeight(animal, subType)
     local age = math.max(animal.age or 0, 0)
     local metabolism = animal.genetics.metabolism
+    local legacyTarget = RLGrowth.getLegacyTarget(subType, metabolism)
     local line = RLBreedTraits.getPriceLineWeight(subType, age) or RLGrowth.getLegacyLine(subType, animal.gender, metabolism, age)
-    return RLGrowth.getShare(animal) * line, RLGrowth.getLegacyTarget(subType, metabolism)
+    -- No line the price was calibrated on: the old price read the weight itself.
+    if line == nil then return animal.weight, legacyTarget end
+    return RLGrowth.getShare(animal) * line, legacyTarget
 end
 
 
---- Below this weight an animal loses health: underweightRatio of its curve at its age (an
---- animal still on a legacy anchor: of the old line there, fading into its curve).
+--- The old rules' underweight threshold: minWeight x (min(age, 1.5 x reproduction age) + 0.5) / 2.
+--- @param subType table
+--- @param age number
+--- @return number kg
+function RLGrowth.getLegacyUnderweight(subType, age)
+    return (subType.minWeight or 0) * (math.min(age or 0, (subType.reproductionMinAgeMonth or 0) * 1.5) + 0.5) * 0.5
+end
+
+
+--- Below this weight an animal loses health: underweightRatio of its curve at its age. Growth
+--- that fell behind does not catch up, so the ratio leaves room for a slow or once-underfed animal
+--- and only a badly stunted one loses health. An old savegame's animal starts at the old rules'
+--- threshold and moves to this one as its legacy anchor fades.
 --- @param animal table A covered animal
 --- @return number kg
 function RLGrowth.getUnderweightThreshold(animal)
-    local share = RLGrowth.getShare(animal)
-    if share <= 0 or (animal.weight or 0) <= 0 then return 0 end
-    return RLGrowth.getSettings().underweightRatio * animal.weight / share
+    local curve = RLGrowth.getCurve(animal)
+    if curve == nil then return 0 end
+    local age = math.max(animal.age or 0, 0)
+    local threshold = RLGrowth.getSettings().underweightRatio * curve:value(age)
+    local state = RLGrowth.peekState(animal)
+    local remaining = state.legacyAnchor ~= nil and RLGrowth.getAnchorRemaining(animal, state) or 0
+    if remaining <= 0 then return threshold end
+    local legacy = RLGrowth.getLegacyUnderweight(animal:getSubType(), age)
+    if legacy <= 0 or threshold <= 0 then return threshold end
+    return threshold * (legacy / threshold) ^ remaining
 end
 
 
@@ -924,7 +967,8 @@ local lastNoLedger = {}
 --- weight rule. An animal that took this hour's step already (moved in the same hour) is done.
 --- @param animal table
 --- @param foodFactor number The pen's (or the rearing pen's own) food factor
---- @return boolean handled False: not covered, the caller runs the old rules
+--- @return boolean handled False: not covered or no game hour to count it in; the caller runs
+---         the old rules
 function RLGrowth.step(animal, foodFactor)
     if animal == nil or animal.isDead or not RLGrowth.covers(animal) then return false end
     local tick = RLBodyCondition.getTickId()
@@ -957,6 +1001,7 @@ function RLGrowth.step(animal, foodFactor)
     state.speedFactor = relax(state.speedFactor, RLGrowth.getStageSpeed(animal), dtMonths)
     state.intakeFactor = relax(state.intakeFactor, RLBodyCondition.getIntakeCapacity(animal), dtMonths)
     RLGrowth.advanceClock(state, animal.age or 0, dtMonths)
+    if state.legacyAnchor ~= nil then animal.targetWeight = RLGrowth.getAnimalTargetWeight(animal) end
 
     local input, ownReference = RLGrowth.buildStepInput(animal, state, intakeStep / dtMonths, milkShare, dtMonths)
     local result = RLGrowthMath.step(input, RLBodyCondition.getConfig())

@@ -55,6 +55,8 @@ function RLBodyConditionStateEvent:writeStream(streamId, connection)
     streamWriteFloat32(streamId, summary.eatenShare)
     streamWriteFloat32(streamId, summary.energy)
     streamWriteFloat32(streamId, summary.water)
+    -- The hour the animals below took their step (their nutrition's hour on the client).
+    streamWriteInt32(streamId, self.tick or -1)
 
     local animals = {}
     for _, animal in ipairs(self.object:getClusters()) do
@@ -86,6 +88,7 @@ function RLBodyConditionStateEvent:readStream(streamId, connection)
         energy = streamReadFloat32(streamId),
         water = streamReadFloat32(streamId),
     }
+    self.tick = streamReadInt32(streamId)
 
     self.entries = {}
     local count = streamReadUInt16(streamId)
@@ -122,8 +125,12 @@ function RLBodyConditionStateEvent:run(connection)
         if animal ~= nil and entry.state ~= nil then
             animal.weight = entry.weight
             animal.bodyCondition = entry.state
-            if entry.growth ~= nil then animal.rlGrowth = entry.growth end
-            animal.rlNutrition = { tick = entry.state.lastTick, coverage = entry.coverage, intakeRatio = entry.intakeRatio,
+            if entry.growth ~= nil then
+                animal.rlGrowth = entry.growth
+                -- Its target weight follows its state (an old savegame's moves to the model's).
+                if RLGrowth.covers(animal) then animal.targetWeight = RLGrowth.getAnimalTargetWeight(animal) end
+            end
+            animal.rlNutrition = { tick = self.tick, coverage = entry.coverage, intakeRatio = entry.intakeRatio,
                 milkShare = entry.milkShare }
         end
     end

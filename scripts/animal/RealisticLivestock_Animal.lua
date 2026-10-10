@@ -186,29 +186,25 @@ function Animal.new(config)
     end
 
 
-    -- Weight model v2 (RLGrowth): the target weight is the subtype's x the size gene (what the
-    -- slaughter reference and finishing read), and an animal with no weight of its own gets its
-    -- curve's at its age. Otherwise the old rules.
-    local growthTarget = RLGrowth.getTargetWeight(subType, self.genetics)
+    -- Weight model v2 state: own copy, never a table shared with another animal.
+    self.rlGrowth = RLGrowth.copyState(cfg.growth)
+
+    -- Under the weight model v2 (RLGrowth) an animal with no weight of its own gets its curve's at
+    -- its age, and its target weight (what the slaughter reference and finishing read) is set
+    -- once its state is known, below. Otherwise the old rules.
+    self.targetWeight = RLBreedTraits.getGeneTarget(targetWeight, self.genetics.metabolism)
+    local growthCovered = RLGrowth.getTargetWeight(subType, self.genetics) ~= nil
     local weightFromCurve = false
-    if growthTarget ~= nil then
-        self.targetWeight = growthTarget
-    else
-        self.targetWeight = targetWeight + (((targetWeight * self.genetics.metabolism) - targetWeight) / 2.5)
-    end
 
     if self.weight == nil then
-        if growthTarget ~= nil then
-            self.weight = RLGrowth.getNewAnimalWeight(subType, self.genetics, self.age)
+        if growthCovered then
+            self.weight = RLGrowth.getNewAnimalWeight(self)
             weightFromCurve = true
         else
             self.weight = RLBreedTraits.getNewAnimalWeight(subType, self.gender, self.targetWeight, self.age,
                 self.genetics.metabolism)
         end
     end
-
-    -- Weight model v2 state: own copy, never a table shared with another animal.
-    self.rlGrowth = RLGrowth.copyState(cfg.growth)
 
     local farmId = cfg.farmId
     self.farmId = farmId or nil
@@ -321,8 +317,12 @@ function Animal.new(config)
     -- Body condition (RLBodyCondition): own copy, never a table shared with another animal.
     self.bodyCondition = RLBodyCondition.copyState(cfg.bodyCondition)
 
-    -- An animal whose weight its curve just gave starts on its curve (no old rules to take over).
-    if weightFromCurve and self.rlGrowth == nil then self.rlGrowth = RLGrowth.createGeneratedState(self) end
+    -- An animal whose weight its curve just gave starts on its curve (no old rules to take over);
+    -- its target weight follows its state (RLGrowth.getAnimalTargetWeight).
+    if growthCovered then
+        if weightFromCurve and self.rlGrowth == nil then self.rlGrowth = RLGrowth.createGeneratedState(self) end
+        self.targetWeight = RLGrowth.getAnimalTargetWeight(self)
+    end
 
     self:updateInput()
     self:updateOutput(g_currentMission.environment.weather.temperatureUpdater.currentMin or 20)
@@ -1608,7 +1608,7 @@ function Animal:getSellPrice()
         end
         matureAge = priceMatureAge
         baseTarget = priceTarget
-        ownTarget = priceTarget + (((priceTarget * self.genetics.metabolism) - priceTarget) / 2.5)
+        ownTarget = RLBreedTraits.getGeneTarget(priceTarget, self.genetics.metabolism)
     end
 
     local targetWeightForAge = ((ownTarget - subType.minWeight) / matureAge) *

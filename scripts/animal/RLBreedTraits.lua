@@ -390,6 +390,18 @@ function RLBreedTraits.getNewAnimalWeight(subType, gender, targetWeight, age, me
 end
 
 
+--- An individual target weight under the old rules: a target moved by 0.4 x (metabolism - 1),
+--- target + (target x metabolism - target) / 2.5. The live price, the feed request and the
+--- old full-feed line were calibrated on it.
+--- @param target number kg
+--- @param metabolism number|nil
+--- @return number kg
+function RLBreedTraits.getGeneTarget(target, metabolism)
+    target = target or 0
+    return target + ((target * (metabolism or 1)) - target) / 2.5
+end
+
+
 --- The reference line live prices measure weight against: target weight and mature age (months)
 --- from priceTargetWeight / priceMatureAgeMonth; nil for a subtype that sets neither, whose price
 --- then uses its own target weight and mature age.

@@ -868,36 +868,21 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
         local genetics = child.genetics
         local childSubType = child:getSubType()
-        local weight, sizeRatio
+        local weightChance = math.random() * genetics.metabolism
+        local minWeight = childSubType.minWeight
+        local weight = minWeight + 0.5
 
-        if RLGrowth.coversSubType(childSubType) then
-            -- Weight model v2: drawn around this birth's mean (breed and sex, a cross, litter size,
-            -- first calving, the dam's reserve, the calf's gene), normal with birthWeightCV,
-            -- truncated. The survival roll reads the draw against that mean as the old roll read
-            -- its draw against minWeight, so the survival rule is unchanged.
-            local z, mean
-            weight, z, mean = RLGrowth.drawBirthWeight(childSubType, {
-                damBreed = animal.breed, sireBreed = sireBreed, litterSize = litterSize, firstBirth = firstBirth,
-                dam = animal, metabolism = genetics.metabolism,
-            })
-            sizeRatio = mean > 0 and weight / mean or 1
-            Log:trace("  child %d birth weight %.2f kg (mean %.2f, z %.2f)", i, weight, mean, z)
+        if weightChance < 0.05 then
+            weight = weight * (math.random(70, 90) / 100)
+        elseif weightChance <= 0.95 then
+            weight = weight * (math.random(90, 110) / 100)
         else
-            local weightChance = math.random() * genetics.metabolism
-            local minWeight = childSubType.minWeight
-            weight = minWeight + 0.5
-
-            if weightChance < 0.05 then
-                weight = weight * (math.random(70, 90) / 100)
-            elseif weightChance <= 0.95 then
-                weight = weight * (math.random(90, 110) / 100)
-            else
-                weight = weight * (math.random(110, 130) / 100)
-            end
-            sizeRatio = weight / minWeight
+            weight = weight * (math.random(110, 130) / 100)
         end
 
-        if animal.deathEnabled and math.random() >= genetics.health * sizeRatio * 1.15 then
+        -- The survival roll keeps its old rule exactly (the weight model v2 leaves birth survival
+        -- alone); under v2 the weight a calf is born with is drawn after it, below.
+        if animal.deathEnabled and math.random() >= genetics.health * (weight / minWeight) * 1.15 then
 
             childNum = childNum - 1
             animalsToSell = animalsToSell - 1
@@ -907,16 +892,27 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
             child.isDead = true
 
-            Log:trace("  child %d died at birth (weight=%.1f size=%.3f)", i, weight, sizeRatio)
+            Log:trace("  child %d died at birth (weight=%.1f minWeight=%.1f)", i, weight, minWeight)
 
             continue
 
         end
 
+        -- Weight model v2: the calf's weight is drawn around this birth's mean (breed and sex, a
+        -- cross, litter size, first calving, the dam's reserve, the calf's gene), normal with
+        -- birthWeightCV, truncated, and its state set up from it.
+        if RLGrowth.coversSubType(childSubType) then
+            local z, mean
+            weight, z, mean = RLGrowth.drawBirthWeight(childSubType, {
+                damBreed = animal.breed, sireBreed = sireBreed, litterSize = litterSize, firstBirth = firstBirth,
+                dam = animal, metabolism = genetics.metabolism,
+            })
+            Log:trace("  child %d birth weight %.2f kg (mean %.2f, z %.2f)", i, weight, mean, z)
+            RLGrowth.initBirth(child, weight)
+        end
+
         child.weight = weight
         child.age = 0
-        -- Weight model v2: the newborn's state (birth weight, adult weight from its own genes).
-        if RLGrowth.coversSubType(childSubType) then RLGrowth.initBirth(child, weight) end
 
         child:setBirthday({["day"] = day, ["month"] = month, ["year"] = year, ["country"] = country, ["lastAgeMonth"] = month})
 

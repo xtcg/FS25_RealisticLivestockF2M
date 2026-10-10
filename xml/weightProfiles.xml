@@ -33,8 +33,10 @@
             profile profile's curve and keep their own name and identity.
     typeBinding    An animal type outside COW put on a profile's curve as a stand-in, where the
                    game holds its animals as individuals: Hof Bergmann's MILKCOW (its subtype has
-                   no weights and does not reproduce) on the Holstein female curve. Its milk and
-                   price keep their own rules; enabled="false" leaves the type out. Where the type
+                   no weights and does not reproduce) on the Holstein female curve. Its milk store
+                   keeps its own rule (its budget reads the milk, nothing more); its price is the
+                   same share-of-curve rule as other cattle, starting at its old price when taken
+                   over; enabled="false" leaves the type out. Where the type
                    exists only as vanilla clusters the binding does nothing (the report says so).
 
     A breed that is neither a profile nor an alias is reported UNRESOLVED and keeps the old rules:
@@ -56,7 +58,9 @@
     birthFadeMonths   The animal's own birth weight fades into the reference curve by this age.
     castratedSpeed    A steer develops at this speed of a bull's (no step: the change takes
     transitionMonths  about this long, as does a change of intake capacity at calving or drying).
-    underweightRatio  Below this share of its curve at its age an animal loses health.
+    underweightRatio  Below this share of its curve at its age an animal loses health. Growth that
+                      fell behind does not catch up, so it leaves room for slow forage routes and an
+                      animal underfed once (0.6: a calf starved three months is at about 0.7).
     frameFloorRatio   Numerical floor: the frame is never broken down below this share of the
                       frame at birth. It is no part of the birth calibration.
     migrationBlendMonths  An old savegame's animal grew on the old line: its price, food request
@@ -78,7 +82,7 @@
     firstBirthFactor="0.93" litter2="0.85" litter3="0.75" litter4="0.70"
     damReserveEffect="0.25" damFactorMin="0.90" damFactorMax="1.03"
     geneSpan="0.75" sizeGeneEffect="0.12" speedGeneEffect="0.10" maintenanceGeneEffect="0.15"
-    birthFadeMonths="6" castratedSpeed="0.90" transitionMonths="0.5" underweightRatio="0.70"
+    birthFadeMonths="6" castratedSpeed="0.90" transitionMonths="0.5" underweightRatio="0.60"
     frameFloorRatio="0.5" migrationBlendMonths="12">
 
     <!-- This mod's breeds. Birth weight = birth ratio x the cow's targetWeight (Holstein 0.0618,

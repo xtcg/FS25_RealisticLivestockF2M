@@ -40,7 +40,7 @@ RLWeightProfiles.DEFAULTS = {
     firstBirthFactor = 0.93, litter2 = 0.85, litter3 = 0.75, litter4 = 0.70,
     damReserveEffect = 0.25, damFactorMin = 0.90, damFactorMax = 1.03,
     geneSpan = 0.75, sizeGeneEffect = 0.12, speedGeneEffect = 0.10, maintenanceGeneEffect = 0.15,
-    birthFadeMonths = 6, castratedSpeed = 0.90, transitionMonths = 0.5, underweightRatio = 0.70,
+    birthFadeMonths = 6, castratedSpeed = 0.90, transitionMonths = 0.5, underweightRatio = 0.60,
     frameFloorRatio = 0.5, migrationBlendMonths = 12,
 }
 

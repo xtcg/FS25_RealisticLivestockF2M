@@ -449,6 +449,31 @@ do
     local born = GrowthSim.newborn("BULL_HIGHLAND_CATTLE")
     check("migration: a newborn or a dealer's animal has no anchor", born.rlGrowth.legacyAnchor == nil
         and GrowthSim.makeAnimal("BULL_HIGHLAND_CATTLE", { age = 24 }).rlGrowth.legacyAnchor == nil)
+
+    -- Target weight: a high-metabolism bull's old target (x1.24) is what the slaughter reference,
+    -- finishing and the slaughter-value floor read on load; it moves to the size gene's (x1.096).
+    local genes = { metabolism = 1.6, quality = 1, productivity = 1, fertility = 1, health = 1 }
+    local _, angus = Economics.find("BULL_ANGUS")
+    local oldBull = GrowthSim.makeAnimal("BULL_ANGUS", { age = 20, weight = G.getLegacyLine(angus, "male", 1.6, 20), genetics = genes })
+    local loadTarget = oldBull.targetWeight
+    local loadReference = AnimalMoveEvent.getCarcassReferenceWeight(oldBull, nil, oldBull.subTypeIndex)
+    local bullPen = GrowthSim.makePen({ oldBull })
+    oldBull.clusterSystem = { owner = bullPen }
+    GrowthSim.months(bullPen, "TMR", 6)
+    local midTarget = oldBull.targetWeight
+    GrowthSim.months(bullPen, "TMR", 7)
+    check(string.format("migration: a 1.6 bull's target weight is the old %.0f kg on load (slaughter reference %.0f), %.0f half way, the size gene's %.0f a year on",
+        loadTarget, loadReference, midTarget, oldBull.targetWeight), near(loadTarget, 1240, 1e-9)
+        and near(loadReference, 1240 * RLBreedTraits.resolve(AnimalMoveEvent.getCarcassConfig().layers, angus, "maleMaturity", 1), 1e-6)
+        and midTarget < loadTarget and midTarget > 1096 and near(oldBull.targetWeight, 1000 * (1 + 0.12 * 0.6 / 0.75), 1e-9)
+        and GrowthSim.makeAnimal("BULL_ANGUS", { age = 20, genetics = genes }).targetWeight == oldBull.targetWeight)
+
+    -- Underweight: on load the old rule's threshold exactly.
+    local heifer = GrowthSim.makeAnimal("COW_HOLSTEIN", { age = 24, weight = 500 })
+    local _, holstein = Economics.find("COW_HOLSTEIN")
+    check(string.format("migration: on load the underweight threshold is the old rule's (%.1f kg), not the curve's (%.1f)",
+        G.getUnderweightThreshold(heifer), settings.underweightRatio * G.getCurve(heifer):value(24)),
+        near(G.getUnderweightThreshold(heifer), G.getLegacyUnderweight(holstein, 24), 1e-9))
 end
 
 do
@@ -739,9 +764,10 @@ do
     g_server = nil
     RLBodyConditionStateEvent.emptyNew():readStream(1, makeConnection(1, true))
     g_server = savedServer
-    check("network: the hourly event gives a client the server's v2 state (development, reserve kg, age clock), also for a calf in an hour without a ledger",
+    check("network: the hourly event gives a client the server's v2 state (development, reserve kg, age clock) and the hour, also for a calf in an hour without a ledger",
         clientCalf.weight == calf.weight and clientCalf.rlGrowth.developmentMonths == calf.rlGrowth.developmentMonths
         and clientCalf.rlGrowth.reserveMassKg == calf.rlGrowth.reserveMassKg and clientCalf.rlGrowth.ageMonths == calf.rlGrowth.ageMonths
+        and clientCalf.rlNutrition.tick == RLBodyCondition.getTickId() and clientCalf.targetWeight == calf.targetWeight
         and readAt == #stream)
     streamWriteBool, streamWriteFloat32, streamWriteInt32, streamWriteUInt16, streamReadBool, streamReadFloat32,
         streamReadInt32, streamReadUInt16, NetworkUtil, RLAnimalUtil = table.unpack(saved, 1, 10)
@@ -816,6 +842,29 @@ do
     check(string.format("underweight: a bull below %.0f%% of its curve (%.0f kg at 12 months) loses health, one on its curve none",
         settings.underweightRatio * 100, threshold), thin.health < 80 and fine.health == 80
         and near(threshold, settings.underweightRatio * G.getCurve(thin):value(12), 1e-9))
+
+    -- Growth that fell behind does not catch up; a calf starved three months and fed again is not
+    -- counted underweight for it.
+    local calf = GrowthSim.newborn("BULL_ANGUS")
+    local calfPen = GrowthSim.makePen({ calf })
+    calf.clusterSystem = { owner = calfPen }
+    GrowthSim.months(calfPen, "TMR", 3)
+    GrowthSim.months(calfPen, "none", 3)
+    GrowthSim.months(calfPen, "TMR", 6)
+    local share = calf.weight / G.getCurve(calf):value(calf.age)
+    calf.health = 80
+    calf:applyUnderweightPenalty()
+    check(string.format("underweight: a calf starved three months then fed is behind its curve for good (%.0f%% at %d months) but not underweight",
+        share * 100, calf.age), share < 0.8 and calf.health == 80)
+
+    -- A covered subtype with no old growth line (no mature age): the price reads the weight itself.
+    local _, flat = GrowthSim.addSubType("COW_FLATLINE", "HOLSTEIN", "female", 650, "COW_HOLSTEIN")
+    flat.reproductionMinAgeMonth = 0
+    local flatCow = GrowthSim.makeAnimal("COW_FLATLINE", { age = 30, weight = 512 })
+    local weightForPrice = G.getPriceWeight(flatCow, flat)
+    local state = G.ensureState(flatCow)
+    check("price: a covered subtype without an old growth line is priced on its weight, its anchor 1",
+        weightForPrice == 512 and state.legacyAnchor == 1)
 end
 
 
@@ -852,8 +901,9 @@ do
         and state.frameTargetKg == 730 and cow.targetWeight == 432)
     local health = cow.health
     cow:applyUnderweightPenalty()
-    check(string.format("milkcow: taken over, its price stays where the old rules had it (%.1f / %.1f) and being far below the Holstein curve does not count as underweight",
-        cow:getSellPrice(), priceBefore), near(cow:getSellPrice(), priceBefore, 1e-6) and cow.health == health)
+    check(string.format("milkcow: taken over, its price stays where the old rules had it (%.1f / %.1f) and its underweight check is the old rule's, not the Holstein curve's",
+        cow:getSellPrice(), priceBefore), near(cow:getSellPrice(), priceBefore, 1e-6) and cow.health == health
+        and near(G.getUnderweightThreshold(cow), G.getLegacyUnderweight(milkSub, 30), 1e-9))
     GrowthSim.months(pen, "TMR", 2)
     check(string.format("milkcow: its budget counts the milk it gives (read only, %.0f l a period) and it keeps growing toward the curve (%.0f kg)",
         250, cow.weight), cow.weight > before and RLBodyCondition.isEligible(cow) == false and cow.rlMilkPaid ~= nil)
