@@ -259,12 +259,12 @@ do
         maxStep = math.max(maxStep, math.abs(starved[step].gain))
         maxFrame = math.max(maxFrame, starved[step].frameGain)
         local du = starved[step].u - starved[step - 1].u
-        if du > 1 / 24 * 1.0 + 1e-9 then fasterThanCurve = true end
+        if du > 1 / 24 + 1e-6 then fasterThanCurve = true end
     end
     local lag = 24 - starved[24 * 24].u
     local lost = 6 - atEnd.u
     check(string.format("nutrition: fed again it grows on from its own development, no jump (largest hourly gain %.2f kg, frame %.2f; full feed %.2f, %.2f), no catch-up beyond its speed; %.2f months behind at 24 months (3 starved + %.2f of frame lost)",
-        maxStep, maxFrame, fullMax, fullMaxFrame, lag, lost), maxFrame <= fullMaxFrame + 1e-9 and maxStep <= fullMax * 1.1
+        maxStep, maxFrame, fullMax, fullMaxFrame, lag, lost), maxFrame <= fullMaxFrame * (1 + 1e-6) and maxStep <= fullMax * 1.1
         and not fasterThanCurve and math.abs(lag - (3 + lost)) < 0.05)
     check(string.format("nutrition: on half its ration it grows, slower (%.0f kg at 24 months against %.0f on full feed)",
         half[24 * 24].weight, full[24 * 24].weight), half[24 * 24].weight < full[24 * 24].weight * 0.95

@@ -120,23 +120,39 @@ function Curve:slope(x)
 end
 
 
---- The earliest month at which the curve reaches `weight` (bisection): 0 at or below the first
---- knot's weight, endMonth at or above the last knot's.
+--- Relative weight error the inverse stops at (1e-10 x the weight).
+RLGrowthCurve.INVERSE_TOLERANCE = 1e-10
+
+
+--- The earliest month at which the curve reaches `weight`: 0 at or below the first knot's
+--- weight, endMonth at or above the last knot's. Inside the segment holding the weight, Newton
+--- steps on the curve's own slope, kept inside a shrinking bracket and replaced by a bisection
+--- whenever they would leave it (a flat stretch, the zero slope at maturity), so it always
+--- converges; a few steps usually.
 --- @param weight number kg
 --- @return number months
 function Curve:inverse(weight)
     if weight <= self.w[1] then return self.t[1] end
     if weight >= self.w[self.n] then return self.t[self.n] end
 
-    -- The segment holding the weight, then bisection inside it (the curve is monotone).
     local i = 1
     while i < self.n - 1 and self.w[i + 1] < weight do i = i + 1 end
     local lo, hi = self.t[i], self.t[i + 1]
-    for _ = 1, 48 do
-        local mid = (lo + hi) / 2
-        if self:value(mid) < weight then lo = mid else hi = mid end
+    local tolerance = RLGrowthCurve.INVERSE_TOLERANCE * math.max(weight, 1)
+    local rise = self.w[i + 1] - self.w[i]
+    local x = rise > 0 and lo + (hi - lo) * (weight - self.w[i]) / rise or (lo + hi) / 2
+
+    for _ = 1, 80 do
+        local f = self:value(x) - weight
+        if math.abs(f) <= tolerance then return x end
+        if f < 0 then lo = x else hi = x end
+        if hi - lo <= 1e-12 then break end
+        local d = self:slope(x)
+        local nextX = d > 0 and x - f / d or nil
+        if nextX == nil or nextX <= lo or nextX >= hi then nextX = (lo + hi) / 2 end
+        x = nextX
     end
-    return (lo + hi) / 2
+    return x
 end
 
 
