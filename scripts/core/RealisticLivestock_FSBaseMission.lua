@@ -312,6 +312,16 @@ function RealisticLivestock_FSBaseMission:onStartMission()
         Log:info("onStartMission: repaired %d animal(s) with fallback IDs (load-order race)", fallbackRepairCount)
     end
 
+    -- T02 ledger: check the saved ledger against the files the game just loaded, after the
+    -- identity repair above and before the first herdsman day; opens or keeps closed the T02 gate.
+    if isServer then
+        local checked, checkErr = pcall(RLTradeCheckpoint.onMissionStarted, self, { identityRepairs = fallbackRepairCount })
+        if not checked then
+            Log:error("onStartMission: T02 ledger check failed: %s - T02 transactions stay closed", tostring(checkErr))
+            RLTradeCheckpoint.state, RLTradeCheckpoint.reason = RLTradeCheckpoint.RECOVERY_REQUIRED, "CHECK_THREW"
+        end
+    end
+
     local guiOk, guiErr = pcall(function()
         local realisticLivestockFrame = RealisticLivestockFrame.new()
         g_gui:loadGui(modDirectory .. "gui/RealisticLivestockFrame.xml", "RealisticLivestockFrame", realisticLivestockFrame, true)

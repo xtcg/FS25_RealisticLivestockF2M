@@ -55,6 +55,17 @@
 --   amountGained = money actually paid (nil when unknown), plus plannedCount, plannedAmountGained,
 --   saleStatus, removedCount, settledCount and failureStage (@see AIAnimalSellEvent.executeServer).
 --   "owner-changed" never charges the wage; "sale-refused" and "sale-failed" do.
+--
+-- T02 batch 3, only while RLLiveSale is in TEST (OFF, the default, is the behaviour above):
+--   - each executeActions call is one execution round (ctx.roundId, else a new RLLiveSale round);
+--     each sell action's transaction id is "<round>-a<action index>", so replaying the round
+--     returns the first sale results (row skipReason "replayed", no wage contribution, no message)
+--     and sells nothing again;
+--   - each farm's wage is its own money action "wage:<round>:f<farm>" with a receipt
+--     (summary.wageReceipts[farmId]); replaying the round never charges it again, a throw is
+--     recorded instead of aborting the remaining farms. The wage rules themselves are unchanged;
+--   - a buy is skipped ("cash-held", wage charged like any runtime rejection) while a transaction
+--     of the ledger holds the farm's cash (a sale or contract awaiting reconciliation).
 
 local Log = RmLogging.getLogger("RLRM")
 
@@ -250,8 +261,16 @@ function RLHerdsmanExecutor.executeActions(plan, ctx)
     -- First-seen farm order, so the per-farm wage deduction is deterministic across runners.
     local wageFarmOrder = {}
 
-    for _, action in ipairs(plan) do
-        local result = RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder)
+    -- T02 batch 3: an execution round with ids for its sales and wages (RLLiveSale TEST only).
+    local roundId = nil
+    if RLLiveSale ~= nil and RLLiveSale.getMode() == RLLiveSale.MODE_TEST then
+        roundId = ctx.roundId or RLLiveSale.nextRoundId()
+        summary.roundId, summary.wageReceipts = roundId, {}
+    end
+
+    for index, action in ipairs(plan) do
+        local saleId = roundId ~= nil and string.format("%s-a%d", roundId, index) or nil
+        local result = RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder, saleId)
         summary.results[#summary.results + 1] = result
     end
 
@@ -259,8 +278,15 @@ function RLHerdsmanExecutor.executeActions(plan, ctx)
     for _, farmId in ipairs(wageFarmOrder) do
         local wage = summary.wageByFarm[farmId]
         if wage ~= nil and wage > 0 then
-            ctx.mission:addMoney(-wage, farmId, MoneyType.HERDSMAN_WAGES, true, true)
-            Log:debug("%s wage deducted farmId=%s wage=%.2f", LOG_PREFIX, tostring(farmId), wage)
+            if roundId ~= nil then
+                local receipt, replay = RLLiveSale.chargeWage(ctx.mission, roundId, farmId, wage)
+                summary.wageReceipts[farmId] = receipt
+                Log:debug("%s wage farmId=%s wage=%.2f receipt=%s%s", LOG_PREFIX, tostring(farmId), wage,
+                    tostring(receipt.status), replay ~= nil and " (replay, not charged again)" or "")
+            else
+                ctx.mission:addMoney(-wage, farmId, MoneyType.HERDSMAN_WAGES, true, true)
+                Log:debug("%s wage deducted farmId=%s wage=%.2f", LOG_PREFIX, tostring(farmId), wage)
+            end
         end
     end
 
@@ -277,8 +303,9 @@ end
 ---@param ctx table
 ---@param summary table
 ---@param wageFarmOrder table first-seen farmId order for deterministic wage deduction
+---@param saleId string|nil T02 batch 3 (RLLiveSale TEST): the transaction id of a sell action
 ---@return table result
-function RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder)
+function RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder, saleId)
     local result = {
         ruleId       = action.ruleId,
         husbandryId  = action.husbandryId,
@@ -334,7 +361,7 @@ function RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder)
     local op = action.operation
     local chargeWage, dispatched, skipReason, actualCount, skippedCount, extra
     if op == "sell" then
-        chargeWage, dispatched, skipReason, actualCount, skippedCount, extra = RLHerdsmanExecutor._doSell(action, ctx, placeable, farmId, count)
+        chargeWage, dispatched, skipReason, actualCount, skippedCount, extra = RLHerdsmanExecutor._doSell(action, ctx, placeable, farmId, count, saleId)
     elseif op == "buy" then
         chargeWage, dispatched, skipReason, actualCount, skippedCount = RLHerdsmanExecutor._doBuy(action, ctx, placeable, farmId, count)
     elseif op == "castrate" then
@@ -386,6 +413,10 @@ function RLHerdsmanExecutor._executeOne(action, ctx, summary, wageFarmOrder)
         result.removedCount = sale.removedCount
         result.settledCount = sale.settledCount
         result.failureStage = sale.failureStage
+        result.txId = sale.txId
+        result.txState = sale.txState
+        result.paymentStatus = sale.paymentStatus
+        result.replayed = sale.replayed
     end
 
     if chargeWage then
@@ -418,13 +449,14 @@ end
 ---@param placeable table
 ---@param farmId number
 ---@param count number
+---@param saleId string|nil T02 batch 3 (RLLiveSale TEST): the transaction id
 ---@return boolean chargeWage
 ---@return boolean dispatched true iff some animals were sold and paid for
 ---@return string|nil skipReason
 ---@return number|nil actualMarked nil on the exec leg; count marked on the mark leg
 ---@return number|nil skippedCount membership-skip count on the mark leg (nil on the exec leg)
 ---@return table|nil extra exec leg: { sale = <executeServer result> }
-function RLHerdsmanExecutor._doSell(action, ctx, placeable, farmId, count)
+function RLHerdsmanExecutor._doSell(action, ctx, placeable, farmId, count, saleId)
     if action.mark == true then
         return setMarkOnAll(ctx, placeable, action, MARK_BY_OPERATION.sell, farmId)
     end
@@ -459,8 +491,13 @@ function RLHerdsmanExecutor._doSell(action, ctx, placeable, farmId, count)
         return true, false, "missing-placeable"
     end
 
-    local sale = AIAnimalSellEvent.executeServer(placeable, action.identities, action.sellerFarmId, ctx)
+    local sale = AIAnimalSellEvent.executeServer(placeable, action.identities, action.sellerFarmId, ctx, saleId)
     local extra = { sale = sale }
+
+    -- A replayed round: the first result is reported, nothing was sold, announced or earned again.
+    if sale.replayed then
+        return false, false, "replayed", nil, nil, extra
+    end
 
     if sale.failureStage == "ownership" then
         return false, false, "owner-changed", nil, nil, extra
@@ -497,6 +534,13 @@ function RLHerdsmanExecutor._doBuy(action, ctx, placeable, farmId, count)
         Log:warning("%s rule=%s op=buy husbandry=%s farm=%s: non-number amountSpent (%s) - skipped (no wage)",
             LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), tostring(action.amountSpent))
         return false, false, "bad-data"
+    end
+
+    -- T02 batch 3 (RLLiveSale TEST): no buy against a farm's cash a transaction still holds.
+    if RLLiveSale ~= nil and RLLiveSale.getMode() == RLLiveSale.MODE_TEST and RLLiveSale.isCashHeld(farmId) then
+        Log:warning("%s rule=%s op=buy husbandry=%s farm=%s: farm cash held by a transaction awaiting reconciliation - dispatch skipped (wage charged)",
+            LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId))
+        return true, false, "cash-held"
     end
 
     local errorCode = AIAnimalBuyEvent.validate(placeable, count, action.amountSpent, farmId)
