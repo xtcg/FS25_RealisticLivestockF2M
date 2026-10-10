@@ -181,6 +181,60 @@ function Report.calf(name, route, opts)
 end
 
 
+--- A dam from calving with one calf or twins in an ordinary pen (FEED-12: the calves drink from her,
+--- the trough's milk only makes up the rest) on a route for `months` (12): the pen's feed by fill
+--- type, her milk paid / to the calves / to the store (game liters), her BCS and health, the calves'
+--- weight at 6 and 12 months against their curves. Her next conception is not simulated here.
+function Report.nursing(damName, calfNames, route, months)
+    F.setMode(true)
+    local dam = S.makeAnimal(damName, { age = 48, isParent = true, isLactating = true, monthsSinceLastBirth = 0 })
+    dam.getIdentifiers = function() return "DAM" end
+    local calves = {}
+    for i, name in ipairs(calfNames) do
+        local calf = S.newborn(name, { motherId = "DAM" })
+        calf.getIdentifiers = function() return "CALF" .. i end
+        calves[i] = calf
+    end
+    local animals = { dam }
+    for _, calf in ipairs(calves) do animals[#animals + 1] = calf end
+    local pen = F.makePen(animals, {})
+    local stock = (route ~= nil and Report.CALF_ROUTES[route]) or Report.ROUTES.TMR
+    local used = {}
+    stocked(pen, stock, used)
+    for k in pairs(used) do used[k] = 0 end
+    local perMonth = 24 * S.env.daysPerPeriod
+    local paid, toCalves, toStore, minBcs, minHealth = 0, 0, 0, 99, 100
+    local at = {}
+    for m = 1, months or 12 do
+        for _ = 1, perMonth do
+            stocked(pen, stock, used)
+            F.hour(pen)
+            local record = dam.rlFeedIntake
+            if record ~= nil and record.tick == RLBodyCondition.getTickId() then
+                paid, toCalves, toStore = paid + (record.milkPaidLiters or 0), toCalves + (record.milkToCalves or 0), toStore + record.milkLiters
+            end
+            minBcs = math.min(minBcs, RLBodyCondition.getBCS(dam))
+            for _, animal in ipairs(animals) do minHealth = math.min(minHealth, animal.health) end
+        end
+        for _, animal in ipairs(animals) do animal.age = animal.age + 1 end
+        dam.monthsSinceLastBirth = dam.monthsSinceLastBirth + 1
+        if dam.monthsSinceLastBirth >= 10 then dam.isLactating = false end
+        if m == 6 or m == (months or 12) then
+            for i, calf in ipairs(calves) do
+                at[#at + 1] = { month = m, calf = i, weightKg = calf.weight, curveKg = RLGrowth.getCurve(calf):value(m),
+                    phase = calf.rlGrowth.developmentMonths }
+            end
+        end
+    end
+    finalUse(pen, stock, used)
+    local litersTotal = 0
+    for _, liters in pairs(used) do litersTotal = litersTotal + liters end
+    return { dam = damName, calves = #calves, route = route or "TMR", liters = used, litersTotal = litersTotal, milkPaidL = paid,
+        milkToCalvesL = toCalves, milkToStoreL = toStore, bcsMin = minBcs, bcsEnd = RLBodyCondition.getBCS(dam), damKg = dam.weight,
+        minHealth = minHealth, calvesAt = at }
+end
+
+
 --- Resource scale and month length: one route at s = 1 / shipped scale and 1 / 3 / 7 / 28 days a month.
 function Report.invariance()
     local config = RLFeedProfiles.getConfig()

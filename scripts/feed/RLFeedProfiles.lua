@@ -65,6 +65,9 @@ RLFeedProfiles.MILK = { realKgPerDay = 8, meMJPerKg = 5.0 }
 -- day is a calibration ceiling, not a promise of intake or an absolute biological maximum.
 RLFeedProfiles.CALF_MILK = { realLitersPerDay = 10, density = 1.03, dm = 0.125, sizeExponent = 0.75 }
 
+-- A dam's own milk as her calf drinks it (whole milk, NRC 2001: 12.5% DM, ME 5.37 Mcal/kg DM).
+RLFeedProfiles.DAM_MILK = { dm = 0.125, me = 22.5, cp = 0.25 }
+
 --- Numeric fields of a feed profile and the range each must be in.
 RLFeedProfiles.FEED_SHARES = { "dm", "cp", "ndf", "peFactor", "starch", "sugar" }
 
@@ -166,7 +169,7 @@ function RLFeedProfiles.validate(config)
     end
     local reason = positive(config.requirements, "requirements") or positive(config.intake, "intake")
         or positive(config.ration, "ration") or positive(config.health, "health")
-        or positive(config.calfMilk, "calfMilk") or positive(config.calf, "calf")
+        or positive(config.calfMilk, "calfMilk") or positive(config.calf, "calf") or positive(config.damMilk, "damMilk")
     if reason ~= nil then return false, reason end
     if config.calfMilk.dm > 1 then return false, "calfMilk dm must be in (0, 1]" end
     local req = config.requirements
@@ -176,6 +179,9 @@ function RLFeedProfiles.validate(config)
     end
     if calf.kgMilk > 1 or calf.kgSolid > 1 then return false, "calf kgMilk and kgSolid must be efficiencies in (0, 1]" end
     if config.calfMilk.sizeExponent > 1 then return false, "calfMilk sizeExponent must be in (0, 1]" end
+    if config.damMilk.dm > 1 or config.damMilk.cp >= 1 or config.damMilk.me > 30 then
+        return false, "damMilk dm and cp must be shares, me at most 30 MJ/kg DM"
+    end
     if not (req.reserveDepositMEPerKg > req.reserveMobilizeMEPerKg) then
         return false, "reserveDepositMEPerKg must exceed reserveMobilizeMEPerKg, or the reserve could be cycled into energy"
     end
@@ -232,6 +238,7 @@ function RLFeedProfiles.parse(xmlFile)
     config.milk = readGroup(xmlFile, "feedProfiles.milk", RLFeedProfiles.MILK)
     config.calfMilk = readGroup(xmlFile, "feedProfiles.calfMilk", RLFeedProfiles.CALF_MILK)
     config.calf = readGroup(xmlFile, "feedProfiles.calf", RLFeedProfiles.CALF)
+    config.damMilk = readGroup(xmlFile, "feedProfiles.damMilk", RLFeedProfiles.DAM_MILK)
     config.milk.breeds = {}
     config.feeds, config.feedOrder = {}, {}
 
@@ -320,6 +327,7 @@ function RLFeedProfiles.computeHash(config)
     addGroup("milk", config.milk)
     addGroup("calfMilk", config.calfMilk)
     addGroup("calf", config.calf)
+    addGroup("damMilk", config.damMilk)
     local breeds = {}
     for name in pairs(config.milk.breeds or {}) do breeds[#breeds + 1] = name end
     table.sort(breeds)

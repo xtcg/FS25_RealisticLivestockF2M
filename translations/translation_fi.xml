@@ -978,7 +978,7 @@
         <text name="rl_feed_reason_MILKCOW_LEGACY" text="Milk cows: legacy"/>
         <text name="rl_feed_reason_NO_TROUGH" text="No supported trough"/>
         <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="Unsupported animal"/>
-        <text name="rl_feed_reason_SUCKLING_CALF" text="Legacy: suckling calf"/>
+        <text name="rl_feed_reason_SUCKLING_CALF" text="Vasikka ilman emää"/>
         <text name="rl_feed_reason_UNKNOWN" text="Status unavailable"/>
         <text name="rl_feed_limit_NONE" text="No limit"/>
         <text name="rl_feed_limit_FIBRE" text="Fibre limit"/>

@@ -218,6 +218,7 @@ end
 function RLFeedRationPlanner.sumAnimal(a)
     local kg, me, cpKg = 0, 0, 0
     for _, fill in pairs(a.byFill) do kg, me, cpKg = kg + fill.kg, me + fill.me, cpKg + fill.cpKg end
+    if a.damMilk ~= nil then kg, me, cpKg = kg + a.damMilk.kg, me + a.damMilk.me, cpKg + a.damMilk.cpKg end
     a.kg, a.me = kg, me
     a.cp = kg > 0 and cpKg / kg or 0
 end
@@ -283,28 +284,57 @@ function RLFeedRationPlanner.plan(request)
     table.sort(others)
     for _, stage in ipairs(others) do groups[#groups + 1] = byStage[stage] end
 
-    -- 1. Milk for calves.
+    -- 1. Milk for calves: a calf drinks its milk allowance (milkMaxKgPerDay, already at its
+    -- milkMax), within its total appetite; without an allowance, milkMax of its appetite. A calf
+    -- with its dam (damPool) drinks her milk first - twins share it by their plans - and the
+    -- trough's milk only makes up what she does not give, within the same allowance.
+    local pools = {}
+    for _, a in ipairs(request.animals) do
+        a.milkPlanKg, a.damMilkKg = 0, 0
+        if a.milkMax ~= nil and a.milkMax > 0 then
+            local allowance = a.milkMaxKgPerDay ~= nil and math.max(a.milkMaxKgPerDay, 0) or math.min(a.milkMax, 1) * a.appetite
+            a.milkPlanKg = math.min(allowance, a.appetite) * dt
+        end
+        local pool = a.damPool
+        if pool ~= nil and a.milkPlanKg > 0 then
+            if pools[pool] == nil then pools[pool] = 0; pool.calves = {} end
+            pools[pool] = pools[pool] + a.milkPlanKg
+            table.insert(pool.calves, a)
+        end
+    end
+    for pool, wanted in pairs(pools) do
+        local share = wanted > 0 and math.min(1, math.max(pool.kg or 0, 0) / wanted) or 0
+        pool.plannedKg = 0
+        for _, a in ipairs(pool.calves) do
+            a.damMilkKg = a.milkPlanKg * share
+            pool.plannedKg = pool.plannedKg + a.damMilkKg
+        end
+    end
     for _, group in ipairs(groups) do
         local need = 0
         for _, a in ipairs(group.animals) do
-            -- A calf drinks its milk allowance (milkMaxKgPerDay, already at its milkMax), within
-            -- its total appetite; without an allowance, milkMax of its appetite.
-            a.milkPlanKg = 0
-            if a.milkMax ~= nil and a.milkMax > 0 then
-                local allowance = a.milkMaxKgPerDay ~= nil and math.max(a.milkMaxKgPerDay, 0) or math.min(a.milkMax, 1) * a.appetite
-                a.milkPlanKg = math.min(allowance, a.appetite) * dt
-            end
-            need = need + a.milkPlanKg
+            a.troughMilkPlanKg = a.damMilkKg > 0 and math.max(a.milkPlanKg - a.damMilkKg, 0) or a.milkPlanKg
+            need = need + a.troughMilkPlanKg
         end
         local parts
         group.milkTaken, group.milkTotal, parts = RLFeedRationPlanner.takeSerial(group.milk, need, nil, true)
         group.milkMix = RLFeedMath.compose(parts)
         if group.milkMix == nil and #group.milk > 0 then group.milkMix = RLFeedMath.compose({ { group.milk[1].profile, 1 } }) end
         local fulfil = need > 0 and group.milkTotal / need or 0
+        local troughME = group.milkMix ~= nil and group.milkMix.me or 0
+        local troughCP = group.milkMix ~= nil and group.milkMix.cp or 0
         for _, a in ipairs(group.animals) do
-            a.milkKg = a.milkPlanKg * fulfil
-            a.milkME = group.milkMix ~= nil and group.milkMix.me or 0
-            a.milkCP = group.milkMix ~= nil and group.milkMix.cp or 0
+            a.troughMilkKg = a.troughMilkPlanKg * fulfil
+            if a.damMilkKg > 0 then
+                local pool = a.damPool
+                a.milkKg = a.damMilkKg + a.troughMilkKg
+                a.milkME = (a.damMilkKg * pool.me + a.troughMilkKg * troughME) / a.milkKg
+                a.milkCP = (a.damMilkKg * pool.cp + a.troughMilkKg * troughCP) / a.milkKg
+                a.milkPlanMe = a.damMilkKg * pool.me + a.troughMilkPlanKg * troughME
+            else
+                a.milkKg = a.troughMilkKg
+                a.milkME, a.milkCP = troughME, troughCP
+            end
         end
     end
 
@@ -345,7 +375,7 @@ function RLFeedRationPlanner.plan(request)
         for _, a in ipairs(group.animals) do
             local solids = a.forageKg + a.concKg
             a.plannedKg = a.milkPlanKg + solids
-            a.plannedMe = a.milkPlanKg * a.milkME + solids * (a.solidMe or 0)
+            a.plannedMe = (a.damMilkKg > 0 and a.milkPlanMe or a.milkPlanKg * a.milkME) + solids * (a.solidMe or 0)
             plannedMe, plannedKg = plannedMe + a.plannedMe, plannedKg + a.plannedKg
             local perMonth = request.realDaysPerPeriod / dt
             local liters = 0
@@ -359,7 +389,7 @@ function RLFeedRationPlanner.plan(request)
                     a.plannedByFill[name] = (a.plannedByFill[name] or 0) + amount
                 end
             end
-            addLiters(group.milkMix, a.milkPlanKg)
+            addLiters(group.milkMix, a.troughMilkPlanKg)
             addLiters(group.forageMix, a.forageKg)
             addLiters(group.concMix, a.concKg)
             a.litersPerPeriod = liters
@@ -439,7 +469,12 @@ function RLFeedRationPlanner.plan(request)
                     end
                 end
             end
-            share(group.milkTaken, group.milkTotal, a.milkKg, group.milk, 1)
+            share(group.milkTaken, group.milkTotal, a.troughMilkKg, group.milk, 1)
+            -- Its dam's milk is no trough feed: kept apart (RLFeed settles it against what she paid).
+            a.damMilk = nil
+            if a.damMilkKg > 0 then
+                a.damMilk = { kg = a.damMilkKg, me = a.damMilkKg * a.damPool.me, cpKg = a.damMilkKg * a.damPool.cp }
+            end
             share(group.forageTaken, group.forageTotal, a.forageEaten, group.forage, energy)
             share(group.concTaken, group.concTotal, a.concEaten, group.concentrate, util)
             RLFeedRationPlanner.sumAnimal(a)

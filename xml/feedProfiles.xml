@@ -120,6 +120,14 @@
     This is a game calibration (8-10 real L/day), not a biological maximum; milk energy and
     protein are still the feed's fixed values, and shortages are never repriced.
 
+    damMilk: a dam's own milk as her suckling calf drinks it (whole milk, NRC 2001: 12.5% DM, ME
+    5.37 Mcal = 22.5 MJ/kg DM, CP 25% of DM). In a pen that is not a calf rearing pen a calf on
+    milk drinks from its dam: the milk her budget paid this step (game liters, through the milk
+    bridge to real kg) goes to her calves up to their allowance - twins share it - and only the
+    rest to the pen's milk store; milk in the trough makes up what she did not give, within the
+    same allowance. Her milk is never valued twice and never made up from nothing: a calf without
+    its lactating dam in the pen keeps the pen on the old rules (SUCKLING_CALF).
+
     feed: one per fill type.
     role         COMPLETE (a mixed ration, counted once as it is), FORAGE, CONCENTRATE or MILK.
     status       TYPICAL (literature typical value), PROXY (a stated stand-in), UNCONFIGURED (no
@@ -168,6 +176,8 @@
     <health extremeUnderweightRatio="0.45" shortageBufferDays="3"/>
 
     <calfMilk realLitersPerDay="10" density="1.03" dm="0.125" sizeExponent="0.75"/>
+
+    <damMilk dm="0.125" me="22.5" cp="0.25"/>
 
     <protein maintenance="0.065" calf="0.18" young="0.14" growing="0.12" finishing="0.105"
         lactating="0.16" dry="0.10" youngUntilMonth="8" growingUntilMonth="14" lactatingAtKg="30"/>

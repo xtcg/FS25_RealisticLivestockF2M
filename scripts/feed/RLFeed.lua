@@ -288,16 +288,36 @@ function RLFeed.evaluatePen(placeable)
     end
     if placeable.spec_husbandryFood == nil then return false, "NO_TROUGH" end
     local rearing = isRearingPen(placeable)
-    for _, animal in ipairs(placeable:getClusters() or {}) do
+    local clusters = placeable:getClusters() or {}
+    local dams
+    for _, animal in ipairs(clusters) do
         if not animal.isDead and (animal.numAnimals or 1) > 0 then
             if not RLGrowth.covers(animal) then return false, "UNCOVERED_ANIMAL" end
             if not rearing then
+                -- A calf on milk drinks from its dam: she must be here, alive and in milk.
                 local milkMax = getCalfCaps(animal)
-                if milkMax > 0 then return false, "SUCKLING_CALF" end
+                if milkMax > 0 then
+                    dams = dams or RLFeed.getNursingDams(clusters)
+                    if animal.motherId == nil or dams[animal.motherId] == nil then return false, "SUCKLING_CALF" end
+                end
             end
         end
     end
     return true, "OK"
+end
+
+
+--- The cows in a list that can nurse a calf (alive and lactating), by their identifiers.
+--- @param animals table
+--- @return table identifiers -> animal
+function RLFeed.getNursingDams(animals)
+    local dams = {}
+    for _, animal in ipairs(animals) do
+        if not animal.isDead and (animal.numAnimals or 1) > 0 and animal.isLactating and animal.getIdentifiers ~= nil then
+            dams[animal:getIdentifiers()] = animal
+        end
+    end
+    return dams
 end
 
 
@@ -350,16 +370,26 @@ end
 --- @return number realKgPerDay
 --- @return number mePerGameLiter
 function RLFeed.getMilkBridge(animal, potentialPerPeriod)
-    local binding = RLGrowth.getBinding(animal:getSubType())
-    local realKg, mePerKg = RLFeedProfiles.getMilkBridge(binding ~= nil and binding.profile or nil)
+    local realPerGameLiter, mePerKg = RLFeed.getMilkRealPerGameLiter(animal)
+    if realPerGameLiter <= 0 then return 0, 0 end
+    return math.max(potentialPerPeriod or 0, 0) * realPerGameLiter / RLFeed.getConfig().realDaysPerPeriod,
+        realPerGameLiter * mePerKg
+end
+
+
+--- Real kg of milk a game liter of a cow's milk stands for (the breed's real lactation average over
+--- its game curve's mature value x the lactation mean), and the ME a real kg needs.
+--- @return number realKgPerGameLiter (0 without a milk curve)
+--- @return number meMJPerKg
+function RLFeed.getMilkRealPerGameLiter(animal)
     local subType = animal:getSubType()
+    local binding = RLGrowth.getBinding(subType)
+    local realKg, mePerKg = RLFeedProfiles.getMilkBridge(binding ~= nil and binding.profile or nil)
     local milkCurve = subType ~= nil and subType.output ~= nil and subType.output.milk or nil
     local mature = milkCurve ~= nil and milkCurve.get ~= nil and milkCurve:get(60) or 0
     local mean = mature * RLBodyCondition.getConfig().lactationMeanFactor
-    if mean <= 0 then return 0, 0 end
-    local realPerGameLiter = realKg * RLFeed.getConfig().realDaysPerPeriod / mean
-    return math.max(potentialPerPeriod or 0, 0) * realPerGameLiter / RLFeed.getConfig().realDaysPerPeriod,
-        realPerGameLiter * mePerKg
+    if mean <= 0 then return 0, mePerKg end
+    return realKg * RLFeed.getConfig().realDaysPerPeriod / mean, mePerKg
 end
 
 
@@ -458,7 +488,7 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
     end
 
     return {
-        animal = animal, class = class, target = target, stage = getFeedStage(animal, milkMax),
+        animal = animal, class = class, target = target, stage = getFeedStage(animal, milkMax), milkKgPerDay = milkKg,
         appetite = RLFeedMath.getAppetite(weight, class, config.intake, { milkKgPerDay = milkKg, weaningX = weaningX, gene = gene }),
         -- A calf on milk: what its rumen takes of solids, at its solidMax.
         solidCap = class == "CALF" and solidMax * RLFeedMath.getCalfSolidCapacity(weight, config.intake, weaningX, gene) or nil,
@@ -667,7 +697,38 @@ function RLFeed.describePen(placeable, ration, stepDays, include)
             table.insert(animals, RLFeed.describeAnimal(animal, ration, dtMonths, stepDays))
         end
     end
+    if not isRearingPen(placeable) then RLFeed.linkDams(animals, stepDays) end
     return animals
+end
+
+
+--- Each calf on milk with its lactating dam among the step's animals drinks from her: one pool per
+--- dam (twins share it), her milk at full feed this step x the share of it her budget paid last
+--- (real kg DM, damMilk values). The planner gives the pool's milk to her calves first; RLFeed.runStep
+--- settles it against what she actually paid.
+function RLFeed.linkDams(animals, stepDays)
+    local dams = {}
+    for _, a in ipairs(animals) do
+        local animal = a.animal
+        if animal.isLactating and animal.getIdentifiers ~= nil then dams[animal:getIdentifiers()] = a end
+    end
+    if next(dams) == nil then return end
+    local damMilk = RLFeed.getConfig().damMilk
+    for _, a in ipairs(animals) do
+        local dam = a.class == "CALF" and a.animal.motherId ~= nil and dams[a.animal.motherId] or nil
+        if dam ~= nil then
+            if dam.nursing == nil then
+                local record = dam.animal.rlFeedIntake
+                local share = 1
+                if record ~= nil and (record.milkPotential or 0) > 0 and RLFeed.isFresh(record.tick) then
+                    share = math.clamp((record.milkPaidLiters or record.milkLiters or 0) / record.milkPotential, 0, 1)
+                end
+                dam.nursing = { dam = dam, kg = math.max(dam.milkKgPerDay or 0, 0) * share * damMilk.dm * stepDays,
+                    me = damMilk.me, cp = damMilk.cp }
+            end
+            a.damPool = dam.nursing
+        end
+    end
 end
 
 
@@ -720,25 +781,38 @@ function RLFeed.runStep(placeable, window, stepDays)
         end
     end
     local observed = #observers > 0 and { placeable = placeable, tick = tick, stepDays = stepDays, scale = config.resourceScale,
-        withdraw = plan.withdraw, removed = removedLiters, animals = {} } or nil
+        withdraw = plan.withdraw, removed = removedLiters, animals = {}, dams = {} } or nil
 
     local water = spec.rlWaterCoverage
     local waterCoverage = (water ~= nil and water.tick ~= nil and tick - water.tick <= 1) and water.coverage or 1
     local protein = config.protein
     hour.plannedPerMonth = {}
-    for _, a in ipairs(plan.animals) do
+    -- Dams settle before the calves drinking from them: a calf gets her milk only as far as her
+    -- budget paid it this step.
+    local order, calves = {}, {}
+    for _, a in ipairs(plan.animals) do table.insert(a.damMilk ~= nil and calves or order, a) end
+    for _, a in ipairs(calves) do table.insert(order, a) end
+    for _, a in ipairs(order) do
         for name, fill in pairs(a.byFill) do
             local r = ratio[name] or 0
             if r < 1 then fill.kg, fill.liters, fill.me, fill.cpKg = fill.kg * r, fill.liters * r, fill.me * r, fill.cpKg * r end
         end
+        if a.damMilk ~= nil then RLFeed.settleDamMilk(a, hour, config.damMilk, observed) end
         RLFeedRationPlanner.sumAnimal(a)
         local animal = a.animal
         local feed = { tick = tick, owner = placeable, kg = a.kg, me = a.me, cp = a.cp, byFill = a.byFill, plannedKg = a.plannedKg,
             plannedMe = a.plannedMe, class = a.class, target = a.target, concShare = a.cEaten, concLimit = a.concLimit,
             intakeLimit = a.intakeLimit, proteinFactor = RLFeedMath.getProteinFactor(a.cp, a.proteinNeed, protein.maintenance),
-            proteinNeed = a.proteinNeed, dtDays = stepDays, water = waterCoverage }
+            proteinNeed = a.proteinNeed, dtDays = stepDays, water = waterCoverage, damMilk = a.damMilk }
         local before = observed ~= nil and { weight = animal.weight, health = animal.health, healthCarry = animal.rlHealthCarry or 0 } or nil
+        local paidBefore = a.nursing ~= nil and hour.animals[animal] ~= nil and hour.animals[animal].milkPaidLiters or 0
         RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
+        if a.nursing ~= nil and hour.animals[animal] ~= nil then
+            -- What her budget paid this step, as real kg DM her calves may drink.
+            local liters = hour.animals[animal].milkPaidLiters - paidBefore
+            a.nursing.paidLiters = liters
+            a.nursing.paidKg = liters * RLFeed.getMilkRealPerGameLiter(animal) * config.damMilk.dm
+        end
         if observed ~= nil then
             table.insert(observed.animals, { animal = animal, feed = feed, result = feed.result, weightBefore = before.weight,
                 weightAfter = animal.weight, healthBefore = before.health, healthAfter = animal.health,
@@ -760,6 +834,44 @@ function RLFeed.runStep(placeable, window, stepDays)
 end
 
 
+--- A calf's dam milk for the step against what its dam paid: the pool's calves share at most her
+--- step's milk (as planned, less in proportion when she paid less), settled once per dam, and what
+--- they drink leaves her milk for the store (her record's milkLiters; milkToCalves keeps it).
+--- @param a table The calf's plan
+--- @param hour table
+--- @param damMilk table damMilk values
+--- @param observed table|nil The STEP event being built
+function RLFeed.settleDamMilk(a, hour, damMilk, observed)
+    local pool = a.damPool
+    if pool.factor == nil then
+        local planned = pool.plannedKg or 0
+        local paid = pool.paidKg or 0
+        pool.factor = planned > 0 and math.clamp(paid / planned, 0, 1) or 0
+        local allocated = planned * pool.factor
+        local dam = pool.dam.animal
+        local record = hour.animals[dam]
+        local perLiter = RLFeed.getMilkRealPerGameLiter(dam) * damMilk.dm
+        local liters = (record ~= nil and perLiter > 0) and allocated / perLiter or 0
+        if record ~= nil then
+            -- Never more than she paid this step (rounding): her store takes the rest.
+            liters = math.min(liters, pool.paidLiters or 0)
+            record.milkLiters = math.max(record.milkLiters - liters, 0)
+            record.milkToCalves = (record.milkToCalves or 0) + liters
+        end
+        pool.allocatedKg = allocated
+        if observed ~= nil then
+            table.insert(observed.dams, { animal = dam, plannedKg = planned, paidKg = paid, paidLiters = pool.paidLiters or 0,
+                allocatedKg = allocated, allocatedLiters = liters, calves = #pool.calves })
+        end
+    end
+    local f = pool.factor
+    if f < 1 then
+        local milk = a.damMilk
+        milk.kg, milk.me, milk.cpKg = milk.kg * f, milk.me * f, milk.cpKg * f
+    end
+end
+
+
 --- One animal's step: its growth budget on what it ate, its rumen's adaptation, its health, the
 --- milk the budget paid, all added to the hour's record of it.
 function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
@@ -768,13 +880,14 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
     local record = hour.animals[animal]
     if record == nil then
         record = { tick = tick, owner = placeable, kg = 0, me = 0, cpKg = 0, byFill = {}, plannedKg = 0, plannedMe = 0, dtDays = 0,
-            milkLiters = 0, steps = 0 }
+            milkLiters = 0, milkPaidLiters = 0, damMilkKg = 0, steps = 0 }
         hour.animals[animal] = record
         table.insert(hour.order, animal)
     end
     record.steps = record.steps + 1
     record.kg, record.me, record.cpKg = record.kg + feed.kg, record.me + feed.me, record.cpKg + feed.cp * feed.kg
     record.plannedKg, record.plannedMe, record.dtDays = record.plannedKg + feed.plannedKg, record.plannedMe + feed.plannedMe, record.dtDays + feed.dtDays
+    if feed.damMilk ~= nil then record.damMilkKg = record.damMilkKg + feed.damMilk.kg end
     for name, fill in pairs(feed.byFill) do
         local total = record.byFill[name] or { liters = 0, kg = 0, me = 0, cpKg = 0 }
         total.liters, total.kg, total.me, total.cpKg = total.liters + fill.liters, total.kg + fill.kg, total.me + fill.me, total.cpKg + fill.cpKg
@@ -787,8 +900,11 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
     RLFeed.afterStep(animal, animal.rlGrowth, feed, result, weightBefore, dtMonths)
     RLFeed.applyHealth(animal, feed, result, dtMonths)
     RLFeed.applyUnderweight(animal, dtMonths)
-    -- The milk this step's budget paid (game liters), deposited by the pen's store this hour.
-    record.milkLiters = record.milkLiters + math.max(input.potentialMilk or 0, 0) * dtMonths * (result.milkFraction or 0)
+    -- The milk this step's budget paid (game liters): her calves' share leaves it (settleDamMilk), the
+    -- pen's store takes the rest this hour.
+    local paidLiters = math.max(input.potentialMilk or 0, 0) * dtMonths * (result.milkFraction or 0)
+    record.milkLiters = record.milkLiters + paidLiters
+    record.milkPaidLiters = record.milkPaidLiters + paidLiters
     record.milkPotential = (record.milkPotential or 0) + math.max(input.potentialMilk or 0, 0) * dtMonths
     record.coverage, record.growthFraction = result.coverage, result.growthFraction
     record.healthFactor, record.healthReason, record.gainPerMonth = feed.healthFactor, feed.healthReason, feed.gainPerMonth
@@ -817,7 +933,8 @@ function RLFeed.endFeeding(placeable)
         animal.rlMilkPaid = { tick = tick, litersPerHour = timeAdjustment > 0 and record.milkLiters / timeAdjustment or 0, deposited = false }
         animal.rlNutrition = { tick = tick, allocatedLiters = 0, coverage = record.coverage,
             intakeRatio = record.plannedKg > 0 and record.kg / record.plannedKg or 0,
-            milkShare = (record.milkPotential or 0) > 0 and record.milkLiters / record.milkPotential or nil,
+            -- What her budget paid of her milk (her calves drank part of it: milkToCalves).
+            milkShare = (record.milkPotential or 0) > 0 and (record.milkPaidLiters or record.milkLiters) / record.milkPotential or nil,
             growthFraction = record.growthFraction, intakeSource = "feed" }
     end
     if hour.steps > 0 then placeable.rlBodyConditionStepped = tick end
