@@ -164,6 +164,96 @@ end
 
 
 -- =============================================================================
+-- Ration preview
+-- =============================================================================
+
+--- The limit most of a pen's animals had (ties: the first in `order`), nil when none had one.
+local function mostCommon(counts, order)
+    local best, bestCount = nil, 0
+    for _, key in ipairs(order) do
+        if (counts[key] or 0) > bestCount then best, bestCount = key, counts[key] end
+    end
+    return best
+end
+
+
+--- A plan's concentrate share of the DM of the animals that may eat concentrate (planned, before a
+--- shortage), the limit most of them had, and how many there were.
+local function planShare(plan)
+    local forage, conc, counts, order, n = 0, 0, {}, {}, 0
+    for _, a in ipairs(plan.animals) do
+        if a.concEligible then
+            n = n + 1
+            forage, conc = forage + (a.forageKg or 0), conc + (a.concKg or 0)
+            local limit = a.concLimit or "NONE"
+            if counts[limit] == nil then order[#order + 1] = limit end
+            counts[limit] = (counts[limit] or 0) + 1
+        end
+    end
+    if n == 0 then return nil, nil, 0 end
+    local total = forage + conc
+    return total > 0 and conc / total or 0, mostCommon(counts, order), n
+end
+
+
+--- What a pen's animals would eat on a ration (the ration dialog's draft): one step's plan on the
+--- pen's animals and stock as they are now. Nothing is taken from the trough and no animal, rumen
+--- or reserve changes. Planned twice: with each rumen as adapted as it is now, and fully adapted
+--- (the share the ration settles at once the animals are used to it).
+--- @param placeable table
+--- @param ration table A ration's settings (sanitised here)
+--- @return table|nil preview { animals, eligible (animals that may eat concentrate), targetShare
+---         (nil: AUTO), share, limit (now), adaptedShare, adaptedLimit (fully adapted; nil without
+---         an eligible animal), kgPerHeadDay, coverage (eaten / planned ME this step), rows = { { name,
+---         title, perMonth (planned liters a month), dmShare (of the planned DM), available,
+---         monthsLeft } } (most liters first), firstOut }
+--- @return string|nil error
+function RLFeedInfoService.previewRation(placeable, ration)
+    ration = RLFeed.sanitizeRation(ration)
+    if not RLFeedProfiles.isValid() then return nil, "CONFIG_INVALID" end
+    local config = RLFeed.getConfig()
+    local stepDays = config.stepDays
+    local animals = RLFeed.describePen(placeable, ration, stepDays)
+    local plan = RLFeed.planPen(placeable, ration, animals, stepDays)
+
+    local preview = { animals = #animals, targetShare = ration.share, rows = {} }
+    preview.share, preview.limit, preview.eligible = planShare(plan)
+    preview.coverage = plan.plannedMe > 0 and plan.eatenMe / plan.plannedMe or nil
+    preview.kgPerHeadDay = #animals > 0 and plan.plannedKg / (#animals * stepDays) or 0
+
+    local perMonth, scale = {}, config.resourceScale
+    for _, a in ipairs(plan.animals) do
+        for name, liters in pairs(a.plannedByFill or {}) do perMonth[name] = (perMonth[name] or 0) + liters end
+    end
+    local totalKg, kgByFill = 0, {}
+    for name, liters in pairs(perMonth) do
+        local profile = RLFeedProfiles.getUsableFeed(name)
+        local kg = profile ~= nil and RLFeedUnits.litersToKg(liters, scale, profile.density, profile.dm) or 0
+        kgByFill[name], totalKg = kg, totalKg + kg
+    end
+    for name, liters in pairs(perMonth) do
+        if liters > 0 then
+            local index = g_fillTypeManager:getFillTypeIndexByName(name)
+            local available = index ~= nil and math.max(placeable:getAvailableFood(index) or 0, 0) or 0
+            table.insert(preview.rows, { name = name, title = index ~= nil and fillTitle(index, name) or name, perMonth = liters,
+                dmShare = totalKg > 0 and kgByFill[name] / totalKg or 0, available = available, monthsLeft = available / liters })
+        end
+    end
+    table.sort(preview.rows, function(a, b)
+        if a.perMonth ~= b.perMonth then return a.perMonth > b.perMonth end
+        return a.name < b.name
+    end)
+    preview.firstOut = RLFeedInfoService.getFirstOut(preview.rows)
+
+    -- The same animals once their rumens are used to the ration (the plan above set no state).
+    for _, a in ipairs(animals) do a.adapted = 1 end
+    local adapted = RLFeed.planPen(placeable, ration, animals, stepDays)
+    preview.adaptedShare, preview.adaptedLimit = planShare(adapted)
+    return preview
+end
+
+
+-- =============================================================================
 -- Texts
 -- =============================================================================
 

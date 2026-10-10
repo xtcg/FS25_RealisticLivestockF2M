@@ -1001,5 +1001,33 @@
         <text name="rl_feed_target_FINISH" text="Finishing"/>
         <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
         <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Karsinan ruokinta"/>
+        <text name="rl_feed_rationButton" text="Ruokinta"/>
+        <text name="rl_feed_dialogTitle" text="Ruokinta-asetukset"/>
+        <text name="rl_feed_labelTarget" text="Ruokinnan tavoite"/>
+        <text name="rl_feed_labelGrain" text="Väkirehu"/>
+        <text name="rl_feed_labelShare" text="Väkirehun osuus (KA)"/>
+        <text name="rl_feed_labelSubstitute" text="Korvaa loppuessa"/>
+        <text name="rl_feed_share_AUTO" text="Auto (suurin sallittu)"/>
+        <text name="rl_feed_substitute_on" text="Sallittu"/>
+        <text name="rl_feed_substitute_off" text="Ei sallittu"/>
+        <text name="rl_feed_readOnly" text="Vain luku: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Ei oikeutta"/>
+        <text name="rl_feed_statusClient" text="Voimassa, kun palvelin vahvistaa"/>
+        <text name="rl_feed_previewTarget" text="Tavoite"/>
+        <text name="rl_feed_previewNow" text="Nyt"/>
+        <text name="rl_feed_previewAdapted" text="Totuttu"/>
+        <text name="rl_feed_previewIntake" text="%d eläintä · %.1f kg KA/eläin/päivä · energiasuunnitelma %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Rehu"/>
+        <text name="rl_feed_colMonth" text="L/kk"/>
+        <text name="rl_feed_colShare" text="KA-osuus"/>
+        <text name="rl_feed_colStock" text="Varasto"/>
+        <text name="rl_feed_colLasts" text="Riittää"/>
+        <text name="rl_feed_previewNote" text="Vain esikatselu, mitään ei oteta. Osuus on tavoite: kuidun, tärkkelyksen, vehnän ja totuttelun rajat pätevät yhä."/>
+        <text name="rl_feed_previewMore" text="+%d muuta rehua."/>
+        <text name="rl_feed_previewError" text="Esikatselu ei saatavilla"/>
+        <text name="rl_feed_previewNoAnimals" text="Karsinassa ei ole eläimiä"/>
+        <text name="rl_feed_previewNoFeed" text="Ruokintapöydällä ei ole käyttökelpoista rehua"/>
+        <text name="rl_feed_apply" text="Käytä"/>
     </texts>
 </l10n>

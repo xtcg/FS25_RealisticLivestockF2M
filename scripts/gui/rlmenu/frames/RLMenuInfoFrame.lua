@@ -98,6 +98,13 @@ function RLMenuInfoFrame.new()
         text = g_i18n:getText("rl_menu_cycle_filter_button"),
         callback = function() self:onCycleFilter() end,
     }
+    -- The pen's ration (real-equivalent nutrition mode): a pen-level button, shown with or
+    -- without a selected animal.
+    self.rationButtonInfo = {
+        inputAction = InputAction.RL_FEED_RATION,
+        text = g_i18n:getText("rl_feed_rationButton"),
+        callback = function() self:onClickRation() end,
+    }
     self.menuButtonInfo = { self.backButtonInfo }
 
     return self
@@ -571,6 +578,10 @@ function RLMenuInfoFrame:updateButtonVisibility()
         table.insert(self.menuButtonInfo, self.cycleFilterButtonInfo)
     end
 
+    if self:canShowRation() then
+        table.insert(self.menuButtonInfo, self.rationButtonInfo)
+    end
+
     local animal = self:getSelectedAnimal()
     if animal ~= nil then
         -- Mark - always shown, text toggles
@@ -638,6 +649,28 @@ function RLMenuInfoFrame:updateButtonVisibility()
     end
 
     self:setMenuButtonInfoDirty()
+end
+
+--- The ration button: a cattle pen while the real-equivalent mode is on (the dialog itself says
+--- when the pen keeps the old rules or the player may not change it).
+---@return boolean
+function RLMenuInfoFrame:canShowRation()
+    return RLFeed ~= nil and RLFeed.mode == RLFeed.MODE_REAL and InputAction.RL_FEED_RATION ~= nil
+        and RLFeedInfoService.isCattlePen(self.selectedHusbandry)
+end
+
+---Open the pen's ration dialog; the pen display shows the ration the server confirms.
+function RLMenuInfoFrame:onClickRation()
+    if not self:canShowRation() then return end
+    Log:debug("RLMenuInfoFrame:onClickRation: opening for %s",
+        self.selectedHusbandry.getName ~= nil and self.selectedHusbandry:getName() or "?")
+    RLFeedRationDialog.show(self.selectedHusbandry, self.onRationClosed, self)
+end
+
+--- The ration dialog's close callback: the pen display reads the pen's ration again.
+function RLMenuInfoFrame:onRationClosed(_sent)
+    self:updatePenDisplay()
+    self:updateButtonVisibility()
 end
 
 ---Refresh list rows, detail pane, and button bar after a mutation.

@@ -999,5 +999,33 @@
         <text name="rl_feed_target_FINISH" text="Finishing"/>
         <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
         <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Ração do curral"/>
+        <text name="rl_feed_rationButton" text="Ração"/>
+        <text name="rl_feed_dialogTitle" text="Configurações de ração"/>
+        <text name="rl_feed_labelTarget" text="Objetivo"/>
+        <text name="rl_feed_labelGrain" text="Concentrado"/>
+        <text name="rl_feed_labelShare" text="Parte de concentrado (MS)"/>
+        <text name="rl_feed_labelSubstitute" text="Substituir se acabar"/>
+        <text name="rl_feed_share_AUTO" text="Auto (máx. permitido)"/>
+        <text name="rl_feed_substitute_on" text="Permitido"/>
+        <text name="rl_feed_substitute_off" text="Não permitido"/>
+        <text name="rl_feed_readOnly" text="Somente leitura: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Sem permissão"/>
+        <text name="rl_feed_statusClient" text="Vale após confirmação do servidor"/>
+        <text name="rl_feed_previewTarget" text="Meta"/>
+        <text name="rl_feed_previewNow" text="Agora"/>
+        <text name="rl_feed_previewAdapted" text="Adaptado"/>
+        <text name="rl_feed_previewIntake" text="%d cabeças · %.1f kg MS/cabeça/dia · plano energia %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Alimento"/>
+        <text name="rl_feed_colMonth" text="L/mês"/>
+        <text name="rl_feed_colShare" text="Parte MS"/>
+        <text name="rl_feed_colStock" text="Estoque"/>
+        <text name="rl_feed_colLasts" text="Dura"/>
+        <text name="rl_feed_previewNote" text="Apenas prévia, nada é retirado. A parte é uma meta: os limites de fibra, amido, trigo e adaptação continuam valendo."/>
+        <text name="rl_feed_previewMore" text="+%d outros alimentos."/>
+        <text name="rl_feed_previewError" text="Prévia indisponível"/>
+        <text name="rl_feed_previewNoAnimals" text="Sem animais neste curral"/>
+        <text name="rl_feed_previewNoFeed" text="Sem alimento utilizável no cocho"/>
+        <text name="rl_feed_apply" text="Aplicar"/>
     </texts>
 </l10n>

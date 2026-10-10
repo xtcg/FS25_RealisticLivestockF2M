@@ -998,5 +998,33 @@
         <text name="rl_feed_target_FINISH" text="Finishing"/>
         <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
         <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Rantsoen van stal"/>
+        <text name="rl_feed_rationButton" text="Rantsoen"/>
+        <text name="rl_feed_dialogTitle" text="Rantsoeninstellingen"/>
+        <text name="rl_feed_labelTarget" text="Voerdoel"/>
+        <text name="rl_feed_labelGrain" text="Krachtvoer"/>
+        <text name="rl_feed_labelShare" text="Aandeel krachtvoer (DS)"/>
+        <text name="rl_feed_labelSubstitute" text="Vervangen bij tekort"/>
+        <text name="rl_feed_share_AUTO" text="Auto (max toegestaan)"/>
+        <text name="rl_feed_substitute_on" text="Toegestaan"/>
+        <text name="rl_feed_substitute_off" text="Niet toegestaan"/>
+        <text name="rl_feed_readOnly" text="Alleen lezen: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Geen toestemming"/>
+        <text name="rl_feed_statusClient" text="Geldt na bevestiging door de server"/>
+        <text name="rl_feed_previewTarget" text="Doel"/>
+        <text name="rl_feed_previewNow" text="Nu"/>
+        <text name="rl_feed_previewAdapted" text="Aangepast"/>
+        <text name="rl_feed_previewIntake" text="%d dieren · %.1f kg DS/dier/dag · energieplan %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Voer"/>
+        <text name="rl_feed_colMonth" text="L/maand"/>
+        <text name="rl_feed_colShare" text="DS-aandeel"/>
+        <text name="rl_feed_colStock" text="Voorraad"/>
+        <text name="rl_feed_colLasts" text="Genoeg voor"/>
+        <text name="rl_feed_previewNote" text="Alleen voorbeeld, er wordt niets afgenomen. Het aandeel is een doel: vezel-, zetmeel-, tarwe- en aanpassingsgrenzen blijven gelden."/>
+        <text name="rl_feed_previewMore" text="+%d andere voeders."/>
+        <text name="rl_feed_previewError" text="Voorbeeld niet beschikbaar"/>
+        <text name="rl_feed_previewNoAnimals" text="Geen dieren in deze stal"/>
+        <text name="rl_feed_previewNoFeed" text="Geen bruikbaar voer in de trog"/>
+        <text name="rl_feed_apply" text="Toepassen"/>
     </texts>
 </l10n>

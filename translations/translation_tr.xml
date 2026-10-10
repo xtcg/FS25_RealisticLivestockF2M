@@ -1020,5 +1020,33 @@
         <text name="rl_feed_target_FINISH" text="Finishing"/>
         <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
         <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Bölme rasyonu"/>
+        <text name="rl_feed_rationButton" text="Rasyon"/>
+        <text name="rl_feed_dialogTitle" text="Rasyon ayarları"/>
+        <text name="rl_feed_labelTarget" text="Besleme hedefi"/>
+        <text name="rl_feed_labelGrain" text="Kesif yem"/>
+        <text name="rl_feed_labelShare" text="Kesif yem payı (KM)"/>
+        <text name="rl_feed_labelSubstitute" text="Bitince yerine koy"/>
+        <text name="rl_feed_share_AUTO" text="Otomatik (en yüksek)"/>
+        <text name="rl_feed_substitute_on" text="İzin verildi"/>
+        <text name="rl_feed_substitute_off" text="İzin verilmedi"/>
+        <text name="rl_feed_readOnly" text="Salt okunur: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Yetki yok"/>
+        <text name="rl_feed_statusClient" text="Sunucu onayladığında geçerli olur"/>
+        <text name="rl_feed_previewTarget" text="Hedef"/>
+        <text name="rl_feed_previewNow" text="Şimdi"/>
+        <text name="rl_feed_previewAdapted" text="Alıştıktan sonra"/>
+        <text name="rl_feed_previewIntake" text="%d baş · %.1f kg KM/baş/gün · enerji planı %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Yem"/>
+        <text name="rl_feed_colMonth" text="L/ay"/>
+        <text name="rl_feed_colShare" text="KM payı"/>
+        <text name="rl_feed_colStock" text="Stok"/>
+        <text name="rl_feed_colLasts" text="Yeter"/>
+        <text name="rl_feed_previewNote" text="Yalnızca önizleme, hiçbir şey alınmaz. Pay bir hedeftir: lif, nişasta, buğday ve alışma sınırları geçerli kalır."/>
+        <text name="rl_feed_previewMore" text="+%d yem daha."/>
+        <text name="rl_feed_previewError" text="Önizleme kullanılamıyor"/>
+        <text name="rl_feed_previewNoAnimals" text="Bu bölmede hayvan yok"/>
+        <text name="rl_feed_previewNoFeed" text="Yemlikte kullanılabilir yem yok"/>
+        <text name="rl_feed_apply" text="Uygula"/>
     </texts>
 </l10n>

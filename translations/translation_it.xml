@@ -980,5 +980,33 @@
         <text name="rl_feed_target_FINISH" text="Finishing"/>
         <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
         <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Razione del recinto"/>
+        <text name="rl_feed_rationButton" text="Razione"/>
+        <text name="rl_feed_dialogTitle" text="Impostazioni razione"/>
+        <text name="rl_feed_labelTarget" text="Obiettivo"/>
+        <text name="rl_feed_labelGrain" text="Concentrato"/>
+        <text name="rl_feed_labelShare" text="Quota concentrato (SS)"/>
+        <text name="rl_feed_labelSubstitute" text="Sostituisci se esaurito"/>
+        <text name="rl_feed_share_AUTO" text="Auto (max consentito)"/>
+        <text name="rl_feed_substitute_on" text="Consentito"/>
+        <text name="rl_feed_substitute_off" text="Non consentito"/>
+        <text name="rl_feed_readOnly" text="Sola lettura: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Nessun permesso"/>
+        <text name="rl_feed_statusClient" text="Attivo dopo la conferma del server"/>
+        <text name="rl_feed_previewTarget" text="Obiettivo"/>
+        <text name="rl_feed_previewNow" text="Ora"/>
+        <text name="rl_feed_previewAdapted" text="Adattato"/>
+        <text name="rl_feed_previewIntake" text="%d capi · %.1f kg SS/capo/giorno · piano energia %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Alimento"/>
+        <text name="rl_feed_colMonth" text="L/mese"/>
+        <text name="rl_feed_colShare" text="Quota SS"/>
+        <text name="rl_feed_colStock" text="Scorta"/>
+        <text name="rl_feed_colLasts" text="Durata"/>
+        <text name="rl_feed_previewNote" text="Solo anteprima, nulla viene prelevato. La quota è un obiettivo: restano i limiti di fibra, amido, frumento e adattamento."/>
+        <text name="rl_feed_previewMore" text="+%d altri alimenti."/>
+        <text name="rl_feed_previewError" text="Anteprima non disponibile"/>
+        <text name="rl_feed_previewNoAnimals" text="Nessun animale in questo recinto"/>
+        <text name="rl_feed_previewNoFeed" text="Nessun alimento utilizzabile nella mangiatoia"/>
+        <text name="rl_feed_apply" text="Applica"/>
     </texts>
 </l10n>

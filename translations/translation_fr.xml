@@ -1021,5 +1021,33 @@
         <text name="rl_feed_target_FINISH" text="Finishing"/>
         <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
         <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Ration de l'enclos"/>
+        <text name="rl_feed_rationButton" text="Ration"/>
+        <text name="rl_feed_dialogTitle" text="Réglages de ration"/>
+        <text name="rl_feed_labelTarget" text="Objectif"/>
+        <text name="rl_feed_labelGrain" text="Concentré"/>
+        <text name="rl_feed_labelShare" text="Part de concentré (MS)"/>
+        <text name="rl_feed_labelSubstitute" text="Remplacer si épuisé"/>
+        <text name="rl_feed_share_AUTO" text="Auto (max autorisé)"/>
+        <text name="rl_feed_substitute_on" text="Autorisé"/>
+        <text name="rl_feed_substitute_off" text="Interdit"/>
+        <text name="rl_feed_readOnly" text="Lecture seule : %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Pas d'autorisation"/>
+        <text name="rl_feed_statusClient" text="Effectif après confirmation du serveur"/>
+        <text name="rl_feed_previewTarget" text="Objectif"/>
+        <text name="rl_feed_previewNow" text="Actuel"/>
+        <text name="rl_feed_previewAdapted" text="Adapté"/>
+        <text name="rl_feed_previewIntake" text="%d têtes · %.1f kg MS/tête/jour · plan énergie %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Aliment"/>
+        <text name="rl_feed_colMonth" text="L/mois"/>
+        <text name="rl_feed_colShare" text="Part MS"/>
+        <text name="rl_feed_colStock" text="Stock"/>
+        <text name="rl_feed_colLasts" text="Durée"/>
+        <text name="rl_feed_previewNote" text="Aperçu seulement, rien n'est prélevé. La part est un objectif : les limites de fibres, d'amidon, de blé et d'adaptation s'appliquent."/>
+        <text name="rl_feed_previewMore" text="+%d autres aliments."/>
+        <text name="rl_feed_previewError" text="Aperçu indisponible"/>
+        <text name="rl_feed_previewNoAnimals" text="Aucun animal dans cet enclos"/>
+        <text name="rl_feed_previewNoFeed" text="Aucun aliment utilisable dans l'auge"/>
+        <text name="rl_feed_apply" text="Appliquer"/>
     </texts>
 </l10n>

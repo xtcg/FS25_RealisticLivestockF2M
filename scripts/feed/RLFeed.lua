@@ -612,6 +612,37 @@ function RLFeed.consume(placeable, consumedFood)
 end
 
 
+--- The planner's view of a pen's living animals for a step of stepDays (`include(animal)`: which
+--- of them, all when nil). Reads the animals only.
+--- @return table descriptors
+function RLFeed.describePen(placeable, ration, stepDays, include)
+    local dtMonths = stepDays / RLFeed.getConfig().realDaysPerPeriod
+    local animals = {}
+    for _, animal in ipairs(placeable:getClusters() or {}) do
+        if not animal.isDead and (animal.numAnimals or 1) > 0 and (include == nil or include(animal)) then
+            table.insert(animals, RLFeed.describeAnimal(animal, ration, dtMonths, stepDays))
+        end
+    end
+    return animals
+end
+
+
+--- A step's plan for a pen on its stock as it is now, on a ration: what the planner would take and
+--- give each animal. Takes nothing from the trough (RLFeed.runStep removes the plan's liters).
+--- @return table plan, table forage, table concentrate, table milk, table unconfigured
+function RLFeed.planPen(placeable, ration, animals, stepDays)
+    local config = RLFeed.getConfig()
+    local forage, concentrate, milk, unconfigured = RLFeed.getStockLists(placeable, ration)
+    local plan = RLFeedRationPlanner.plan({
+        animals = animals, forage = forage, concentrate = concentrate, milk = milk,
+        scale = config.resourceScale, realDaysPerPeriod = config.realDaysPerPeriod, dtDays = stepDays,
+        share = ration.share, ration = config.ration, classes = config.classes,
+        proteinMaintenance = config.protein.maintenance, concentrateWanted = ration.grain ~= "NONE" and ration.share ~= 0,
+    })
+    return plan, forage, concentrate, milk, unconfigured
+end
+
+
 --- One model-time step of a pen: plan, remove, settle each animal.
 --- @param placeable table
 --- @param window table The hour's feeding
@@ -624,21 +655,11 @@ function RLFeed.runStep(placeable, window, stepDays)
     local tick = window.tick
     local hour = window.hour
 
-    local animals = {}
-    for _, animal in ipairs(placeable:getClusters() or {}) do
+    local animals = RLFeed.describePen(placeable, ration, stepDays, function(animal)
         -- Not twice in an hour: an animal stepped in another pen this hour (moved since) waits.
-        local stepped = animal.rlFeedStepTick == tick and animal.rlFeedStepOwner ~= placeable
-        if not animal.isDead and (animal.numAnimals or 1) > 0 and not stepped then
-            table.insert(animals, RLFeed.describeAnimal(animal, ration, dtMonths, stepDays))
-        end
-    end
-    local forage, concentrate, milk, unconfigured = RLFeed.getStockLists(placeable, ration)
-    local plan = RLFeedRationPlanner.plan({
-        animals = animals, forage = forage, concentrate = concentrate, milk = milk,
-        scale = config.resourceScale, realDaysPerPeriod = config.realDaysPerPeriod, dtDays = stepDays,
-        share = ration.share, ration = config.ration, classes = config.classes,
-        proteinMaintenance = config.protein.maintenance, concentrateWanted = ration.grain ~= "NONE" and ration.share ~= 0,
-    })
+        return animal.rlFeedStepTick ~= tick or animal.rlFeedStepOwner == placeable
+    end)
+    local plan, forage, concentrate, milk, unconfigured = RLFeed.planPen(placeable, ration, animals, stepDays)
     hour.unconfigured = unconfigured
 
     -- Take it from the trough (and meadow) now; a feed the trough gave less of is shared as given.

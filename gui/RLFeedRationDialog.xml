@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<!--
+    RLFeedRationDialog.xml
+
+    A cattle pen's ration settings in the real-equivalent nutrition mode (RLFeedRationDialog.lua,
+    state in RLFeedRationModel): four pickers (what the animals eat for, the concentrate, its share
+    target of the DM, substitution), the draft's preview (concentrate share target / now / once
+    adapted with what limits it; per feed liters a month, DM share, stock and how long it lasts),
+    Apply and Back. Positions are anchorTopCenter: x is the element's centre from the dialog's
+    centre, y its top edge.
+-->
+<GUI onOpen="onOpen" onClose="onClose" onCreate="onCreate">
+    <GuiElement profile="newLayer"/>
+    <Bitmap profile="dialogFullscreenBg" id="dialogBg"/>
+    <GuiElement profile="fs25_dialogBg" id="dialogElement" size="860px 720px">
+        <ThreePartBitmap profile="fs25_dialogBgMiddle"/>
+        <ThreePartBitmap profile="fs25_dialogBgTop"/>
+        <ThreePartBitmap profile="fs25_dialogBgBottom"/>
+        <GuiElement profile="fs25_dialogContentContainer">
+
+            <Text profile="fs25_dialogTitle" id="titleText" position="0px -30px" size="780px 30px" text="$l10n_rl_feed_dialogTitle"/>
+            <Text profile="rl_feedDialog_line" id="statusText" position="0px -72px" text=""/>
+
+            <Text profile="rl_feedDialog_label" position="-200px -104px" text="$l10n_rl_feed_labelTarget"/>
+            <MultiTextOption profile="rl_feedDialog_picker" id="targetPicker" position="180px -104px" onClick="onTargetChanged" focusInit="onOpen">
+                <Text profile="fs25_multiTextOptionText" name="text"/>
+            </MultiTextOption>
+            <Text profile="rl_feedDialog_label" position="-200px -148px" text="$l10n_rl_feed_labelGrain"/>
+            <MultiTextOption profile="rl_feedDialog_picker" id="grainPicker" position="180px -148px" onClick="onGrainChanged">
+                <Text profile="fs25_multiTextOptionText" name="text"/>
+            </MultiTextOption>
+            <Text profile="rl_feedDialog_label" position="-200px -192px" text="$l10n_rl_feed_labelShare"/>
+            <MultiTextOption profile="rl_feedDialog_picker" id="sharePicker" position="180px -192px" onClick="onShareChanged">
+                <Text profile="fs25_multiTextOptionText" name="text"/>
+            </MultiTextOption>
+            <Text profile="rl_feedDialog_label" position="-200px -236px" text="$l10n_rl_feed_labelSubstitute"/>
+            <MultiTextOption profile="rl_feedDialog_picker" id="substitutePicker" position="180px -236px" onClick="onSubstituteChanged">
+                <Text profile="fs25_multiTextOptionText" name="text"/>
+            </MultiTextOption>
+
+            <Text profile="rl_feedDialog_line" id="shareText" position="0px -290px" text=""/>
+            <Text profile="rl_feedDialog_line" id="intakeText" position="0px -316px" text=""/>
+
+            <!-- Preview table: header, then up to RLFeedRationModel.MAX_ROWS rows filled by Lua. -->
+            <Text profile="rl_feedDialog_headLeft" position="-250px -356px" size="260px 24px" text="$l10n_rl_feed_colFeed"/>
+            <Text profile="rl_feedDialog_head" position="-55px -356px" size="130px 24px" text="$l10n_rl_feed_colMonth"/>
+            <Text profile="rl_feedDialog_head" position="65px -356px" size="110px 24px" text="$l10n_rl_feed_colShare"/>
+            <Text profile="rl_feedDialog_head" position="190px -356px" size="140px 24px" text="$l10n_rl_feed_colStock"/>
+            <Text profile="rl_feedDialog_head" position="320px -356px" size="120px 24px" text="$l10n_rl_feed_colLasts"/>
+            <Text profile="rl_feedDialog_cellLeft" id="row1Title" position="-250px -382px" size="260px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row1Month" position="-55px -382px" size="130px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row1Share" position="65px -382px" size="110px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row1Stock" position="190px -382px" size="140px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row1Lasts" position="320px -382px" size="120px 24px" text=""/>
+            <Text profile="rl_feedDialog_cellLeft" id="row2Title" position="-250px -407px" size="260px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row2Month" position="-55px -407px" size="130px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row2Share" position="65px -407px" size="110px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row2Stock" position="190px -407px" size="140px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row2Lasts" position="320px -407px" size="120px 24px" text=""/>
+            <Text profile="rl_feedDialog_cellLeft" id="row3Title" position="-250px -432px" size="260px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row3Month" position="-55px -432px" size="130px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row3Share" position="65px -432px" size="110px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row3Stock" position="190px -432px" size="140px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row3Lasts" position="320px -432px" size="120px 24px" text=""/>
+            <Text profile="rl_feedDialog_cellLeft" id="row4Title" position="-250px -457px" size="260px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row4Month" position="-55px -457px" size="130px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row4Share" position="65px -457px" size="110px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row4Stock" position="190px -457px" size="140px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row4Lasts" position="320px -457px" size="120px 24px" text=""/>
+            <Text profile="rl_feedDialog_cellLeft" id="row5Title" position="-250px -482px" size="260px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row5Month" position="-55px -482px" size="130px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row5Share" position="65px -482px" size="110px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row5Stock" position="190px -482px" size="140px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row5Lasts" position="320px -482px" size="120px 24px" text=""/>
+            <Text profile="rl_feedDialog_cellLeft" id="row6Title" position="-250px -507px" size="260px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row6Month" position="-55px -507px" size="130px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row6Share" position="65px -507px" size="110px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row6Stock" position="190px -507px" size="140px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row6Lasts" position="320px -507px" size="120px 24px" text=""/>
+            <Text profile="rl_feedDialog_cellLeft" id="row7Title" position="-250px -532px" size="260px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row7Month" position="-55px -532px" size="130px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row7Share" position="65px -532px" size="110px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row7Stock" position="190px -532px" size="140px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row7Lasts" position="320px -532px" size="120px 24px" text=""/>
+            <Text profile="rl_feedDialog_cellLeft" id="row8Title" position="-250px -557px" size="260px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row8Month" position="-55px -557px" size="130px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row8Share" position="65px -557px" size="110px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row8Stock" position="190px -557px" size="140px 24px" text=""/>
+            <Text profile="rl_feedDialog_cell" id="row8Lasts" position="320px -557px" size="120px 24px" text=""/>
+            <Text profile="rl_feedDialog_line" id="emptyText" position="0px -400px" text="" visible="false"/>
+            <Text profile="rl_feedDialog_note" id="noteText" position="0px -588px" text="$l10n_rl_feed_previewNote"/>
+        </GuiElement>
+
+        <BoxLayout profile="fs25_dialogButtonBox" id="buttonsPC">
+            <Button profile="buttonOK" text="$l10n_rl_feed_apply" onClick="onClickApply" id="applyButton"/>
+            <Bitmap profile="fs25_dialogButtonBoxSeparator"/>
+            <Button profile="buttonBack" text="$l10n_button_back" onClick="onClickBack" id="backButton"/>
+        </BoxLayout>
+    </GuiElement>
+
+    <!-- Element-level `with=` is ignored by the GUI loader: anchors go on the profiles. -->
+    <GUIProfiles>
+        <Profile name="rl_feedDialog_label" extends="fs25_dialogText">
+            <size value="360px 36px"/>
+            <textSize value="16px"/>
+            <textMaxNumLines value="1"/>
+            <textAlignment value="right"/>
+            <textVerticalAlignment value="middle"/>
+            <textMaxWidth value="360px"/>
+            <textLayoutMode value="resize"/>
+        </Profile>
+        <Profile name="rl_feedDialog_picker" extends="fs25_multiTextOption" with="anchorTopCenter">
+            <size value="340px 36px"/>
+        </Profile>
+        <Profile name="rl_feedDialog_line" extends="fs25_dialogText">
+            <size value="800px 22px"/>
+            <textSize value="15px"/>
+            <textMaxNumLines value="1"/>
+            <textMaxWidth value="800px"/>
+            <textLayoutMode value="resize"/>
+        </Profile>
+        <Profile name="rl_feedDialog_note" extends="rl_feedDialog_line">
+            <size value="800px 40px"/>
+            <textSize value="13px"/>
+            <textMaxNumLines value="2"/>
+            <textLineHeightScale value="1.2"/>
+            <textLayoutMode value="truncate"/>
+            <textColor value="$preset_colorWhite_50"/>
+        </Profile>
+        <Profile name="rl_feedDialog_cell" extends="fs25_dialogText">
+            <textSize value="15px"/>
+            <textMaxNumLines value="1"/>
+            <textAlignment value="right"/>
+            <textVerticalAlignment value="middle"/>
+            <textLayoutMode value="resize"/>
+        </Profile>
+        <Profile name="rl_feedDialog_cellLeft" extends="rl_feedDialog_cell">
+            <textAlignment value="left"/>
+        </Profile>
+        <Profile name="rl_feedDialog_head" extends="rl_feedDialog_cell">
+            <textBold value="true"/>
+            <textColor value="$preset_fs25_colorMainHighlight"/>
+        </Profile>
+        <Profile name="rl_feedDialog_headLeft" extends="rl_feedDialog_head">
+            <textAlignment value="left"/>
+        </Profile>
+    </GUIProfiles>
+</GUI>

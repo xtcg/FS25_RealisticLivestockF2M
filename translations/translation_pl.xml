@@ -999,5 +999,33 @@
         <text name="rl_feed_target_FINISH" text="Finishing"/>
         <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
         <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Dawka pokarmowa kojca"/>
+        <text name="rl_feed_rationButton" text="Dawka"/>
+        <text name="rl_feed_dialogTitle" text="Ustawienia dawki"/>
+        <text name="rl_feed_labelTarget" text="Cel żywienia"/>
+        <text name="rl_feed_labelGrain" text="Pasza treściwa"/>
+        <text name="rl_feed_labelShare" text="Udział paszy treściwej (SM)"/>
+        <text name="rl_feed_labelSubstitute" text="Zamiennik przy braku"/>
+        <text name="rl_feed_share_AUTO" text="Auto (maks. dozwolony)"/>
+        <text name="rl_feed_substitute_on" text="Dozwolone"/>
+        <text name="rl_feed_substitute_off" text="Niedozwolone"/>
+        <text name="rl_feed_readOnly" text="Tylko odczyt: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Brak uprawnień"/>
+        <text name="rl_feed_statusClient" text="Obowiązuje po potwierdzeniu przez serwer"/>
+        <text name="rl_feed_previewTarget" text="Cel"/>
+        <text name="rl_feed_previewNow" text="Teraz"/>
+        <text name="rl_feed_previewAdapted" text="Po adaptacji"/>
+        <text name="rl_feed_previewIntake" text="%d szt. · %.1f kg SM/szt./dzień · plan energii %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Pasza"/>
+        <text name="rl_feed_colMonth" text="L/mies."/>
+        <text name="rl_feed_colShare" text="Udział SM"/>
+        <text name="rl_feed_colStock" text="Zapas"/>
+        <text name="rl_feed_colLasts" text="Starczy"/>
+        <text name="rl_feed_previewNote" text="Tylko podgląd, nic nie jest pobierane. Udział to cel: limity włókna, skrobi, pszenicy i adaptacji nadal obowiązują."/>
+        <text name="rl_feed_previewMore" text="+%d innych pasz."/>
+        <text name="rl_feed_previewError" text="Podgląd niedostępny"/>
+        <text name="rl_feed_previewNoAnimals" text="Brak zwierząt w tym kojcu"/>
+        <text name="rl_feed_previewNoFeed" text="Brak przydatnej paszy w korycie"/>
+        <text name="rl_feed_apply" text="Zastosuj"/>
     </texts>
 </l10n>

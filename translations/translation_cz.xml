@@ -1006,5 +1006,33 @@
         <text name="rl_feed_target_FINISH" text="Finishing"/>
         <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
         <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Krmná dávka kotce"/>
+        <text name="rl_feed_rationButton" text="Dávka"/>
+        <text name="rl_feed_dialogTitle" text="Nastavení krmné dávky"/>
+        <text name="rl_feed_labelTarget" text="Cíl krmení"/>
+        <text name="rl_feed_labelGrain" text="Jádro"/>
+        <text name="rl_feed_labelShare" text="Podíl jádra (sušina)"/>
+        <text name="rl_feed_labelSubstitute" text="Náhrada při nedostatku"/>
+        <text name="rl_feed_share_AUTO" text="Auto (max. povoleno)"/>
+        <text name="rl_feed_substitute_on" text="Povoleno"/>
+        <text name="rl_feed_substitute_off" text="Nepovoleno"/>
+        <text name="rl_feed_readOnly" text="Jen ke čtení: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Bez oprávnění"/>
+        <text name="rl_feed_statusClient" text="Platí po potvrzení serverem"/>
+        <text name="rl_feed_previewTarget" text="Cíl"/>
+        <text name="rl_feed_previewNow" text="Nyní"/>
+        <text name="rl_feed_previewAdapted" text="Po adaptaci"/>
+        <text name="rl_feed_previewIntake" text="%d ks · %.1f kg sušiny/ks/den · energetický plán %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Krmivo"/>
+        <text name="rl_feed_colMonth" text="L/měsíc"/>
+        <text name="rl_feed_colShare" text="Podíl sušiny"/>
+        <text name="rl_feed_colStock" text="Zásoba"/>
+        <text name="rl_feed_colLasts" text="Vydrží"/>
+        <text name="rl_feed_previewNote" text="Pouze náhled, nic se neodebere. Podíl je cíl: limity vlákniny, škrobu, pšenice a adaptace stále platí."/>
+        <text name="rl_feed_previewMore" text="+%d dalších krmiv."/>
+        <text name="rl_feed_previewError" text="Náhled není k dispozici"/>
+        <text name="rl_feed_previewNoAnimals" text="V tomto kotci nejsou zvířata"/>
+        <text name="rl_feed_previewNoFeed" text="Ve žlabu není použitelné krmivo"/>
+        <text name="rl_feed_apply" text="Použít"/>
     </texts>
 </l10n>

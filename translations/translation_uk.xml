@@ -978,5 +978,33 @@
         <text name="rl_feed_target_FINISH" text="Finishing"/>
         <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
         <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Раціон загону"/>
+        <text name="rl_feed_rationButton" text="Раціон"/>
+        <text name="rl_feed_dialogTitle" text="Налаштування раціону"/>
+        <text name="rl_feed_labelTarget" text="Мета годівлі"/>
+        <text name="rl_feed_labelGrain" text="Концентрат"/>
+        <text name="rl_feed_labelShare" text="Частка концентрату (СР)"/>
+        <text name="rl_feed_labelSubstitute" text="Заміна при нестачі"/>
+        <text name="rl_feed_share_AUTO" text="Авто (макс. дозволено)"/>
+        <text name="rl_feed_substitute_on" text="Дозволено"/>
+        <text name="rl_feed_substitute_off" text="Заборонено"/>
+        <text name="rl_feed_readOnly" text="Лише читання: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Немає прав"/>
+        <text name="rl_feed_statusClient" text="Набуде чинності після підтвердження сервера"/>
+        <text name="rl_feed_previewTarget" text="Мета"/>
+        <text name="rl_feed_previewNow" text="Зараз"/>
+        <text name="rl_feed_previewAdapted" text="Після адаптації"/>
+        <text name="rl_feed_previewIntake" text="%d гол. · %.1f кг СР/гол./день · план енергії %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Корм"/>
+        <text name="rl_feed_colMonth" text="л/міс."/>
+        <text name="rl_feed_colShare" text="Частка СР"/>
+        <text name="rl_feed_colStock" text="Запас"/>
+        <text name="rl_feed_colLasts" text="Вистачить"/>
+        <text name="rl_feed_previewNote" text="Лише попередній перегляд, нічого не списується. Частка — це мета: обмеження клітковини, крохмалю, пшениці та адаптації зберігаються."/>
+        <text name="rl_feed_previewMore" text="+%d інших кормів."/>
+        <text name="rl_feed_previewError" text="Попередній перегляд недоступний"/>
+        <text name="rl_feed_previewNoAnimals" text="У загоні немає тварин"/>
+        <text name="rl_feed_previewNoFeed" text="У годівниці немає придатного корму"/>
+        <text name="rl_feed_apply" text="Застосувати"/>
     </texts>
 </l10n>

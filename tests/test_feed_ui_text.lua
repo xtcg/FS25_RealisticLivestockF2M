@@ -67,3 +67,50 @@ for _, lang in ipairs(languages) do
     for _, row in ipairs(Info.getPenInfoRows(pen)) do ok = ok and translated(g_i18n:getText(row.titleKey)) and translated(row.text) end
     check(lang .. ": animal DM/day and energy-plan coverage use actual ledger values with translated labels", ok)
 end
+
+-- FEED-08: the ration dialog's keys (its XML and Lua), and the model's picker and preview texts,
+-- in every language; format strings with the same placeholders as English.
+loadMod("scripts/events/RLFeedRationEvent.lua")
+loadMod("scripts/gui/rlmenu/services/RLFeedRationModel.lua")
+local dialogKeys = {}
+for _, path in ipairs({ "gui/RLFeedRationDialog.xml", "scripts/gui/RLFeedRationDialog.lua", "scripts/gui/rlmenu/services/RLFeedRationModel.lua" }) do
+    local file = assert(io.open(REPO .. path, "r"))
+    local content = file:read("*a")
+    file:close()
+    for key in content:gmatch("%$l10n_([%w_]+)") do dialogKeys[key] = true end
+    for key in content:gmatch('getText%("([%w_]+)"%)') do dialogKeys[key] = true end
+end
+dialogKeys.input_RL_FEED_RATION, dialogKeys.rl_feed_rationButton = true, true
+local english = textsFor("en")
+local function placeholders(text)
+    local out = {}
+    for spec in (text or ""):gmatch("%%[%-%d%.]*[dfs%%]") do out[#out + 1] = spec end
+    return table.concat(out, " ")
+end
+local rationPen = FeedSim.makePen({ (GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })) }, { DRYGRASS_WINDROW = 10000, MAIZE = 1000 })
+for _, lang in ipairs(languages) do
+    local texts = textsFor(lang)
+    g_i18n = {
+        getText = function(_, key) return texts[key] or key end,
+        hasText = function(_, key) return texts[key] ~= nil end,
+        formatVolume = function(_, liters) return string.format("%.0f L", liters) end,
+    }
+    local missing = {}
+    for key in pairs(dialogKeys) do
+        -- button_back is the game's own text.
+        if key ~= "button_back" and (texts[key] == nil or texts[key] == "" or placeholders(texts[key]) ~= placeholders(english[key])) then
+            missing[#missing + 1] = key
+        end
+    end
+    table.sort(missing)
+    local model = RLFeedRationModel.new(rationPen)
+    local ok = #missing == 0
+    for _, list in ipairs({ model:getTargetTexts(), model:getGrainTexts(), model:getShareTexts(), model:getSubstituteTexts() }) do
+        for _, text in ipairs(list) do ok = ok and translated(text) end
+    end
+    local preview = model:getPreviewTexts()
+    ok = ok and translated(preview.share) and translated(preview.intake) and #preview.rows > 0
+    for _, row in ipairs(preview.rows) do ok = ok and translated(row.lasts) and translated(row.dmShare) end
+    check(lang .. ": the ration dialog's keys exist with English's placeholders, and its pickers and preview read translated", ok)
+    if #missing > 0 then print(lang .. " ration dialog keys missing or with other placeholders: " .. table.concat(missing, ", ")) end
+end

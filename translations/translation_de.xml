@@ -1000,5 +1000,33 @@
         <text name="rl_feed_target_FINISH" text="Finishing"/>
         <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
         <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Stall-Ration"/>
+        <text name="rl_feed_rationButton" text="Ration"/>
+        <text name="rl_feed_dialogTitle" text="Rationseinstellungen"/>
+        <text name="rl_feed_labelTarget" text="Fütterungsziel"/>
+        <text name="rl_feed_labelGrain" text="Kraftfutter"/>
+        <text name="rl_feed_labelShare" text="Kraftfutteranteil (TM)"/>
+        <text name="rl_feed_labelSubstitute" text="Ersatz bei Mangel"/>
+        <text name="rl_feed_share_AUTO" text="Auto (Höchstwert)"/>
+        <text name="rl_feed_substitute_on" text="Erlaubt"/>
+        <text name="rl_feed_substitute_off" text="Nicht erlaubt"/>
+        <text name="rl_feed_readOnly" text="Nur lesen: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Keine Berechtigung"/>
+        <text name="rl_feed_statusClient" text="Gilt nach Bestätigung durch den Server"/>
+        <text name="rl_feed_previewTarget" text="Ziel"/>
+        <text name="rl_feed_previewNow" text="Jetzt"/>
+        <text name="rl_feed_previewAdapted" text="Angepasst"/>
+        <text name="rl_feed_previewIntake" text="%d Tiere · %.1f kg TM/Tier/Tag · Energieplan %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Futter"/>
+        <text name="rl_feed_colMonth" text="L/Monat"/>
+        <text name="rl_feed_colShare" text="TM-Anteil"/>
+        <text name="rl_feed_colStock" text="Vorrat"/>
+        <text name="rl_feed_colLasts" text="Reicht"/>
+        <text name="rl_feed_previewNote" text="Nur Vorschau, nichts wird entnommen. Der Anteil ist ein Ziel: Faser-, Stärke-, Weizen- und Anpassungsgrenzen gelten weiter."/>
+        <text name="rl_feed_previewMore" text="+%d weitere Futter."/>
+        <text name="rl_feed_previewError" text="Vorschau nicht verfügbar"/>
+        <text name="rl_feed_previewNoAnimals" text="Keine Tiere in diesem Stall"/>
+        <text name="rl_feed_previewNoFeed" text="Kein nutzbares Futter im Trog"/>
+        <text name="rl_feed_apply" text="Übernehmen"/>
     </texts>
 </l10n>

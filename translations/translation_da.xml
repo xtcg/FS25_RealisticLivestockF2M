@@ -994,5 +994,33 @@
         <text name="rl_feed_target_FINISH" text="Finishing"/>
         <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
         <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Foderplan for sti"/>
+        <text name="rl_feed_rationButton" text="Foderplan"/>
+        <text name="rl_feed_dialogTitle" text="Foderplan-indstillinger"/>
+        <text name="rl_feed_labelTarget" text="Fodringsmål"/>
+        <text name="rl_feed_labelGrain" text="Kraftfoder"/>
+        <text name="rl_feed_labelShare" text="Kraftfoderandel (TS)"/>
+        <text name="rl_feed_labelSubstitute" text="Erstat ved mangel"/>
+        <text name="rl_feed_share_AUTO" text="Auto (maks. tilladt)"/>
+        <text name="rl_feed_substitute_on" text="Tilladt"/>
+        <text name="rl_feed_substitute_off" text="Ikke tilladt"/>
+        <text name="rl_feed_readOnly" text="Skrivebeskyttet: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Ingen tilladelse"/>
+        <text name="rl_feed_statusClient" text="Gælder når serveren bekræfter"/>
+        <text name="rl_feed_previewTarget" text="Mål"/>
+        <text name="rl_feed_previewNow" text="Nu"/>
+        <text name="rl_feed_previewAdapted" text="Tilvænnet"/>
+        <text name="rl_feed_previewIntake" text="%d dyr · %.1f kg TS/dyr/dag · energiplan %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Foder"/>
+        <text name="rl_feed_colMonth" text="L/måned"/>
+        <text name="rl_feed_colShare" text="TS-andel"/>
+        <text name="rl_feed_colStock" text="Lager"/>
+        <text name="rl_feed_colLasts" text="Rækker"/>
+        <text name="rl_feed_previewNote" text="Kun forhåndsvisning, intet fjernes. Andelen er et mål: grænser for fiber, stivelse, hvede og tilvænning gælder stadig."/>
+        <text name="rl_feed_previewMore" text="+%d andre fodermidler."/>
+        <text name="rl_feed_previewError" text="Forhåndsvisning ikke tilgængelig"/>
+        <text name="rl_feed_previewNoAnimals" text="Ingen dyr i denne sti"/>
+        <text name="rl_feed_previewNoFeed" text="Intet brugbart foder i truget"/>
+        <text name="rl_feed_apply" text="Anvend"/>
     </texts>
 </l10n>

@@ -998,5 +998,33 @@
         <text name="rl_feed_target_FINISH" text="Finishing"/>
         <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
         <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Рацион загона"/>
+        <text name="rl_feed_rationButton" text="Рацион"/>
+        <text name="rl_feed_dialogTitle" text="Настройки рациона"/>
+        <text name="rl_feed_labelTarget" text="Цель кормления"/>
+        <text name="rl_feed_labelGrain" text="Концентрат"/>
+        <text name="rl_feed_labelShare" text="Доля концентрата (СВ)"/>
+        <text name="rl_feed_labelSubstitute" text="Замена при нехватке"/>
+        <text name="rl_feed_share_AUTO" text="Авто (макс. допустимо)"/>
+        <text name="rl_feed_substitute_on" text="Разрешено"/>
+        <text name="rl_feed_substitute_off" text="Запрещено"/>
+        <text name="rl_feed_readOnly" text="Только чтение: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Нет прав"/>
+        <text name="rl_feed_statusClient" text="Вступит в силу после подтверждения сервера"/>
+        <text name="rl_feed_previewTarget" text="Цель"/>
+        <text name="rl_feed_previewNow" text="Сейчас"/>
+        <text name="rl_feed_previewAdapted" text="После адаптации"/>
+        <text name="rl_feed_previewIntake" text="%d гол. · %.1f кг СВ/гол./день · план энергии %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Корм"/>
+        <text name="rl_feed_colMonth" text="л/мес."/>
+        <text name="rl_feed_colShare" text="Доля СВ"/>
+        <text name="rl_feed_colStock" text="Запас"/>
+        <text name="rl_feed_colLasts" text="Хватит"/>
+        <text name="rl_feed_previewNote" text="Только предпросмотр, ничего не списывается. Доля — это цель: ограничения по клетчатке, крахмалу, пшенице и адаптации сохраняются."/>
+        <text name="rl_feed_previewMore" text="+%d других кормов."/>
+        <text name="rl_feed_previewError" text="Предпросмотр недоступен"/>
+        <text name="rl_feed_previewNoAnimals" text="В загоне нет животных"/>
+        <text name="rl_feed_previewNoFeed" text="В кормушке нет пригодного корма"/>
+        <text name="rl_feed_apply" text="Применить"/>
     </texts>
 </l10n>

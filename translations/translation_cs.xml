@@ -1010,5 +1010,33 @@
         <text name="rl_feed_target_FINISH" text="育肥"/>
         <text name="rl_feed_target_MAINTAIN" text="维持"/>
         <text name="rl_feed_target_UNKNOWN" text="目标未知"/>
+        <text name="input_RL_FEED_RATION" text="栏日粮设置"/>
+        <text name="rl_feed_rationButton" text="日粮"/>
+        <text name="rl_feed_dialogTitle" text="日粮设置"/>
+        <text name="rl_feed_labelTarget" text="饲喂目标"/>
+        <text name="rl_feed_labelGrain" text="精料"/>
+        <text name="rl_feed_labelShare" text="精料比例（干物质）"/>
+        <text name="rl_feed_labelSubstitute" text="缺料时替代"/>
+        <text name="rl_feed_share_AUTO" text="自动（允许上限）"/>
+        <text name="rl_feed_substitute_on" text="允许"/>
+        <text name="rl_feed_substitute_off" text="不允许"/>
+        <text name="rl_feed_readOnly" text="只读：%s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="没有权限"/>
+        <text name="rl_feed_statusClient" text="服务器确认后生效"/>
+        <text name="rl_feed_previewTarget" text="目标"/>
+        <text name="rl_feed_previewNow" text="当前"/>
+        <text name="rl_feed_previewAdapted" text="适应后"/>
+        <text name="rl_feed_previewIntake" text="%d头 · 每头%.1f千克干物质/日 · 计划供能%.0f%%"/>
+        <text name="rl_feed_colFeed" text="饲料"/>
+        <text name="rl_feed_colMonth" text="升/月"/>
+        <text name="rl_feed_colShare" text="干物质占比"/>
+        <text name="rl_feed_colStock" text="库存"/>
+        <text name="rl_feed_colLasts" text="可用"/>
+        <text name="rl_feed_previewNote" text="仅为预览，不扣料。比例是目标，仍受粗料、糖类、小麦和换料适应限制。"/>
+        <text name="rl_feed_previewMore" text="另有%d种饲料未列出。"/>
+        <text name="rl_feed_previewError" text="无法预览"/>
+        <text name="rl_feed_previewNoAnimals" text="本栏没有动物"/>
+        <text name="rl_feed_previewNoFeed" text="食槽内没有可用饲料"/>
+        <text name="rl_feed_apply" text="应用"/>
     </texts>
 </l10n>
