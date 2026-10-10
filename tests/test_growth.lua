@@ -269,6 +269,24 @@ do
     check(string.format("nutrition: on half its ration it grows, slower (%.0f kg at 24 months against %.0f on full feed)",
         half[24 * 24].weight, full[24 * 24].weight), half[24 * 24].weight < full[24 * 24].weight * 0.95
         and half[24 * 24].weight > half[6 * 24].weight and half[24 * 24].u < full[24 * 24].u)
+
+    -- Frame and development never drift apart: an animal fed a changing share of its ration for five
+    -- years, then fully, ends with exactly its adult frame, its development where its curve has its frame.
+    local weight = curve:value(0)
+    local _, reserveKg = M.split(weight, config.referenceReserve, kappa)
+    local u, dt, worst = 0, 1 / 24, 0
+    for step = 1, 140 * 24 do
+        local share = 0.35 + 0.6 * (0.5 + 0.5 * math.sin(step / 37))
+        local r = M.step({ dtMonths = dt, weight = weight, reserveKg = reserveKg, development = u, curve = curve, kappa = kappa,
+            frameFloorKg = 10, speed = 1, intakeLiters = 100 * (step > 60 * 24 and 1.2 or share), referenceLiters = 100,
+            intakeCapacity = 1, reserveCeiling = 0.45 }, config)
+        weight, reserveKg, u = r.weight, r.reserveKg, r.development
+        local frame = weight - reserveKg
+        worst = math.max(worst, math.abs(curve:value(u) - frame * (1 + config.referenceReserve * kappa)))
+    end
+    local adultFrame = 1000 / (1 + config.referenceReserve * kappa)
+    check(string.format("nutrition: frame and development stay together under a varying ration (largest gap %.2g kg) and the adult frame is reached exactly (%.6f / %.6f kg)",
+        worst, weight - reserveKg, adultFrame), worst < 1e-6 and near(weight - reserveKg, adultFrame, 1e-6) and u == curve.endMonth)
 end
 
 

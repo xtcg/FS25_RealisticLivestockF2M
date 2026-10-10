@@ -18,7 +18,8 @@
     Growth. At full feed development advances by speed x dt months (capped at the curve's end)
     and the frame by F_ref(u + du) - F_ref(u). New frame is laid down at the animal's current
     reserve index, so growing neither fattens nor thins it. Only the growth the budget pays for
-    happens: a fraction f paid advances u by f x du. A starving animal does not develop, and
+    happens: a fraction f paid adds f of that frame, and u moves to where the curve has the new
+    frame (never back while growing). A starving animal does not develop, and
     when it is fed again it continues from where it is - no jump to its calendar age, no
     unbounded catch-up. Once the frame is grown no more frame grows; a surplus can only go into
     the reserve, up to its ceiling and monthly rate.
@@ -154,8 +155,8 @@ function RLGrowthMath.step(input, cfg)
     -- Growth at full feed. A disease slows development; under the fixed price its lost growth
     -- is still paid for (the energy is spent on the disease) and gains nothing.
     local disease = math.clamp(input.diseaseFactor or 1, 0, 1)
-    local healthyF, healthyDu = RLGrowthMath.getPotentialGrowth(curve, u, F, input.speed or 1, dt, kappa, rRef, r)
-    local growF, growDu, growR = RLGrowthMath.getPotentialGrowth(curve, u, F, (input.speed or 1) * disease, dt, kappa, rRef, r)
+    local healthyF = RLGrowthMath.getPotentialGrowth(curve, u, F, input.speed or 1, dt, kappa, rRef, r)
+    local growF, _, growR = RLGrowthMath.getPotentialGrowth(curve, u, F, (input.speed or 1) * disease, dt, kappa, rRef, r)
     local fixedPrice = input.fixedPrice == true
     local diseaseKg = fixedPrice and math.max(healthyF - growF, 0) or 0
 
@@ -257,13 +258,12 @@ function RLGrowthMath.step(input, cfg)
     local newR = R + growthReserveKg + depositKg - mobilizedKg
     local newW = newF + newR
 
-    local newU
-    if catabolismKg > 0 then
-        newU = RLGrowthMath.getDevelopment(curve, newF, kappa, rRef)
-    elseif healthyDu > 0 then
-        newU = math.min(u + growDu * growthFraction, curve.endMonth)
-    else
-        newU = u
+    -- Development is where the curve has the new frame, so frame and development never drift
+    -- apart (a share f of a curved step is not f of its development); unchanged when the frame is.
+    local newU = u
+    if frameGainKg > 0 or catabolismKg > 0 then
+        newU = math.min(RLGrowthMath.getDevelopment(curve, newF, kappa, rRef), curve.endMonth)
+        if catabolismKg <= 0 then newU = math.max(newU, u) end
     end
 
     local newK = newF * kappa
