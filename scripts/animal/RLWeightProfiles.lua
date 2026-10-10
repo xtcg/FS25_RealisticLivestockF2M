@@ -41,7 +41,7 @@ RLWeightProfiles.DEFAULTS = {
     damReserveEffect = 0.25, damFactorMin = 0.90, damFactorMax = 1.03,
     geneSpan = 0.75, sizeGeneEffect = 0.12, speedGeneEffect = 0.10, maintenanceGeneEffect = 0.15,
     birthFadeMonths = 6, castratedSpeed = 0.90, transitionMonths = 0.5, underweightRatio = 0.70,
-    frameFloorRatio = 0.5,
+    frameFloorRatio = 0.5, migrationBlendMonths = 12,
 }
 
 
@@ -94,6 +94,7 @@ function RLWeightProfiles.validateSettings(settings)
     if s.underweightRatio >= 1 then return false, "underweightRatio must be < 1" end
     if s.frameFloorRatio <= 0 or s.frameFloorRatio > 1 then return false, "frameFloorRatio must be > 0 and <= 1" end
     if s.birthFadeMonths <= 0 then return false, "birthFadeMonths must be > 0" end
+    if s.migrationBlendMonths <= 0 then return false, "migrationBlendMonths must be > 0" end
     return true
 end
 
@@ -186,18 +187,27 @@ function RLWeightProfiles.getConfig()
 end
 
 
+--- The profile a breed name resolves to.
+--- @param breed string|nil As subtypes carry it
+--- @return string|nil profile
+--- @return string resolution "EXACT", "ALIAS" or "UNRESOLVED"
+function RLWeightProfiles.resolveBreed(breed)
+    if breed == nil then return nil, "UNRESOLVED" end
+    local config = RLWeightProfiles.getConfig()
+    breed = breed:upper()
+    if config.profiles[breed] ~= nil then return breed, "EXACT" end
+    local alias = config.aliases[breed]
+    if alias ~= nil then return alias.profile, "ALIAS" end
+    return nil, "UNRESOLVED"
+end
+
+
 --- The profile a subtype's breed resolves to.
 --- @param subType table
 --- @return string|nil profile
 --- @return string resolution "EXACT", "ALIAS" or "UNRESOLVED"
 function RLWeightProfiles.resolveProfile(subType)
-    local config = RLWeightProfiles.getConfig()
-    local breed = subType ~= nil and subType.breed ~= nil and subType.breed:upper() or nil
-    if breed == nil then return nil, "UNRESOLVED" end
-    if config.profiles[breed] ~= nil then return breed, "EXACT" end
-    local alias = config.aliases[breed]
-    if alias ~= nil then return alias.profile, "ALIAS" end
-    return nil, "UNRESOLVED"
+    return RLWeightProfiles.resolveBreed(subType ~= nil and subType.breed or nil)
 end
 
 

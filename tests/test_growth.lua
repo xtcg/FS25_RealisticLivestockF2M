@@ -155,7 +155,8 @@ do
     local oldTarget = 1000 + (1000 * 1.75 - 1000) / 2.5
     local bull = GrowthSim.makeAnimal("BULL_ANGUS", { genetics = { metabolism = 1.75, quality = 1, productivity = 1, fertility = 1, health = 1 } })
     check(string.format("genes: a 1.75 bull's adult weight is %.0f kg (x1.12), not the old %.0f (x1.3), and nothing multiplies its growth by m",
-        bull.targetWeight, oldTarget), near(bull.targetWeight, 1120, 1e-9) and oldTarget == 1300)
+        bull.rlGrowth.frameTargetKg, oldTarget), near(bull.rlGrowth.frameTargetKg, 1120, 1e-9) and near(bull.targetWeight, 1120, 1e-9)
+        and oldTarget == 1300 and bull.rlGrowth.source == "generated" and bull.rlGrowth.legacyAnchor == nil)
 end
 
 
@@ -312,6 +313,22 @@ do
     check("adapter: an hour without a feed ledger is still the v2 budget (intake from the food factor), never an old rule",
         bull.rlNutrition.intakeSource == "foodFactor" and bull.weight > after and bull.rlGrowth.lastTick == RLBodyCondition.getTickId())
 
+    -- A lactating cow in an hour without a ledger: the milk stores keep the old rule all hour (the
+    -- first store decided before the step), and her budget pays for the milk that rule deposited.
+    local cow = GrowthSim.makeAnimal("COW_HOLSTEIN", { age = 40, isParent = true, isLactating = true, monthsSinceLastBirth = 2 })
+    local cowPen = GrowthSim.makePen({ cow })
+    cow.clusterSystem = { owner = cowPen }
+    GrowthSim.penHour(cowPen, "TMR")
+    local coveredWithLedger = RLBodyCondition.coversThisHour(cow)
+    GrowthSim.penHour(cowPen, "TMR", { noLedger = true })
+    local tick = RLBodyCondition.getTickId()
+    check("milk: an hour without a ledger is the old milk rule for every store of that hour; with one, the budget's",
+        coveredWithLedger and not RLBodyCondition.coversThisHour(cow, tick) and cow.rlGrowth.lastTick == tick
+        and cow.bodyCondition.lastTick ~= tick and cow.rlMilkPaid.litersPerHour == 0 and cow.rlMilkPaid.deposited == true)
+    local input = G.buildStepInput(cow, cow.rlGrowth, 100, 0.6, 1 / 24)
+    check("milk: without a ledger the budget pays for the milk the old rule deposits (the food factor's share)",
+        near(input.potentialMilk, cow.rlMilk.potential * 0.6, 1e-9))
+
     check("adapter: the body condition mirrors the reserve as its index r = R / K",
         near(bull.bodyCondition.reserve, bull.rlGrowth.reserveMassKg / ((bull.weight - bull.rlGrowth.reserveMassKg) * G.getKappa()), 1e-9))
 
@@ -320,7 +337,7 @@ do
     check("adapter: a vanilla cluster (not an individual animal) is not covered", not G.covers(legacy) and G.covers(bull))
     local config2 = G.getConfig()
     config2.enabled = false
-    local off = not G.covers(bull) and G.getConstructorTarget(bull:getSubType(), bull.genetics) == nil
+    local off = not G.covers(bull) and G.getTargetWeight(bull:getSubType(), bull.genetics) == nil
     config2.enabled = true
     RLBodyConditionConfig.config.enabled = false
     local bcOff = not G.covers(bull)
@@ -378,6 +395,49 @@ do
     local low = cow.weight
     check(string.format("migration: a cow above her new adult weight (%.0f > %.0f kg) is not slimmed by the change (%.0f kg after 6 months dry on TMR), and grows no frame",
         949, cow.targetWeight, low), low >= 949 - 1e-6 and cow.rlGrowth.developmentMonths == G.getCurve(cow).endMonth)
+end
+
+do
+    -- An old savegame's animal grew on the old line, which at some ages is far from its new curve
+    -- (a Highland bull at 24 months: 78%). Its price, food request and underweight check stay
+    -- exactly where the old rules had them on load, and fade into its curve over migrationBlendMonths.
+    local function legacyView(name, age, weight)
+        local animal, sub = GrowthSim.makeAnimal(name, { age = age, weight = weight })
+        animal.isIndividual = nil
+        animal.targetWeight = G.getLegacyTarget(sub, 1)
+        animal.rlGrowth = nil
+        GrowthSim.refreshRequest(animal)
+        return animal:getSellPrice(), animal.input.food
+    end
+    local _, sub = Economics.find("BULL_HIGHLAND_CATTLE")
+    local oldWeight = G.getLegacyLine(sub, "male", 1, 24)
+    local p0, f0 = legacyView("BULL_HIGHLAND_CATTLE", 24, oldWeight)
+    local bull = GrowthSim.makeAnimal("BULL_HIGHLAND_CATTLE", { age = 24, weight = oldWeight })
+    local state = G.ensureState(bull)
+    GrowthSim.refreshRequest(bull)
+    local p1, f1 = bull:getSellPrice(), bull.input.food
+    local health = bull.health
+    bull:applyUnderweightPenalty()
+    check(string.format("migration: an old-line Highland bull (%.0f kg at 24 months, %.0f%% of its new curve, anchor %.3f) keeps its price (%.2f / %.2f) and food request (%.3f / %.3f) on load, and is not underweight",
+        oldWeight, oldWeight / G.getCurve(bull):value(24) * 100, state.legacyAnchor, p1, p0, f1, f0),
+        near(p1, p0, 1e-6) and near(f1, f0, 1e-9) and bull.health == health and state.legacyAnchor > 1.2)
+
+    local pen = GrowthSim.makePen({ bull })
+    bull.clusterSystem = { owner = pen }
+    local lastPrice, maxStep = p1, 0
+    for _ = 1, 14 do
+        GrowthSim.months(pen, "TMR", 1)
+        local price = bull:getSellPrice()
+        maxStep = math.max(maxStep, math.abs(price / lastPrice - 1))
+        lastPrice = price
+    end
+    check(string.format("migration: the anchor fades out within %d months (factor now %.3f), the price moving at most %.1f%% a month on the way",
+        settings.migrationBlendMonths, G.getAnchorFactor(bull, bull.rlGrowth), maxStep * 100),
+        G.getAnchorFactor(bull, bull.rlGrowth) == 1 and maxStep < 0.08)
+
+    local born = GrowthSim.newborn("BULL_HIGHLAND_CATTLE")
+    check("migration: a newborn or a dealer's animal has no anchor", born.rlGrowth.legacyAnchor == nil
+        and GrowthSim.makeAnimal("BULL_HIGHLAND_CATTLE", { age = 24 }).rlGrowth.legacyAnchor == nil)
 end
 
 do
@@ -542,7 +602,8 @@ do
         getString = function(_, k, d) local v = store[k]; if v == nil then return d end return v end,
     }
     local state = G.newState({ birthWeightKg = 41.2, frameTargetKg = 1043.5, developmentMonths = 13.25, reserveMassKg = 41.7,
-        speedFactor = 0.95, intakeFactor = 1.07, weightKg = 512.25, ageMonths = 14.5, source = "birth", lastTick = 4711 })
+        speedFactor = 0.95, intakeFactor = 1.07, weightKg = 512.25, ageMonths = 14.5, legacyAnchor = 1.25,
+        anchorAgeMonths = 9, source = "derived", lastTick = 4711 })
     G.saveToXMLFile(state, xml, "a")
     local loaded = G.loadFromXMLFile(xml, "a")
     local same = true
@@ -565,17 +626,61 @@ do
     local a, b = G.readStream(1), G.readStream(1)
     check("network: a state and no state both round-trip, in order",
         a.birthWeightKg == 41.2 and a.frameTargetKg == 1043.5 and a.developmentMonths == 13.25 and a.reserveMassKg == 41.7
-        and a.weightKg == 512.25 and b == nil and readAt == #stream)
+        and a.weightKg == 512.25 and a.ageMonths == 14.5 and a.legacyAnchor == 1.25 and a.anchorAgeMonths == 9
+        and b == nil and readAt == #stream)
 
     local copy = G.copyState(state)
     copy.reserveMassKg = 0
     check("clone: a copied state is a separate table", state.reserveMassKg == 41.7 and G.copyState(nil) == nil)
 
     -- Reloaded, its adult weight is the saved one, whatever the file says now.
-    local _, sub = Economics.find("BULL_ANGUS")
+    local reloaded = GrowthSim.makeAnimal("BULL_ANGUS", { age = 13, weight = 512.25, rlGrowth = G.copyState(state) })
+    local fresh = GrowthSim.makeAnimal("BULL_ANGUS", { age = 13 })
     check("persistence: a reloaded animal keeps its saved adult weight (traceable), not one re-read from its gene",
-        G.getConstructorTarget(sub, { metabolism = 1 }, state) == 1043.5
-        and G.getConstructorTarget(sub, { metabolism = 1 }, nil) == 1000)
+        G.getCurve(reloaded).endWeight == 1043.5 and G.getCurve(fresh).endWeight == 1000 and reloaded.targetWeight == 1000)
+end
+
+
+do
+    -- The hourly state event carries the v2 state to clients, also for a calf the old body
+    -- condition did not cover and in an hour without a ledger.
+    local stream, readAt = {}, 0
+    local function w(_, v) stream[#stream + 1] = v end
+    local function r() readAt = readAt + 1; return stream[readAt] end
+    local saved = { streamWriteBool, streamWriteFloat32, streamWriteInt32, streamWriteUInt16, streamReadBool, streamReadFloat32,
+        streamReadInt32, streamReadUInt16, NetworkUtil, RLAnimalUtil }
+    streamWriteBool, streamWriteFloat32, streamWriteInt32, streamWriteUInt16 = w, w, w, w
+    streamReadBool, streamReadFloat32, streamReadInt32, streamReadUInt16 = r, r, r, r
+    NetworkUtil = { writeNodeObject = function(_, object) stream[#stream + 1] = object end, readNodeObject = function() return r() end }
+    RLAnimalUtil = {
+        writeStreamIdentifiers = function(animal) stream[#stream + 1] = animal.uniqueId end,
+        readStreamIdentifiers = function() return { uniqueId = r(), farmId = 1, country = 1 } end,
+        find = function(animals, _, uniqueId) for _, a in ipairs(animals) do if a.uniqueId == uniqueId then return a end end end,
+    }
+    loadMod("scripts/events/RLBodyConditionStateEvent.lua")
+
+    local calf = GrowthSim.newborn("BULL_ANGUS", { uniqueId = "9" })
+    local serverPen = GrowthSim.makePen({ calf })
+    calf.clusterSystem = { owner = serverPen }
+    function serverPen:getClusters() return { calf } end
+    GrowthSim.months(serverPen, "TMR", 1)
+    GrowthSim.penHour(serverPen, "TMR", { noLedger = true })
+    RLBodyConditionStateEvent.new(serverPen, RLBodyCondition.getTickId()):writeStream(1)
+
+    local clientCalf = GrowthSim.newborn("BULL_ANGUS", { uniqueId = "9" })
+    local clientPen = GrowthSim.makePen()
+    function clientPen:getClusterSystem() return { animals = { clientCalf } } end
+    stream[1] = clientPen
+    local savedServer = g_server
+    g_server = nil
+    RLBodyConditionStateEvent.emptyNew():readStream(1, makeConnection(1, true))
+    g_server = savedServer
+    check("network: the hourly event gives a client the server's v2 state (development, reserve kg, age clock), also for a calf in an hour without a ledger",
+        clientCalf.weight == calf.weight and clientCalf.rlGrowth.developmentMonths == calf.rlGrowth.developmentMonths
+        and clientCalf.rlGrowth.reserveMassKg == calf.rlGrowth.reserveMassKg and clientCalf.rlGrowth.ageMonths == calf.rlGrowth.ageMonths
+        and readAt == #stream)
+    streamWriteBool, streamWriteFloat32, streamWriteInt32, streamWriteUInt16, streamReadBool, streamReadFloat32,
+        streamReadInt32, streamReadUInt16, NetworkUtil, RLAnimalUtil = table.unpack(saved, 1, 10)
 end
 
 
@@ -616,8 +721,11 @@ do
     oldPack.targetWeight = 1050
     oldPack.weight = RLBreedTraits.getGrownWeight(packSub, "male", 1050, 12, 1)
     check(string.format("price: a pack bull on its v2 curve (%.0f kg, adult %.0f) is priced as one on the pack's old line (%.0f kg)",
-        pack.weight, pack.targetWeight, oldPack.weight), near(pack:getSellPrice(), oldPack:getSellPrice(), 1e-6)
-        and pack.targetWeight == 1260)
+        pack.weight, pack.rlGrowth.frameTargetKg, oldPack.weight), near(pack:getSellPrice(), oldPack:getSellPrice(), 1e-6)
+        and pack.rlGrowth.frameTargetKg == 1260)
+    check(string.format("target: a pack bull grows to the design's %.0f kg, its target weight stays the pack's %.0f (slaughter reference %.1f kg, the design's arrival 790 kg at 20 months)",
+        pack.rlGrowth.frameTargetKg, pack.targetWeight, pack.targetWeight * 0.75), pack.targetWeight == 1050
+        and near(G.getCurve(pack):value(20), 790, 1e-9) and G.getDisplayAdult(pack) == 1260)
 
     -- Heavier or lighter than its curve: priced and fed by the same share as before.
     local heavy = GrowthSim.makeAnimal("BULL_ANGUS", { age = 15 })
@@ -669,9 +777,19 @@ do
     local pen = GrowthSim.makePen({ cow })
     cow.clusterSystem = { owner = pen }
     local before = cow.weight
+    local priceBefore = (function()
+        local legacy = GrowthSim.makeAnimal("MILK_COW", { age = 30, weight = 400 })
+        legacy.isIndividual, legacy.animalTypeIndex, legacy.targetWeight = nil, MILKCOW_TYPE, 432
+        return legacy:getSellPrice()
+    end)()
     local state = G.ensureState(cow)
-    check(string.format("milkcow: an individual MILKCOW keeps its weight (%.0f kg) and grows on the Holstein curve from it (development %.1f months; adult %.0f kg, not the subtype's fallback 432)",
-        before, state.developmentMonths, cow.targetWeight), cow.weight == before and state.developmentMonths < 30 and cow.targetWeight == 730)
+    check(string.format("milkcow: an individual MILKCOW keeps its weight (%.0f kg) and grows on the Holstein curve from it (development %.1f months, adult %.0f kg); its target weight stays the subtype's (%.0f)",
+        before, state.developmentMonths, state.frameTargetKg, cow.targetWeight), cow.weight == before and state.developmentMonths < 30
+        and state.frameTargetKg == 730 and cow.targetWeight == 432)
+    local health = cow.health
+    cow:applyUnderweightPenalty()
+    check(string.format("milkcow: taken over, its price stays where the old rules had it (%.1f / %.1f) and being far below the Holstein curve does not count as underweight",
+        cow:getSellPrice(), priceBefore), near(cow:getSellPrice(), priceBefore, 1e-6) and cow.health == health)
     GrowthSim.months(pen, "TMR", 2)
     check(string.format("milkcow: its budget counts the milk it gives (read only, %.0f l a period) and it keeps growing toward the curve (%.0f kg)",
         250, cow.weight), cow.weight > before and RLBodyCondition.isEligible(cow) == false and cow.rlMilkPaid ~= nil)

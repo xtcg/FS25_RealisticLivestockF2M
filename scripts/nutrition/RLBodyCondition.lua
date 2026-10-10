@@ -382,10 +382,11 @@ function RLBodyCondition.getAllocatedIntake(animal, supply)
 
     local share = request / supply.requested
     local subType = animal:getSubType()
-    -- In a calf rearing pen the animal ate its own share (RLCalfRearing.settle), not the pen's mix,
-    -- and a young calf gets less from solid feed than a weaned one (RLCalfRearing.getSolidEnergyFactor).
+    -- In a calf rearing pen the animal ate its own share (RLCalfRearing.settle), not the pen's mix;
+    -- under the weight model v2 a young calf gets less from solid feed than a weaned one
+    -- (RLCalfRearing.getSolidEnergyFactor).
     local own = RLCalfRearing ~= nil and RLCalfRearing.getAllocation(animal, supply.tick) or nil
-    local solidFactor = own ~= nil and RLCalfRearing.getSolidEnergyFactor(animal) or 1
+    local solidFactor = (own ~= nil and RLGrowth ~= nil and RLGrowth.covers(animal)) and RLCalfRearing.getSolidEnergyFactor(animal) or 1
     local intake, allocated = 0, 0
     for _, item in ipairs(supply.items) do
         local liters = own ~= nil and (own[item.fillType] or 0) or share * item.liters
@@ -399,19 +400,27 @@ end
 
 
 --- Liters per period an animal of this one's kind, age and state with frame weight `frame`
---- requests on full feed (getReferenceIntake).
-local function getRequestAt(animal, frame)
+--- requests on full feed (getReferenceIntake): its food curve, lactation, pregnancy, the gene the
+--- request is scaled by, the breed's feed trait and the body factor of that weight.
+--- @param animal table
+--- @param frame number kg
+--- @param intakeGene number|nil Default the metabolism gene (the weight model v2 passes its own)
+--- @param bodyFactor number|nil Default RLBreedTraits.getBodyFeedFactor at `frame`
+--- @return number liters per period
+function RLBodyCondition.getRequestAt(animal, frame, intakeGene, bodyFactor)
     local subType = animal:getSubType()
     local food = subType.input ~= nil and subType.input.food or nil
     if food == nil then return 0 end
 
     local numPregnancies = (animal.pregnancy ~= nil and animal.pregnancy.pregnancies ~= nil) and #animal.pregnancy.pregnancies or 0
-    local modifier = RLBreedTraits.get(subType, "feed") * RLBreedTraits.getBodyFeedFactor(subType, frame, animal.targetWeight, animal.age)
+    local modifier = RLBreedTraits.get(subType, "feed")
+        * (bodyFactor or RLBreedTraits.getBodyFeedFactor(subType, frame, animal.targetWeight, animal.age))
     local foodScale = RealisticLivestock_PlaceableHusbandryFood ~= nil and RealisticLivestock_PlaceableHusbandryFood.foodScale or 1
 
     return Animal._computeDailyFood(animal.age, animal.isLactating, animal.reproduction, numPregnancies,
-        animal.genetics.metabolism, food:get(animal.age), foodScale, modifier)
+        intakeGene or animal.genetics.metabolism, food:get(animal.age), foodScale, modifier)
 end
+local getRequestAt = RLBodyCondition.getRequestAt
 
 
 --- What an average animal of this one's kind, age and state requests on full feed in a period:
@@ -454,11 +463,15 @@ function RLBodyCondition.getSupplyReference(animal)
 end
 
 
---- Fetuses and progress of a pregnancy.
-local function getPregnancy(animal)
+--- Progress (0..1) and fetuses of a pregnancy; 0, 0 when not pregnant.
+--- @param animal table
+--- @return number progress
+--- @return number fetuses
+function RLBodyCondition.getPregnancy(animal)
     if not animal.isPregnant or animal.pregnancy == nil or animal.pregnancy.pregnancies == nil then return 0, 0 end
     return (animal.reproduction or 0) / 100, #animal.pregnancy.pregnancies
 end
+local getPregnancy = RLBodyCondition.getPregnancy
 
 
 --- Build the step input for an animal (no state change).

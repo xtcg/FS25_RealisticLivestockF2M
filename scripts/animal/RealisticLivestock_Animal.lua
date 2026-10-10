@@ -186,9 +186,11 @@ function Animal.new(config)
     end
 
 
-    -- Weight model v2 (RLGrowth): the adult weight on the animal's own curve (saved, else from its
-    -- size gene) and, with no weight of its own, its curve at its age. Otherwise the old rules.
-    local growthTarget = RLGrowth.getConstructorTarget(subType, self.genetics, cfg.growth)
+    -- Weight model v2 (RLGrowth): the target weight is the subtype's x the size gene (what the
+    -- slaughter reference and finishing read), and an animal with no weight of its own gets its
+    -- curve's at its age. Otherwise the old rules.
+    local growthTarget = RLGrowth.getTargetWeight(subType, self.genetics)
+    local weightFromCurve = false
     if growthTarget ~= nil then
         self.targetWeight = growthTarget
     else
@@ -198,6 +200,7 @@ function Animal.new(config)
     if self.weight == nil then
         if growthTarget ~= nil then
             self.weight = RLGrowth.getNewAnimalWeight(subType, self.genetics, self.age)
+            weightFromCurve = true
         else
             self.weight = RLBreedTraits.getNewAnimalWeight(subType, self.gender, self.targetWeight, self.age,
                 self.genetics.metabolism)
@@ -317,6 +320,9 @@ function Animal.new(config)
 
     -- Body condition (RLBodyCondition): own copy, never a table shared with another animal.
     self.bodyCondition = RLBodyCondition.copyState(cfg.bodyCondition)
+
+    -- An animal whose weight its curve just gave starts on its curve (no old rules to take over).
+    if weightFromCurve and self.rlGrowth == nil then self.rlGrowth = RLGrowth.createGeneratedState(self) end
 
     self:updateInput()
     self:updateOutput(g_currentMission.environment.weather.temperatureUpdater.currentMin or 20)
@@ -624,10 +630,12 @@ function Animal:addInfos(infos, forceShowAll)
         end
 
 
+        -- Under the weight model v2 the adult weight is its curve's (RLGrowth.getDisplayAdult).
+        local adult = RLGrowth.getDisplayAdult(self)
         self.infoWeight.value = 1
-        self.infoWeight.ratio = self.weight / self.targetWeight
+        self.infoWeight.ratio = adult > 0 and self.weight / adult or 0
         self.infoWeight.valueText = string.format("%.2f", self.weight) ..
-        "kg / " .. string.format("%.2f", self.targetWeight) .. "kg"
+        "kg / " .. string.format("%.2f", adult) .. "kg"
 
         table.insert(infos, self.infoWeight)
     end
@@ -1106,7 +1114,7 @@ function Animal:showMonitorInfo(box)
     end
 
     box:addLine(g_i18n:getText("rl_ui_weight"), string.format("%.2f", self.weight) .. "kg")
-    box:addLine(g_i18n:getText("rl_ui_targetWeight"), string.format("%.2f", self.targetWeight) .. "kg")
+    box:addLine(g_i18n:getText("rl_ui_targetWeight"), string.format("%.2f", RLGrowth.getDisplayAdult(self)) .. "kg")
     box:addLine(g_i18n:getText("rl_ui_valuePerKilo"),
         g_i18n:formatMoney(self:getSellPrice() / self.weight, 2, true, true))
 

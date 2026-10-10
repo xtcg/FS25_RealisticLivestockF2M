@@ -80,11 +80,15 @@ function GrowthSim.makeAnimal(name, fields)
     animal.getHealthFactor = function(self) return self.health / 100 end
     animal.isHorse = function() return false end
     for k, v in pairs(fields or {}) do animal[k] = v end
-    animal.targetWeight = animal.targetWeight or RLGrowth.getConstructorTarget(sub, animal.genetics, animal.rlGrowth)
-        or sub.targetWeight
+    -- As Animal.new: the target weight, and a weight from the curve (on it, no legacy anchor).
+    animal.targetWeight = animal.targetWeight or RLGrowth.getTargetWeight(sub, animal.genetics) or sub.targetWeight
     if animal.weight == nil then
-        animal.weight = RLGrowth.coversSubType(sub) and RLGrowth.getNewAnimalWeight(sub, animal.genetics, animal.age)
-            or sub.minWeight
+        if RLGrowth.coversSubType(sub) then
+            animal.weight = RLGrowth.getNewAnimalWeight(sub, animal.genetics, animal.age)
+            if animal.rlGrowth == nil and animal.isIndividual then animal.rlGrowth = RLGrowth.createGeneratedState(animal) end
+        else
+            animal.weight = sub.minWeight
+        end
     end
     return animal, sub
 end

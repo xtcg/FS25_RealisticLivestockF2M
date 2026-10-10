@@ -59,6 +59,15 @@
     underweightRatio  Below this share of its curve at its age an animal loses health.
     frameFloorRatio   Numerical floor: the frame is never broken down below this share of the
                       frame at birth. It is no part of the birth calibration.
+    migrationBlendMonths  An old savegame's animal grew on the old line: its price, food request
+                      and underweight check start where the old rules had them and move to its
+                      curve's over this many months.
+
+    Target weight. An animal's target weight (slaughter reference = target x maturity, finishing,
+    the finish verdict) stays its subtype's configured target x its size gene; only its growth
+    runs to the curve's adult. For this mod's breeds they are the same; a Cow Breeds pack bull
+    grows to the design's adult but is finished at the pack's reference, as the design's arrival
+    points assume.
 
     To change these without editing the mod, copy this file to
     modSettings/FS25_RealisticLivestockRM/weightProfiles.xml; that copy then replaces this file
@@ -70,7 +79,7 @@
     damReserveEffect="0.25" damFactorMin="0.90" damFactorMax="1.03"
     geneSpan="0.75" sizeGeneEffect="0.12" speedGeneEffect="0.10" maintenanceGeneEffect="0.15"
     birthFadeMonths="6" castratedSpeed="0.90" transitionMonths="0.5" underweightRatio="0.70"
-    frameFloorRatio="0.5">
+    frameFloorRatio="0.5" migrationBlendMonths="12">
 
     <!-- This mod's breeds. Birth weight = birth ratio x the cow's targetWeight (Holstein 0.0618,
          Swiss Brown 0.0615, Angus 0.0492, Limousin 0.0585, Hereford 0.0567, Highland 0.054,

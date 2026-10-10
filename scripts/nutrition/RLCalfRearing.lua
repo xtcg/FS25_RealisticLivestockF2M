@@ -74,6 +74,16 @@ function RLCalfRearing.parse(xmlFile)
     end
     for _, name in ipairs(milkNames) do config.milkFillTypes[name] = true end
 
+    -- solidEnergy is read by the weight model v2 only, so a bad one falls back to the default
+    -- curve instead of switching calf rearing off. A weaned animal gets its feed's full worth.
+    local energy = config.curves.solidEnergy
+    local energyOk, energyReason = RLCalfRearing.validateCurve(energy, "solidEnergy")
+    if energyOk and energy[#energy][2] < 1 then energyOk, energyReason = false, "solidEnergy must reach 1 after weaning" end
+    if not energyOk then
+        Log:warning("RLCalfRearing: %s; the default solidEnergy curve is used", energyReason)
+        config.curves.solidEnergy = RLCalfRearing.DEFAULT_CURVES.solidEnergy
+    end
+
     local ok, reason = RLCalfRearing.validate(config)
     if not ok then
         Log:error("RLCalfRearing: %s - calf rearing switched off", reason)
@@ -81,6 +91,20 @@ function RLCalfRearing.parse(xmlFile)
         config.invalidReason = reason
     end
     return config
+end
+
+
+--- A curve has points, numbers, y in 0..1, sorted by x.
+--- @return boolean ok
+--- @return string|nil reason
+function RLCalfRearing.validateCurve(points, name)
+    if points == nil or #points == 0 then return false, "curve " .. name .. " has no points" end
+    for i, point in ipairs(points) do
+        if point[1] ~= point[1] or point[2] ~= point[2] then return false, string.format("curve %s point %d is not a number", name, i) end
+        if point[2] < 0 or point[2] > 1 then return false, string.format("curve %s point %d is outside 0..1", name, i) end
+        if i > 1 and point[1] < points[i - 1][1] then return false, string.format("curve %s is not sorted by x at point %d", name, i) end
+    end
+    return true
 end
 
 
@@ -92,20 +116,13 @@ function RLCalfRearing.validate(config)
         return false, "weaningMonth must be a number > 0"
     end
     if next(config.milkFillTypes) == nil then return false, "milkFillTypes is empty" end
-    for name in pairs(RLCalfRearing.DEFAULT_CURVES) do
-        local points = config.curves[name]
-        if points == nil or #points == 0 then return false, "curve " .. name .. " has no points" end
-        for i, point in ipairs(points) do
-            if point[1] ~= point[1] or point[2] ~= point[2] then return false, string.format("curve %s point %d is not a number", name, i) end
-            if point[2] < 0 or point[2] > 1 then return false, string.format("curve %s point %d is outside 0..1", name, i) end
-            if i > 1 and point[1] < points[i - 1][1] then return false, string.format("curve %s is not sorted by x at point %d", name, i) end
-        end
+    for _, name in ipairs({ "milkMax", "solidMax" }) do
+        local ok, reason = RLCalfRearing.validateCurve(config.curves[name], name)
+        if not ok then return false, reason end
     end
-    -- A weaned animal must be able to live on solid feed alone, and get its full worth.
+    -- A weaned animal must be able to live on solid feed alone.
     local solid = config.curves.solidMax
     if solid[#solid][2] < 1 then return false, "solidMax must reach 1 after weaning" end
-    local energy = config.curves.solidEnergy
-    if energy[#energy][2] < 1 then return false, "solidEnergy must reach 1 after weaning" end
     return true
 end
 
