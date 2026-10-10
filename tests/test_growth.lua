@@ -754,6 +754,15 @@ do
     check(string.format("calibration: forage takes longer, never stalls (Angus TMR %.1f, silage %.1f, hay %.1f months; Highland on grass %.1f, F%.0f)",
         tmr, silage, hay, grass, RLBodyCondition.getFinishScore(grassBull)), tmr < silage and silage < hay and hay < 40
         and grass < 40 and RLBodyCondition.getFinishScore(grassBull) >= 65)
+
+    -- fixedFeedPrice under v2: a liter priced by an average animal on its breed's curve at this
+    -- one's age. TMR bulls finish in the same month; slow forage still falls far behind (off).
+    config.fixedFeedPrice = true
+    local fixedTmr = GrowthSim.raise("BULL_ANGUS", "TMR", function(a) return a.weight >= reference end, 90)
+    local fixedHay = GrowthSim.raise("BULL_ANGUS", "hay", function(a) return a.weight >= reference end, 90)
+    config.fixedFeedPrice = false
+    check(string.format("calibration: with fixedFeedPrice an Angus on TMR finishes as without (%.1f / %.1f months), on hay much later (%.1f / %.1f): it stays off",
+        fixedTmr, tmr, fixedHay, hay), math.abs(fixedTmr - tmr) < 0.2 and fixedHay > hay + 5)
 end
 
 do

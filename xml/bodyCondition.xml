@@ -31,8 +31,12 @@
                                its age and state needs, intact and healthy, whatever this one
                                needs now; a disease's lost growth is spent on the disease. Animals
                                behind their line (slow forage routes) get only maintenance-level
-                               feed once the line is grown, so this waits for the new growth
-                               curves; see tests/test_weight.lua.
+                               feed once the line is grown, so this stays off; see
+                               tests/test_weight.lua. Under the weight model v2 the reference is an
+                               average animal on its breed's curve at this one's age; it still
+                               slows hay (an Angus bull 35.8 months to slaughter instead of 24.3)
+                               and stalls a water buffalo bull on grass near 350 kg, so the forage
+                               energies and intakes need calibrating for it first.
 
     Reserve
     initialReserve             Reserve of a cow or heifer whose condition is first set up
