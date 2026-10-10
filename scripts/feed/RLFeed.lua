@@ -46,8 +46,9 @@ RLFeed.MODE_REAL = 2
 RLFeed.mode = RLFeed.MODE_LEGACY
 
 RLFeed.TARGETS = { "AUTO", "FINISH", "GROW", "MAINTAIN" }
---- Grains cattle troughs take, in the order AUTO takes them (wheat last: it has its own limit).
-RLFeed.GRAINS = { "MAIZE", "BARLEY", "OAT", "WHEAT" }
+--- Grains cattle troughs take, in the order AUTO takes them (the capped ones last: grain grist, a
+--- proxy that may be all wheat, then wheat).
+RLFeed.GRAINS = { "MAIZE", "BARLEY", "OAT", "GRAINGRIST", "WHEAT" }
 --- Other concentrates cattle troughs take with the grains (a protein feed: a calf's starter with
 --- the ration's forage), after them in AUTO's order.
 RLFeed.SUPPLEMENTS = { "PEA" }

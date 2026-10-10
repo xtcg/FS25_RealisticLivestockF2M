@@ -226,8 +226,12 @@
         density="0.30" dm="0.45" tdn="73" meBasis="TDN_NRC2000" cp="0.17" ndf="0.36" peFactor="0.65"
         starch="0.22" sugar="0.03" stages="PRE_WEANING WEANING WEANED"
         source="As FORAGE with mineral feed; Hof Bergmann fillTypes" year="2001"/>
-    <feed fillType="ROUNDBALE" role="COMPLETE" status="UNCONFIGURED" form="Hof Bergmann bale unit (massPerLiter 300)"
-        source="Composition unknown" year="0"/>
+    <!-- ROUNDBALE (Hof Bergmann's cattle forage group) is a bale object's marker fill type (300 kg a
+         liter), never a feed: a bale put into a trough adds its own content (hay, silage, straw:
+         BaleUnloadTrigger, bale:getFillType), which these profiles value. Nothing on the map makes
+         ROUNDBALE as bulk, so it never holds feed; kept unconfigured. -->
+    <feed fillType="ROUNDBALE" role="COMPLETE" status="UNCONFIGURED" form="Hof Bergmann bale marker (massPerLiter 300), not a feed"
+        source="A bale adds its content fill type to a trough" year="0"/>
 
     <!-- Forages -->
     <feed fillType="SILAGE" role="FORAGE" status="TYPICAL" form="grass / maize silage, chopped"
@@ -272,8 +276,16 @@
         density="0.80" dm="0.89" tdn="87" meBasis="TDN_NRC2000" cp="0.24" ndf="0.15" peFactor="0.4"
         starch="0.46" sugar="0.05" maxShare="0.40" stages="PRE_WEANING WEANING WEANED"
         source="NRC 2000 book value (TDN 87); CP/NDF/starch/sugar Feedipedia pea seeds; NDSU AS-1301 field peas up to 40% of growing diets and calf starters; density = Hof Bergmann massPerLiter (base game 0.72)" year="2000"/>
-    <feed fillType="GRAINGRIST" role="CONCENTRATE" status="UNCONFIGURED" form="map grain grist, recipe unknown"
-        source="Hof Bergmann pig feed; not a fixed maize/wheat mix" year="0"/>
+    <!-- Hof Bergmann's grain grist: its mills take wheat, barley, rye, oat and sorghum as one
+         GRAINFRUITS (their identity is merged at the mill's unloading) and grind them 1:1 by liter,
+         so what a load holds cannot be traced. A stated proxy recipe stands for it: 50% wheat and
+         50% barley of the DM, each value the mean of the two profiles above. density 0.73 is the
+         recipe's mean grain density (not the engine's 0.88): the 1:1 mill neither makes nor loses
+         feed. Capped as wheat (it may be all wheat, and ground grain ferments faster). -->
+    <feed fillType="GRAINGRIST" role="CONCENTRATE" status="PROXY" form="ground small grain; proxy recipe 50% wheat + 50% barley (DM)"
+        density="0.73" dm="0.895" tdn="82.5" meBasis="TDN_NRC2000" cp="0.13" ndf="0.16" peFactor="0.3"
+        starch="0.60" sugar="0.02" maxShare="0.30" stages="WEANED"
+        source="Proxy: mean of the WHEAT and BARLEY profiles (OSU / NRC 2001); Hof Bergmann grainMillSmall and contract mill GRAINFRUITS 1:1" year="2026"/>
 
     <!-- Milk: drunk by calves only (not rumen-fermented, so no starch or fibre counted). -->
     <feed fillType="CALFMILK" role="MILK" status="PROXY" form="milk replacer, 12.5% solids"

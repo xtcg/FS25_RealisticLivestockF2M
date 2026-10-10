@@ -34,6 +34,9 @@ Report.ROUTES = {
     HAY_MAIZE = { DRYGRASS_WINDROW = BIG, MAIZE = BIG }, SILAGE_MAIZE = { SILAGE = BIG, MAIZE = BIG },
     GRASS_MAIZE = { GRASS_WINDROW = BIG, MAIZE = BIG }, HAY_WHEAT = { DRYGRASS_WINDROW = BIG, WHEAT = BIG },
     TMR_MAIZE = { FORAGE = BIG, MAIZE = BIG },
+    -- FEED-11/13 feeds: field peas, and Hof Bergmann's grain grist (a stated proxy).
+    HAY_PEA = { DRYGRASS_WINDROW = BIG, PEA = BIG }, HAY_GRIST = { DRYGRASS_WINDROW = BIG, GRAINGRIST = BIG },
+    TMR_GRIST = { FORAGE = BIG, GRAINGRIST = BIG },
 }
 
 local function stocked(pen, stock, used)

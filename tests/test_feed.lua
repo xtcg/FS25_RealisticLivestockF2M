@@ -29,8 +29,9 @@ do
     check("config: TMR is one complete ration, grains are concentrates for weaned animals, milk for calves only",
         tmr.role == "COMPLETE" and wheat.role == "CONCENTRATE" and wheat.stages.WEANED and not wheat.stages.PRE_WEANING
         and F.getUsableFeed("CALFMILK").role == "MILK" and not F.getUsableFeed("CALFMILK").stages.WEANED)
-    check("config: unconfigured feeds (Hof Bergmann's ROUNDBALE, GRAINGRIST) are listed but never usable",
-        F.getFeed("ROUNDBALE") ~= nil and F.getUsableFeed("ROUNDBALE") == nil and F.getUsableFeed("GRAINGRIST") == nil)
+    check("config: Hof Bergmann's ROUNDBALE (a bale marker, never a feed) is listed but never usable; GRAINGRIST is a stated proxy",
+        F.getFeed("ROUNDBALE") ~= nil and F.getUsableFeed("ROUNDBALE") == nil and F.getUsableFeed("GRAINGRIST") ~= nil
+        and F.getUsableFeed("GRAINGRIST").status == "PROXY")
     check("config: the hash is stable for the same values", F.computeHash(config) == config.hash)
 
     local function feed(fields)
@@ -213,14 +214,15 @@ do
 end
 
 do
-    check("grain: the cattle troughs' grain group is the map's grains and peas no cattle group lists (MAIZE BARLEY OAT WHEAT PEA), registered once",
+    check("grain: the cattle troughs' grain group is the map's grains and peas no cattle group lists (MAIZE BARLEY OAT GRAINGRIST WHEAT PEA), registered once",
         (function()
             local groups, grain = FeedSim.cowFood.groups, nil
             local count = 0
             for _, g in ipairs(groups) do if g.rlGrain then grain, count = g, count + 1 end end
             RLFeed.registerCattleGrains(g_currentMission.animalFoodSystem)
             for _, g in ipairs(groups) do if g.rlGrain then count = count + 1 end end
-            return grain ~= nil and count == 2 and #grain.fillTypes == 5 and grain.fillTypes[5] == FILL.PEA and grain.productionWeight == 0
+            return grain ~= nil and count == 2 and #grain.fillTypes == 6 and grain.fillTypes[4] == FILL.GRAINGRIST
+                and grain.fillTypes[6] == FILL.PEA and grain.productionWeight == 0
         end)())
 end
 

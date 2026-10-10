@@ -74,10 +74,12 @@ R = lua.globals().Report
 # base-game yields (litersPerSqm x 10000; grass 3 cuts a year; hay and grass silage 1:1 from grass;
 # maize silage = maize x 7.8 chaff; TMR proxy liters = half hay, half maize silage).
 PRICE = {'FORAGE': 0.124, 'SILAGE': 0.121, 'DRYGRASS_WINDROW': 0.056, 'GRASS_WINDROW': 0.045, 'WHEAT': 0.337,
-         'MAIZE': 0.380, 'BARLEY': 0.313, 'OAT': 0.532, 'CALFMILK': 0.7}
+         'MAIZE': 0.380, 'BARLEY': 0.313, 'OAT': 0.532, 'CALFMILK': 0.7, 'PEA': 1.04, 'GRAINGRIST': 0.537}
 GRASS = 4.37 * 10000 * 3
 MAIZE_SILAGE = 0.92 * 7.8 * 10000
-YIELD = {'DRYGRASS_WINDROW': GRASS, 'GRASS_WINDROW': GRASS, 'SILAGE': MAIZE_SILAGE, 'WHEAT': 8900, 'MAIZE': 9200,
+# Grain grist: the mill's 1:1 liters of its proxy recipe (half wheat, half barley). Peas: no base
+# yield in the extracted data, left out of the land figure.
+YIELD = {'GRAINGRIST': (8900 + 9600) / 2, 'DRYGRASS_WINDROW': GRASS, 'GRASS_WINDROW': GRASS, 'SILAGE': MAIZE_SILAGE, 'WHEAT': 8900, 'MAIZE': 9200,
          'BARLEY': 9600, 'OAT': 5700}
 
 
@@ -99,7 +101,8 @@ started = time.time()
 finish = []
 bulls = plain(R.subTypes('male'))
 for name in bulls:
-    for route in ['TMR', 'SILAGE', 'HAY', 'GRASS', 'HAY_MAIZE', 'SILAGE_MAIZE', 'GRASS_MAIZE', 'HAY_WHEAT', 'TMR_MAIZE']:
+    for route in ['TMR', 'SILAGE', 'HAY', 'GRASS', 'HAY_MAIZE', 'SILAGE_MAIZE', 'GRASS_MAIZE', 'HAY_WHEAT', 'TMR_MAIZE',
+                  'HAY_PEA', 'HAY_GRIST', 'TMR_GRIST']:
         finish.append(plain(R.finish(name, route, True)))
     for route in ['TMR', 'SILAGE', 'HAY', 'GRASS']:
         finish.append(plain(R.finish(name, route, False)))
@@ -122,7 +125,8 @@ for row in dairy:
     row['feedCost'] = cost(row['liters'])
     row['landHaPerHeadYear'] = land(row['liters'])
 
-calves = [plain(R.calf(name)) for name in ['BULL_HOLSTEIN', 'COW_HOLSTEIN', 'BULL_ANGUS', 'BULL_JERSEY_PACK'] if name in definitions]
+calves = [plain(R.calf(name, route)) for name in ['BULL_HOLSTEIN', 'COW_HOLSTEIN', 'BULL_ANGUS', 'BULL_JERSEY_PACK'] if name in definitions
+          for route in ['STANDARD', 'STARTER']]
 invariance = plain(R.invariance())
 ledger = plain(R.ledger)
 config = plain(lua.eval('RLFeedProfiles.getConfig()'))
@@ -157,10 +161,11 @@ with open(OUT / 'dairy.csv', 'w', newline='') as f:
 
 with open(OUT / 'calves.csv', 'w', newline='') as f:
     w = csv.writer(f)
-    w.writerow(['subType', 'month', 'weightKg', 'development', 'milkL', 'tmrL', 'health'])
+    w.writerow(['subType', 'route', 'month', 'weightKg', 'curveKg', 'development', 'milkL', 'tmrL', 'peaL', 'maizeL', 'health'])
     for c in calves:
         for m in c['months']:
-            w.writerow([c['subType'], m['month'], round(m['weightKg'], 1), round(m['development'], 2), round(m['milkL'], 2), round(m['tmrL'], 2), m['health']])
+            w.writerow([c['subType'], c['route'], m['month'], round(m['weightKg'], 1), round(m['curveKg'], 1), round(m['development'], 2),
+                        round(m['milkL'], 2), round(m['tmrL'], 2), round(m['peaL'], 2), round(m['maizeL'], 2), m['health']])
 
 with open(OUT / 'invariance.csv', 'w', newline='') as f:
     w = csv.writer(f)
