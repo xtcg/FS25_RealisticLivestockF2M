@@ -214,6 +214,10 @@ source(modDirectory .. "scripts/dealer/RLDealerQualityModel.lua")
 -- Dereferences RLDealerQualityModel.DEFAULT_INDEX at file scope, so it must follow the model.
 source(modDirectory .. "scripts/dealer/RLDealerQualityResolver.lua")
 
+-- SECTION 11n: Dealer stock purposes (xml/dealerStock.xml): what ages and breeding states the
+-- dealer sells. Loads its file through RLBreedTraits.loadConfig on first use.
+source(modDirectory .. "scripts/dealer/RLDealerStockPolicy.lua")
+
 -- SECTION 12: GUI Elements
 source(modDirectory .. "scripts/gui/elements/DoubleOptionSliderElement.lua")
 source(modDirectory .. "scripts/gui/elements/RenderElement.lua")
@@ -390,6 +394,7 @@ source(modDirectory .. "scripts/core/RealisticLivestock_FSBaseMission.lua")
 source(modDirectory .. "scripts/console/RLBodyConditionConsole.lua")
 source(modDirectory .. "scripts/console/RLTradeReportConsole.lua")
 source(modDirectory .. "scripts/console/RLPenConsole.lua")
+source(modDirectory .. "scripts/console/RLDealerConsole.lua")
 source(modDirectory .. "scripts/console/RLConsoleCommandManager.lua")
 
 -- SECTION 20j: Messaging

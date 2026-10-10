@@ -41,6 +41,7 @@ end
 ---@param counters table { typesSkipped= }
 ---@return table[] sorted dense array of animalType tables
 local function sortedTypes(types, counters)
+    counters = counters or { typesSkipped = 0 }
     local collected = {}
     for _, animalType in pairs(types) do
         if animalType ~= nil and animalType.typeIndex ~= nil then
@@ -58,6 +59,9 @@ local function sortedTypes(types, counters)
     end)
     return collected
 end
+
+-- Shared with rlDealerCatalog (RLDealerConsole), which walks the same sparse map.
+RLDealerSaleCatalog.sortedTypes = sortedTypes
 
 --- Gate-equivalent buyable boolean, mirroring the apply layer: an absent or falsy
 --- `canBeBought` reads `false`, so the field is always a boolean.

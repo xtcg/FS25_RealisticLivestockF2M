@@ -148,8 +148,14 @@ end
 
 --- Weaning month for an animal (breed / subType / type layers, else the root value).
 function RLCalfRearing.getWeaningMonth(animal)
-    local config = RLCalfRearing.getConfig()
     local subType = animal ~= nil and animal.getSubType ~= nil and animal:getSubType() or nil
+    return RLCalfRearing.getWeaningMonthForSubType(subType)
+end
+
+
+--- Weaning month for a subtype (the dealer generates calves before there is an animal).
+function RLCalfRearing.getWeaningMonthForSubType(subType)
+    local config = RLCalfRearing.getConfig()
     return RLBreedTraits.resolve(config.layers, subType, "weaningMonth", config.weaningMonth)
 end
 
