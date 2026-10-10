@@ -32,8 +32,8 @@ RLGrowth.ensureState(bull).feedAdapted = 1
 RLFeed.setRation(pen, { target = "FINISH", grain = "GRAINGRIST", share = 0.6 })
 FeedSim.untilStep(pen)
 local r = bull.rlFeedIntake
-check(string.format("grist: a bull on hay and grist asked for 60%% eats %.1f%% grist (FEED_CAP)", r.byFill.GRAINGRIST.kg / r.kg * 100),
-    near(r.byFill.GRAINGRIST.kg / r.kg, 0.30, 1e-6) and r.concLimit == "FEED_CAP")
+check(string.format("grist: a bull on hay and grist asked for 60%% eats %.1f%% grist (wheat's cap)", r.byFill.GRAINGRIST.kg / r.kg * 100),
+    near(r.byFill.GRAINGRIST.kg / r.kg, 0.30, 1e-6) and r.concLimit == "WHEAT")
 
 local calf = GrowthSim.newborn("BULL_HOLSTEIN")
 calf.age = 2

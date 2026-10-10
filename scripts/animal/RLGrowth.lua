@@ -929,6 +929,12 @@ local function getMilk(animal)
 end
 
 
+--- An animal's milk now at full feed (game liters a month; its disease and lactation applied).
+function RLGrowth.getMilkPotential(animal)
+    return math.max(getMilk(animal).potential or 0, 0)
+end
+
+
 --- A disease's weight gain multiplier (1 without).
 local function getDiseaseFactor(animal)
     if animal.getDiseaseMultipliers == nil then return 1 end

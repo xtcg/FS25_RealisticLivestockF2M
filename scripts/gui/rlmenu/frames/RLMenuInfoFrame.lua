@@ -193,6 +193,10 @@ function RLMenuInfoFrame:onFrameOpen()
     -- Info never moves money itself, but it displays the balance, which would drift
     -- under an external credit while the frame is open.
     g_messageCenter:subscribe(MessageType.MONEY_CHANGED, self.onMoneyChanged, self)
+    -- A pen's ration as the server applied it (on a client it arrives after the dialog closed).
+    if MessageType.RL_FEED_RATION_CHANGED ~= nil then
+        g_messageCenter:subscribe(MessageType.RL_FEED_RATION_CHANGED, self.onRationChanged, self)
+    end
 
     -- Explicit focus links: several frames share this sidebar and list structure, so
     -- FocusManager auto-layout can otherwise resolve into another frame's elements.
@@ -239,6 +243,7 @@ function RLMenuInfoFrame:onFrameClose()
     end
 
     g_messageCenter:unsubscribe(MessageType.MONEY_CHANGED, self)
+    if MessageType.RL_FEED_RATION_CHANGED ~= nil then g_messageCenter:unsubscribe(MessageType.RL_FEED_RATION_CHANGED, self) end
     RLMenuInfoFrame:superClass().onFrameClose(self)
     self.isFrameOpen = false
 end
@@ -671,6 +676,11 @@ end
 function RLMenuInfoFrame:onRationClosed(_sent)
     self:updatePenDisplay()
     self:updateButtonVisibility()
+end
+
+--- A pen's ration changed (RL_FEED_RATION_CHANGED): show it when it is the selected pen.
+function RLMenuInfoFrame:onRationChanged(placeable)
+    if self.isFrameOpen and placeable ~= nil and placeable == self.selectedHusbandry then self:updatePenDisplay() end
 end
 
 ---Refresh list rows, detail pane, and button bar after a mutation.

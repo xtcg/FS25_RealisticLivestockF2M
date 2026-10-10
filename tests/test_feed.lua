@@ -771,7 +771,7 @@ do
     for i = #LOG, 1, -1 do if LOG[i]:find("ration plan failed", 1, true) then logged = true; table.remove(LOG, i) end end
     check("errors: a plan that fails leaves the pen's hour on the old rules (ERROR), logged once",
         ok and failing.spec_husbandryFood.rlFeedPen.active == false and failing.spec_husbandryFood.rlFeedPen.reason == "ERROR"
-        and failing.spec_husbandryFood.rlFeedWindow == nil and logged and RLFeed.getStepFeed(failing.animals[1]) == nil)
+        and failing.spec_husbandryFood.rlFeedWindow == nil and logged and not RLFeed.runsFor(failing.animals[1]))
 
     -- Under the old rules the trough takes no new grain; in the mode it does.
     FeedSim.setMode(false)

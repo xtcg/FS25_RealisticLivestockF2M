@@ -35,20 +35,23 @@ RLFeedRationPlanner = {}
 
 
 --- Take kg DM from a stock list in order (each entry { name, profile, availableKg }, entries'
---- usedKg counted when `commit`), each name at most caps[name].
+--- usedKg counted when `commit`), each cap group (a feed's capGroup, else its name) at most
+--- caps[group] together.
 --- @return table taken name -> kg
 --- @return number total kg
 --- @return table parts { { profile, kg }, ... }
 function RLFeedRationPlanner.takeSerial(list, needKg, caps, commit)
-    local taken, total, parts, left = {}, 0, {}, math.max(needKg or 0, 0)
+    local taken, total, parts, left, capped = {}, 0, {}, math.max(needKg or 0, 0), {}
     for _, entry in ipairs(list) do
         if left <= 0 then break end
         local available = math.max(entry.availableKg - (entry.usedKg or 0), 0)
-        local cap = caps ~= nil and caps[entry.name] or nil
-        if cap ~= nil then available = math.min(available, math.max(cap - (taken[entry.name] or 0), 0)) end
+        local group = entry.profile ~= nil and entry.profile.capGroup or entry.name
+        local cap = caps ~= nil and caps[group] or nil
+        if cap ~= nil then available = math.min(available, math.max(cap - (capped[group] or 0), 0)) end
         local kg = math.min(left, available)
         if kg > 0 then
             taken[entry.name] = (taken[entry.name] or 0) + kg
+            capped[group] = (capped[group] or 0) + kg
             total, left = total + kg, left - kg
             table.insert(parts, { entry.profile, kg })
             if commit then entry.usedKg = (entry.usedKg or 0) + kg end
@@ -65,24 +68,37 @@ local function availableKg(list)
 end
 
 
---- Each capped feed's most kg in a ration of `rationKg` DM (its profile's maxShare: wheat's 30 %).
+--- Each cap group's most kg in a ration of `rationKg` DM (its feeds' maxShare: wheat's 30 %, which
+--- grain grist shares).
 local function feedCaps(list, rationKg)
     local caps = {}
     for _, entry in ipairs(list) do
-        if entry.profile.maxShare ~= nil then caps[entry.name] = entry.profile.maxShare * rationKg end
+        if entry.profile.maxShare ~= nil then
+            local group = entry.profile.capGroup or entry.name
+            local cap = entry.profile.maxShare * rationKg
+            if caps[group] == nil or cap < caps[group] then caps[group] = cap end
+        end
     end
     return caps
 end
 
 
---- The capped feeds' shares of a concentrate mix: { { name, share, max }, ... } in stock order.
+--- The cap groups' shares of a concentrate mix: { { name (the group), share, max }, ... } in stock
+--- order.
 local function cappedShares(list, mix)
-    local out = {}
+    local out, byGroup = {}, {}
     if mix == nil then return out end
     for _, entry in ipairs(list) do
         local share = mix.shares[entry.name]
         if entry.profile.maxShare ~= nil and share ~= nil and share > 0 then
-            out[#out + 1] = { name = entry.name, share = share, max = entry.profile.maxShare }
+            local group = entry.profile.capGroup or entry.name
+            local row = byGroup[group]
+            if row == nil then
+                row = { name = group, share = 0, max = entry.profile.maxShare }
+                byGroup[group] = row
+                out[#out + 1] = row
+            end
+            row.share, row.max = row.share + share, math.min(row.max, entry.profile.maxShare)
         end
     end
     return out
@@ -170,7 +186,7 @@ RLFeedRationPlanner.AUTO_STEP = 0.05
 ---   eaten to a demand, need not add energy;
 ---   then at most what the animal's rumen is adapted to (continuous, so the step-up is the same
 ---   at any hour length), and less in step when the stock cannot cover every animal's share.
-local function planAnimal(a, forageMix, concMix, capped, concScale, request, estimate)
+local function planAnimal(a, forageMix, concMix, capped, concScale, request)
     local ration = request.ration
     local c, limit = 0, nil
     if a.concEligible and concMix ~= nil then
@@ -178,7 +194,7 @@ local function planAnimal(a, forageMix, concMix, capped, concScale, request, est
         c, limit = cLimit, why
         if request.share ~= nil then
             if request.share < c then c, limit = request.share, "TARGET" end
-        elseif c > 0 and not estimate then
+        elseif c > 0 then
             -- The best-scoring share on the AUTO_STEP grid for a fully adapted animal: a coarse
             -- choice, steady from hour to hour while the scores barely move.
             local adapted = a.adapted
@@ -353,8 +369,7 @@ function RLFeedRationPlanner.plan(request)
         for pass = 1, 2 do
             local forageNeed, concNeed, eligibleIntake = 0, 0, 0
             for _, a in ipairs(group.animals) do
-                -- The first pass only sizes the forage the plan takes: no AUTO search there.
-                planAnimal(a, forageMix, concMix, capped, concScale, request, pass == 1)
+                planAnimal(a, forageMix, concMix, capped, concScale, request)
                 forageNeed, concNeed = forageNeed + a.forageKg, concNeed + a.concKg
                 if a.concEligible then eligibleIntake = eligibleIntake + a.forageKg + a.concKg end
             end

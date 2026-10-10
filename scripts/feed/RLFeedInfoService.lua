@@ -306,7 +306,7 @@ function RLFeedInfoService.getAnimalInfo(animal)
     local tick = RLBodyCondition.getTickId()
     local function fresh(at) return RLFeed.isFresh(at, tick) end
     local record = animal.rlFeedIntake
-    if record ~= nil and record.dtDays ~= nil and record.dtDays > 0 and not record.missed and record.owner == owner and fresh(record.tick) then
+    if record ~= nil and record.dtDays ~= nil and record.dtDays > 0 and record.owner == owner and fresh(record.tick) then
         local days = record.dtDays
         return { kgPerDay = record.kg / days, plannedKgPerDay = (record.plannedKg or 0) / days, mePerDay = record.me / days,
             plannedMePerDay = (record.plannedMe or 0) / days, coverage = (record.plannedMe or 0) > 0 and record.me / record.plannedMe or 0,

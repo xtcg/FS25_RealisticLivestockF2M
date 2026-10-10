@@ -148,6 +148,7 @@
                  (rumen development) discounts forage and complete rations only.
     maxShare     Most of a ration's DM the feed may make (optional; wheat: the ration's
                  wheatMaxShare); the concentrate share is held there (limit FEED_CAP; WHEAT for wheat).
+    capGroup     Feeds sharing one cap: together at most the cap (grain grist counts with wheat).
     source, year Evidence.
 
     Sources (checked 2026-10-10): OSU "Nutritive value of feeds for beef cattle" (DM/CP/TDN of
@@ -281,10 +282,11 @@
          so what a load holds cannot be traced. A stated proxy recipe stands for it: 50% wheat and
          50% barley of the DM, each value the mean of the two profiles above. density 0.73 is the
          recipe's mean grain density (not the engine's 0.88): the 1:1 mill neither makes nor loses
-         feed. Capped as wheat (it may be all wheat, and ground grain ferments faster). -->
+         feed. Capped with wheat (capGroup): grist and wheat together at most wheat's 30% - it may be
+         all wheat, and ground grain ferments faster. -->
     <feed fillType="GRAINGRIST" role="CONCENTRATE" status="PROXY" form="ground small grain; proxy recipe 50% wheat + 50% barley (DM)"
         density="0.73" dm="0.895" tdn="82.5" meBasis="TDN_NRC2000" cp="0.13" ndf="0.16" peFactor="0.3"
-        starch="0.60" sugar="0.02" maxShare="0.30" stages="WEANED"
+        starch="0.60" sugar="0.02" maxShare="0.30" capGroup="WHEAT" stages="WEANED"
         source="Proxy: mean of the WHEAT and BARLEY profiles (OSU / NRC 2001); Hof Bergmann grainMillSmall and contract mill GRAINFRUITS 1:1" year="2026"/>
 
     <!-- Milk: drunk by calves only (not rumen-fermented, so no starch or fibre counted). -->

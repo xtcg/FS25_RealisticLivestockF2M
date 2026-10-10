@@ -100,6 +100,7 @@ function RLFeedProfiles.parseFeed(xmlFile, key)
         density = xmlFile:getFloat(key .. "#density"),
         tdn = xmlFile:getFloat(key .. "#tdn"),
         maxShare = xmlFile:getFloat(key .. "#maxShare"),
+        capGroup = xmlFile:getString(key .. "#capGroup") ~= nil and xmlFile:getString(key .. "#capGroup"):upper() or nil,
         stages = {},
     }
     for _, field in ipairs(RLFeedProfiles.FEED_SHARES) do profile[field] = xmlFile:getFloat(key .. "#" .. field) end
@@ -145,6 +146,7 @@ function RLFeedProfiles.validateFeed(profile)
     if profile.maxShare ~= nil and (not finite(profile.maxShare) or profile.maxShare <= 0 or profile.maxShare > 1) then
         return false, "maxShare must be a share in (0, 1]"
     end
+    if profile.capGroup ~= nil and profile.maxShare == nil then return false, "capGroup needs a maxShare" end
     profile.peNdf = profile.ndf * profile.peFactor
     profile.fermentable = profile.starch + profile.sugar
     return true
@@ -339,7 +341,7 @@ function RLFeedProfiles.computeHash(config)
         local profile = config.feeds[name]
         add("feed." .. name .. ".valid", profile.valid)
         if profile.valid then
-            for _, field in ipairs({ "role", "density", "dm", "me", "cp", "ndf", "peFactor", "starch", "sugar", "maxShare" }) do
+            for _, field in ipairs({ "role", "density", "dm", "me", "cp", "ndf", "peFactor", "starch", "sugar", "maxShare", "capGroup" }) do
                 add("feed." .. name .. "." .. field, profile[field])
             end
             local stages = {}
