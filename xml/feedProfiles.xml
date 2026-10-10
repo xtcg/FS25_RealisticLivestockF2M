@@ -50,6 +50,10 @@
     All intakes x the maintenance gene's factor (weightProfiles.xml maintenanceGeneEffect).
 
     health
+    shortageBufferDays       Model days of maintenance shortfall the frame may cover before health
+                             falls (an empty trough for a few hours is a gap, not a famine); from
+                             below the reserve's easy range (bodyCondition.xml minReserve +
+                             mobilizeEaseRange) health falls at once. A fully fed day takes a day off.
     extremeUnderweightRatio  Under this share of its curve at its age an animal loses health for its
                              weight alone (the protection against a very stunted animal). Growth
                              that lags its calendar is otherwise only shown, not punished: health
@@ -114,7 +118,7 @@
         lactatingPerKgMilk="0.372" calfPerKgMetabolic="0.060"
         ndfFillGrowing="0.0125" ndfFillDry="0.0115" ndfFillLactating="0.0135" ndfFillCalf="0.0100"/>
 
-    <health extremeUnderweightRatio="0.45"/>
+    <health extremeUnderweightRatio="0.45" shortageBufferDays="3"/>
 
     <protein maintenance="0.065" calf="0.18" young="0.14" growing="0.12" finishing="0.105"
         lactating="0.16" dry="0.10" youngUntilMonth="8" growingUntilMonth="14"/>

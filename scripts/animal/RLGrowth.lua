@@ -33,8 +33,10 @@
         (how far along the curve its frame is), reserveMassKg (the reserve's mass inside the live
         weight), speedFactor and intakeFactor (stage factors in transition), weightKg (the live
         weight the state was last set for), ageMonths (a continuous age clock), legacyAnchor and
-        anchorElapsedMonths (an old savegame's animal, below), source ("birth", "generated", "derived",
-        "resync", "stream"), lastTick (game hour of the last step), version.
+        anchorElapsedMonths (an old savegame's animal, below), feedAdapted (the concentrate share its
+        rumen is adapted to) and feedShortDays (model days of maintenance shortfall built up), both
+        real-equivalent nutrition (RLFeed), source ("birth", "generated",
+        "derived", "resync", "stream"), lastTick (game hour of the last step), version.
     The body condition state (animal.bodyCondition) mirrors the reserve as its index r = R / K
     after every step, so BCS, finish score and their factors read it as before.
 
@@ -457,6 +459,8 @@ function RLGrowth.newState(fields)
         ageMonths = fields.ageMonths,
         legacyAnchor = fields.legacyAnchor,
         anchorElapsedMonths = fields.anchorElapsedMonths,
+        feedAdapted = fields.feedAdapted,
+        feedShortDays = fields.feedShortDays,
         source = fields.source or "derived",
         lastTick = fields.lastTick or -1,
     }
@@ -1183,6 +1187,8 @@ function RLGrowth.loadFromXMLFile(xmlFile, key)
         ageMonths = xmlFile:getFloat(base .. "#ageMonths"),
         legacyAnchor = xmlFile:getFloat(base .. "#legacyAnchor"),
         anchorElapsedMonths = xmlFile:getFloat(base .. "#anchorElapsedMonths"),
+        feedAdapted = xmlFile:getFloat(base .. "#feedAdapted"),
+        feedShortDays = xmlFile:getFloat(base .. "#feedShortDays"),
         source = xmlFile:getString(base .. "#source", "derived"),
         lastTick = xmlFile:getInt(base .. "#lastTick", -1),
     })
@@ -1248,6 +1254,7 @@ function RLGrowth.sanitizeState(animal, state, fromClient)
     state.developmentMonths = math.min(state.developmentMonths, RLGrowth.getNominalCurve(binding).endMonth)
     state.speedFactor = math.clamp(state.speedFactor, RLGrowth.TRUSTED_STAGE[1], RLGrowth.TRUSTED_STAGE[2])
     state.intakeFactor = math.clamp(state.intakeFactor, RLGrowth.TRUSTED_STAGE[1], RLGrowth.TRUSTED_STAGE[2])
+    if state.feedAdapted ~= nil then state.feedAdapted = math.clamp(state.feedAdapted, 0, 1) end
     return state
 end
 
@@ -1263,6 +1270,8 @@ function RLGrowth.isUsable(state)
         and state.reserveMassKg >= 0 and finite(state.speedFactor) and state.speedFactor > 0 and finite(state.intakeFactor)
         and state.intakeFactor > 0 and optional(state.weightKg) and optional(state.ageMonths) and optional(state.anchorElapsedMonths)
         and (state.legacyAnchor == nil or (finite(state.legacyAnchor) and state.legacyAnchor > 0))
+        and (state.feedAdapted == nil or (finite(state.feedAdapted) and state.feedAdapted >= 0 and state.feedAdapted <= 1))
+        and optional(state.feedShortDays)
 end
 
 
@@ -1282,6 +1291,8 @@ function RLGrowth.saveToXMLFile(state, xmlFile, key)
         xmlFile:setFloat(base .. "#legacyAnchor", state.legacyAnchor)
         xmlFile:setFloat(base .. "#anchorElapsedMonths", state.anchorElapsedMonths or 0)
     end
+    if state.feedAdapted ~= nil then xmlFile:setFloat(base .. "#feedAdapted", state.feedAdapted) end
+    if state.feedShortDays ~= nil then xmlFile:setFloat(base .. "#feedShortDays", state.feedShortDays) end
     xmlFile:setString(base .. "#source", state.source or "derived")
     xmlFile:setInt(base .. "#lastTick", state.lastTick or -1)
 end
@@ -1301,6 +1312,8 @@ function RLGrowth.writeStream(state, streamId)
     streamWriteFloat32(streamId, state.ageMonths or -1)
     streamWriteFloat32(streamId, state.legacyAnchor or -1)
     streamWriteFloat32(streamId, state.anchorElapsedMonths or -1)
+    streamWriteFloat32(streamId, state.feedAdapted or -1)
+    streamWriteFloat32(streamId, state.feedShortDays or -1)
 end
 
 
@@ -1321,6 +1334,8 @@ function RLGrowth.readStream(streamId)
         ageMonths = optional(streamReadFloat32(streamId)),
         legacyAnchor = optional(streamReadFloat32(streamId)),
         anchorElapsedMonths = optional(streamReadFloat32(streamId)),
+        feedAdapted = optional(streamReadFloat32(streamId)),
+        feedShortDays = optional(streamReadFloat32(streamId)),
         source = "stream",
     })
     if not RLGrowth.isUsable(state) then return nil end

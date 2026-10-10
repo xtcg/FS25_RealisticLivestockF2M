@@ -38,7 +38,7 @@ RLFeedProfiles.PROTEIN = {
     youngUntilMonth = 8, growingUntilMonth = 14,
 }
 
-RLFeedProfiles.HEALTH = { extremeUnderweightRatio = 0.45 }
+RLFeedProfiles.HEALTH = { extremeUnderweightRatio = 0.45, shortageBufferDays = 3 }
 
 RLFeedProfiles.RATION = {
     wheatMaxShare = 0.30, adaptationDays = 30, adaptationMaxShare = 0.80, stepAllowance = 0.20, unadaptedUtilisation = 0.85,

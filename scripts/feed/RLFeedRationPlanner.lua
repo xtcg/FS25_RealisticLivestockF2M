@@ -115,38 +115,43 @@ end
 RLFeedRationPlanner.AUTO_STEP = 0.05
 
 
---- One animal's plan on these mixes. The pen's share target sets c (within the limits); without
---- one, the share in 0..limit that buys the most production (more grain is not always more: it
---- dilutes protein and, eaten to a demand, need not add energy).
+--- One animal's plan on these mixes. The share c is chosen, then held where the rumen is:
+---   the pen's target share, within what keeps fibre, starch + sugar and wheat in bounds; without
+---   a target (AUTO), the share in that range that buys the most production for a fully adapted
+---   animal - a coarse choice (AUTO_STEP), so it does not wander with the hour's length; more grain
+---   is not always more: it dilutes protein and, eaten to a demand, need not add energy;
+---   then at most what the animal's rumen is adapted to (continuous, so the step-up is the same
+---   at any hour length), and less in step when the stock cannot cover every animal's share.
 local function planAnimal(a, forageMix, concMix, wheatShare, concScale, request)
     local ration = request.ration
-    local cap, limit = 0, nil
+    local c, limit = 0, nil
     if a.concEligible and concMix ~= nil then
         local cLimit, why = RLFeedMath.getConcentrateLimit(forageMix, concMix, request.classes[a.class], wheatShare,
             ration.wheatMaxShare)
-        cap, limit = cLimit, why
-        if request.share ~= nil and request.share < cap then cap, limit = request.share, "TARGET" end
-        local adapted = RLFeedMath.getAdaptedLimit(a.adapted, ration)
-        if adapted < cap then cap, limit = adapted, "ADAPTATION" end
-        if concScale < 1 then cap, limit = cap * concScale, "STOCK" end
+        c, limit = cLimit, why
+        if request.share ~= nil then
+            if request.share < c then c, limit = request.share, "TARGET" end
+        elseif c > 0 then
+            local adapted = a.adapted
+            a.adapted = 1
+            local best, g = nil, 0
+            while true do
+                local option = evaluate(a, math.min(g, cLimit), forageMix, concMix, request)
+                if option ~= nil and (best == nil or option.score > best.score + 1e-9) then best = option end
+                if g >= cLimit then break end
+                g = g + RLFeedRationPlanner.AUTO_STEP
+            end
+            a.adapted = adapted
+            if best ~= nil and best.c < c - 1e-9 then c, limit = best.c, "PROTEIN_OR_DEMAND" end
+        end
+        local adaptedLimit = RLFeedMath.getAdaptedLimit(a.adapted, ration, request.dtDays)
+        if adaptedLimit < c then c, limit = adaptedLimit, "ADAPTATION" end
+        if concScale < 1 then c, limit = c * concScale, "STOCK" end
     elseif a.concEligible and request.concentrateWanted then
         limit = "NO_CONCENTRATE"
     end
 
-    local best
-    if request.share ~= nil or cap <= 0 then
-        best = evaluate(a, cap, forageMix, concMix, request)
-    else
-        local c = 0
-        while true do
-            local option = evaluate(a, math.min(c, cap), forageMix, concMix, request)
-            if option ~= nil and (best == nil or option.score > best.score + 1e-9) then best = option end
-            if c >= cap then break end
-            c = c + RLFeedRationPlanner.AUTO_STEP
-        end
-        if best ~= nil and best.c < cap - 1e-9 then limit = "PROTEIN_OR_DEMAND" end
-    end
-
+    local best = evaluate(a, c, forageMix, concMix, request)
     a.forageKg, a.concKg = 0, 0
     if best == nil then
         a.c, a.concLimit, a.util, a.intakeLimit, a.solidMe = 0, limit, 1, "NO_FEED", 0

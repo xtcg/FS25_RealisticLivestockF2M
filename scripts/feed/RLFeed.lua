@@ -314,6 +314,7 @@ end
 --- @return table descriptor
 function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
     local config = RLFeed.getConfig()
+    local body = RLBodyCondition.getConfig()
     local class = RLFeed.getRationClass(animal)
     local target = RLFeed.getAnimalTarget(animal, ration, class)
     local input, cfg = buildEnergyInput(animal, dtMonths)
@@ -324,35 +325,35 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
     local weaningX = RLCalfRearing ~= nil and RLCalfRearing.getWeaningX(animal) or 1
     local state = RLGrowth.peekState(animal)
 
-    local a = {
+    -- What it needs a day: maintenance, pregnancy and milk at full feed, its growth this hour, and
+    -- the reserve it may lay down (FINISH up to its ceiling, GROW back to the reference reserve).
+    if target == "GROW" then
+        input.reserveCeiling = math.min(RLBodyCondition.getReserveCeiling(animal) or body.referenceReserve, body.referenceReserve)
+    end
+    local demands = RLGrowthMath.getStepDemands(input, cfg)
+    local days = config.realDaysPerPeriod
+    -- Appetite and rumen fill at the weight halfway through the hour (its weight plus half the
+    -- growth it could make), so a long hour does not size a growing animal's intake late.
+    local weight = math.max(animal.weight or 0, 0) + 0.5 * (demands.growthKg or 0)
+
+    return {
         animal = animal, class = class, target = target,
-        appetite = RLFeedMath.getAppetite(animal.weight or 0, class, config.intake,
-            { milkKgPerDay = milkKg, weaningX = weaningX, gene = gene }),
-        fill = RLFeedMath.getFillCapacity(animal.weight or 0, class, config.intake, gene),
+        appetite = RLFeedMath.getAppetite(weight, class, config.intake, { milkKgPerDay = milkKg, weaningX = weaningX, gene = gene }),
+        fill = RLFeedMath.getFillCapacity(weight, class, config.intake, gene),
         concEligible = class ~= "CALF",
         adapted = state.feedAdapted or 0,
         milkMax = class == "CALF" and milkMax or 0,
         solidMax = solidMax,
         solidEnergy = class == "CALF" and RLCalfRearing.getSolidEnergyFactor(animal) or 1,
         proteinNeed = RLFeedMath.getProteinNeed(class, RLGrowth.getContinuousAge(animal), config.protein, milkMax),
+        needs = {
+            maintenance = demands.maintenance / days,
+            pregnancy = demands.pregnancy / days,
+            milk = target == "MAINTAIN" and 0 or demands.milk / days,
+            growth = target == "MAINTAIN" and 0 or demands.growthStep / dtDays,
+            deposit = target == "MAINTAIN" and 0 or demands.depositRoomKg * cfg.depositNUPerKg / dtDays,
+        },
     }
-
-    -- What it needs a day: maintenance, pregnancy and milk at full feed, its growth this hour, and
-    -- the reserve it may lay down (FINISH up to its ceiling, GROW back to the reference reserve).
-    local body = RLBodyCondition.getConfig()
-    if target == "GROW" then
-        input.reserveCeiling = math.min(RLBodyCondition.getReserveCeiling(animal) or body.referenceReserve, body.referenceReserve)
-    end
-    local demands = RLGrowthMath.getStepDemands(input, cfg)
-    local days = config.realDaysPerPeriod
-    a.needs = {
-        maintenance = demands.maintenance / days,
-        pregnancy = demands.pregnancy / days,
-        milk = target == "MAINTAIN" and 0 or demands.milk / days,
-        growth = target == "MAINTAIN" and 0 or demands.growthStep / dtDays,
-        deposit = target == "MAINTAIN" and 0 or demands.depositRoomKg * cfg.depositNUPerKg / dtDays,
-    }
-    return a
 end
 
 
@@ -639,12 +640,20 @@ function RLFeed.applyHealth(animal, dtMonths)
     local result = feed ~= nil and feed.tick == RLBodyCondition.getTickId() and feed.result or nil
     if result == nil then return end
     local body = RLBodyCondition.getConfig()
-    local factor, reason = RLFeedMath.getHealthFactor({
-        supply = result.supplyNU, maintenance = result.maintenanceNU, pregnancy = result.pregnancyNU,
+    local config = RLFeed.getConfig()
+    local budget = { supply = result.supplyNU, maintenance = result.maintenanceNU, pregnancy = result.pregnancyNU,
         catabolism = result.catabolismNU, unpaid = (result.maintenanceDeficitNU or 0) + (result.pregnancyDeficitNU or 0),
-        mobilized = result.mobilizedNU, reserve = result.reserve, lowReserve = body.minReserve + body.mobilizeEaseRange,
-        water = feed.water, cp = feed.cp, cpMaintenance = RLFeed.getConfig().protein.maintenance, eatenDm = feed.kg,
-    })
+        mobilized = result.mobilizedNU, reserve = result.reserve, lowReserve = body.minReserve + body.mobilizeEaseRange }
+    local shortfall = RLFeedMath.getShortfall(budget)
+    local state = animal.rlGrowth
+    local dtDays = feed.dtDays or RLFeed.getHourDays()
+    if state ~= nil then
+        state.feedShortDays = RLFeedMath.updateShortDays(state.feedShortDays, shortfall,
+            (result.supplyNU or 0) >= (result.maintenanceNU or 0) + (result.pregnancyNU or 0), dtDays)
+    end
+    budget.shortfall, budget.shortDays, budget.bufferDays = shortfall, state ~= nil and state.feedShortDays or 0, config.health.shortageBufferDays
+    budget.water, budget.cp, budget.cpMaintenance, budget.eatenDm = feed.water, feed.cp, config.protein.maintenance, feed.kg
+    local factor, reason = RLFeedMath.getHealthFactor(budget)
     feed.healthFactor, feed.healthReason = factor, reason
     local subType = animal:getSubType()
     local rate = factor >= 0 and (subType.healthIncreaseHour or 0) or (subType.healthDecreaseHour or 0)
@@ -711,7 +720,7 @@ function RLFeed.registerCattleGrains(foodSystem)
         if index ~= nil and not used[index] then table.insert(fillTypes, index) end
     end
     if #fillTypes == 0 then return end
-    table.insert(animalFood.groups, { title = g_i18n:getText("rl_feed_grainGroup"), productionWeight = 0, eatWeight = 0,
+    table.insert(animalFood.groups, { title = g_i18n:getText("rl_feed_grainGroup"), productionWeight = 0, eatWeight = 1,
         fillTypes = fillTypes, rlGrain = true })
     Log:info("RLFeed: cattle troughs take %d grain fill type(s) (eaten under the real-equivalent nutrition model only)", #fillTypes)
 end

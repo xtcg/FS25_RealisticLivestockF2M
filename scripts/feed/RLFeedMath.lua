@@ -236,9 +236,12 @@ function RLFeedMath.adapt(adapted, eaten, dtDays, ration)
 end
 
 
---- Most concentrate an animal adapted to `adapted` may eat now.
-function RLFeedMath.getAdaptedLimit(adapted, ration)
-    return math.clamp((adapted or 0) + ration.stepAllowance, 0, 1)
+--- Most concentrate an animal adapted to `adapted` may eat over a step of dtDays: stepAllowance
+--- above the adaptation it has halfway through the step (so the ramp is the same at any step
+--- length).
+function RLFeedMath.getAdaptedLimit(adapted, ration, dtDays)
+    local midStep = 0.5 * ration.adaptationMaxShare / ration.adaptationDays * (dtDays or 0)
+    return math.clamp((adapted or 0) + ration.stepAllowance + midStep, 0, 1)
 end
 
 
@@ -256,24 +259,46 @@ end
 -- Health
 -- =============================================================================
 
+--- The share of an hour's maintenance and pregnancy the feed and the reserve did not pay for:
+--- frame broken down plus anything left unpaid, and - from below lowReserve - what the reserve had
+--- to give as well.
+--- @param ctx table { supply, maintenance, pregnancy, catabolism, unpaid, mobilized, reserve, lowReserve }
+--- @return number 0..1
+function RLFeedMath.getShortfall(ctx)
+    local need = (ctx.maintenance or 0) + (ctx.pregnancy or 0)
+    if need <= 0 or (ctx.supply or 0) >= need then return 0 end
+    local short = (ctx.catabolism or 0) + (ctx.unpaid or 0)
+    if (ctx.reserve or 1) < (ctx.lowReserve or 0) then short = short + (ctx.mobilized or 0) end
+    return math.clamp(short / need, 0, 1)
+end
+
+
+--- Model days of shortfall an animal has built up: each step adds its shortfall share x its days,
+--- a fully fed step takes days off at the same rate.
+function RLFeedMath.updateShortDays(days, shortfall, fed, dtDays)
+    if shortfall > 0 then return (days or 0) + shortfall * dtDays end
+    if fed then return math.max((days or 0) - dtDays, 0) end
+    return days or 0
+end
+
+
 --- The nutrition part of an hour's health change, from that hour's budget: positive while feed
---- pays for maintenance and pregnancy, none while the reserve covers a shortfall from above
---- lowReserve, negative by the share of maintenance and pregnancy left to frame breakdown or
---- unpaid (and, from below lowReserve, by the share the reserve had to cover), by missing water
---- and by protein below the maintenance level.
---- @param ctx table { supply, maintenance, pregnancy (energy this step), catabolism, unpaid,
----        mobilized (energy this step), reserve (index after), lowReserve, water (0..1),
----        cp, cpMaintenance, eatenDm }
+--- pays for maintenance and pregnancy; none while the reserve covers a shortfall, or the frame
+--- covers a short one (up to bufferDays of shortfall built up) from above lowReserve; otherwise
+--- negative by the share left to frame breakdown or unpaid. Missing water and protein below the
+--- maintenance level stop recovery and cost health by how short they are.
+--- @param ctx table { supply, maintenance, pregnancy (energy this step), shortfall (getShortfall),
+---        shortDays, bufferDays, reserve, lowReserve, water (0..1), cp, cpMaintenance, eatenDm }
 --- @return number factor -1..1
 --- @return string reason "FED", "BUFFERED", "SHORT", "WATER", "PROTEIN"
 function RLFeedMath.getHealthFactor(ctx)
     local need = (ctx.maintenance or 0) + (ctx.pregnancy or 0)
     local factor, reason = 1, "FED"
     if need > 0 and (ctx.supply or 0) < need then
-        local shortfall = (ctx.catabolism or 0) + (ctx.unpaid or 0)
-        if (ctx.reserve or 1) < (ctx.lowReserve or 0) then shortfall = shortfall + (ctx.mobilized or 0) end
-        if shortfall > 0 then
-            factor, reason = -math.clamp(shortfall / need, 0, 1), "SHORT"
+        local shortfall = ctx.shortfall or 0
+        local low = (ctx.reserve or 1) < (ctx.lowReserve or 0)
+        if shortfall > 0 and (low or (ctx.shortDays or 0) > (ctx.bufferDays or 0)) then
+            factor, reason = -shortfall, "SHORT"
         else
             factor, reason = 0, "BUFFERED"
         end
