@@ -49,7 +49,8 @@
     new curve at some ages, so measured against the new curve its price, food request and
     underweight check would jump on load. Its legacy anchor (new curve / old line at its age when
     it was taken over) keeps all three exactly where the old rules had them, and fades out over
-    migrationBlendMonths, after which it is measured against its curve like any other.
+    migrationBlendMonths, after which it is measured against its curve like any other. Its food
+    request's gene factor moves from the old one (m) to the new one the same way.
 ]]
 
 RLGrowth = {}
@@ -154,14 +155,17 @@ end
 
 
 --- The feed request's gene factor: the maintenance factor for a covered animal, the metabolism
---- gene itself (the old rule) for any other.
+--- gene itself (the old rule) for any other. An old savegame's animal starts at its old factor
+--- and moves to the new one as its legacy anchor fades (getAnchorRemaining).
 --- @param animal table
 --- @return number
 function RLGrowth.getIntakeGene(animal)
     local metabolism = animal.genetics ~= nil and animal.genetics.metabolism or 1
     if not RLGrowth.covers(animal) then return metabolism end
     local _, _, maintenance = RLGrowth.getGeneFactors(metabolism)
-    return maintenance
+    local remaining = RLGrowth.getAnchorRemaining(animal, RLGrowth.peekState(animal))
+    if remaining <= 0 or metabolism <= 0 then return maintenance end
+    return maintenance * (metabolism / maintenance) ^ remaining
 end
 
 
@@ -345,15 +349,25 @@ function RLGrowth.getLegacyAnchor(animal, curve)
 end
 
 
---- What is left of an animal's legacy anchor now: anchor ^ (1 - months since it was taken over /
---- migrationBlendMonths), down to 1. 1 for an animal with none.
+--- How much of an old savegame's animal's take-over is left: 1 when taken over, falling evenly
+--- to 0 over migrationBlendMonths of its age clock; 0 for an animal with no legacy anchor.
+--- @param animal table
+--- @param state table|nil
+--- @return number 0..1
+function RLGrowth.getAnchorRemaining(animal, state)
+    if state == nil or state.legacyAnchor == nil then return 0 end
+    local elapsed = RLGrowth.getContinuousAge(animal) - (state.anchorAgeMonths or animal.age or 0)
+    return math.clamp(1 - elapsed / RLGrowth.getSettings().migrationBlendMonths, 0, 1)
+end
+
+
+--- What is left of an animal's legacy anchor now: anchor ^ getAnchorRemaining, down to 1.
 --- @param animal table
 --- @param state table|nil
 --- @return number
 function RLGrowth.getAnchorFactor(animal, state)
     if state == nil or state.legacyAnchor == nil or state.legacyAnchor == 1 then return 1 end
-    local elapsed = RLGrowth.getContinuousAge(animal) - (state.anchorAgeMonths or animal.age or 0)
-    local remaining = math.clamp(1 - elapsed / RLGrowth.getSettings().migrationBlendMonths, 0, 1)
+    local remaining = RLGrowth.getAnchorRemaining(animal, state)
     if remaining <= 0 then return 1 end
     return state.legacyAnchor ^ remaining
 end

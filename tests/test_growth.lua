@@ -435,9 +435,73 @@ do
         settings.migrationBlendMonths, G.getAnchorFactor(bull, bull.rlGrowth), maxStep * 100),
         G.getAnchorFactor(bull, bull.rlGrowth) == 1 and maxStep < 0.08)
 
+    -- A low-metabolism animal's request gene moves from the old m to the new maintenance factor.
+    local low = GrowthSim.makeAnimal("COW_HOLSTEIN", { age = 30, weight = 600,
+        genetics = { metabolism = 0.3, quality = 1, productivity = 1, fertility = 1, health = 1 } })
+    G.ensureState(low)
+    local atLoad = low:getIntakeGene()
+    low.rlGrowth.ageMonths = low.age + 0.999
+    low.age = low.age + 12
+    local later = low:getIntakeGene()
+    check(string.format("migration: a 0.3-metabolism cow's food gene is the old %.2f on load and the new %.3f a year on, no jump",
+        atLoad, later), near(atLoad, 0.3, 1e-12) and near(later, 1 + 0.15 * (0.3 - 1) / 0.75, 1e-12))
+
     local born = GrowthSim.newborn("BULL_HIGHLAND_CATTLE")
     check("migration: a newborn or a dealer's animal has no anchor", born.rlGrowth.legacyAnchor == nil
         and GrowthSim.makeAnimal("BULL_HIGHLAND_CATTLE", { age = 24 }).rlGrowth.legacyAnchor == nil)
+end
+
+do
+    -- Every cattle subtype, ages 0-60, genes 0.3-1.7, on the old line or 20% off it: on load the
+    -- price and the food request are the old rules' exactly, nothing is NaN.
+    local function legacy(name, age, metabolism, weight)
+        local animal, sub = GrowthSim.makeAnimal(name, { age = age, weight = weight,
+            genetics = { metabolism = metabolism, quality = 1, productivity = 1, fertility = 1, health = 1 } })
+        animal.isIndividual = nil
+        animal.targetWeight = G.getLegacyTarget(sub, metabolism)
+        GrowthSim.refreshRequest(animal)
+        return animal:getSellPrice(), animal.input.food
+    end
+    local cases, mismatches, bad = 0, {}, 0
+    for _, sub in ipairs(Economics.subTypes) do
+        if sub.typeName == "COW" and G.getBinding(sub) ~= nil then
+            for _, age in ipairs({ 0, 1, 4, 9, 15, 22, 30, 45, 60 }) do
+                for _, m in ipairs({ 0.3, 1, 1.7 }) do
+                    for _, off in ipairs({ 0.8, 1, 1.2 }) do
+                        local weight = math.max(G.getLegacyLine(sub, sub.gender, m, age) * off, 1)
+                        local p0, f0 = legacy(sub.name, age, m, weight)
+                        local animal = GrowthSim.makeAnimal(sub.name, { age = age, weight = weight,
+                            genetics = { metabolism = m, quality = 1, productivity = 1, fertility = 1, health = 1 } })
+                        local state = G.ensureState(animal)
+                        GrowthSim.refreshRequest(animal)
+                        local p1, f1 = animal:getSellPrice(), animal.input.food
+                        cases = cases + 1
+                        if state.developmentMonths ~= state.developmentMonths or p1 ~= p1 or f1 ~= f1 then bad = bad + 1 end
+                        -- Anchors are bounded (0.5..2): far outside that the old values cannot be met.
+                        local inBounds = state.legacyAnchor > G.ANCHOR_MIN and state.legacyAnchor < G.ANCHOR_MAX
+                        if inBounds and (math.abs(p1 / p0 - 1) > 1e-9 or math.abs(f1 / f0 - 1) > 1e-9) then
+                            mismatches[#mismatches + 1] = string.format("%s@%d m%.1f x%.1f %.1f/%.1f", sub.name, age, m, off, p1, p0)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    check(string.format("migration: %d old-save animals (every subtype, ages 0-60, genes 0.3-1.7, on and 20%% off the old line) load at the old price and food request exactly (%s)",
+        cases, table.concat(mismatches, ", ")), #mismatches == 0 and bad == 0 and cases >= 14 * 81)
+
+    local extremes = true
+    for _, weight in ipairs({ 0.5, 1, 5000 }) do
+        local animal = GrowthSim.makeAnimal("BULL_ANGUS", { age = 12, weight = weight })
+        local pen = GrowthSim.makePen({ animal })
+        animal.clusterSystem = { owner = pen }
+        GrowthSim.penHour(pen, "TMR")
+        GrowthSim.penHour(pen, "none")
+        local price = animal:getSellPrice()
+        if animal.weight ~= animal.weight or animal.weight <= 0 or price ~= price
+            or animal.rlGrowth.developmentMonths ~= animal.rlGrowth.developmentMonths then extremes = false end
+    end
+    check("migration: an absurd saved weight (0.5 kg, 5000 kg) steps and prices without NaN", extremes)
 end
 
 do
