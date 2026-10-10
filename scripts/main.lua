@@ -130,6 +130,7 @@ source(modDirectory .. "scripts/animals/shop/RealisticLivestock_AnimalItemStock.
 source(modDirectory .. "scripts/events/HusbandryMessageStateEvent.lua")
 source(modDirectory .. "scripts/events/RLBodyConditionStateEvent.lua")
 source(modDirectory .. "scripts/events/RLBodyConditionConfigEvent.lua")
+source(modDirectory .. "scripts/events/RLFeedRationEvent.lua")
 source(modDirectory .. "scripts/events/HusbandryMessageAddEvent.lua")
 source(modDirectory .. "scripts/events/HusbandryMessageDeleteEvent.lua")
 source(modDirectory .. "scripts/events/ReturnStrawEvent.lua")
@@ -406,6 +407,7 @@ source(modDirectory .. "scripts/core/RealisticLivestock_FSBaseMission.lua")
 source(modDirectory .. "scripts/console/RLBodyConditionConsole.lua")
 source(modDirectory .. "scripts/console/RLTradeReportConsole.lua")
 source(modDirectory .. "scripts/console/RLPenConsole.lua")
+source(modDirectory .. "scripts/console/RLFeedConsole.lua")
 source(modDirectory .. "scripts/console/RLConsoleCommandManager.lua")
 
 -- SECTION 20j: Messaging

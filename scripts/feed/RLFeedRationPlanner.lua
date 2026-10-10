@@ -185,7 +185,8 @@ end
 ---     concentrateWanted (the pen offers concentrate) }
 --- @return table { withdraw = { name -> liters }, plannedMe, eatenMe, plannedKg, eatenKg,
 ---     forageMix, concentrateMix, milkMix, animals (the request's, filled in: plannedKg, plannedMe,
----     litersPerPeriod, kg, me, cp, c, byFill = { name -> { kg, liters } }, limits) }
+---     litersPerPeriod, plannedByFill (liters a month), kg, me, cp, c, byFill = { name -> { kg,
+---     liters, me, cpKg } }, limits) }
 function RLFeedRationPlanner.plan(request)
     local scale, dt = request.scale, request.dtDays
     local profiles = {}
@@ -248,11 +249,14 @@ function RLFeedRationPlanner.plan(request)
         plannedMe, plannedKg = plannedMe + a.plannedMe, plannedKg + a.plannedKg
         local perMonth = request.realDaysPerPeriod / dt
         local liters = 0
+        a.plannedByFill = {}
         local function addLiters(mix, kg)
             if mix == nil or kg <= 0 then return end
             for name, share in pairs(mix.shares) do
                 local profile = profiles[name]
-                liters = liters + RLFeedUnits.kgToLiters(kg * share * perMonth, scale, profile.density, profile.dm)
+                local amount = RLFeedUnits.kgToLiters(kg * share * perMonth, scale, profile.density, profile.dm)
+                liters = liters + amount
+                a.plannedByFill[name] = (a.plannedByFill[name] or 0) + amount
             end
         end
         addLiters(milkMix, a.milkPlanKg)

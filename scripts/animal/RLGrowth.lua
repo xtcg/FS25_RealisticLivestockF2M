@@ -1113,6 +1113,7 @@ function RLGrowth.step(animal, foodFactor)
         return true
     end
 
+    local weightBefore = animal.weight
     animal.weight = result.weight
     state.weightKg = result.weight
     state.reserveMassKg = result.reserveKg
@@ -1128,7 +1129,7 @@ function RLGrowth.step(animal, foodFactor)
     condition.balanceEMA = result.balanceEMA
     condition.lossRateEMA = result.lossRateEMA
     if fromLedger then condition.lastTick = tick end
-    if feed ~= nil then RLFeed.afterStep(animal, state, feed, result) end
+    if feed ~= nil then RLFeed.afterStep(animal, state, feed, result, weightBefore, dtMonths) end
 
     RLBodyCondition.recordHour(animal, owner, tick, { allocated = allocated, intakeStep = intakeStep, dtMonths = dtMonths,
         ownReference = ownReference, result = result, waterCoverage = waterCoverage, paysMilk = fromLedger,

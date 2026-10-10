@@ -865,9 +865,9 @@ do
     local function w(_, v) stream[#stream + 1] = v end
     local function r() readAt = readAt + 1; return stream[readAt] end
     local saved = { streamWriteBool, streamWriteFloat32, streamWriteInt32, streamWriteUInt16, streamReadBool, streamReadFloat32,
-        streamReadInt32, streamReadUInt16, NetworkUtil, RLAnimalUtil }
-    streamWriteBool, streamWriteFloat32, streamWriteInt32, streamWriteUInt16 = w, w, w, w
-    streamReadBool, streamReadFloat32, streamReadInt32, streamReadUInt16 = r, r, r, r
+        streamReadInt32, streamReadUInt16, NetworkUtil, RLAnimalUtil, streamWriteString, streamReadString, streamWriteUInt8, streamReadUInt8 }
+    streamWriteBool, streamWriteFloat32, streamWriteInt32, streamWriteUInt16, streamWriteString, streamWriteUInt8 = w, w, w, w, w, w
+    streamReadBool, streamReadFloat32, streamReadInt32, streamReadUInt16, streamReadString, streamReadUInt8 = r, r, r, r, r, r
     NetworkUtil = { writeNodeObject = function(_, object) stream[#stream + 1] = object end, readNodeObject = function() return r() end }
     RLAnimalUtil = {
         writeStreamIdentifiers = function(animal) stream[#stream + 1] = animal.uniqueId end,
@@ -898,7 +898,8 @@ do
         and clientCalf.rlNutrition.tick == RLBodyCondition.getTickId() and clientCalf.targetWeight == calf.targetWeight
         and readAt == #stream)
     streamWriteBool, streamWriteFloat32, streamWriteInt32, streamWriteUInt16, streamReadBool, streamReadFloat32,
-        streamReadInt32, streamReadUInt16, NetworkUtil, RLAnimalUtil = table.unpack(saved, 1, 10)
+        streamReadInt32, streamReadUInt16, NetworkUtil, RLAnimalUtil, streamWriteString, streamReadString, streamWriteUInt8,
+        streamReadUInt8 = table.unpack(saved, 1, 14)
 end
 
 

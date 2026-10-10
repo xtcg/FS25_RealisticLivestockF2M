@@ -55,6 +55,9 @@ RLFeed.DEFAULT_RATION = { target = "AUTO", grain = "AUTO", share = nil, substitu
 
 RLFeed.STATE_VERSION = 1
 
+--- Time constant (months) of the live weight trend the finishing forecast reads.
+RLFeed.GAIN_TAU_MONTHS = 0.5
+
 
 -- =============================================================================
 -- Mode
@@ -206,13 +209,21 @@ end
 --- Whether a pen runs the mode, and why (not).
 --- @param placeable table
 --- @return boolean active
---- @return string reason "OK", "MODE_OFF", "CONFIG_INVALID", "MODEL_OFF", "NOT_CATTLE", "NO_TROUGH",
----         "UNCOVERED_ANIMAL", "SUCKLING_CALF"
+--- @return string reason "OK", "MODE_OFF", "CONFIG_INVALID", "MODEL_OFF", "NOT_CATTLE", "MILKCOW_LEGACY",
+---         "NO_TROUGH", "UNCOVERED_ANIMAL", "SUCKLING_CALF"
 function RLFeed.evaluatePen(placeable)
     local ok, reason = RLFeed.canRun()
     if not ok then return false, reason end
-    if placeable == nil or placeable.getAnimalTypeIndex == nil or AnimalType == nil
-        or placeable:getAnimalTypeIndex() ~= AnimalType.COW then return false, "NOT_CATTLE" end
+    if placeable == nil or placeable.getAnimalTypeIndex == nil or AnimalType == nil then return false, "NOT_CATTLE" end
+    local typeIndex = placeable:getAnimalTypeIndex()
+    if typeIndex ~= AnimalType.COW then
+        -- Hof Bergmann's MILKCOW is a type of its own: it keeps the old rules (its own capability),
+        -- however close its name.
+        local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
+        local animalType = animalSystem ~= nil and animalSystem.getTypeByIndex ~= nil and animalSystem:getTypeByIndex(typeIndex) or nil
+        if animalType ~= nil and animalType.name == "MILKCOW" then return false, "MILKCOW_LEGACY" end
+        return false, "NOT_CATTLE"
+    end
     if placeable.spec_husbandryFood == nil then return false, "NO_TROUGH" end
     local rearing = isRearingPen(placeable)
     for _, animal in ipairs(placeable:getClusters() or {}) do
@@ -491,7 +502,7 @@ function RLFeed.endFeeding(placeable)
     local tick = window.tick
     local water = spec.rlWaterCoverage
     local pen = { tick = tick, byFill = {}, plannedMe = plan.plannedMe, plannedKg = plan.plannedKg, eatenMe = 0, eatenKg = 0,
-        limits = {}, unconfigured = plan.unconfigured, animals = 0 }
+        limits = {}, unconfigured = plan.unconfigured, animals = 0, plannedPerMonth = {} }
     local protein = RLFeed.getConfig().protein
     for _, a in ipairs(plan.animals) do
         for name, fill in pairs(a.byFill) do
@@ -511,6 +522,7 @@ function RLFeed.endFeeding(placeable)
             proteinNeed = a.proteinNeed, dtDays = window.dtDays,
         }
         animal.rlFeedPlanLiters = a.litersPerPeriod
+        for name, liters in pairs(a.plannedByFill or {}) do pen.plannedPerMonth[name] = (pen.plannedPerMonth[name] or 0) + liters end
         pen.eatenMe, pen.eatenKg, pen.animals = pen.eatenMe + a.me, pen.eatenKg + a.kg, pen.animals + 1
         local limit = a.concLimit or a.intakeLimit
         if limit ~= nil then pen.limits[limit] = (pen.limits[limit] or 0) + 1 end
@@ -555,11 +567,72 @@ function RLFeed.addToMonth(placeable, hour)
     end
     month.hours = month.hours + 1
     month.plannedMe, month.eatenMe = month.plannedMe + hour.plannedMe, month.eatenMe + hour.eatenMe
+    local day = spec.rlFeedDay or { hours = 0, byFill = {}, plannedMe = 0, eatenMe = 0, eatenKg = 0, limits = {} }
+    spec.rlFeedDay = day
+    day.hours, day.plannedMe, day.eatenMe, day.eatenKg = day.hours + 1, day.plannedMe + hour.plannedMe, day.eatenMe + hour.eatenMe,
+        day.eatenKg + hour.eatenKg
+    for name, fill in pairs(hour.byFill) do
+        local total = day.byFill[name] or { liters = 0, kg = 0, me = 0 }
+        total.liters, total.kg, total.me = total.liters + fill.liters, total.kg + fill.kg, total.me + fill.me
+        day.byFill[name] = total
+    end
+    for limit, count in pairs(hour.limits or {}) do day.limits[limit] = (day.limits[limit] or 0) + count end
     for name, fill in pairs(hour.byFill) do
         local total = month.byFill[name] or { liters = 0, kg = 0, me = 0 }
         total.liters, total.kg, total.me = total.liters + fill.liters, total.kg + fill.kg, total.me + fill.me
         month.byFill[name] = total
     end
+end
+
+
+local function round(value) return math.floor((value or 0) * 1000 + 0.5) / 1000 end
+
+
+--- Log a pen's day in the mode (RLPEN FEED_DAY, server): its state, ration, what it ate per fill
+--- type in game liters, real DM and ME, the share of the planned ME eaten and the limits that held
+--- its animals, each animal's last hour. Called on the day change, after the day's last hour.
+function RLFeed.onPenDayChanged(placeable)
+    local spec = placeable.spec_husbandryFood
+    if spec == nil then return end
+    local day = spec.rlFeedDay
+    spec.rlFeedDay = nil
+    local pen = spec.rlFeedPen
+    if day == nil or day.hours == 0 then
+        if pen ~= nil and not pen.active and pen.reason ~= "MODE_OFF" and pen.reason ~= "NOT_CATTLE" and RLFeed.mode == RLFeed.MODE_REAL then
+            RLPenLog.emit("FEED_DAY", { pen = RLPenLog.pen(placeable), active = false, reason = pen.reason })
+        end
+        return
+    end
+    local fills = {}
+    for name, fill in pairs(day.byFill) do
+        fills[name] = { liters = round(fill.liters), kgDM = round(fill.kg), meMJ = round(fill.me) }
+    end
+    local animals = {}
+    for _, animal in ipairs(placeable:getClusters() or {}) do
+        local record = animal.rlFeedIntake
+        if record ~= nil and record.dtDays ~= nil and record.dtDays > 0 then
+            local identity = RLPenLog.animal(animal)
+            identity.class, identity.target = record.class, record.target
+            identity.kgDMPerDay = round(record.kg / record.dtDays)
+            identity.mePerDay = round(record.me / record.dtDays)
+            identity.coverage = round(record.plannedMe > 0 and record.me / record.plannedMe or 0)
+            identity.concShare = round(record.concShare)
+            identity.concLimit, identity.intakeLimit = record.concLimit, record.intakeLimit
+            identity.protein = round(record.proteinFactor)
+            identity.health, identity.healthReason = animal.health, record.healthReason
+            identity.weight = round(animal.weight)
+            animals[#animals + 1] = identity
+        end
+    end
+    table.sort(animals, function(a, b) return tostring(a.key) < tostring(b.key) end)
+    local ration = RLFeed.getRation(placeable)
+    local config = RLFeed.getConfig()
+    RLPenLog.emit("FEED_DAY", {
+        pen = RLPenLog.pen(placeable), active = true, hours = day.hours, scale = config.resourceScale, hash = config.hash,
+        ration = { target = ration.target, grain = ration.grain, share = ration.share, substitute = ration.substitute },
+        coverage = round(day.plannedMe > 0 and day.eatenMe / day.plannedMe or 0), kgDM = round(day.eatenKg), meMJ = round(day.eatenMe),
+        fills = fills, limits = day.limits, animals = animals,
+    })
 end
 
 
@@ -620,13 +693,20 @@ end
 
 --- After the step: the rumen's adaptation moves toward the concentrate share it ate (for the
 --- model days the hour covers), and the step is kept for the health check.
-function RLFeed.afterStep(animal, state, feed, result)
+function RLFeed.afterStep(animal, state, feed, result, weightBefore, dtMonths)
     local config = RLFeed.getConfig()
     if not feed.missed then
         state.feedAdapted = RLFeedMath.adapt(state.feedAdapted or 0, feed.concShare or 0, feed.dtDays or RLFeed.getHourDays(),
             config.ration)
     end
     feed.result = result
+    -- Its live weight trend (kg a month, smoothed over about a month) for the finishing forecast.
+    if weightBefore ~= nil and dtMonths ~= nil and dtMonths > 0 then
+        local gain = (result.weight - weightBefore) / dtMonths
+        local alpha = 1 - math.exp(-dtMonths / RLFeed.GAIN_TAU_MONTHS)
+        animal.rlFeedGain = animal.rlFeedGain == nil and gain or animal.rlFeedGain + alpha * (gain - animal.rlFeedGain)
+        feed.gainPerMonth = animal.rlFeedGain
+    end
 end
 
 
@@ -858,5 +938,131 @@ function RLFeed.loadSummary(xmlFile, key)
     if hash ~= config.hash then
         Log:info("RLFeed: feed data changed since this save (%s -> %s, scale %.3f -> %.3f); only the future uses the new values",
             hash, config.hash, scale, config.resourceScale)
+    end
+end
+
+
+-- =============================================================================
+-- Network (server -> clients: display only)
+-- =============================================================================
+
+--- A pen's mode, ration and feed month for clients (RLBodyConditionStateEvent, hourly; the
+--- ration also when a client joins).
+function RLFeed.writePenStream(placeable, streamId)
+    local spec = placeable.spec_husbandryFood
+    local pen = spec ~= nil and spec.rlFeedPen or nil
+    local ration = RLFeed.getRation(placeable)
+    streamWriteBool(streamId, pen ~= nil and pen.active == true)
+    streamWriteString(streamId, pen ~= nil and pen.reason or "")
+    local last = spec ~= nil and spec.rlFeedLast or nil
+    streamWriteFloat32(streamId, last ~= nil and last.coverage or -1)
+    RLFeed.writeRationStream(ration, streamId)
+    local month = spec ~= nil and spec.rlFeedMonth or nil
+    local names = {}
+    if month ~= nil then for name in pairs(month.byFill) do names[#names + 1] = name end end
+    table.sort(names)
+    streamWriteUInt8(streamId, math.min(#names, 255))
+    for i = 1, math.min(#names, 255) do
+        local fill = month.byFill[names[i]]
+        streamWriteString(streamId, names[i])
+        streamWriteFloat32(streamId, fill.liters)
+        streamWriteFloat32(streamId, fill.kg)
+        local planned = last ~= nil and last.plannedPerMonth ~= nil and last.plannedPerMonth[names[i]] or 0
+        streamWriteFloat32(streamId, planned)
+    end
+    streamWriteUInt16(streamId, month ~= nil and math.min(month.hours, 65535) or 0)
+end
+
+
+function RLFeed.readPenStream(streamId)
+    local data = { active = streamReadBool(streamId), reason = streamReadString(streamId) }
+    local coverage = streamReadFloat32(streamId)
+    data.coverage = coverage >= 0 and coverage or nil
+    data.ration = RLFeed.readRationStream(streamId)
+    data.byFill, data.plannedPerMonth = {}, {}
+    for _ = 1, streamReadUInt8(streamId) do
+        local name = streamReadString(streamId)
+        data.byFill[name] = { liters = streamReadFloat32(streamId), kg = streamReadFloat32(streamId) }
+        data.plannedPerMonth[name] = streamReadFloat32(streamId)
+    end
+    data.hours = streamReadUInt16(streamId)
+    return data
+end
+
+
+--- Apply a pen's summary on a client: what its info shows.
+function RLFeed.applyPenStream(placeable, data)
+    local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
+    if spec == nil or data == nil then return end
+    spec.rlFeedPen = { tick = RLBodyCondition.getTickId(), active = data.active, reason = data.reason, client = true }
+    spec.rlFeedRation = RLFeed.sanitizeRation(data.ration)
+    spec.rlFeedClient = data
+end
+
+
+function RLFeed.writeRationStream(ration, streamId)
+    streamWriteString(streamId, ration.target or "AUTO")
+    streamWriteString(streamId, ration.grain or "AUTO")
+    streamWriteFloat32(streamId, ration.share ~= nil and ration.share or -1)
+    streamWriteBool(streamId, ration.substitute ~= false)
+end
+
+
+function RLFeed.readRationStream(streamId)
+    local target, grain = streamReadString(streamId), streamReadString(streamId)
+    local share = streamReadFloat32(streamId)
+    return RLFeed.sanitizeRation({ target = target, grain = grain, share = share >= 0 and share or nil, substitute = streamReadBool(streamId) })
+end
+
+
+--- An animal's last hour in the mode, for clients (per real day; nil fields when it has none).
+function RLFeed.writeAnimalStream(animal, streamId)
+    local record = animal.rlFeedIntake
+    local has = record ~= nil and record.dtDays ~= nil and record.dtDays > 0
+    streamWriteBool(streamId, has)
+    if not has then return end
+    local days = record.dtDays
+    streamWriteFloat32(streamId, record.kg / days)
+    streamWriteFloat32(streamId, record.me / days)
+    streamWriteFloat32(streamId, (record.plannedKg or 0) / days)
+    streamWriteFloat32(streamId, (record.plannedMe or 0) / days)
+    streamWriteFloat32(streamId, record.concShare or 0)
+    streamWriteFloat32(streamId, record.proteinFactor or 0)
+    streamWriteString(streamId, record.class or "")
+    streamWriteString(streamId, record.target or "")
+    streamWriteString(streamId, record.concLimit or "")
+    streamWriteString(streamId, record.intakeLimit or "")
+    streamWriteString(streamId, record.healthReason or "")
+    streamWriteFloat32(streamId, record.gainPerMonth or 0)
+end
+
+
+function RLFeed.readAnimalStream(streamId)
+    if not streamReadBool(streamId) then return nil end
+    local function text(value) return value ~= "" and value or nil end
+    return {
+        kgPerDay = streamReadFloat32(streamId), mePerDay = streamReadFloat32(streamId),
+        plannedKgPerDay = streamReadFloat32(streamId), plannedMePerDay = streamReadFloat32(streamId),
+        concShare = streamReadFloat32(streamId), proteinFactor = streamReadFloat32(streamId),
+        class = text(streamReadString(streamId)), target = text(streamReadString(streamId)),
+        concLimit = text(streamReadString(streamId)), intakeLimit = text(streamReadString(streamId)),
+        healthReason = text(streamReadString(streamId)), gainPerMonth = streamReadFloat32(streamId), client = true,
+    }
+end
+
+
+if PlaceableHusbandryFood ~= nil then
+    -- A joining client gets each pen's ration settings with the trough.
+    if PlaceableHusbandryFood.onWriteStream ~= nil then
+        PlaceableHusbandryFood.onWriteStream = Utils.appendedFunction(PlaceableHusbandryFood.onWriteStream, function(self, streamId)
+            RLFeed.writeRationStream(RLFeed.getRation(self), streamId)
+        end)
+    end
+    if PlaceableHusbandryFood.onReadStream ~= nil then
+        PlaceableHusbandryFood.onReadStream = Utils.appendedFunction(PlaceableHusbandryFood.onReadStream, function(self, streamId)
+            local spec = self.spec_husbandryFood
+            local ration = RLFeed.readRationStream(streamId)
+            if spec ~= nil then spec.rlFeedRation = ration end
+        end)
     end
 end

@@ -451,4 +451,155 @@ do
     check("save: a moved or cloned animal keeps its adaptation (it continues in its new pen)", copyAnimal.feedAdapted == state.feedAdapted)
 end
 
+
+-- Grain choice, milk bridge, MILKCOW ---------------------------------------------------------------
+
+do
+    local function wheatOnly(substitute)
+        local bull = GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })
+        local pen = FeedSim.makePen({ bull }, { DRYGRASS_WINDROW = 1e5, MAIZE = 1e4 })
+        RLFeed.setRation(pen, { grain = "WHEAT", substitute = substitute, share = 0.2 })
+        for _ = 1, 3 do FeedSim.hour(pen) end
+        return bull.rlFeedIntake
+    end
+    local strict, open = wheatOnly(false), wheatOnly(true)
+    check("grain: wheat chosen without substitution and none in stock - no maize is fed instead, the shortage is named",
+        strict.byFill.MAIZE == nil and strict.concLimit == "NO_CONCENTRATE")
+    check("grain: with substitution allowed, maize stands in for the missing wheat", open.byFill.MAIZE ~= nil and open.byFill.MAIZE.kg > 0)
+    local order = RLFeed.getConcentrateOrder({ grain = "WHEAT", substitute = true })
+    check("grain: the chosen grain first, then the others (AUTO's order), then other concentrates; NONE offers nothing",
+        order[1] == "WHEAT" and order[2] == "MAIZE" and #RLFeed.getConcentrateOrder({ grain = "NONE" }) == 0)
+
+    local cow = GrowthSim.makeAnimal("COW_HOLSTEIN", { age = 48, isParent = true, isLactating = true, monthsSinceLastBirth = 2 })
+    local sub = cow:getSubType()
+    local mature = Economics.curve(sub.milk, 60)
+    local realKg, mePerLiter = RLFeed.getMilkBridge(cow, mature * RLBodyCondition.getConfig().lactationMeanFactor)
+    check(string.format("milk: a Holstein at the lactation average gives her breed's 30 kg a real day (%.2f); a game liter of her milk needs %.2f MJ",
+        realKg, mePerLiter), within(realKg, 30, 1e-9) and within(mePerLiter, 30 * 30 / (mature * 1.08) * 5.0, 1e-9))
+
+    local savedSystem = g_currentMission.animalSystem
+    local types = { [7] = { name = "MILKCOW" } }
+    g_currentMission.animalSystem = setmetatable({ getTypeByIndex = function(_, i) return types[i] or savedSystem:getTypeByIndex(i) end },
+        { __index = savedSystem })
+    local milkcowPen = FeedSim.makePen({}, {})
+    milkcowPen.getAnimalTypeIndex = function() return 7 end
+    local active, reason = RLFeed.evaluatePen(milkcowPen)
+    g_currentMission.animalSystem = savedSystem
+    check("MILKCOW: Hof Bergmann's milk cow keeps the old rules as its own capability (MILKCOW_LEGACY)", active == false and reason == "MILKCOW_LEGACY")
+end
+
+
+-- Clients, events, log, report -----------------------------------------------------------------------
+
+do
+    local stream, readAt = {}, 0
+    local function w(_, v) stream[#stream + 1] = v end
+    local function r() readAt = readAt + 1; return stream[readAt] end
+    streamWriteBool, streamWriteFloat32, streamWriteString, streamWriteUInt8, streamWriteUInt16 = w, w, w, w, w
+    streamReadBool, streamReadFloat32, streamReadString, streamReadUInt8, streamReadUInt16 = r, r, r, r, r
+
+    local bull = GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })
+    local pen = FeedSim.makePen({ bull }, {})
+    RLFeed.setRation(pen, { target = "FINISH", grain = "MAIZE", share = 0.3, substitute = false })
+    FeedSim.months(pen, 1, { refill = FeedSim.keepStocked({ DRYGRASS_WINDROW = 1e5, MAIZE = 1e4 }) })
+    RLFeed.writePenStream(pen, 1)
+    RLFeed.writeAnimalStream(bull, 1)
+    local penData = RLFeed.readPenStream(1)
+    local animalData = RLFeed.readAnimalStream(1)
+    local month = pen.spec_husbandryFood.rlFeedMonth or pen.spec_husbandryFood.rlFeedPrevious
+    check("network: a pen's mode, ration and feed month reach clients as the server has them",
+        readAt == #stream and penData.active == true and penData.reason == "OK" and penData.ration.grain == "MAIZE"
+        and penData.ration.share == 0.3 and penData.ration.substitute == false
+        and (month == nil or within(penData.byFill.MAIZE.liters, month.byFill.MAIZE.liters, 1e-6)))
+    local record = bull.rlFeedIntake
+    check("network: an animal's real intake a day, ME, concentrate share, limits and target reach clients",
+        animalData ~= nil and within(animalData.kgPerDay, record.kg / record.dtDays, 1e-9) and within(animalData.mePerDay, record.me / record.dtDays, 1e-9)
+        and animalData.target == "FINISH" and animalData.class == "GROWING" and within(animalData.concShare, record.concShare, 1e-9))
+
+    -- The ration event: a client asks, the server checks, applies and tells everyone.
+    loadMod("scripts/events/RLFeedRationEvent.lua")
+    local broadcasts = {}
+    g_server = { broadcastEvent = function(_, event) broadcasts[#broadcasts + 1] = event end }
+    local permitted = true
+    RLPermissionHelper = { authorizeConnection = function() return permitted, permitted and nil or "NO_PERMISSION", "tester" end }
+    pen.getOwnerFarmId = function() return 1 end
+    local event = RLFeedRationEvent.new(pen, { target = "MAINTAIN", grain = "AUTO", share = nil, substitute = true })
+    event:run(makeConnection(5, false))
+    check("event: a permitted client's ration is applied on the server and sent on to every client",
+        RLFeed.getRation(pen).target == "MAINTAIN" and #broadcasts == 1 and broadcasts[1].ration.target == "MAINTAIN")
+    permitted = false
+    local logged = #LOG
+    RLFeedRationEvent.new(pen, { target = "GROW" }):run(makeConnection(6, false))
+    check("event: a client without the permission changes nothing", RLFeed.getRation(pen).target == "MAINTAIN" and #broadcasts == 1)
+    permitted = true
+    RLFeedRationEvent.new(pen, { target = "EAT_EVERYTHING" }):run(makeConnection(5, false))
+    check("event: a ration with a value out of range is dropped, not fixed up", RLFeed.getRation(pen).target == "MAINTAIN" and #broadcasts == 1)
+    while #LOG > logged do table.remove(LOG) end
+    g_server = nil
+
+    -- FEED_DAY: a pen's day in the mode in one log line.
+    local before = #LOG
+    local lines = {}
+    local savedEmit = RLPenLog.emit
+    RLPenLog.emit = function(kind, data) lines[#lines + 1] = { kind = kind, data = data } return "" end
+    RLFeed.setRation(pen, { target = "FINISH", grain = "MAIZE", share = 0.3 })
+    local refill = FeedSim.keepStocked({ DRYGRASS_WINDROW = 1e5, MAIZE = 1e4 })
+    pen.spec_husbandryFood.rlFeedDay = nil
+    for _ = 1, 24 do refill(pen); FeedSim.hour(pen) end
+    RLFeed.onPenDayChanged(pen)
+    RLPenLog.emit = savedEmit
+    while #LOG > before do table.remove(LOG) end
+    local day = lines[1] ~= nil and lines[1].data or {}
+    check("log: FEED_DAY gives the pen's day - hours, liters, real DM and ME per feed, coverage, the ration and each animal",
+        lines[1] ~= nil and lines[1].kind == "FEED_DAY" and day.active == true and day.hours == 24 and day.fills.MAIZE ~= nil
+        and day.fills.MAIZE.liters > 0 and day.fills.DRYGRASS_WINDROW.kgDM > 0 and day.ration.grain == "MAIZE" and #day.animals == 1
+        and day.animals[1].target == "FINISH" and pen.spec_husbandryFood.rlFeedDay == nil)
+
+    -- The report runs on the server's pens (read-only).
+    loadMod("scripts/console/RLFeedConsole.lua")
+    g_currentMission.husbandrySystem = { placeables = { pen } }
+    local printed = {}
+    local savedPrint = print
+    print = function(text) printed[#printed + 1] = text end
+    local okReport, message = pcall(RLFeedConsole.report, RLFeedConsole, "animals")
+    print = savedPrint
+    if not okReport then LOG[#LOG + 1] = "report: " .. tostring(message) end
+    check("console: rlFeedReport lists the pen, its feeds with months left and its animal", okReport and message == "rlFeedReport: 1 pen(s)"
+        and (function() for _, line in ipairs(printed) do if line:find("MAIZE", 1, true) and line:find("left", 1, true) then return true end end end)())
+    g_currentMission.husbandrySystem = nil
+end
+
+
+-- The old rules never eat the grain group; the mode's pens feed through the engine's call -------------
+
+do
+    local engineCalls = 0
+    local savedUtils = Utils
+    Utils = { appendedFunction = function(first, second) return function(...) first(...); second(...) end end }
+    AnimalFoodSystem = {
+        loadMapData = function() end,
+        consumeFood = function() engineCalls = engineCalls + 1 return 0.5 end,
+        consumeFoodGroup = function(_, _, amount) return 0 end,
+    }
+    local mode = RLFeed.mode
+    loadMod("scripts/feed/RLFeed.lua")
+    RLFeed.mode = mode
+    local grainGroup
+    for _, g in ipairs(FeedSim.cowFood.groups) do if g.rlGrain then grainGroup = g end end
+    check("legacy: the engine's group consumption leaves the grain group untouched (amount returned, nothing taken)",
+        AnimalFoodSystem.consumeFoodGroup(nil, grainGroup, 12, nil, {}) == 12
+        and AnimalFoodSystem.consumeFoodGroup(nil, FeedSim.cowFood.groups[1], 12, nil, {}) == 0)
+    local bull = GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })
+    local pen = FeedSim.makePen({ bull }, { FORAGE = 1e4 })
+    RLFeed.beginFeeding(pen)
+    local consumed = {}
+    local factor = AnimalFoodSystem.consumeFood(nil, GrowthSim.COW_TYPE, 99, pen, consumed)
+    check("engine: in a pen running the mode, consumeFood is the planner's - its liters per fill type, its food factor",
+        engineCalls == 0 and consumed[FILL.FORAGE] ~= nil and consumed[FILL.FORAGE] > 0 and factor > 0.99)
+    local other = FeedSim.makePen({}, {})
+    AnimalFoodSystem.consumeFood(nil, GrowthSim.COW_TYPE, 99, other, {})
+    check("engine: any other pen keeps the engine's own consumption", engineCalls == 1)
+    AnimalFoodSystem, Utils = nil, savedUtils
+end
+
 FeedSim.setMode(false)
