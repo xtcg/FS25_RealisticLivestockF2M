@@ -382,12 +382,15 @@ function RLBodyCondition.getAllocatedIntake(animal, supply)
 
     local share = request / supply.requested
     local subType = animal:getSubType()
-    -- In a calf rearing pen the animal ate its own share (RLCalfRearing.settle), not the pen's mix.
+    -- In a calf rearing pen the animal ate its own share (RLCalfRearing.settle), not the pen's mix,
+    -- and a young calf gets less from solid feed than a weaned one (RLCalfRearing.getSolidEnergyFactor).
     local own = RLCalfRearing ~= nil and RLCalfRearing.getAllocation(animal, supply.tick) or nil
+    local solidFactor = own ~= nil and RLCalfRearing.getSolidEnergyFactor(animal) or 1
     local intake, allocated = 0, 0
     for _, item in ipairs(supply.items) do
         local liters = own ~= nil and (own[item.fillType] or 0) or share * item.liters
         local digest = item.category == RLBodyCondition.OTHER_CATEGORY and 1 or RLBreedTraits.get(subType, item.category)
+        if solidFactor ~= 1 and not RLCalfRearing.isMilkFillType(item.fillType) then digest = digest * solidFactor end
         allocated = allocated + liters
         intake = intake + liters * item.energy * digest
     end
@@ -418,6 +421,8 @@ end
 --- @param animal table
 --- @return number liters per period
 function RLBodyCondition.getReferenceIntake(animal)
+    -- Weight model v2: the request at its frame with the reference reserve (RLGrowth).
+    if RLGrowth ~= nil and RLGrowth.covers(animal) then return RLGrowth.getReferenceIntake(animal) end
     local state = animal.bodyCondition
     local frame = animal.weight
     if state ~= nil then
@@ -510,7 +515,12 @@ end
 
 
 --- The pen's feed ledger for this hour, or nil when there is none.
-local function getLedger(animal, tick)
+--- @param animal table
+--- @param tick number|nil
+--- @return table|nil supply spec.rlNutritionSupply of this hour
+--- @return table|nil owner The pen
+--- @return table|nil foodSpec
+function RLBodyCondition.getLedger(animal, tick)
     local owner = animal.clusterSystem ~= nil and animal.clusterSystem.owner or nil
     local foodSpec = owner ~= nil and owner.spec_husbandryFood or nil
     local supply = foodSpec ~= nil and foodSpec.rlNutritionSupply or nil
@@ -531,7 +541,7 @@ function RLBodyCondition.coversThisHour(animal, tick)
     if tick == nil then return false end
     local state = animal.bodyCondition
     if state ~= nil and state.lastTick == tick then return true end
-    return getLedger(animal, tick) ~= nil and (animal:getInput("food") or 0) > 0
+    return RLBodyCondition.getLedger(animal, tick) ~= nil and (animal:getInput("food") or 0) > 0
 end
 
 
@@ -546,6 +556,8 @@ local lastInvalidWarning = {}
 --- @return boolean handled False: the caller runs the old weight update instead
 function RLBodyCondition.step(animal)
     if not RLBodyCondition.isEligible(animal) then return false end
+    -- The weight model v2 runs its own step (RLGrowth.step); never both in one hour.
+    if RLGrowth ~= nil and RLGrowth.covers(animal) then return false end
 
     local tick = RLBodyCondition.getTickId()
     if tick == nil then return false end
@@ -553,7 +565,7 @@ function RLBodyCondition.step(animal)
     local state = animal.bodyCondition
     if state ~= nil and state.lastTick == tick then return true end
 
-    local supply, owner, foodSpec = getLedger(animal, tick)
+    local supply, owner, foodSpec = RLBodyCondition.getLedger(animal, tick)
     if supply == nil or (animal:getInput("food") or 0) <= 0 then
         local key = owner ~= nil and tostring(owner) or "?"
         if lastInvalidWarning[key] ~= tick then

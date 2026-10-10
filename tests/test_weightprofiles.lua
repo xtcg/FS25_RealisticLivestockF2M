@@ -69,8 +69,17 @@ check("profiles: a breed only a map brings has its own profile",
     byName.BULL_MONTBELIARDE.resolution == "EXACT" and byName.BULL_MONTBELIARDE.profileStatus == "MAP_REVIEW_ONLY")
 check("profiles: an unknown breed is unresolved and a gap, never another breed's profile",
     byName.COW_AUBRAC.resolution == "UNRESOLVED" and byName.COW_AUBRAC.profile == nil and byName.COW_AUBRAC.gap == true)
-check("profiles: Hof Bergmann's MILKCOW is listed as not covered, whatever its breed says",
-    byName.MILK_COW.resolution == "NOT_COVERED" and byName.MILK_COW.profile == nil and byName.MILK_COW.gap == true)
+check("profiles: Hof Bergmann's MILKCOW is put on the Holstein female curve by the file's type binding, as a stand-in (a gap)",
+    byName.MILK_COW.resolution == "PROXY" and byName.MILK_COW.profile == "HOLSTEIN" and byName.MILK_COW.proxySex == "female"
+    and byName.MILK_COW.gap == true and byName.MILK_COW.capability ~= nil)
+do
+    local bindings = RLWeightProfiles.getConfig().bindings
+    bindings.MILKCOW.enabled = false
+    local record = RLWeightProfiles.describe(milkCow)
+    bindings.MILKCOW.enabled = true
+    check("profiles: with its binding switched off MILKCOW is not covered, whatever its breed says",
+        record.resolution == "NOT_COVERED" and record.profile == nil and record.gap == true)
+end
 check("profiles: other animal types are not listed", byName.PIG_TEST == nil and byName.PIG_LANDRACE == nil)
 check("profiles: the filter matches part of a subtype or breed name",
     #RLWeightProfiles.enumerate("charola") == 3 and #RLWeightProfiles.enumerate("aubrac") == 1)
@@ -84,16 +93,24 @@ do
         bull.matureAgeMonth.value), bull.matureAgeMonth.source == "subType" and near(bull.matureAgeMonth.value, 52.2, 1e-9)
         and bull.growth.source == "breed" and bull.maturity.source == "breed" and bull.priceLine == true and bull.gap == false)
     check(string.format("settings: a Holstein cow's mature age falls back to 1.5 x her reproduction age (%.0f) and her growth "
-        .. "to 0.6 of a male's: a gap", cow.matureAgeMonth.value), cow.matureAgeMonth.source == "default"
+        .. "to 0.6 of a male's; on her v2 curve that is no gap", cow.matureAgeMonth.value), cow.matureAgeMonth.source == "default"
         and near(cow.matureAgeMonth.value, cow.reproductionMinAgeMonth * 1.5, 1e-9) and cow.femaleGrowth.source == "default"
-        and near(cow.femaleGrowth.value, 0.6, 1e-9) and cow.gap == true)
+        and near(cow.femaleGrowth.value, 0.6, 1e-9) and cow.curve ~= nil and cow.curve.active == true and cow.gap == false)
 
     local pack = byName.BULL_CHAROLAIS_PACK
     local defaults, generic = table.concat(pack.defaults, " "), table.concat(pack.generic, " ")
     check(string.format("settings: a pack bull has no setting of its own (defaults: %s; type only: %s; price line %s)",
         defaults, generic, tostring(pack.priceLine)), pack.matureAgeMonth.source == "default" and pack.growth.source == "default"
         and pack.feed.source == "default" and pack.maturity.source == "type" and near(pack.maturity.value, 0.75, 1e-9)
-        and pack.priceLine == false and pack.gap == true and generic == "maturity")
+        and pack.priceLine == false and pack.gap == false and pack.curve.active == true and generic == "maturity")
+
+    -- With the model off the old growth line is what they grow on: its fallbacks are gaps again.
+    local config = RLWeightProfiles.getConfig()
+    config.enabled = false
+    local cowOff, packOff = RLWeightProfiles.describe(select(2, Economics.find("COW_HOLSTEIN"))), RLWeightProfiles.describe(packBull)
+    config.enabled = true
+    check("settings: with the weight model v2 off, the old line's fallbacks (mature age, femaleGrowth) are gaps",
+        cowOff.gap == true and packOff.gap == true and cowOff.curve.active == false)
     check("settings: femaleGrowth is reported for females only", byName.BULL_ANGUS.femaleGrowth == nil and packCow.gender == "female"
         and byName.COW_CHAROLAIS_PACK.femaleGrowth ~= nil)
 end
@@ -139,10 +156,11 @@ do
     local records = RLWeightProfiles.enumerate()
     local summary = RLWeightProfiles.summarize(records)
     local resolved = (summary.resolution.EXACT or 0) + (summary.resolution.ALIAS or 0)
-    check(string.format("summary: %d subtypes = %d resolved + %d unresolved + %d not covered; unresolved breeds %s",
-        summary.subTypes, resolved, summary.resolution.UNRESOLVED or 0, summary.resolution.NOT_COVERED or 0,
+    check(string.format("summary: %d subtypes = %d resolved + %d unresolved + %d not covered + %d stand-in; unresolved breeds %s",
+        summary.subTypes, resolved, summary.resolution.UNRESOLVED or 0, summary.resolution.NOT_COVERED or 0, summary.resolution.PROXY or 0,
         table.concat(summary.unresolvedBreeds, " ")), summary.subTypes == #records
-        and resolved + (summary.resolution.UNRESOLVED or 0) + (summary.resolution.NOT_COVERED or 0) == #records
+        and resolved + (summary.resolution.UNRESOLVED or 0) + (summary.resolution.NOT_COVERED or 0)
+            + (summary.resolution.PROXY or 0) == #records and summary.resolution.PROXY == 1
         and table.concat(summary.unresolvedBreeds, " ") == "AUBRAC" and summary.resolution.ALIAS == 1)
 
     local longest, same = 0, true
@@ -200,6 +218,8 @@ do
             local values = { ["p0#name"] = "angus", ["p0#status"] = "BASE", ["a0#breed"] = "x", ["a0#profile"] = "NOPE" }
             return values[key] or default
         end,
+        getFloat = function(_, _, default) return default end,
+        getBool = function(_, _, default) return default end,
     }
     local before = #LOG
     local parsed = RLWeightProfiles.parse(xml)

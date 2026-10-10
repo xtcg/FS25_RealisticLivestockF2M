@@ -149,6 +149,13 @@ loadMod("scripts/utils/RLPenLog.lua")
 loadMod("scripts/bridge/RLPenConstruction.lua")
 loadMod("scripts/nutrition/RLCalfRearing.lua")
 
+-- Weight model v2 (RLGrowth). It covers only individual animals (isIndividual = true) of a
+-- covered subtype, with the breed traits config loaded; the other tests see the old rules.
+loadMod("scripts/animal/RLGrowthCurve.lua")
+loadMod("scripts/animal/RLGrowthMath.lua")
+loadMod("scripts/animal/RLWeightProfiles.lua")
+loadMod("scripts/animal/RLGrowth.lua")
+
 -- RLPEN_DUMP=path: tests that capture RLPEN records append them there as log.txt lines.
 function DUMP(line)
     local path = os.getenv("RLPEN_DUMP")

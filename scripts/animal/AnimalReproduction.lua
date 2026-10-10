@@ -58,6 +58,9 @@ local function resolveInsemination(animal, month, year)
         g_server:broadcastEvent(AnimalInseminationResultEvent.new(
             animal.clusterSystem.owner, animal, true))
 
+        local strawSubType = insemination.subTypeIndex ~= nil
+            and g_currentMission.animalSystem:getSubTypeByIndex(insemination.subTypeIndex) or nil
+
         animal:createPregnancy(childNum, month, year, {
             ["uniqueId"] = string.format("%s %s %s",
                 RLConstants.AREA_CODES[insemination.country].code,
@@ -67,6 +70,8 @@ local function resolveInsemination(animal, month, year)
             ["health"] = insemination.genetics.health,
             ["fertility"] = insemination.genetics.fertility,
             ["productivity"] = insemination.genetics.productivity,
+            -- The sire's breed, for a cross's birth weight (RLGrowth).
+            ["breed"] = strawSubType ~= nil and strawSubType.breed or nil,
         })
 
         Log:trace("  insemination success, pregnancy created (fertility=%s)", tostring(fertility))
@@ -423,6 +428,7 @@ function AnimalReproduction.createPregnancy(animal, childNum, month, year, fathe
             father.health = selectedFather.genetics.health
             father.fertility = selectedFather.genetics.fertility
             father.productivity = selectedFather.genetics.productivity
+            father.breed = selectedFather.breed
             father.animal = selectedFather
 
             Log:trace("createPregnancy: selected father %s (subType=%s) genetics m=%s q=%s h=%s f=%s p=%s",
@@ -722,6 +728,10 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
     local freeSlots = isSaleAnimal and 100
         or (spec.maxNumAnimals - (spec:getNumOfAnimals() + pendingDelta))
     local childNum = #pregnancies
+    -- For the weight model v2's birth weight (RLGrowth): litter size and the dam's first calving,
+    -- read before this birth makes her a parent.
+    local litterSize = #pregnancies
+    local firstBirth = not animal.isParent
     local animalsToSell = 0
     local subType = animal:getSubType()
     local animalType = animal:getAnimalTypeIndex()
@@ -851,22 +861,43 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
     local country = isSaleAnimal and animal.birthday.country or RealisticLivestock.getMapCountryIndex()
 
 
+    local sireBreed = (fatherFull ~= nil and fatherFull.breed)
+        or (animal.impregnatedBy ~= nil and animal.impregnatedBy.breed) or nil
+
     for i, child in pairs(pregnancies) do
 
         local genetics = child.genetics
-        local weightChance = math.random() * genetics.metabolism
-        local minWeight = child:getSubType().minWeight
-        local weight = minWeight + 0.5
+        local childSubType = child:getSubType()
+        local weight, sizeRatio
 
-        if weightChance < 0.05 then
-            weight = weight * (math.random(70, 90) / 100)
-        elseif weightChance <= 0.95 then
-            weight = weight * (math.random(90, 110) / 100)
+        if RLGrowth.coversSubType(childSubType) then
+            -- Weight model v2: drawn around this birth's mean (breed and sex, a cross, litter size,
+            -- first calving, the dam's reserve, the calf's gene), normal with birthWeightCV,
+            -- truncated. The survival roll reads the draw against that mean as the old roll read
+            -- its draw against minWeight, so the survival rule is unchanged.
+            local z, mean
+            weight, z, mean = RLGrowth.drawBirthWeight(childSubType, {
+                damBreed = animal.breed, sireBreed = sireBreed, litterSize = litterSize, firstBirth = firstBirth,
+                dam = animal, metabolism = genetics.metabolism,
+            })
+            sizeRatio = mean > 0 and weight / mean or 1
+            Log:trace("  child %d birth weight %.2f kg (mean %.2f, z %.2f)", i, weight, mean, z)
         else
-            weight = weight * (math.random(110, 130) / 100)
+            local weightChance = math.random() * genetics.metabolism
+            local minWeight = childSubType.minWeight
+            weight = minWeight + 0.5
+
+            if weightChance < 0.05 then
+                weight = weight * (math.random(70, 90) / 100)
+            elseif weightChance <= 0.95 then
+                weight = weight * (math.random(90, 110) / 100)
+            else
+                weight = weight * (math.random(110, 130) / 100)
+            end
+            sizeRatio = weight / minWeight
         end
 
-        if animal.deathEnabled and math.random() >= genetics.health * (weight / minWeight) * 1.15 then
+        if animal.deathEnabled and math.random() >= genetics.health * sizeRatio * 1.15 then
 
             childNum = childNum - 1
             animalsToSell = animalsToSell - 1
@@ -876,7 +907,7 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
             child.isDead = true
 
-            Log:trace("  child %d died at birth (weight=%.1f minWeight=%.1f)", i, weight, minWeight)
+            Log:trace("  child %d died at birth (weight=%.1f size=%.3f)", i, weight, sizeRatio)
 
             continue
 
@@ -884,6 +915,8 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
         child.weight = weight
         child.age = 0
+        -- Weight model v2: the newborn's state (birth weight, adult weight from its own genes).
+        if RLGrowth.coversSubType(childSubType) then RLGrowth.initBirth(child, weight) end
 
         child:setBirthday({["day"] = day, ["month"] = month, ["year"] = year, ["country"] = country, ["lastAgeMonth"] = month})
 

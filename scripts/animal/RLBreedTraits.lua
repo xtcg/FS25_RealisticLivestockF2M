@@ -419,16 +419,27 @@ end
 --- @param weight number The animal's weight
 --- @return number
 function RLBreedTraits.toPriceWeight(subType, gender, targetWeight, age, metabolism, weight)
-    local priceTarget, priceMatureAge = RLBreedTraits.getPriceModel(subType)
+    local priceTarget = RLBreedTraits.getPriceModel(subType)
     if priceTarget == nil then return weight end
 
     local line = RLBreedTraits.getGrownWeight(subType, gender, targetWeight, age, metabolism)
     if line <= 0 then return weight end
 
+    return weight * RLBreedTraits.getPriceLineWeight(subType, age) / line
+end
+
+
+--- Weight on the live-price reference line at `age`: from the subtype's minWeight to
+--- priceTargetWeight by priceMatureAgeMonth, then flat (past 20 months at the latest); nil for a
+--- subtype without a price line.
+--- @param subType table
+--- @param age number Months
+--- @return number|nil
+function RLBreedTraits.getPriceLineWeight(subType, age)
+    local priceTarget, priceMatureAge = RLBreedTraits.getPriceModel(subType)
+    if priceTarget == nil then return nil end
     local minWeight = subType.minWeight or 0
-    local priceLine = minWeight + (priceTarget - minWeight) / priceMatureAge *
-        math.clamp(age, 0, math.max(priceMatureAge, 20))
-    return weight * priceLine / line
+    return minWeight + (priceTarget - minWeight) / priceMatureAge * math.clamp(age, 0, math.max(priceMatureAge, 20))
 end
 
 

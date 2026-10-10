@@ -58,6 +58,9 @@ local function buildScratch(animal)
         reproduction         = animal.reproduction,
         pregnancy            = pregCopy,
         metabolism           = metabolism,
+        -- The gene the daily food is scaled by (the metabolism gene, or its maintenance factor
+        -- under the weight model v2, Animal:getIntakeGene).
+        intakeGene           = animal.getIntakeGene ~= nil and animal:getIntakeGene() or metabolism,
         fatherMetabolism     = fatherMetabolism,
         subTypeRef           = animal:getSubType(),
         subTypeName          = animal.subType,
@@ -88,7 +91,7 @@ local function sumDailyFood(scratch, foodScale)
                 s.isLactating,
                 s.reproduction,
                 numPregnancies,
-                s.metabolism,
+                s.intakeGene or s.metabolism,
                 baseCurveValue,
                 foodScale,
                 s.feedModifier
@@ -162,6 +165,10 @@ local function tickBirths(scratch, simMonth, simYear, maxNumAnimals)
 
             for _ = 1, actual do
                 local newbornMetabolism = (s.metabolism + s.fatherMetabolism) / 2
+                local newbornIntake = newbornMetabolism
+                if RLGrowth ~= nil and newbornMetabolism ~= nil and RLGrowth.coversSubType(s.subTypeRef) then
+                    newbornIntake = select(3, RLGrowth.getGeneFactors(newbornMetabolism))
+                end
                 table.insert(scratch, {
                     age                  = 0,
                     isLactating          = false,
@@ -170,6 +177,7 @@ local function tickBirths(scratch, simMonth, simYear, maxNumAnimals)
                     reproduction         = 0,
                     pregnancy            = nil,
                     metabolism           = newbornMetabolism,
+                    intakeGene           = newbornIntake,
                     fatherMetabolism     = newbornMetabolism,
                     subTypeRef           = s.subTypeRef,
                     subTypeName          = s.subTypeName,

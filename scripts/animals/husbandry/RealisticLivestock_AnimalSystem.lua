@@ -691,6 +691,9 @@ function RealisticLivestock_AnimalSystem:loadSubType(superFunc, animalType, subT
 
     if directory ~= modDirectory and subType.gender == "female" then subType.gender = (string.contains(subType.name, "_MALE") or string.contains(subType.name, "BULL_") or string.contains(subType.name, "BOAR_") or string.contains(subType.name, "RAM_") or string.contains(subType.name, "BUCK_") or string.contains(subType.name, "STALLION_") or string.contains(subType.name, "ROOSTER_")) and "male" or "female" end
 
+    -- Whether the file gives the weights or they fall back to the animal's size (the weight
+    -- model v2 report lists it: Hof Bergmann's MILKCOW gives none).
+    subType.rlWeightFieldsGiven = xmlFile:getFloat(key .. "#targetWeight") ~= nil
     subType.maxWeight = xmlFile:getFloat(key .. "#maxWeight", height * radius * 750)
     subType.targetWeight = xmlFile:getFloat(key .. "#targetWeight", height * radius * 300)
     subType.minWeight = xmlFile:getFloat(key .. "#minWeight", height * radius * 50)

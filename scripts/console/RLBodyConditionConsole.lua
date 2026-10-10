@@ -187,7 +187,13 @@ function RLBodyConditionConsole:set(kind, value, target)
         for _, animal in ipairs(pen:getClusters()) do
             if RLBodyCondition.isEligible(animal) and (uniqueId == nil or tostring(animal.uniqueId) == uniqueId) then
                 local state = RLBodyCondition.ensureState(animal, "console")
-                animal.weight = math.max(animal.weight + state.capacityKg * (reserve - state.reserve), 1)
+                if RLGrowth.covers(animal) then
+                    -- Weight model v2: the reserve mass moves, the frame stays.
+                    RLGrowth.setReserveIndex(animal, reserve)
+                    state.capacityKg = math.max((animal.weight - animal.rlGrowth.reserveMassKg) * RLGrowth.getKappa(), 1)
+                else
+                    animal.weight = math.max(animal.weight + state.capacityKg * (reserve - state.reserve), 1)
+                end
                 state.reserve = reserve
                 state.balanceEMA, state.lossRateEMA = 0, 0
                 animal:updateInput()

@@ -186,12 +186,26 @@ function Animal.new(config)
     end
 
 
-    self.targetWeight = targetWeight + (((targetWeight * self.genetics.metabolism) - targetWeight) / 2.5)
+    -- Weight model v2 (RLGrowth): the adult weight on the animal's own curve (saved, else from its
+    -- size gene) and, with no weight of its own, its curve at its age. Otherwise the old rules.
+    local growthTarget = RLGrowth.getConstructorTarget(subType, self.genetics, cfg.growth)
+    if growthTarget ~= nil then
+        self.targetWeight = growthTarget
+    else
+        self.targetWeight = targetWeight + (((targetWeight * self.genetics.metabolism) - targetWeight) / 2.5)
+    end
 
     if self.weight == nil then
-        self.weight = RLBreedTraits.getNewAnimalWeight(subType, self.gender, self.targetWeight, self.age,
-            self.genetics.metabolism)
+        if growthTarget ~= nil then
+            self.weight = RLGrowth.getNewAnimalWeight(subType, self.genetics, self.age)
+        else
+            self.weight = RLBreedTraits.getNewAnimalWeight(subType, self.gender, self.targetWeight, self.age,
+                self.genetics.metabolism)
+        end
     end
+
+    -- Weight model v2 state: own copy, never a table shared with another animal.
+    self.rlGrowth = RLGrowth.copyState(cfg.growth)
 
     local farmId = cfg.farmId
     self.farmId = farmId or nil
@@ -411,6 +425,7 @@ function Animal:clone()
         insemination = self.insemination,
         canBeSold = self.canBeSold,
         bodyCondition = self.bodyCondition,
+        growth = self.rlGrowth,
     })
 
     newAnimal:setBirthday(self.birthday)
@@ -1213,11 +1228,17 @@ function Animal:getFullFeedGain()
 end
 
 --- An animal far below the weight for its age loses health. Run after every weight change, the
---- old one above and the body condition step (AnimalHealth.updateHealth).
+--- old one above and the budget steps (AnimalHealth.updateHealth). Under the weight model v2 the
+--- weight for its age is its own growth curve's (RLGrowth.getUnderweightThreshold).
 function Animal:applyUnderweightPenalty()
-    local subType = self:getSubType()
-    local minWeightForAge = subType.minWeight * (math.min(self.age, subType.reproductionMinAgeMonth * 1.5) + 0.5) * 0.5
-    if self.weight < minWeightForAge then self.health = math.clamp(
+    local minWeightForAge
+    if RLGrowth.covers(self) then
+        minWeightForAge = RLGrowth.getUnderweightThreshold(self)
+    else
+        local subType = self:getSubType()
+        minWeightForAge = subType.minWeight * (math.min(self.age, subType.reproductionMinAgeMonth * 1.5) + 0.5) * 0.5
+    end
+    if minWeightForAge > 0 and self.weight < minWeightForAge then self.health = math.clamp(
         self.health - (((minWeightForAge - self.weight) / minWeightForAge) * 0.2), 0, 100) end
 end
 
@@ -1567,9 +1588,16 @@ function Animal:getSellPrice()
 
     -- Cattle are priced on their own reference line, not the target weights and growth lines the
     -- pens use, so that setting those to real weights leaves prices where they were calibrated.
+    -- Under the weight model v2 an animal's share of its own growth curve is put on that line
+    -- (its breed's price line, else the old full-feed line), so an animal on its curve fetches
+    -- what one on the old line did (RLGrowth.getPriceWeight).
     local priceTarget, priceMatureAge = RLBreedTraits.getPriceModel(subType)
+    local growthPriced = RLGrowth.covers(self)
+    if growthPriced then weight, ownTarget = RLGrowth.getPriceWeight(self, subType) end
     if priceTarget ~= nil then
-        weight = RLBreedTraits.toPriceWeight(subType, self.gender, self.targetWeight, self.age, self.genetics.metabolism, weight)
+        if not growthPriced then
+            weight = RLBreedTraits.toPriceWeight(subType, self.gender, self.targetWeight, self.age, self.genetics.metabolism, weight)
+        end
         matureAge = priceMatureAge
         baseTarget = priceTarget
         ownTarget = priceTarget + (((priceTarget * self.genetics.metabolism) - priceTarget) / 2.5)
@@ -1685,9 +1713,21 @@ end
 ---@return number
 function Animal:getFeedModifier()
     local subType = self:getSubType()
-    return RLBreedTraits.get(subType, "feed")
-        * RLBreedTraits.getBodyFeedFactor(subType, self.weight, self.targetWeight, self.age)
-        * RLBodyCondition.getIntakeFactor(self)
+    local body
+    if RLGrowth.covers(self) then
+        body = RLGrowth.getBodyFeedFactor(self, self.weight)
+    else
+        body = RLBreedTraits.getBodyFeedFactor(subType, self.weight, self.targetWeight, self.age)
+    end
+    return RLBreedTraits.get(subType, "feed") * body * RLBodyCondition.getIntakeFactor(self)
+end
+
+
+--- The gene the daily food is scaled by: the metabolism gene, or under the weight model v2 its
+--- maintenance factor (RLGrowth.getIntakeGene).
+---@return number
+function Animal:getIntakeGene()
+    return RLGrowth.getIntakeGene(self)
 end
 
 function Animal:updateInput()
@@ -1705,7 +1745,7 @@ function Animal:updateInput()
                 self.isLactating,
                 self.reproduction,
                 numPregnancies,
-                self.genetics.metabolism,
+                self:getIntakeGene(),
                 litersPerDay,
                 RealisticLivestock_PlaceableHusbandryFood.foodScale,
                 self:getFeedModifier()

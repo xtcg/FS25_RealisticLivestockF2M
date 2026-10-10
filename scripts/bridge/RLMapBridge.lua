@@ -1264,6 +1264,7 @@ function RLMapBridge.applySubTypeOverrides(subType, animalSystem, xmlFile, key, 
     local targetWeight = xmlFile:getFloat(key .. "#targetWeight")
     if targetWeight ~= nil then
         subType.targetWeight = targetWeight
+        subType.rlWeightFieldsGiven = true
         table.insert(patches, "targetWeight=" .. targetWeight)
     end
 
