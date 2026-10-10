@@ -8,6 +8,10 @@
     nothing about construction when an animal is bought or moved in, so RLRM does: every way in
     (buy, move, herdsman buy and move, the destination lists) asks canAdmit first.
 
+    The same holds for a production point that takes animals (Hof Bergmann's farm butcher, built
+    SETUP -> STATE_1-3 -> FINALIZE -> DONE). The map hides its animal trigger until FINALIZE, but
+    RLRM's move menu and herdsman reach the production point directly, so they ask canAdmit too.
+
     Which states take animals is a bridge decision, never a guess: husbandryProfiles.xml names
     them per building (<construction filename="..." readyStates="DONE"/>), and the names are
     resolved to the placeable's own state indices each time, so no index is hard coded.
@@ -155,20 +159,36 @@ function RLPenConstruction.getStatus(placeable)
 end
 
 
---- Whether a placeable may take animals now. True for anything that is not a husbandry.
+--- The building whose construction decides whether animals may come into an object: a husbandry,
+--- an extended production point placeable (butcher), or the placeable owning a production point
+--- that takes animals (what AnimalMoveEvent carries as an EPP target). nil for anything else.
+--- @param object table|nil
+--- @return table|nil placeable
+function RLPenConstruction.getBuilding(object)
+    if object == nil then return nil end
+    if object.spec_husbandryAnimals ~= nil or object.spec_extendedProductionPoint ~= nil then return object end
+    if object.animalsTypeData ~= nil and object.owningPlaceable ~= nil then return object.owningPlaceable end
+    return nil
+end
+
+
+--- Whether a husbandry or an animal-taking production point may take animals now. True for
+--- anything else.
 --- @return boolean
---- @return table|nil status getStatus, when it is a husbandry
-function RLPenConstruction.canAdmit(placeable)
-    if placeable == nil or placeable.spec_husbandryAnimals == nil then return true end
-    local status = RLPenConstruction.getStatus(placeable)
+--- @return table|nil status getStatus, when it is such a building
+function RLPenConstruction.canAdmit(object)
+    local building = RLPenConstruction.getBuilding(object)
+    if building == nil then return true end
+    local status = RLPenConstruction.getStatus(building)
     return status.admit, status
 end
 
 
 --- The status for a log record: nil fields dropped, the input list only when there is one.
+--- A production point is described by the placeable that owns it.
 --- @return table
 function RLPenConstruction.describe(placeable)
-    local status = RLPenConstruction.getStatus(placeable)
+    local status = RLPenConstruction.getStatus(RLPenConstruction.getBuilding(placeable) or placeable)
     if not status.present then return { present = false, status = status.status, ready = true, reason = status.reason } end
     return {
         present = true,
@@ -195,12 +215,16 @@ end
 -- Records: state changes and residents of pens that cannot take animals
 -- =============================================================================
 
+--- A constructible husbandry, or a constructible production point that takes animals.
 local function isRecordedPen(placeable)
-    return placeable ~= nil and placeable.spec_husbandryAnimals ~= nil and placeable.spec_constructible ~= nil
+    if placeable == nil or placeable.spec_constructible == nil then return false end
+    if placeable.spec_husbandryAnimals ~= nil then return true end
+    local epp = placeable.spec_extendedProductionPoint
+    return epp ~= nil and epp.productionPoint ~= nil and epp.productionPoint.animalsTypeData ~= nil
 end
 
 
---- Record a construction state change of a husbandry (server, after the mission has started).
+--- Record a construction state change of a husbandry or butcher (server, after the mission has started).
 --- A CHANGE on a husbandry with no state recorded yet is its first state after being placed (PLACED).
 --- @param placeable table
 --- @param trigger string LOAD or CHANGE
@@ -306,7 +330,7 @@ function RLPenConstruction.checkResidents(placeable, trigger)
 end
 
 
---- Record every constructible husbandry's state and residents (after loading).
+--- Record every constructible husbandry's and butcher's state, and the husbandries' residents (after loading).
 function RLPenConstruction.checkAll(trigger)
     local placeableSystem = g_currentMission ~= nil and g_currentMission.placeableSystem or nil
     local total = 0

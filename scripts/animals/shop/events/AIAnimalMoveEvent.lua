@@ -103,6 +103,15 @@ function AIAnimalMoveEvent:run(connection)
         end
 
         if isEPPTarget then
+            -- A butcher still under construction takes nothing: every animal stays in the source.
+            local admit, construction = RLPenConstruction.canAdmit(self.targetObject)
+            if not admit then
+                Log:warning("AIAnimalMoveEvent:run: EPP '%s' is not built yet (%s), %d animal(s) stay in the source",
+                    tostring(self.targetObject.getName ~= nil and self.targetObject:getName()),
+                    RLPenConstruction.detail(construction), #transferList)
+                return
+            end
+
             -- EPP delivery. Age is read off the RESOLVED live cluster, never the stream, which
             -- carries identity only. Target-first and per-animal atomic, staging the source flush
             -- for delivered animals only - duplication over loss.
@@ -214,6 +223,7 @@ function AIAnimalMoveEvent.validate(source, target, count, subTypeIndex)
     if eppSpec ~= nil then
         local pp = eppSpec.productionPoint
         if pp == nil then return AnimalMoveEvent.MOVE_ERROR_TARGET_OBJECT_DOES_NOT_EXIST end
+        if not RLPenConstruction.canAdmit(target) then return AnimalMoveEvent.MOVE_ERROR_PEN_NOT_BUILT end
         if not pp:getSupportsAnimalSubType(subTypeIndex) then return AnimalMoveEvent.MOVE_ERROR_ANIMAL_NOT_SUPPORTED end
         if pp:getNumOfFreeAnimalSlots(subTypeIndex) < count then return AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE end
         return nil
