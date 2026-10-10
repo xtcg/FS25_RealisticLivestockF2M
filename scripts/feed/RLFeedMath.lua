@@ -126,6 +126,15 @@ end
 -- Intake
 -- =============================================================================
 
+--- Milk ceiling in real-equivalent kg DM/day. Breed size uses mean birth weight against a
+--- Holstein of the same sex, never the calf's current weight (nor sampled birth weight, litter
+--- size, or genes again). The legacy weaning fraction is applied once. Actual appetite and
+--- available stock can reduce this further. No resourceScale here: conversion is at the trough.
+function RLFeedMath.getCalfMilkLimit(birthMean, referenceBirthMean, milkMax, calfMilk)
+    local size = math.max(birthMean, 0) / referenceBirthMean
+    return calfMilk.realLitersPerDay * calfMilk.density * calfMilk.dm * size * math.clamp(milkMax or 0, 0, 1)
+end
+
 --- What an animal can eat (kg DM a real day) before the ration's bulk: by ration class, per
 --- kg^0.75 (a lactating cow also by her milk), a calf moving to the growing value around weaning;
 --- x the intake gene.

@@ -602,4 +602,97 @@ do
     AnimalFoodSystem, Utils = nil, savedUtils
 end
 
+
+-- Panels and forecast (RLFeedInfoService) -------------------------------------------------------------
+
+loadMod("scripts/gui/rlmenu/services/RLPenFeedForecast.lua")
+loadMod("scripts/gui/rlmenu/services/RLDetailPaneHelper.lua")
+
+do
+    local I = RLFeedInfoService
+    local bull = GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })
+    local pen = FeedSim.makePen({ bull }, {})
+    pen.spec_husbandryFood.capacity = 50000
+    local refill = FeedSim.keepStocked({ DRYGRASS_WINDROW = 8000, MAIZE = 200 })
+    for _ = 1, 48 do refill(pen); FeedSim.hour(pen) end
+    pen:add("ROUNDBALE", 5)
+    local rows = I.getFeedRows(pen)
+    local byName = {}
+    for _, row in ipairs(rows) do byName[row.name] = row end
+    check("panel: one row per feed - hay and maize eaten with their DM share, wheat shown at zero stock, the unconfigured bale flagged",
+        byName.DRYGRASS_WINDROW ~= nil and byName.DRYGRASS_WINDROW.status == "EATEN" and byName.MAIZE.status == "EATEN"
+        and byName.DRYGRASS_WINDROW.dmShare > 0.5 and byName.WHEAT ~= nil and byName.WHEAT.status == "EMPTY" and byName.WHEAT.stock == 0
+        and byName.ROUNDBALE ~= nil and byName.ROUNDBALE.status == "UNCONFIGURED" and byName.FORAGE == nil and byName.CALFMILK == nil)
+    local months, first = I.getMonthsLeft(pen)
+    check(string.format("forecast: each feed at its own planned liters a month - maize runs out first (%.2f months), not a pooled liter count",
+        months or -1), first ~= nil and first.name == "MAIZE" and months < byName.DRYGRASS_WINDROW.monthsLeft
+        and RLPenFeedForecast.getMonthsRemaining(pen, 1e6) == math.floor(months)
+        and within(RLPenFeedForecast.getDaysRemaining(pen, 1e6), months * GrowthSim.env.daysPerPeriod, 1e-9))
+
+    local infos = I.adjustFoodInfos(pen, {})
+    check("panel: the pen's food rows in the mode are its feeds (stock, planned liters a month), not the map's groups",
+        #infos == #rows and (function()
+            for _, info in ipairs(infos) do
+                if info.rlFeedRow.name == "MAIZE" then
+                    return info.valueText ~= nil and info.rlFeedRow.plannedPerMonth > 0 and info.value == info.rlFeedRow.stock and not info.disabled
+                end
+            end
+        end)())
+
+    local penRows = I.getPenInfoRows(pen)
+    check("panel: the pen info box shows the mode, the ration, the energy fed and the feed that runs out first",
+        #penRows == 4 and penRows[1].titleKey == "rl_feed_penMode" and penRows[4].titleKey == "rl_feed_penFirstOut")
+
+    local animalRows = I.getAnimalRows(bull)
+    local keys = {}
+    for _, row in ipairs(animalRows) do keys[row.key] = row end
+    local finishState, finishMonths = I.getFinishForecast(bull, I.getAnimalInfo(bull))
+    check(string.format("panel: a bull's rows - real DM intake against plan, concentrate share and its limit, finishing forecast (%s, %.1f months)",
+        tostring(finishState), finishMonths or -1), keys.feedIntake ~= nil and keys.feedIntake.valueText ~= nil and keys.feedLimit ~= nil
+        and keys.feedFinish ~= nil and finishState == "MONTHS" and finishMonths > 0)
+    bull.rlFeedIntake.gainPerMonth = 0.2
+    local state = I.getFinishForecast(bull, I.getAnimalInfo(bull))
+    check("panel: a bull that hardly gains is shown stalled (feed more), never an endless month count", state == "STALLED")
+
+    -- The old rules: the grain group's row says it is not eaten, and goes while it holds nothing.
+    FeedSim.setMode(false)
+    local legacyPen = FeedSim.makePen({ (GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })) }, { FORAGE = 100 })
+    FeedSim.hour(legacyPen)
+    local base = {}
+    for _, group in ipairs(FeedSim.cowFood.groups) do table.insert(base, { title = group.title, value = group.rlGrain and 0 or 1 }) end
+    local adjusted = I.adjustFoodInfos(legacyPen, base)
+    local stocked = {}
+    for _, group in ipairs(FeedSim.cowFood.groups) do table.insert(stocked, { title = group.title, value = group.rlGrain and 300 or 1 }) end
+    local adjustedStocked = I.adjustFoodInfos(legacyPen, stocked)
+    check("panel: under the old rules an empty grain row is left out, a stocked one is marked as not eaten",
+        #adjusted == #FeedSim.cowFood.groups - 1 and adjustedStocked[#adjustedStocked].title:find("rl_feed_grainNotEaten", 1, true) ~= nil
+        and adjustedStocked[#adjustedStocked].disabled == true and #I.getPenInfoRows(legacyPen) == 0)
+    FeedSim.setMode(true)
+
+    -- The menu clones food rows beyond its five slots.
+    local function element(children)
+        local e = { elements = children or {}, visible = true }
+        function e:setVisible(v) self.visible = v end
+        return e
+    end
+    local layout = { invalidated = 0 }
+    function layout:invalidateLayout() self.invalidated = self.invalidated + 1 end
+    local function makeRow()
+        local row = element({ element({ element(), element() }), element({ element() }) })
+        row.parent = layout
+        function row:clone(parent) local copy = makeRow(); copy.parent = parent; return copy end
+        return row
+    end
+    local frame = { foodRow = {}, foodLabel = {}, foodValue = {}, foodStatusBar = {} }
+    for i = 1, 5 do
+        frame.foodRow[i] = makeRow()
+        frame.foodLabel[i], frame.foodValue[i], frame.foodStatusBar[i] = frame.foodRow[i].elements[1].elements[1],
+            frame.foodRow[i].elements[1].elements[2], frame.foodRow[i].elements[2].elements[1]
+    end
+    RLDetailPaneHelper.ensureFoodRows(frame, 8)
+    check("menu: food rows past the five slots are cloned with their label, value and bar, and the layout redone",
+        #frame.foodRow == 8 and frame.foodLabel[8] == frame.foodRow[8].elements[1].elements[1]
+        and frame.foodStatusBar[8] == frame.foodRow[8].elements[2].elements[1] and layout.invalidated == 1)
+end
+
 FeedSim.setMode(false)

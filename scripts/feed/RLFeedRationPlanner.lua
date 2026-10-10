@@ -5,8 +5,8 @@
     the request from the pen and its animals and removes the liters this returns.
 
     Order, per feeding:
-    1. Milk. A calf on milk plans milkMax of its appetite as milk; the pen's milk is taken in feed
-       order and shared by plan.
+    1. Milk. A calf on milk plans milkMax of its appetite, capped by its real milk allowance;
+       the pen's milk is taken in feed order and shared by plan.
     2. Ration. Each animal's ration is the pen's forage (complete rations and forages, taken in feed
        order, so the forage the pen will actually eat sets its quality) and, for an animal past
        weaning, the pen's concentrate at share c of the DM:
@@ -179,7 +179,7 @@ end
 ---     animals = { { appetite (kg DM/day), fill (kg NDF/day), class, target (FINISH eats freely, GROW
 ---                   for its needs, MAINTAIN for maintenance and pregnancy), concEligible, adapted,
 ---                   needs = { maintenance, pregnancy, growth, milk, deposit } (MJ/day), proteinNeed,
----                   milkMax, solidMax, solidEnergy }, ... },
+---                   milkMax, milkMaxKgPerDay (real-equivalent DM ceiling), solidMax, solidEnergy }, ... },
 ---     forage, concentrate, milk = { { name, profile, liters }, ... } in the order they are taken,
 ---     scale, realDaysPerPeriod, dtDays, share (nil: AUTO), ration, classes, proteinMaintenance,
 ---     concentrateWanted (the pen offers concentrate) }
@@ -202,6 +202,9 @@ function RLFeedRationPlanner.plan(request)
     local milkNeed = 0
     for _, a in ipairs(request.animals) do
         a.milkPlanKg = (a.milkMax ~= nil and a.milkMax > 0) and math.min(a.milkMax, 1) * a.appetite * dt or 0
+        if a.milkMaxKgPerDay ~= nil then
+            a.milkPlanKg = math.min(a.milkPlanKg, math.max(a.milkMaxKgPerDay, 0) * dt)
+        end
         milkNeed = milkNeed + a.milkPlanKg
     end
     local milkTaken, milkTotal, milkParts = RLFeedRationPlanner.takeSerial(request.milk, milkNeed, nil, true)

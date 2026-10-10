@@ -6,6 +6,7 @@ function RealisticLivestock_PlaceableHusbandryFood.registerOverwrittenFunctions(
 	SpecializationUtil.registerOverwrittenFunction(placeable, "updateFeeding", RealisticLivestock_PlaceableHusbandryFood.updateFeeding)
 	SpecializationUtil.registerOverwrittenFunction(placeable, "removeFood", RealisticLivestock_PlaceableHusbandryFood.removeFood)
 	SpecializationUtil.registerOverwrittenFunction(placeable, "updateInfo", RealisticLivestock_PlaceableHusbandryFood.updateInfo)
+	SpecializationUtil.registerOverwrittenFunction(placeable, "getFoodInfos", RealisticLivestock_PlaceableHusbandryFood.getFoodInfos)
 end
 
 PlaceableHusbandryFood.registerOverwrittenFunctions = Utils.appendedFunction(PlaceableHusbandryFood.registerOverwrittenFunctions, RealisticLivestock_PlaceableHusbandryFood.registerOverwrittenFunctions)
@@ -56,15 +57,17 @@ function RealisticLivestock_PlaceableHusbandryFood:updateFeeding(superFunc)
 end
 
 
---- Cattle pens: body condition and last hour's ration in the pen's info box (RLBodyCondition.getPenInfo).
+--- Cattle pens: body condition and last hour's ration in the pen's info box (RLBodyCondition.getPenInfo),
+--- and the real-equivalent nutrition mode's state, ration and first feed to run out (RLFeedInfoService).
 function RealisticLivestock_PlaceableHusbandryFood:updateInfo(superFunc, infoTable)
     superFunc(self, infoTable)
 
     local spec = self.spec_husbandryFood
     if spec == nil then return end
 
-    local rows = RLBodyCondition.getPenInfo(self)
-    if rows == nil then return end
+    local rows = RLBodyCondition.getPenInfo(self) or {}
+    for _, row in ipairs(RLFeedInfoService.getPenInfoRows(self)) do table.insert(rows, row) end
+    if #rows == 0 then return end
 
     spec.rlInfoRows = spec.rlInfoRows or {}
     for index, row in ipairs(rows) do
@@ -76,6 +79,13 @@ function RealisticLivestock_PlaceableHusbandryFood:updateInfo(superFunc, infoTab
         info.text = row.text
         table.insert(infoTable, info)
     end
+end
+
+
+--- Cattle pens' food rows: per feed in the real-equivalent nutrition mode, the grain group marked
+--- as not eaten under the old rules (RLFeedInfoService.adjustFoodInfos).
+function RealisticLivestock_PlaceableHusbandryFood:getFoodInfos(superFunc)
+    return RLFeedInfoService.adjustFoodInfos(self, superFunc(self))
 end
 
 

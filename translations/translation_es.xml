@@ -12,7 +12,7 @@
         <text name="fillType_bull_hereford" text="Toro Hereford"/>
         <text name="fillType_cow_highland_cattle" text="Ganado de las Tierras Altas"/>
         <text name="fillType_bull_highland_cattle" text="Toro de las Tierras Altas"/>
-        <text name="animal_descriptionBullFeed" text="A los toros les gusta la hierba, el heno y el TMR."/>
+        <text name="animal_descriptionBullFeed" text="Bulls eat grass, hay, silage and TMR. In real-equivalent mode, weaned cattle can receive maize or wheat as a supplement to roughage where the pen supports it. Grain limits and feed adaptation apply."/>
         <text name="animal_descriptionBullYoung" text="Este es un ternero macho."/>
         <text name="animal_descriptionBullReproduction" text="Los toros sanos y mayores de 12 meses pueden reproducirse."/>
         <text name="rl_descriptionCowReproduction" text="Las vacas sanas y mayores de 12 meses pueden reproducirse."/>
@@ -999,5 +999,56 @@
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>
         <text name="rl_settings_nutritionMode_texts_2" text="Real-equivalent (1/5)"/>
         <text name="rl_feed_grainGroup" text="Grain (supplement)"/>
+
+        <!-- Feed UI: Chinese and English; English fallback for other languages. -->
+        <text name="rl_feed_penMode" text="Feed model"/>
+        <text name="rl_feed_modeReal" text="Real-equivalent"/>
+        <text name="rl_feed_penRation" text="Ration target"/>
+        <text name="rl_feed_penCoverage" text="ME plan covered"/>
+        <text name="rl_feed_penFirstOut" text="First to run out"/>
+        <text name="rl_feed_intake" text="DM / ME cover"/>
+        <text name="rl_feed_intakeFormat" text="%.1f kg/d (%.0f%%)"/>
+        <text name="rl_feed_ration" text="Grain DM / limit"/>
+        <text name="rl_feed_finish" text="Finish estimate"/>
+        <text name="rl_feed_finishReady" text="Ready"/>
+        <text name="rl_feed_finishStalled" text="Gain too low"/>
+        <text name="rl_feed_monthsShort" text="mo"/>
+        <text name="rl_feed_unconfigured" text="No feed data"/>
+        <text name="rl_feed_grainNotEaten" text="Not fed in legacy"/>
+        <text name="rl_feed_grain_AUTO" text="Auto grain"/>
+        <text name="rl_feed_grain_NONE" text="No grain"/>
+        <text name="rl_feed_feedShareFormat" text="%s (%.0f%% DM)"/>
+        <text name="rl_feed_feedPlanFormat" text="%s · plan %.0f L/%s"/>
+        <text name="rl_feed_reason_OK" text="Real-equivalent"/>
+        <text name="rl_feed_reason_MODE_OFF" text="Legacy mode"/>
+        <text name="rl_feed_reason_CONFIG_INVALID" text="Invalid feed data"/>
+        <text name="rl_feed_reason_MODEL_OFF" text="Weight model off"/>
+        <text name="rl_feed_reason_NOT_CATTLE" text="Cattle only"/>
+        <text name="rl_feed_reason_MILKCOW_LEGACY" text="Milk cows: legacy"/>
+        <text name="rl_feed_reason_NO_TROUGH" text="No supported trough"/>
+        <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="Unsupported animal"/>
+        <text name="rl_feed_reason_SUCKLING_CALF" text="Legacy: suckling calf"/>
+        <text name="rl_feed_reason_UNKNOWN" text="Status unavailable"/>
+        <text name="rl_feed_limit_NONE" text="No limit"/>
+        <text name="rl_feed_limit_FIBRE" text="Fibre limit"/>
+        <text name="rl_feed_limit_STARCH" text="Starch limit"/>
+        <text name="rl_feed_limit_WHEAT" text="Wheat limit"/>
+        <text name="rl_feed_limit_NO_FORAGE" text="No roughage"/>
+        <text name="rl_feed_limit_TARGET" text="Target share"/>
+        <text name="rl_feed_limit_PROTEIN_OR_DEMAND" text="Protein/need"/>
+        <text name="rl_feed_limit_ADAPTATION" text="Adapting"/>
+        <text name="rl_feed_limit_STOCK" text="Grain short"/>
+        <text name="rl_feed_limit_NO_CONCENTRATE" text="No grain"/>
+        <text name="rl_feed_limit_NO_FEED" text="No feed"/>
+        <text name="rl_feed_limit_APPETITE" text="Intake limit"/>
+        <text name="rl_feed_limit_FILL" text="Rumen full"/>
+        <text name="rl_feed_limit_DEMAND" text="Needs met"/>
+        <text name="rl_feed_limit_PROTEIN" text="Low protein"/>
+        <text name="rl_feed_limit_UNKNOWN" text="Unknown limit"/>
+        <text name="rl_feed_target_AUTO" text="Automatic"/>
+        <text name="rl_feed_target_GROW" text="Growth"/>
+        <text name="rl_feed_target_FINISH" text="Finishing"/>
+        <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
+        <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
     </texts>
 </l10n>

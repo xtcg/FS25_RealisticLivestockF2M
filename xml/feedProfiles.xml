@@ -81,6 +81,15 @@
     per game liter; meMJPerKg the ME a real kg needs (NRC 2001: NEL 3.1 MJ/kg at 4% fat / kl 0.62).
     The game's milk output and price are not changed. Breed names are weightProfiles.xml profiles.
 
+    calfMilk: separate intake ceiling, in prepared standard milk (not powder). realLitersPerDay
+    is 10 L/day for a reference Holstein, density 1.03 kg/L and dm 0.125 define that reference
+    liquid. Scale its DM allowance by breed/sex mean birth weight relative to a Holstein of the
+    same sex and by calfRearing milkMax, once. Appetite can further reduce it. No extra gene
+    multiplier and no growth in the ceiling with current live weight. At scale 0.20 and 30 days,
+    the reference ceiling is 60 game L/month before weaning reduction, not guaranteed intake.
+    This is a game calibration (8-10 real L/day), not a biological maximum; milk energy and
+    protein are still the feed's fixed values, and shortages are never repriced.
+
     feed: one per fill type.
     role         COMPLETE (a mixed ration, counted once as it is), FORAGE, CONCENTRATE or MILK.
     status       TYPICAL (literature typical value), PROXY (a stated stand-in), UNCONFIGURED (no
@@ -119,6 +128,8 @@
         ndfFillGrowing="0.0125" ndfFillDry="0.0115" ndfFillLactating="0.0135" ndfFillCalf="0.0100"/>
 
     <health extremeUnderweightRatio="0.45" shortageBufferDays="3"/>
+
+    <calfMilk realLitersPerDay="10" density="1.03" dm="0.125"/>
 
     <protein maintenance="0.065" calf="0.18" young="0.14" growing="0.12" finishing="0.105"
         lactating="0.16" dry="0.10" youngUntilMonth="8" growingUntilMonth="14"/>

@@ -920,6 +920,17 @@ function RLBodyCondition.addInfos(animal, infos)
     row.valueText = text
     table.insert(infos, row)
 
+    -- Real-equivalent nutrition (calves too): real intake against plan, ration share and its
+    -- limit, a bull's finishing forecast.
+    if RLFeedInfoService ~= nil then
+        for _, feedRow in ipairs(RLFeedInfoService.getAnimalRows(animal)) do
+            row = infoRow(animal, feedRow.key, feedRow.titleKey)
+            row.ratio = feedRow.ratio
+            row.valueText = feedRow.valueText
+            table.insert(infos, row)
+        end
+    end
+
     if not RLBodyCondition.isEligible(animal) then return end
 
     -- Verdict and weight against the slaughter reference are separate rows: together they do not

@@ -69,6 +69,7 @@ source(modDirectory .. "scripts/feed/RLFeedProfiles.lua")
 source(modDirectory .. "scripts/feed/RLFeedMath.lua")
 source(modDirectory .. "scripts/feed/RLFeedRationPlanner.lua")
 source(modDirectory .. "scripts/feed/RLFeed.lua")
+source(modDirectory .. "scripts/feed/RLFeedInfoService.lua")
 
 -- SECTION 3: Animal Husbandry - Cluster System
 source(modDirectory .. "scripts/animals/husbandry/cluster/RealisticLivestock_AnimalCluster.lua")

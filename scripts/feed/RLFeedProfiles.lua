@@ -53,6 +53,10 @@ RLFeedProfiles.CLASS_RULES = {
 
 RLFeedProfiles.MILK = { realKgPerDay = 8, meMJPerKg = 5.0 }
 
+-- Prepared calf milk, independent of the cow's milk-output bridge above. Ten real liters a
+-- day is a calibration ceiling, not a promise of intake or an absolute biological maximum.
+RLFeedProfiles.CALF_MILK = { realLitersPerDay = 10, density = 1.03, dm = 0.125 }
+
 --- Numeric fields of a feed profile and the range each must be in.
 RLFeedProfiles.FEED_SHARES = { "dm", "cp", "ndf", "peFactor", "starch", "sugar" }
 
@@ -147,7 +151,9 @@ function RLFeedProfiles.validate(config)
     if not finite(config.realDaysPerPeriod) or config.realDaysPerPeriod <= 0 then return false, "realDaysPerPeriod must be > 0" end
     local reason = positive(config.requirements, "requirements") or positive(config.intake, "intake")
         or positive(config.ration, "ration") or positive(config.health, "health")
+        or positive(config.calfMilk, "calfMilk")
     if reason ~= nil then return false, reason end
+    if config.calfMilk.dm > 1 then return false, "calfMilk dm must be in (0, 1]" end
     local req = config.requirements
     if not (req.reserveDepositMEPerKg > req.reserveMobilizeMEPerKg) then
         return false, "reserveDepositMEPerKg must exceed reserveMobilizeMEPerKg, or the reserve could be cycled into energy"
@@ -203,6 +209,7 @@ function RLFeedProfiles.parse(xmlFile)
     config.classes = {}
     for class, rules in pairs(RLFeedProfiles.CLASS_RULES) do config.classes[class] = table.clone(rules) end
     config.milk = readGroup(xmlFile, "feedProfiles.milk", RLFeedProfiles.MILK)
+    config.calfMilk = readGroup(xmlFile, "feedProfiles.calfMilk", RLFeedProfiles.CALF_MILK)
     config.milk.breeds = {}
     config.feeds, config.feedOrder = {}, {}
 
@@ -284,6 +291,7 @@ function RLFeedProfiles.computeHash(config)
     addGroup("health", config.health)
     for _, class in ipairs(RLFeedProfiles.CLASSES) do addGroup("class." .. class, config.classes[class]) end
     addGroup("milk", config.milk)
+    addGroup("calfMilk", config.calfMilk)
     local breeds = {}
     for name in pairs(config.milk.breeds or {}) do breeds[#breeds + 1] = name end
     table.sort(breeds)

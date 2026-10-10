@@ -200,9 +200,9 @@ end
 
 
 --- A calf's milk and solid caps (RLCalfRearing), with the calf still on milk when milkMax > 0.
-local function getCalfCaps(animal)
+local function getCalfCaps(animal, ageOffsetMonths)
     if RLCalfRearing == nil or not RLCalfRearing.isEnabled() then return 0, 1 end
-    return RLCalfRearing.getCaps(animal)
+    return RLCalfRearing.getCaps(animal, ageOffsetMonths)
 end
 
 
@@ -332,7 +332,8 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
     local _, _, gene = RLGrowth.getGeneFactors(animal.genetics.metabolism)
     local milkKg = 0
     if class == "LACTATING" then milkKg = RLFeed.getMilkBridge(animal, input.potentialMilk) end
-    local milkMax, solidMax = getCalfCaps(animal)
+    -- Mid-step caps avoid a larger milk allowance simply because the month has fewer ticks.
+    local milkMax, solidMax = getCalfCaps(animal, 0.5 * dtMonths)
     local weaningX = RLCalfRearing ~= nil and RLCalfRearing.getWeaningX(animal) or 1
     local state = RLGrowth.peekState(animal)
 
@@ -346,6 +347,13 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
     -- Appetite and rumen fill at the weight halfway through the hour (its weight plus half the
     -- growth it could make), so a long hour does not size a growing animal's intake late.
     local weight = math.max(animal.weight or 0, 0) + 0.5 * (demands.growthKg or 0)
+    local milkLimit = 0
+    if class == "CALF" then
+        local binding = RLGrowth.getBinding(animal:getSubType())
+        local reference = { profile = "HOLSTEIN", sex = binding.sex }
+        milkLimit = RLFeedMath.getCalfMilkLimit(RLGrowth.getBirthMean(binding), RLGrowth.getBirthMean(reference),
+            milkMax, config.calfMilk)
+    end
 
     return {
         animal = animal, class = class, target = target,
@@ -354,6 +362,7 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
         concEligible = class ~= "CALF",
         adapted = state.feedAdapted or 0,
         milkMax = class == "CALF" and milkMax or 0,
+        milkMaxKgPerDay = milkLimit,
         solidMax = solidMax,
         solidEnergy = class == "CALF" and RLCalfRearing.getSolidEnergyFactor(animal) or 1,
         proteinNeed = RLFeedMath.getProteinNeed(class, RLGrowth.getContinuousAge(animal), config.protein, milkMax),

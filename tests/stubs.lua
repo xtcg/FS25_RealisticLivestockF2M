@@ -163,6 +163,7 @@ loadMod("scripts/feed/RLFeedProfiles.lua")
 loadMod("scripts/feed/RLFeedMath.lua")
 loadMod("scripts/feed/RLFeedRationPlanner.lua")
 loadMod("scripts/feed/RLFeed.lua")
+loadMod("scripts/feed/RLFeedInfoService.lua")
 
 -- RLPEN_DUMP=path: tests that capture RLPEN records append them there as log.txt lines.
 function DUMP(line)
