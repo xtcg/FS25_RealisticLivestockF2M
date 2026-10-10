@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+### Changed
+
+- Real-equivalent cattle nutrition defaults to resourceScale=0.125 (1/8 of real-equivalent feed volume), following the revised economy target. Feed DM fractions already apply to planning, actual intake and forecasts: TMR 45%, hay 85%, grass 20%, silage 35%; nutrition and growth are unchanged. Holstein annual TMR is approximately 5,960 L versus legacy 6,031 L. A uniform real-equivalent scale does not guarantee equal savings against legacy for other feeds. Mode remains off by default; explicit modSettings overrides keep their configured scale. See docs/FEED_BALANCE_AND_FOLLOWUP.md.
+
 ### Added
 
 - Body condition for cattle: every animal past 6 months carries a body reserve (0..1) that is part of its live weight. Bulls and steers show a finish score (0-100: lean, store, moderate 65-80, fat, overfat) and a slaughter verdict that weighs weight against the slaughter reference, the finish score, the slaughter age and whether the animal may be sold (a 300 kg bull at finish 72 is "still growing", not ready). Cows and heifers show a BCS (1-5) and their conception factor; every covered animal shows how well its ration covers its need, and a lactating cow her milk as a share of her full yield. These show without a monitor (condition is scored by eye) and as herd filter fields; a cattle pen's info box shows its mean BCS, thin and fat animals, bulls ready, and the last hour's ration (share eaten, energy, water). Health and the health gene keep their own meaning. Settings in xml/bodyCondition.xml; a copy in modSettings/FS25_RealisticLivestockRM/ replaces it; enabled="false" switches back to the old rules and keeps the saved conditions.

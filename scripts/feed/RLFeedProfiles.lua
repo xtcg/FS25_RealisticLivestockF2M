@@ -20,7 +20,7 @@ RLFeedProfiles.STATUSES = { TYPICAL = true, PROXY = true, UNCONFIGURED = true }
 RLFeedProfiles.STAGES = { PRE_WEANING = true, WEANING = true, WEANED = true }
 RLFeedProfiles.CLASSES = { "CALF", "GROWING", "LACTATING", "DRY" }
 
-RLFeedProfiles.ROOT = { version = 1, resourceScale = 0.20, realDaysPerPeriod = 30 }
+RLFeedProfiles.ROOT = { version = 1, resourceScale = 0.125, realDaysPerPeriod = 30 }
 
 RLFeedProfiles.REQUIREMENTS = {
     maintenanceMEPerKgMetabolic = 0.50, growthMEPerKgAt500 = 50, growthWeightExponent = 0.75, growthMEPerKgMin = 18,

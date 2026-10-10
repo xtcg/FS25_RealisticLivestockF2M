@@ -18,8 +18,8 @@ local function relative(a, b) return math.abs(a - b) / math.max(math.abs(b), 1e-
 -- Config ---------------------------------------------------------------------------------------
 
 do
-    check(string.format("config: the shipped file is valid (hash %s), scale 0.20, 30 model days a month", config.hash),
-        config.valid == true and config.resourceScale == 0.20 and config.realDaysPerPeriod == 30)
+    check(string.format("config: the shipped file is valid (hash %s), scale 0.125, 30 model days a month", config.hash),
+        config.valid == true and config.resourceScale == 0.125 and config.realDaysPerPeriod == 30)
     local wheat, maize, hay, tmr = F.getUsableFeed("WHEAT"), F.getUsableFeed("MAIZE"), F.getUsableFeed("DRYGRASS_WINDROW"), F.getUsableFeed("FORAGE")
     check("config: OSU values for maize (88/9/88) and wheat (89/14/84), ME by the NRC 2000 TDN equation",
         maize.dm == 0.88 and maize.cp == 0.09 and maize.tdn == 88 and wheat.dm == 0.89 and wheat.cp == 0.14 and wheat.tdn == 84
@@ -54,6 +54,8 @@ do
     check("config: a resource scale outside (0, 1] is refused", F.validate(bad) == false)
 end
 
+
+config.resourceScale = 0.2 -- Historical fixtures below explicitly exercise the original scale.
 
 -- Units (the design's worked examples) ---------------------------------------------------------------
 
@@ -265,6 +267,18 @@ do
         relative(a1.weight, a2.weight) < 1e-9 and relative(a1.rlGrowth.developmentMonths, a2.rlGrowth.developmentMonths) < 1e-9
         and relative(a1.rlGrowth.reserveMassKg, a2.rlGrowth.reserveMassKg) < 1e-9
         and within(a1.rlGrowth.feedAdapted, a2.rlGrowth.feedAdapted, 1e-9) and within(a1.rlFeedIntake.me, a2.rlFeedIntake.me, 1e-9))
+
+    for _, scale in ipairs({ 0.1, 0.05, 0.04, 0.125 }) do
+        local a, _, used = scenario(scale, 1, 4)
+        local same = within(a.weight, a2.weight, 1e-6) and a.health == a2.health
+            and within(a.rlGrowth.reserveMassKg, a2.rlGrowth.reserveMassKg, 1e-6)
+            and within(a.rlGrowth.developmentMonths, a2.rlGrowth.developmentMonths, 1e-6)
+            and within(a.rlGrowth.feedAdapted, a2.rlGrowth.feedAdapted, 1e-9)
+        for name, liters in pairs(used2) do
+            same = same and within(used[name], liters * scale / 0.2, 1e-6)
+        end
+        check(string.format("balance: scale %.3f changes only per-feed game liters, preserving growth, health, reserve and adaptation", scale), same)
+    end
 
     local base, _, baseUsed = scenario(0.2, 1, 3)
     local worst, worstFeed = 0, 0

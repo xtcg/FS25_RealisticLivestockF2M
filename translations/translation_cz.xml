@@ -951,9 +951,9 @@
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
-        <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, and uses a fifth of the game feed for it."/>
+        <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>
-        <text name="rl_settings_nutritionMode_texts_2" text="Real-equivalent (1/5)"/>
+        <text name="rl_settings_nutritionMode_texts_2" text="Real-equivalent (feed saving)"/>
         <text name="rl_feed_grainGroup" text="Grain (supplement)"/>
 
         <!-- Feed UI: Chinese and English; English fallback for other languages. -->

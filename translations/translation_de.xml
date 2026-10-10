@@ -945,9 +945,9 @@
         <text name="rl_semen_saleValue" text="Verkaufswert"/>
         <text name="rl_semen_sale" text="Spermaverkauf"/>
         <text name="rl_settings_nutritionMode_label" text="Ernährungsmodell"/>
-        <text name="rl_settings_nutritionMode_tooltip" text="Rinder: Alt behält die alten Futterregeln. Real-äquivalent rechnet Aufnahme und Ration in echter Trockenmasse und Energie und braucht dafür ein Fünftel des Spielfutters."/>
+        <text name="rl_settings_nutritionMode_tooltip" text="Rinder: Alt behält die alten Futterregeln. Real-äquivalent rechnet Aufnahme und Ration in echter Trockenmasse und Energie Der Standardverbrauch beträgt 1/8 des realen Äquivalentvolumens, nicht des alten Verbrauchs."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Alt"/>
-        <text name="rl_settings_nutritionMode_texts_2" text="Real-äquivalent (1/5)"/>
+        <text name="rl_settings_nutritionMode_texts_2" text="Real-äquivalent (futtersparend)"/>
         <text name="rl_feed_grainGroup" text="Getreide (Zufutter)"/>
 
         <!-- Feed UI: Chinese and English; English fallback for other languages. -->

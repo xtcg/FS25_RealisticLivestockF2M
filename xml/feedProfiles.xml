@@ -16,7 +16,8 @@
         kg DM a liter eaten restores   kgDM = L x density x dm / resourceScale
 
     resourceScale appears once on each side and nowhere else: weight, growth, health and milk do
-    not change with it, only how much of the game's feed the same nutrition costs (0.20: a fifth).
+    not change with it, only how much game feed the same nutrition costs (default 0.125: one eighth
+    of the real-equivalent volume, not of legacy consumption).
     It is a game resource discount, not a five-fold better feed conversion. Water, straw, care,
     pen capacity, prices and output are not touched. One game month is realDaysPerPeriod model days
     (a convention: seasons stay as they are).
@@ -87,8 +88,8 @@
     is 10 L/day for a reference Holstein, density 1.03 kg/L and dm 0.125 define that reference
     liquid. Scale its DM allowance by breed/sex mean birth weight relative to a Holstein of the
     same sex and by calfRearing milkMax, once. Appetite can further reduce it. No extra gene
-    multiplier and no growth in the ceiling with current live weight. At scale 0.20 and 30 days,
-    the reference ceiling is 60 game L/month before weaning reduction, not guaranteed intake.
+    multiplier and no growth in the ceiling with current live weight. At default scale 0.125 and 30 days,
+    the reference ceiling is 37.5 game L/month before weaning reduction, not guaranteed intake.
     This is a game calibration (8-10 real L/day), not a biological maximum; milk energy and
     protein are still the feed's fixed values, and shortages are never repriced.
 
@@ -119,7 +120,7 @@
     copy replaces this file. A file that fails a check keeps the mode off and logs why; a single
     feed that fails is left uneaten and listed.
 -->
-<feedProfiles version="1" resourceScale="0.20" realDaysPerPeriod="30">
+<feedProfiles version="1" resourceScale="0.125" realDaysPerPeriod="30">
 
     <requirements maintenanceMEPerKgMetabolic="0.50" growthMEPerKgAt500="50" growthWeightExponent="0.75"
         growthMEPerKgMin="18" reserveDepositMEPerKg="52" reserveMobilizeMEPerKg="38" catabolismMEPerKg="10"

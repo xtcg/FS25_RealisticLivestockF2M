@@ -85,5 +85,9 @@ ok = true
 for i = 1, 5 do if not near(undiscounted[i], base[i] * 5, 1e-6) then ok = false end end
 check("calf milk: resourceScale changes milk use exactly 5:1, with identical weight and health",
     ok and near(a.weight, b.weight, 1e-6) and a.health == b.health)
-config.resourceScale = 0.2
+local saving, c = scenario(1, 0.125)
+ok = near(a.weight, c.weight, 1e-6) and a.health == c.health
+for i = 1, 5 do ok = ok and near(saving[i], base[i] * 0.625, 1e-6) end
+check("calf milk: shipped 0.125 scale consumes 62.5% of original 0.20, without slowing growth", ok)
+config.resourceScale = 0.125
 GrowthSim.setDaysPerPeriod(1)
