@@ -58,6 +58,13 @@ local function fillTitle(index, name)
 end
 
 
+--- Rows are rebuilt when the hour or the trough's stock changes, not on every info refresh.
+local function getRowsCacheKey(placeable)
+    local total = placeable.getTotalFood ~= nil and placeable:getTotalFood() or 0
+    return tostring(RLBodyCondition.getTickId()) .. ":" .. string.format("%.3f", total) .. ":" .. tostring(RLFeed.mode)
+end
+
+
 --- One row per feed of a pen running the mode, in the order the ration takes them (complete
 --- rations and forages in the map's order, then concentrates, then milk in a rearing pen): every
 --- usable feed the trough takes with stock, eaten this month or in the plan, the grains always,
@@ -70,6 +77,19 @@ end
 function RLFeedInfoService.getFeedRows(placeable)
     local spec = placeable.spec_husbandryFood
     local ration = RLFeed.getRation(placeable)
+    local key = getRowsCacheKey(placeable)
+    local cache = spec.rlFeedRowsCache
+    if cache ~= nil and cache.key == key and cache.ration == ration and cache.last == spec.rlFeedLast
+        and cache.client == spec.rlFeedClient then return cache.rows, ration end
+    local rows = RLFeedInfoService.buildFeedRows(placeable, ration)
+    spec.rlFeedRowsCache = { key = key, ration = ration, last = spec.rlFeedLast, client = spec.rlFeedClient, rows = rows }
+    return rows, ration
+end
+
+
+--- The rows themselves (getFeedRows caches them).
+function RLFeedInfoService.buildFeedRows(placeable, ration)
+    local spec = placeable.spec_husbandryFood
     local last, month, previous = spec.rlFeedLast, spec.rlFeedMonth, spec.rlFeedPrevious
     local client = spec.rlFeedClient
     local byFill = month ~= nil and month.byFill or (client ~= nil and client.byFill) or {}
@@ -120,7 +140,7 @@ function RLFeedInfoService.getFeedRows(placeable)
         for _, g in ipairs(RLFeed.GRAINS) do if g == name then grain = true end end
         add(name, g_fillTypeManager:getFillTypeIndexByName(name), grain and (name == "WHEAT" or name == "MAIZE"))
     end
-    return rows, ration
+    return rows
 end
 
 
@@ -187,8 +207,16 @@ RLFeedInfoService.formatMonths = formatMonths
 --- @return table|nil { kgPerDay, plannedKgPerDay, mePerDay, plannedMePerDay, coverage, concShare,
 ---         concLimit, intakeLimit, proteinFactor, target, class, healthReason, gainPerMonth }
 function RLFeedInfoService.getAnimalInfo(animal)
+    -- Only while its pen runs the mode, and only a record of this hour or the last: an animal
+    -- whose pen went back to the old rules (or the setting) shows no frozen feed rows.
+    local owner = animal.clusterSystem ~= nil and animal.clusterSystem.owner or nil
+    local spec = owner ~= nil and owner.spec_husbandryFood or nil
+    local pen = spec ~= nil and spec.rlFeedPen or nil
+    if pen == nil or not pen.active or RLFeed.mode ~= RLFeed.MODE_REAL then return nil end
+    local tick = RLBodyCondition.getTickId()
+    local function fresh(at) return at ~= nil and tick ~= nil and tick - at <= 1 end
     local record = animal.rlFeedIntake
-    if record ~= nil and record.dtDays ~= nil and record.dtDays > 0 and not record.missed then
+    if record ~= nil and record.dtDays ~= nil and record.dtDays > 0 and not record.missed and record.owner == owner and fresh(record.tick) then
         local days = record.dtDays
         return { kgPerDay = record.kg / days, plannedKgPerDay = (record.plannedKg or 0) / days, mePerDay = record.me / days,
             plannedMePerDay = (record.plannedMe or 0) / days, coverage = (record.plannedMe or 0) > 0 and record.me / record.plannedMe or 0,
@@ -197,7 +225,7 @@ function RLFeedInfoService.getAnimalInfo(animal)
             gainPerMonth = record.gainPerMonth }
     end
     local remote = animal.rlFeedClient
-    if remote ~= nil then
+    if remote ~= nil and fresh(remote.tick) then
         local info = {}
         for key, value in pairs(remote) do info[key] = value end
         info.coverage = (remote.plannedMePerDay or 0) > 0 and remote.mePerDay / remote.plannedMePerDay or 0
@@ -330,7 +358,8 @@ function RLFeedInfoService.adjustFoodInfos(placeable, infos)
                 table.remove(infos, offset + i)
             else
                 info.title = string.format("%s (%s)", group.title, getText("rl_feed_grainNotEaten"))
-                info.disabled = true
+                -- Not in the pen's food total: it feeds nobody.
+                info.disabled, info.ignoreCapacity = true, true
             end
         end
     end

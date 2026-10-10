@@ -141,7 +141,8 @@ end
 --- lay down on top, up to `reserveCeiling` (the input's) at the monthly gain rate.
 --- @param input table As for step
 --- @param cfg table
---- @return table { maintenance, pregnancy, milk (per period), growthStep, depositRoomKg (this step) }
+--- @return table { maintenance, pregnancy, milk (per period), growthStep, growthKg, depositRoomKg (this
+---         step), depositHeadroomKg (to the ceiling), depositRatePerMonthKg }
 function RLGrowthMath.getStepDemands(input, cfg)
     local dt = input.dtMonths
     local kappa = input.kappa
@@ -156,8 +157,10 @@ function RLGrowthMath.getStepDemands(input, cfg)
     local growF, _, growR = RLGrowthMath.getPotentialGrowth(curve, u, F, (input.speed or 1) * disease, dt, kappa,
         cfg.referenceReserve, r)
     local maintenance, pregnancy = getMaintenanceAndPregnancy(W, input, cfg)
-    local rAfter = (K + growF * kappa) > 0 and (R + growR) / (K + growF * kappa) or 0
-    local room = math.min((input.reserveCeiling or rAfter) - rAfter, cfg.gainRatePerMonth * dt) * (K + growF * kappa)
+    local capacityAfter = K + growF * kappa
+    local rAfter = capacityAfter > 0 and (R + growR) / capacityAfter or 0
+    local headroom = math.max((input.reserveCeiling or rAfter) - rAfter, 0)
+    local room = math.min(headroom, cfg.gainRatePerMonth * dt) * capacityAfter
     return {
         maintenance = maintenance,
         pregnancy = pregnancy,
@@ -165,6 +168,10 @@ function RLGrowthMath.getStepDemands(input, cfg)
         growthStep = growF * (input.growthCostPerKg or cfg.growthNUPerKg) + growR * cfg.depositNUPerKg,
         growthKg = growF + growR,
         depositRoomKg = math.max(room, 0),
+        -- As rates, the same at any step length: reserve that fits under the ceiling, and the most
+        -- the monthly gain rate lays down in a month.
+        depositHeadroomKg = headroom * capacityAfter,
+        depositRatePerMonthKg = cfg.gainRatePerMonth * capacityAfter,
     }
 end
 

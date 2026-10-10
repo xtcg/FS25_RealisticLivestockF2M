@@ -35,7 +35,7 @@ RLFeedProfiles.INTAKE = {
 
 RLFeedProfiles.PROTEIN = {
     maintenance = 0.065, calf = 0.18, young = 0.14, growing = 0.12, finishing = 0.105, lactating = 0.16, dry = 0.10,
-    youngUntilMonth = 8, growingUntilMonth = 14,
+    youngUntilMonth = 8, growingUntilMonth = 14, lactatingAtKg = 30,
 }
 
 RLFeedProfiles.HEALTH = { extremeUnderweightRatio = 0.45, shortageBufferDays = 3 }
@@ -315,7 +315,8 @@ function RLFeedProfiles.computeHash(config)
     local hash = 5381
     local text = table.concat(parts, ";")
     for i = 1, #text do hash = (hash * 33 + text:byte(i)) % 4294967296 end
-    return string.format("%08x", hash)
+    -- Two 16-bit halves: %x of a number past 2^31 is not safe in every Lua 5.1 build.
+    return string.format("%04x%04x", math.floor(hash / 65536), hash % 65536)
 end
 
 

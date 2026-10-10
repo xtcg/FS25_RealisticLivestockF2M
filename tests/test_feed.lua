@@ -149,7 +149,8 @@ do
         within(g1.me, g1.byFill.DRYGRASS_WINDROW.kg * hay.me + g1.byFill.MAIZE.kg * maize.me * RLFeedMath.getUtilisation(g1.cEaten, g1.adapted, config.ration), 1e-9))
 
     -- Mixed pen: a calf on milk gets no grain; a lactating cow and a bull get their own amounts.
-    local calf = plannerAnimal({ class = "CALF", concEligible = false, milkMax = 0.9, solidMax = 0.3, solidEnergy = 0.5, appetite = 1.2, fill = 0.5 })
+    local calf = plannerAnimal({ class = "CALF", stage = "PRE_WEANING", concEligible = false, milkMax = 0.9, solidMax = 0.3, solidEnergy = 0.5,
+        appetite = 1.2, fill = 0.5 })
     local cow = plannerAnimal({ class = "LACTATING", target = "GROW", appetite = 22, fill = 9,
         needs = { maintenance = 65, pregnancy = 0, growth = 0, milk = 150, deposit = 0 }, proteinNeed = 0.16 })
     local bull = plannerAnimal({ appetite = 10, fill = 6 })
@@ -693,6 +694,100 @@ do
     check("menu: food rows past the five slots are cloned with their label, value and bar, and the layout redone",
         #frame.foodRow == 8 and frame.foodLabel[8] == frame.foodRow[8].elements[1].elements[1]
         and frame.foodStatusBar[8] == frame.foodRow[8].elements[2].elements[1] and layout.invalidated == 1)
+end
+
+
+-- Review fixes -----------------------------------------------------------------------------------------
+
+do
+    -- A feed's stages are enforced: a forage only weaned animals may eat is not fed to a calf.
+    local hay = F.getUsableFeed("DRYGRASS_WINDROW")
+    local weanedHay = {}
+    for k, v in pairs(hay) do weanedHay[k] = v end
+    weanedHay.stages = { WEANED = true }
+    local calf = plannerAnimal({ class = "CALF", stage = "PRE_WEANING", concEligible = false, milkMax = 0.9, solidMax = 0.3,
+        solidEnergy = 0.5, appetite = 1.2, fill = 0.5 })
+    local bull = plannerAnimal()
+    plan({ calf, bull }, { { name = "DRYGRASS_WINDROW", profile = weanedHay, liters = 1e6 } }, {}, { entry("CALFMILK", 1e6) })
+    check("stages: a forage for weaned animals only is not fed to a calf on milk; the bull beside it eats it",
+        calf.byFill.DRYGRASS_WINDROW == nil and calf.byFill.CALFMILK ~= nil and bull.byFill.DRYGRASS_WINDROW ~= nil)
+
+    -- Protein for milk follows the cow's milk: a suckler cow is not held back like a dairy cow on hay.
+    local protein = config.protein
+    check("protein: a lactating cow's need moves from the dry cow's with her real milk (8 kg: below 12%, 30 kg: 16%)",
+        RLFeedMath.getProteinNeed("LACTATING", 48, protein, 0, 8) < 0.12 and within(RLFeedMath.getProteinNeed("LACTATING", 48, protein, 0, 30), 0.16, 1e-9)
+        and within(RLFeedMath.getProteinNeed("LACTATING", 48, protein, 0, 45), 0.16, 1e-9))
+
+    -- Calf rearing off: a calf on milk still keeps its normal pen on the old rules.
+    local rearing = RLCalfRearing.config
+    RLCalfRearing.config = table.clone(RLCalfRearing.getConfig())
+    RLCalfRearing.config.enabled = false
+    local cow = GrowthSim.makeAnimal("COW_ANGUS", { age = 48, isParent = true, isLactating = true, monthsSinceLastBirth = 0 })
+    local newborn = GrowthSim.newborn("BULL_ANGUS")
+    local pen = FeedSim.makePen({ cow, newborn }, { FORAGE = 5000 })
+    local active, reason = RLFeed.evaluatePen(pen)
+    RLCalfRearing.config = rearing
+    check("calves: with calf rearing switched off, a suckling calf still keeps its pen on the old rules (SUCKLING_CALF)",
+        active == false and reason == "SUCKLING_CALF")
+
+    -- A planned fill with nothing removed was not eaten.
+    local steer = GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })
+    local blocked = FeedSim.makePen({ steer }, { FORAGE = 5000 })
+    blocked.removeFood = function() return 0 end
+    FeedSim.hour(blocked)
+    check("ledger: a fill type the trough lost nothing of is not credited (no free nutrition)",
+        steer.rlFeedIntake.kg == 0 and steer.rlFeedIntake.me == 0)
+
+    -- A failing plan leaves the pen's hour on the old rules, logged.
+    local savedPlan = RLFeedRationPlanner.plan
+    RLFeedRationPlanner.plan = function() error("broken plan") end
+    local failing = FeedSim.makePen({ (GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })) }, { FORAGE = 5000 })
+    RLFeed.beginFeeding(failing)
+    local ok = pcall(function()
+        local consumed = {}
+        local okPlan, message = pcall(RLFeed.consume, failing, consumed)
+        if not okPlan then RLFeed.onPlanError(failing, message) end
+    end)
+    RLFeedRationPlanner.plan = savedPlan
+    local logged = false
+    for i = #LOG, 1, -1 do if LOG[i]:find("ration plan failed", 1, true) then logged = true; table.remove(LOG, i) end end
+    check("errors: a plan that fails leaves the pen's hour on the old rules (ERROR), logged once",
+        ok and failing.spec_husbandryFood.rlFeedPen.active == false and failing.spec_husbandryFood.rlFeedPen.reason == "ERROR"
+        and failing.spec_husbandryFood.rlFeedWindow == nil and logged and RLFeed.getStepFeed(failing.animals[1]) == nil)
+
+    -- Under the old rules the trough takes no new grain; in the mode it does.
+    FeedSim.setMode(false)
+    local legacyPen = FeedSim.makePen({}, {})
+    local refusesGrain = not RLFeed.acceptsFill(legacyPen, FILL.MAIZE) and RLFeed.acceptsFill(legacyPen, FILL.FORAGE)
+    FeedSim.setMode(true)
+    check("grain: under the old rules a cattle trough takes no new grain (never eaten there); in the mode it does",
+        refusesGrain and RLFeed.acceptsFill(legacyPen, FILL.MAIZE))
+
+    -- A month counted under other feed data ends; the next hour starts a new one.
+    local animal = GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })
+    local monthPen = FeedSim.makePen({ animal }, { FORAGE = 1e5 })
+    for _ = 1, 3 do FeedSim.hour(monthPen) end
+    local before = monthPen.spec_husbandryFood.rlFeedMonth
+    config.resourceScale = 0.3
+    FeedSim.hour(monthPen)
+    config.resourceScale = 0.2
+    local after = monthPen.spec_husbandryFood.rlFeedMonth
+    check("month: feed data changed mid-month - the old month is kept as counted (incomplete), a new one starts",
+        after ~= before and monthPen.spec_husbandryFood.rlFeedPrevious == before and before.complete == false and after.hours == 1
+        and after.scale == 0.3)
+
+    -- Feed rows only while the pen runs the mode, and only this hour's record.
+    local shown = #RLFeedInfoService.getAnimalRows(animal) > 0
+    FeedSim.setMode(false)
+    local hiddenOff = #RLFeedInfoService.getAnimalRows(animal) == 0
+    FeedSim.setMode(true)
+    animal.rlFeedIntake.tick = animal.rlFeedIntake.tick - 5
+    local hiddenStale = #RLFeedInfoService.getAnimalRows(animal) == 0
+    check("panel: an animal's feed rows show only while its pen runs the mode, from a record of this hour", shown and hiddenOff and hiddenStale)
+
+    -- Shares above 0.8 are out of range.
+    local _, okShare = RLFeed.sanitizeRation({ share = 0.95 })
+    check("ration: a concentrate share target above 0.8 is refused", okShare == false)
 end
 
 FeedSim.setMode(false)

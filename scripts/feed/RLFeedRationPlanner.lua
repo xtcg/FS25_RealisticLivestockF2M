@@ -101,10 +101,10 @@ local function evaluate(a, c, forageMix, concMix, request)
     elseif a.target == "MAINTAIN" then
         demandStep = maintenance * dt
     end
-    if demandStep ~= nil then demandStep = math.max(demandStep - a.milkKg * (request.milkME or 0), 0) end
+    if demandStep ~= nil then demandStep = math.max(demandStep - a.milkKg * (a.milkME or 0), 0) end
     local kg, limit = RLFeedMath.getIntake(cap, a.fill * dt, { me = me, ndf = mix.ndf }, demandStep)
 
-    local energy = dt > 0 and (kg * me + a.milkKg * (request.milkME or 0)) / dt - maintenance or 0
+    local energy = dt > 0 and (kg * me + a.milkKg * (a.milkME or 0)) / dt - maintenance or 0
     local paid = protein * math.min(math.max(energy, 0), production)
     local laid = math.min(math.max(energy - paid, 0), needs.deposit or 0)
     return { c = c, kg = kg, limit = limit, score = paid + 0.5 * laid, me = me, util = util }
@@ -118,8 +118,8 @@ RLFeedRationPlanner.AUTO_STEP = 0.05
 --- One animal's plan on these mixes. The share c is chosen, then held where the rumen is:
 ---   the pen's target share, within what keeps fibre, starch + sugar and wheat in bounds; without
 ---   a target (AUTO), the share in that range that buys the most production for a fully adapted
----   animal - a coarse choice (AUTO_STEP), so it does not wander with the hour's length; more grain
----   is not always more: it dilutes protein and, eaten to a demand, need not add energy;
+---   animal (on a coarse grid, AUTO_STEP); more grain is not always more: it dilutes protein and,
+---   eaten to a demand, need not add energy;
 ---   then at most what the animal's rumen is adapted to (continuous, so the step-up is the same
 ---   at any hour length), and less in step when the stock cannot cover every animal's share.
 local function planAnimal(a, forageMix, concMix, wheatShare, concScale, request)
@@ -132,6 +132,8 @@ local function planAnimal(a, forageMix, concMix, wheatShare, concScale, request)
         if request.share ~= nil then
             if request.share < c then c, limit = request.share, "TARGET" end
         elseif c > 0 then
+            -- The best-scoring share on the AUTO_STEP grid for a fully adapted animal: a coarse
+            -- choice, steady from hour to hour while the scores barely move.
             local adapted = a.adapted
             a.adapted = 1
             local best, g = nil, 0
@@ -176,8 +178,9 @@ end
 
 --- Plan and share one feeding.
 --- @param request table {
----     animals = { { appetite (kg DM/day), fill (kg NDF/day), class, target (FINISH eats freely, GROW
----                   for its needs, MAINTAIN for maintenance and pregnancy), concEligible, adapted,
+---     animals = { { appetite (kg DM/day), fill (kg NDF/day), class, stage (PRE_WEANING, WEANING,
+---                   WEANED: the feeds it may eat), target (FINISH eats freely, GROW for its needs,
+---                   MAINTAIN for maintenance and pregnancy), concEligible, adapted,
 ---                   needs = { maintenance, pregnancy, growth, milk, deposit } (MJ/day), proteinNeed,
 ---                   milkMax, milkMaxKgPerDay (real-equivalent DM ceiling), solidMax, solidEnergy }, ... },
 ---     forage, concentrate, milk = { { name, profile, liters }, ... } in the order they are taken,
@@ -187,6 +190,20 @@ end
 ---     forageMix, concentrateMix, milkMix, animals (the request's, filled in: plannedKg, plannedMe,
 ---     litersPerPeriod, plannedByFill (liters a month), kg, me, cp, c, byFill = { name -> { kg,
 ---     liters, me, cpKg } }, limits) }
+--- Feeding stages in the order their groups take from the shared stock.
+RLFeedRationPlanner.STAGES = { "PRE_WEANING", "WEANING", "WEANED" }
+
+
+--- The entries of a stock list a feeding stage may eat (the feed profile's stages).
+local function forStage(list, stage)
+    local out = {}
+    for _, entry in ipairs(list) do
+        if entry.profile.stages == nil or entry.profile.stages[stage] then out[#out + 1] = entry end
+    end
+    return out
+end
+
+
 function RLFeedRationPlanner.plan(request)
     local scale, dt = request.scale, request.dtDays
     local profiles = {}
@@ -198,102 +215,139 @@ function RLFeedRationPlanner.plan(request)
         end
     end
 
-    -- 1. Milk for calves.
-    local milkNeed = 0
+    -- The animals by feeding stage: each eats only the feeds its stage may have (a feed's
+    -- stages), from the one stock all groups share.
+    local groups, byStage = {}, {}
     for _, a in ipairs(request.animals) do
-        a.milkPlanKg = (a.milkMax ~= nil and a.milkMax > 0) and math.min(a.milkMax, 1) * a.appetite * dt or 0
-        if a.milkMaxKgPerDay ~= nil then
-            a.milkPlanKg = math.min(a.milkPlanKg, math.max(a.milkMaxKgPerDay, 0) * dt)
+        local stage = a.stage or "WEANED"
+        local group = byStage[stage]
+        if group == nil then
+            group = { stage = stage, animals = {}, forage = forStage(request.forage, stage),
+                concentrate = forStage(request.concentrate, stage), milk = forStage(request.milk, stage) }
+            byStage[stage] = group
         end
-        milkNeed = milkNeed + a.milkPlanKg
+        table.insert(group.animals, a)
     end
-    local milkTaken, milkTotal, milkParts = RLFeedRationPlanner.takeSerial(request.milk, milkNeed, nil, true)
-    local milkMix = RLFeedMath.compose(milkParts)
-    if milkMix == nil and #request.milk > 0 then milkMix = RLFeedMath.compose({ { request.milk[1].profile, 1 } }) end
-    request.milkME = milkMix ~= nil and milkMix.me or 0
-    local milkFulfil = milkNeed > 0 and milkTotal / milkNeed or 0
-    for _, a in ipairs(request.animals) do a.milkKg = a.milkPlanKg * milkFulfil end
+    for _, stage in ipairs(RLFeedRationPlanner.STAGES) do
+        if byStage[stage] ~= nil then groups[#groups + 1] = byStage[stage]; byStage[stage] = nil end
+    end
+    local others = {}
+    for stage in pairs(byStage) do others[#others + 1] = stage end
+    table.sort(others)
+    for _, stage in ipairs(others) do groups[#groups + 1] = byStage[stage] end
+
+    -- 1. Milk for calves.
+    for _, group in ipairs(groups) do
+        local need = 0
+        for _, a in ipairs(group.animals) do
+            a.milkPlanKg = (a.milkMax ~= nil and a.milkMax > 0) and math.min(a.milkMax, 1) * a.appetite * dt or 0
+            if a.milkMaxKgPerDay ~= nil then
+                a.milkPlanKg = math.min(a.milkPlanKg, math.max(a.milkMaxKgPerDay, 0) * dt)
+            end
+            need = need + a.milkPlanKg
+        end
+        local parts
+        group.milkTaken, group.milkTotal, parts = RLFeedRationPlanner.takeSerial(group.milk, need, nil, true)
+        group.milkMix = RLFeedMath.compose(parts)
+        if group.milkMix == nil and #group.milk > 0 then group.milkMix = RLFeedMath.compose({ { group.milk[1].profile, 1 } }) end
+        local fulfil = need > 0 and group.milkTotal / need or 0
+        for _, a in ipairs(group.animals) do
+            a.milkKg = a.milkPlanKg * fulfil
+            a.milkME = group.milkMix ~= nil and group.milkMix.me or 0
+        end
+    end
 
     -- 2. Rations, twice: on the forage the appetites would take, then on what the plan takes.
-    local appetite, eligibleAppetite = 0, 0
-    for _, a in ipairs(request.animals) do
-        appetite = appetite + a.appetite * dt
-        if a.concEligible then eligibleAppetite = eligibleAppetite + a.appetite * dt end
-    end
-    local wheatCap = request.ration.wheatMaxShare * eligibleAppetite
-    local _, _, forageParts = RLFeedRationPlanner.takeSerial(request.forage, appetite, nil, false)
-    local forageMix = RLFeedMath.compose(forageParts)
-    local concMix, wheatShare = concentrateMix(request.concentrate, eligibleAppetite, wheatCap)
-    local concScale = 1
-
-    for pass = 1, 2 do
-        local forageNeed, concNeed, eligibleIntake = 0, 0, 0
-        for _, a in ipairs(request.animals) do
-            planAnimal(a, forageMix, concMix, wheatShare, concScale, request)
-            forageNeed, concNeed = forageNeed + a.forageKg, concNeed + a.concKg
-            if a.concEligible then eligibleIntake = eligibleIntake + a.forageKg + a.concKg end
+    for _, group in ipairs(groups) do
+        local appetite, eligibleAppetite = 0, 0
+        for _, a in ipairs(group.animals) do
+            appetite = appetite + a.appetite * dt
+            if a.concEligible then eligibleAppetite = eligibleAppetite + a.appetite * dt end
         end
-        if pass == 1 then
-            _, _, forageParts = RLFeedRationPlanner.takeSerial(request.forage, forageNeed, nil, false)
-            forageMix = RLFeedMath.compose(forageParts) or forageMix
-            wheatCap = request.ration.wheatMaxShare * eligibleIntake
-            local mix, share, total = concentrateMix(request.concentrate, concNeed, wheatCap)
-            if mix ~= nil then concMix, wheatShare = mix, share end
-            if concNeed > 0 and total < concNeed then concScale = total / concNeed end
+        local wheatCap = request.ration.wheatMaxShare * eligibleAppetite
+        local _, _, forageParts = RLFeedRationPlanner.takeSerial(group.forage, appetite, nil, false)
+        local forageMix = RLFeedMath.compose(forageParts)
+        local concMix, wheatShare = concentrateMix(group.concentrate, eligibleAppetite, wheatCap)
+        local concScale = 1
+        for pass = 1, 2 do
+            local forageNeed, concNeed, eligibleIntake = 0, 0, 0
+            for _, a in ipairs(group.animals) do
+                planAnimal(a, forageMix, concMix, wheatShare, concScale, request)
+                forageNeed, concNeed = forageNeed + a.forageKg, concNeed + a.concKg
+                if a.concEligible then eligibleIntake = eligibleIntake + a.forageKg + a.concKg end
+            end
+            if pass == 1 then
+                _, _, forageParts = RLFeedRationPlanner.takeSerial(group.forage, forageNeed, nil, false)
+                forageMix = RLFeedMath.compose(forageParts) or forageMix
+                wheatCap = request.ration.wheatMaxShare * eligibleIntake
+                local mix, share, total = concentrateMix(group.concentrate, concNeed, wheatCap)
+                if mix ~= nil then concMix, wheatShare = mix, share end
+                if concNeed > 0 and total < concNeed then concScale = total / concNeed end
+            end
         end
+        group.forageMix, group.concMix = forageMix, concMix
     end
 
     -- Planned intake (before any shortage) and the liters a month it stands for.
     local plannedMe, plannedKg = 0, 0
-    for _, a in ipairs(request.animals) do
-        local solids = a.forageKg + a.concKg
-        a.plannedKg = a.milkPlanKg + solids
-        a.plannedMe = a.milkPlanKg * request.milkME + solids * (a.solidMe or 0)
-        plannedMe, plannedKg = plannedMe + a.plannedMe, plannedKg + a.plannedKg
-        local perMonth = request.realDaysPerPeriod / dt
-        local liters = 0
-        a.plannedByFill = {}
-        local function addLiters(mix, kg)
-            if mix == nil or kg <= 0 then return end
-            for name, share in pairs(mix.shares) do
-                local profile = profiles[name]
-                local amount = RLFeedUnits.kgToLiters(kg * share * perMonth, scale, profile.density, profile.dm)
-                liters = liters + amount
-                a.plannedByFill[name] = (a.plannedByFill[name] or 0) + amount
+    for _, group in ipairs(groups) do
+        for _, a in ipairs(group.animals) do
+            local solids = a.forageKg + a.concKg
+            a.plannedKg = a.milkPlanKg + solids
+            a.plannedMe = a.milkPlanKg * a.milkME + solids * (a.solidMe or 0)
+            plannedMe, plannedKg = plannedMe + a.plannedMe, plannedKg + a.plannedKg
+            local perMonth = request.realDaysPerPeriod / dt
+            local liters = 0
+            a.plannedByFill = {}
+            local function addLiters(mix, kg)
+                if mix == nil or kg <= 0 then return end
+                for name, share in pairs(mix.shares) do
+                    local profile = profiles[name]
+                    local amount = RLFeedUnits.kgToLiters(kg * share * perMonth, scale, profile.density, profile.dm)
+                    liters = liters + amount
+                    a.plannedByFill[name] = (a.plannedByFill[name] or 0) + amount
+                end
             end
+            addLiters(group.milkMix, a.milkPlanKg)
+            addLiters(group.forageMix, a.forageKg)
+            addLiters(group.concMix, a.concKg)
+            a.litersPerPeriod = liters
         end
-        addLiters(milkMix, a.milkPlanKg)
-        addLiters(forageMix, a.forageKg)
-        addLiters(concMix, a.concKg)
-        a.litersPerPeriod = liters
     end
 
-    -- 3. Forage.
-    local forageNeed = 0
-    for _, a in ipairs(request.animals) do forageNeed = forageNeed + a.forageKg end
-    local forageTaken, forageTotal
-    forageTaken, forageTotal, forageParts = RLFeedRationPlanner.takeSerial(request.forage, forageNeed, nil, true)
-    local forageEatenMix = RLFeedMath.compose(forageParts)
-    local forageFulfil = forageNeed > 0 and forageTotal / forageNeed or 0
+    -- 3. Forage, group by group from the shared stock.
+    for _, group in ipairs(groups) do
+        local need = 0
+        for _, a in ipairs(group.animals) do need = need + a.forageKg end
+        local parts
+        group.forageTaken, group.forageTotal, parts = RLFeedRationPlanner.takeSerial(group.forage, need, nil, true)
+        group.forageEatenMix = RLFeedMath.compose(parts)
+        local fulfil = need > 0 and group.forageTotal / need or 0
+        for _, a in ipairs(group.animals) do a.forageEaten = a.forageKg * fulfil end
+    end
 
     -- 4. Concentrate within each animal's share of its forage eaten.
-    local concNeed, eligibleEaten = 0, 0
-    for _, a in ipairs(request.animals) do
-        a.forageEaten = a.forageKg * forageFulfil
-        a.concAllowed = 0
-        if a.concKg > 0 and a.c < 1 then a.concAllowed = math.min(a.concKg, a.forageEaten * a.c / (1 - a.c)) end
-        if a.concAllowed < a.concKg - 1e-12 and a.forageEaten < a.forageKg then a.fibreHeld = true end
-        concNeed = concNeed + a.concAllowed
-        if a.concEligible then eligibleEaten = eligibleEaten + a.forageEaten + a.concAllowed end
+    for _, group in ipairs(groups) do
+        local need, eligibleEaten = 0, 0
+        for _, a in ipairs(group.animals) do
+            a.concAllowed = 0
+            if a.concKg > 0 and a.c < 1 then a.concAllowed = math.min(a.concKg, a.forageEaten * a.c / (1 - a.c)) end
+            if a.concAllowed < a.concKg - 1e-12 and a.forageEaten < a.forageKg then a.fibreHeld = true end
+            need = need + a.concAllowed
+            if a.concEligible then eligibleEaten = eligibleEaten + a.forageEaten + a.concAllowed end
+        end
+        local parts
+        group.concTaken, group.concTotal, parts = RLFeedRationPlanner.takeSerial(group.concentrate, need,
+            { WHEAT = request.ration.wheatMaxShare * eligibleEaten }, true)
+        group.concEatenMix = RLFeedMath.compose(parts)
+        local fulfil = need > 0 and group.concTotal / need or 0
+        for _, a in ipairs(group.animals) do a.concEaten = a.concAllowed * fulfil end
     end
-    local concTaken, concTotal, concParts = RLFeedRationPlanner.takeSerial(request.concentrate, concNeed,
-        { WHEAT = request.ration.wheatMaxShare * eligibleEaten }, true)
-    local concEatenMix = RLFeedMath.compose(concParts)
-    local concFulfil = concNeed > 0 and concTotal / concNeed or 0
 
     -- 5. What each animal got.
+    local main = groups[#groups] or {}
     local result = { withdraw = {}, plannedMe = plannedMe, plannedKg = plannedKg, eatenMe = 0, eatenKg = 0,
-        forageMix = forageEatenMix or forageMix, concentrateMix = concEatenMix or concMix, milkMix = milkMix,
+        forageMix = main.forageEatenMix or main.forageMix, concentrateMix = main.concEatenMix or main.concMix, milkMix = main.milkMix,
         animals = request.animals }
     local function addWithdraw(taken, list)
         for _, entry in ipairs(list) do
@@ -304,40 +358,41 @@ function RLFeedRationPlanner.plan(request)
             end
         end
     end
-    addWithdraw(milkTaken, request.milk)
-    addWithdraw(forageTaken, request.forage)
-    addWithdraw(concTaken, request.concentrate)
+    for _, group in ipairs(groups) do
+        addWithdraw(group.milkTaken, group.milk)
+        addWithdraw(group.forageTaken, group.forage)
+        addWithdraw(group.concTaken, group.concentrate)
 
-    for _, a in ipairs(request.animals) do
-        a.concEaten = a.concAllowed * concFulfil
-        local solids = a.forageEaten + a.concEaten
-        a.cEaten = solids > 0 and a.concEaten / solids or 0
-        local util = RLFeedMath.getUtilisation(a.cEaten, a.adapted, request.ration)
-        local energy = a.solidEnergy or 1
-        a.byFill = {}
-        -- Each feed taken is shared by what each animal got of its group; its energy is the
-        -- feed's own ME (a calf's solid feed at its rumen's worth, concentrate above the animal's
-        -- adaptation at unadaptedUtilisation).
-        local function share(taken, total, mine, list, factor)
-            if total <= 0 or mine <= 0 then return end
-            for _, entry in ipairs(list) do
-                local kg = taken[entry.name]
-                if kg ~= nil and kg > 0 then
-                    local got = kg * mine / total
-                    local fill = a.byFill[entry.name] or { kg = 0, liters = 0, me = 0, cpKg = 0 }
-                    fill.kg = fill.kg + got
-                    fill.liters = fill.liters + RLFeedUnits.kgToLiters(got, scale, entry.profile.density, entry.profile.dm)
-                    fill.me = fill.me + got * entry.profile.me * factor
-                    fill.cpKg = fill.cpKg + got * entry.profile.cp
-                    a.byFill[entry.name] = fill
+        for _, a in ipairs(group.animals) do
+            local solids = a.forageEaten + a.concEaten
+            a.cEaten = solids > 0 and a.concEaten / solids or 0
+            local util = RLFeedMath.getUtilisation(a.cEaten, a.adapted, request.ration)
+            local energy = a.solidEnergy or 1
+            a.byFill = {}
+            -- Each feed its group took is shared by what each animal got of it; its energy is the
+            -- feed's own ME (a calf's solid feed at its rumen's worth, concentrate above the
+            -- animal's adaptation at unadaptedUtilisation).
+            local function share(taken, total, mine, list, factor)
+                if total <= 0 or mine <= 0 then return end
+                for _, entry in ipairs(list) do
+                    local kg = taken[entry.name]
+                    if kg ~= nil and kg > 0 then
+                        local got = kg * mine / total
+                        local fill = a.byFill[entry.name] or { kg = 0, liters = 0, me = 0, cpKg = 0 }
+                        fill.kg = fill.kg + got
+                        fill.liters = fill.liters + RLFeedUnits.kgToLiters(got, scale, entry.profile.density, entry.profile.dm)
+                        fill.me = fill.me + got * entry.profile.me * factor
+                        fill.cpKg = fill.cpKg + got * entry.profile.cp
+                        a.byFill[entry.name] = fill
+                    end
                 end
             end
+            share(group.milkTaken, group.milkTotal, a.milkKg, group.milk, 1)
+            share(group.forageTaken, group.forageTotal, a.forageEaten, group.forage, energy)
+            share(group.concTaken, group.concTotal, a.concEaten, group.concentrate, energy * util)
+            RLFeedRationPlanner.sumAnimal(a)
+            result.eatenMe, result.eatenKg = result.eatenMe + a.me, result.eatenKg + a.kg
         end
-        share(milkTaken, milkTotal, a.milkKg, request.milk, 1)
-        share(forageTaken, forageTotal, a.forageEaten, request.forage, energy)
-        share(concTaken, concTotal, a.concEaten, request.concentrate, energy * util)
-        RLFeedRationPlanner.sumAnimal(a)
-        result.eatenMe, result.eatenKg = result.eatenMe + a.me, result.eatenKg + a.kg
     end
     return result
 end

@@ -204,10 +204,16 @@ end
 --- @param ageMonths number
 --- @param protein table feedProfiles protein values
 --- @param milkMax number|nil A calf's milk cap (0..1)
+--- @param milkKgPerDay number|nil A lactating cow's real milk at full feed (kg a day)
 --- @return number
-function RLFeedMath.getProteinNeed(class, ageMonths, protein, milkMax)
+function RLFeedMath.getProteinNeed(class, ageMonths, protein, milkMax, milkKgPerDay)
     if class == "CALF" then return protein.young + (protein.calf - protein.young) * math.clamp(milkMax or 1, 0, 1) end
-    if class == "LACTATING" then return protein.lactating end
+    if class == "LACTATING" then
+        -- From the dry cow's need to the lactating one's with her real milk against lactatingAtKg:
+        -- a suckler cow giving 8 kg needs far less than a dairy cow giving 30.
+        local share = math.clamp((milkKgPerDay or protein.lactatingAtKg) / protein.lactatingAtKg, 0, 1)
+        return protein.dry + (protein.lactating - protein.dry) * share
+    end
     if class == "DRY" then return protein.dry end
     if ageMonths < protein.youngUntilMonth then return protein.young end
     if ageMonths < protein.growingUntilMonth then return protein.growing end

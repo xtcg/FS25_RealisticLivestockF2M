@@ -61,7 +61,9 @@
 
     protein: crude protein (share of DM) a ration needs for full growth or milk, by stage (NRC 2000
     growing-finishing cattle, NRC 2001 dairy and calves): calf on milk, young (weaned, under
-    youngUntilMonth), growing (under growingUntilMonth), finishing, lactating, dry; a calf moves
+    youngUntilMonth), growing (under growingUntilMonth), finishing, lactating, dry. A lactating cow
+    moves from the dry value to the lactating one with her real milk against lactatingAtKg (kg a
+    day, NRC 2001: about 16% CP for 30 kg); a calf moves
     from the young value to the calf value with the share of milk it may still drink. Below it, growth
     and milk potential fall linearly to nothing at the maintenance level. A simplified limit, not a
     metabolisable protein model; energy it leaves unused is laid down or lost in the budget.
@@ -132,7 +134,7 @@
     <calfMilk realLitersPerDay="10" density="1.03" dm="0.125"/>
 
     <protein maintenance="0.065" calf="0.18" young="0.14" growing="0.12" finishing="0.105"
-        lactating="0.16" dry="0.10" youngUntilMonth="8" growingUntilMonth="14"/>
+        lactating="0.16" dry="0.10" youngUntilMonth="8" growingUntilMonth="14" lactatingAtKg="30"/>
 
     <ration wheatMaxShare="0.30" adaptationDays="30" adaptationMaxShare="0.80" stepAllowance="0.20"
         unadaptedUtilisation="0.85">

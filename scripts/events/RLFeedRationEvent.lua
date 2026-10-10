@@ -6,8 +6,8 @@
     grain may stand in for the chosen one.
 
     Client -> server: checked (the pen owner's farm with the tradeAnimals permission, values in
-    range), applied, then sent to every client. Server -> clients: applied as sent. A server or
-    single player applies it directly (RLFeedRationEvent.sendEvent).
+    range), applied, then sent to every client, the asking one included. Server -> clients:
+    applied as sent. A server or single player applies it directly (RLFeedRationEvent.sendEvent).
 ]]
 
 RLFeedRationEvent = {}
@@ -35,19 +35,13 @@ end
 
 function RLFeedRationEvent:writeStream(streamId, connection)
     NetworkUtil.writeNodeObject(streamId, self.object)
-    local ration = self.ration or RLFeed.DEFAULT_RATION
-    streamWriteString(streamId, ration.target or "AUTO")
-    streamWriteString(streamId, ration.grain or "AUTO")
-    streamWriteFloat32(streamId, ration.share ~= nil and ration.share or -1)
-    streamWriteBool(streamId, ration.substitute ~= false)
+    RLFeed.writeRationStream(self.ration or RLFeed.DEFAULT_RATION, streamId)
 end
 
 
 function RLFeedRationEvent:readStream(streamId, connection)
     self.object = NetworkUtil.readNodeObject(streamId)
-    local target, grain = streamReadString(streamId), streamReadString(streamId)
-    local share = streamReadFloat32(streamId)
-    self.ration = { target = target, grain = grain, share = share >= 0 and share or nil, substitute = streamReadBool(streamId) }
+    self.ration, self.valid = RLFeed.readRationStream(streamId)
     self:run(connection)
 end
 
@@ -68,12 +62,13 @@ function RLFeedRationEvent:run(connection)
             return
         end
         local _, valid = RLFeed.sanitizeRation(self.ration)
-        if not valid then
+        if not valid or self.valid == false then
             Log:warning("RLFeedRationEvent: ration values out of range from user '%s'; dropped", tostring(userName))
             return
         end
         RLFeed.setRation(object, self.ration)
-        g_server:broadcastEvent(RLFeedRationEvent.new(object, RLFeed.getRation(object)), nil, connection, object)
+        -- Every client, the one that asked too: it shows what the server applied.
+        g_server:broadcastEvent(RLFeedRationEvent.new(object, RLFeed.getRation(object)), nil, nil, object)
         return
     end
 

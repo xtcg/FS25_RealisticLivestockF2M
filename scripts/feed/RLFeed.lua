@@ -48,8 +48,8 @@ RLFeed.mode = RLFeed.MODE_LEGACY
 RLFeed.TARGETS = { "AUTO", "FINISH", "GROW", "MAINTAIN" }
 --- Grains cattle troughs take, in the order AUTO takes them (wheat last: it has its own limit).
 RLFeed.GRAINS = { "MAIZE", "BARLEY", "OAT", "WHEAT" }
---- Concentrate share targets a pen may set (nil: as much as the ration rules allow).
-RLFeed.SHARES = { 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8 }
+--- Highest concentrate share target a pen may set (nil: as much as the ration rules allow).
+RLFeed.MAX_SHARE = 0.8
 
 RLFeed.DEFAULT_RATION = { target = "AUTO", grain = "AUTO", share = nil, substitute = true }
 
@@ -149,7 +149,7 @@ function RLFeed.sanitizeRation(ration)
     if not isGrainChoice(out.grain) then out.grain, ok = RLFeed.DEFAULT_RATION.grain, ration.grain == nil and ok or false end
     if ration.share ~= nil then
         local share = tonumber(ration.share)
-        if share ~= nil and share == share and share >= 0 and share <= 1 then out.share = share else ok = false end
+        if share ~= nil and share == share and share >= 0 and share <= RLFeed.MAX_SHARE then out.share = share else ok = false end
     end
     out.substitute = ration.substitute ~= false
     return out, ok
@@ -200,9 +200,23 @@ end
 
 
 --- A calf's milk and solid caps (RLCalfRearing), with the calf still on milk when milkMax > 0.
+--- With calf rearing switched off a young calf still suckles: the default weaning curves say how
+--- long, so a pen holding one is never taken for a pen of weaned cattle.
 local function getCalfCaps(animal, ageOffsetMonths)
-    if RLCalfRearing == nil or not RLCalfRearing.isEnabled() then return 0, 1 end
-    return RLCalfRearing.getCaps(animal, ageOffsetMonths)
+    if RLCalfRearing == nil then return 0, 1 end
+    if RLCalfRearing.isEnabled() then return RLCalfRearing.getCaps(animal, ageOffsetMonths) end
+    local x = (animal.age or 0) + (ageOffsetMonths or 0) - RLCalfRearing.DEFAULTS.weaningMonth
+    local curves = RLCalfRearing.DEFAULT_CURVES
+    return RLNutritionMath.interpolate(curves.milkMax, x), RLNutritionMath.interpolate(curves.solidMax, x)
+end
+
+
+--- An animal's feeding stage for the feeds' stages: PRE_WEANING, WEANING or WEANED, read off its
+--- milk cap's position on the weaning curve.
+local function getFeedStage(animal, milkMax)
+    if milkMax <= 0 then return "WEANED" end
+    if RLCalfRearing ~= nil and RLCalfRearing.isEnabled() then return RLCalfRearing.getStage(animal) end
+    return (animal.age or 0) < RLCalfRearing.DEFAULTS.weaningMonth and "PRE_WEANING" or "WEANING"
 end
 
 
@@ -210,7 +224,7 @@ end
 --- @param placeable table
 --- @return boolean active
 --- @return string reason "OK", "MODE_OFF", "CONFIG_INVALID", "MODEL_OFF", "NOT_CATTLE", "MILKCOW_LEGACY",
----         "NO_TROUGH", "UNCOVERED_ANIMAL", "SUCKLING_CALF"
+---         "NO_TROUGH", "UNCOVERED_ANIMAL", "SUCKLING_CALF" (getPenState also "ERROR": the plan failed)
 function RLFeed.evaluatePen(placeable)
     local ok, reason = RLFeed.canRun()
     if not ok then return false, reason end
@@ -350,13 +364,15 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
     local milkLimit = 0
     if class == "CALF" then
         local binding = RLGrowth.getBinding(animal:getSubType())
-        local reference = { profile = "HOLSTEIN", sex = binding.sex }
+        -- The reference calf is a Holstein of its sex; a weight profile file without Holstein
+        -- leaves the calf at the reference allowance.
+        local reference = RLGrowth.getConfig().profiles.HOLSTEIN ~= nil and { profile = "HOLSTEIN", sex = binding.sex } or binding
         milkLimit = RLFeedMath.getCalfMilkLimit(RLGrowth.getBirthMean(binding), RLGrowth.getBirthMean(reference),
             milkMax, config.calfMilk)
     end
 
     return {
-        animal = animal, class = class, target = target,
+        animal = animal, class = class, target = target, stage = getFeedStage(animal, milkMax),
         appetite = RLFeedMath.getAppetite(weight, class, config.intake, { milkKgPerDay = milkKg, weaningX = weaningX, gene = gene }),
         fill = RLFeedMath.getFillCapacity(weight, class, config.intake, gene),
         concEligible = class ~= "CALF",
@@ -365,13 +381,16 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
         milkMaxKgPerDay = milkLimit,
         solidMax = solidMax,
         solidEnergy = class == "CALF" and RLCalfRearing.getSolidEnergyFactor(animal) or 1,
-        proteinNeed = RLFeedMath.getProteinNeed(class, RLGrowth.getContinuousAge(animal), config.protein, milkMax),
+        proteinNeed = RLFeedMath.getProteinNeed(class, RLGrowth.getContinuousAge(animal), config.protein, milkMax, milkKg),
         needs = {
             maintenance = demands.maintenance / days,
             pregnancy = demands.pregnancy / days,
             milk = target == "MAINTAIN" and 0 or demands.milk / days,
             growth = target == "MAINTAIN" and 0 or demands.growthStep / dtDays,
-            deposit = target == "MAINTAIN" and 0 or demands.depositRoomKg * cfg.depositNUPerKg / dtDays,
+            -- Reserve it may lay down a day: what is left under its ceiling spread over a month, at
+            -- most the monthly gain rate - a rate, so the hour's length does not change it.
+            deposit = target == "MAINTAIN" and 0
+                or math.min(demands.depositHeadroomKg, demands.depositRatePerMonthKg) * cfg.depositNUPerKg / days,
         },
     }
 end
@@ -427,6 +446,42 @@ function RLFeed.getStockLists(placeable, ration)
         end
     end
     return forage, concentrate, milk, unconfigured
+end
+
+
+local planErrors = {}
+
+--- A plan that failed (an error in the planner or an animal's description): the pen's hour falls
+--- back to the old rules, logged once per pen and message.
+function RLFeed.onPlanError(placeable, message)
+    local spec = placeable.spec_husbandryFood
+    local window = spec.rlFeedWindow
+    spec.rlFeedWindow = nil
+    spec.rlFeedPen = { tick = window ~= nil and window.tick or RLBodyCondition.getTickId(), active = false, reason = "ERROR" }
+    local key = tostring(placeable) .. tostring(message)
+    if not planErrors[key] then
+        planErrors[key] = true
+        Log:error("RLFeed: ration plan failed in %s (%s); the old rules feed it this hour", placeable.getName ~= nil and placeable:getName() or "?",
+            tostring(message))
+    end
+end
+
+
+--- Whether a pen's trough takes more of a fill type: grain only while the mode is on.
+function RLFeed.acceptsFill(placeable, fillTypeIndex)
+    if RLFeed.mode == RLFeed.MODE_REAL then return true end
+    local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
+    local grains = spec ~= nil and spec.rlGrainFillTypes or nil
+    if grains == nil then
+        grains = {}
+        local foodSystem = g_currentMission ~= nil and g_currentMission.animalFoodSystem or nil
+        local animalFood = foodSystem ~= nil and spec ~= nil and foodSystem:getAnimalFood(spec.animalTypeIndex) or nil
+        for _, group in ipairs(animalFood ~= nil and animalFood.groups or {}) do
+            if group.rlGrain then for _, index in ipairs(group.fillTypes) do grains[index] = true end end
+        end
+        if spec ~= nil then spec.rlGrainFillTypes = grains end
+    end
+    return not grains[fillTypeIndex]
 end
 
 
@@ -501,11 +556,12 @@ function RLFeed.endFeeding(placeable)
     -- just before this).
     local supply = spec.rlNutritionSupply
     local removed = (supply ~= nil and supply.tick == window.tick) and supply.consumed or {}
+    -- A fill type the trough lost nothing of (no removal on record) was not eaten.
     local ratio = {}
     for name, liters in pairs(plan.withdraw) do
         local index = plan.indices[name]
-        local lost = index ~= nil and removed[index] or nil
-        if lost ~= nil and liters > 0 then ratio[name] = math.clamp(lost / liters, 0, 1) end
+        local lost = index ~= nil and removed[index] or 0
+        if liters > 0 then ratio[name] = math.clamp(lost / liters, 0, 1) end
     end
 
     local tick = window.tick
@@ -562,9 +618,11 @@ function RLFeed.addToMonth(placeable, hour)
     local key = getPeriodKey()
     local month = spec.rlFeedMonth
     local config = RLFeed.getConfig()
-    if month == nil or month.key ~= key then
+    -- A new game month, or feed data (scale, profiles) other than the month was counted under,
+    -- starts a new month; the last one is kept as it was counted.
+    if month == nil or month.key ~= key or month.hash ~= config.hash or month.scale ~= config.resourceScale then
         if month ~= nil then
-            month.complete = month.hours >= month.hoursInMonth
+            month.complete = month.key ~= key and month.hours >= month.hoursInMonth and month.startedAtStart == true
             spec.rlFeedPrevious = month
         end
         local environment = g_currentMission.environment
@@ -822,13 +880,28 @@ if AnimalFoodSystem ~= nil then
         end)
     end
 
-    -- The pen's feeding in the mode; elsewhere the engine's own.
+    -- The pen's feeding in the mode; elsewhere the engine's own. A plan that fails leaves the pen
+    -- on the old rules for that hour (RLFeed.onPlanError), never without a feeding.
     local consumeFood = AnimalFoodSystem.consumeFood
     AnimalFoodSystem.consumeFood = function(self, animalTypeIndex, amount, foodOwner, consumedFood)
         local foodSpec = type(foodOwner) == "table" and foodOwner.spec_husbandryFood or nil
         local window = foodSpec ~= nil and foodSpec.rlFeedWindow or nil
-        if window ~= nil and window.plan == nil then return RLFeed.consume(foodOwner, consumedFood) end
+        if window ~= nil and window.plan == nil then
+            local ok, factor = pcall(RLFeed.consume, foodOwner, consumedFood)
+            if ok then return factor end
+            RLFeed.onPlanError(foodOwner, factor)
+            for index in pairs(consumedFood) do consumedFood[index] = nil end
+        end
         return consumeFood(self, animalTypeIndex, amount, foodOwner, consumedFood)
+    end
+
+    -- Under the old rules a cattle trough takes no new grain: it would never be eaten.
+    if PlaceableHusbandryFood ~= nil and PlaceableHusbandryFood.getFreeFoodCapacity ~= nil then
+        local getFreeFoodCapacity = PlaceableHusbandryFood.getFreeFoodCapacity
+        PlaceableHusbandryFood.getFreeFoodCapacity = function(self, fillTypeIndex, ...)
+            if not RLFeed.acceptsFill(self, fillTypeIndex) then return 0 end
+            return getFreeFoodCapacity(self, fillTypeIndex, ...)
+        end
     end
 
     -- The grain group is never eaten by the old rules.
@@ -917,9 +990,10 @@ function RLFeed.loadPen(placeable, xmlFile, key)
     end
     spec.rlFeedMonth = loadMonth(base .. ".month")
     spec.rlFeedPrevious = loadMonth(base .. ".previous")
-    -- A month counted under other feed data is history: the next hour starts a new one.
+    -- A month counted under other feed data is history: the next hour starts a new one
+    -- (RLFeed.addToMonth), and this one is kept as it was counted.
     if spec.rlFeedMonth ~= nil and spec.rlFeedMonth.hash ~= RLFeed.getConfig().hash then
-        Log:info("RLFeed: %s month was counted under feed data %s (now %s); kept as it was", base,
+        Log:info("RLFeed: %s month was counted under feed data %s (now %s); kept as it was, the next hour starts a new one", base,
             tostring(spec.rlFeedMonth.hash), RLFeed.getConfig().hash)
     end
 end
@@ -943,7 +1017,6 @@ function RLFeed.loadSummary(xmlFile, key)
     if hash == nil then return end
     local config = RLFeed.getConfig()
     local scale = xmlFile:getFloat(key .. "#resourceScale", 0)
-    RLFeed.savedSummary = { hash = hash, scale = scale, version = xmlFile:getInt(key .. "#feedVersion", 0) }
     if hash ~= config.hash then
         Log:info("RLFeed: feed data changed since this save (%s -> %s, scale %.3f -> %.3f); only the future uses the new values",
             hash, config.hash, scale, config.resourceScale)
@@ -1017,17 +1090,22 @@ function RLFeed.writeRationStream(ration, streamId)
 end
 
 
+--- Read a ration from a stream: the values as sent (checked by sanitizeRation) and whether they
+--- were all valid.
 function RLFeed.readRationStream(streamId)
     local target, grain = streamReadString(streamId), streamReadString(streamId)
     local share = streamReadFloat32(streamId)
-    return RLFeed.sanitizeRation({ target = target, grain = grain, share = share >= 0 and share or nil, substitute = streamReadBool(streamId) })
+    local raw = { target = target, grain = grain, share = share >= 0 and share or nil, substitute = streamReadBool(streamId) }
+    local _, valid = RLFeed.sanitizeRation(raw)
+    return raw, valid
 end
 
 
---- An animal's last hour in the mode, for clients (per real day; nil fields when it has none).
-function RLFeed.writeAnimalStream(animal, streamId)
+--- An animal's hour in the mode, for clients (per real day): only its record of this hour.
+function RLFeed.writeAnimalStream(animal, streamId, tick)
     local record = animal.rlFeedIntake
-    local has = record ~= nil and record.dtDays ~= nil and record.dtDays > 0
+    local has = record ~= nil and record.dtDays ~= nil and record.dtDays > 0 and not record.missed
+        and (tick == nil or record.tick == tick)
     streamWriteBool(streamId, has)
     if not has then return end
     local days = record.dtDays
@@ -1056,6 +1134,7 @@ function RLFeed.readAnimalStream(streamId)
         class = text(streamReadString(streamId)), target = text(streamReadString(streamId)),
         concLimit = text(streamReadString(streamId)), intakeLimit = text(streamReadString(streamId)),
         healthReason = text(streamReadString(streamId)), gainPerMonth = streamReadFloat32(streamId), client = true,
+        tick = RLBodyCondition.getTickId(),
     }
 end
 
@@ -1071,7 +1150,7 @@ if PlaceableHusbandryFood ~= nil then
         PlaceableHusbandryFood.onReadStream = Utils.appendedFunction(PlaceableHusbandryFood.onReadStream, function(self, streamId)
             local spec = self.spec_husbandryFood
             local ration = RLFeed.readRationStream(streamId)
-            if spec ~= nil then spec.rlFeedRation = ration end
+            if spec ~= nil then spec.rlFeedRation = RLFeed.sanitizeRation(ration) end
         end)
     end
 end

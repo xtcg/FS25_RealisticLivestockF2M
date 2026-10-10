@@ -81,7 +81,7 @@ function RLBodyConditionStateEvent:writeStream(streamId, connection)
         streamWriteFloat32(streamId, nutrition.coverage or 0)
         streamWriteFloat32(streamId, nutrition.intakeRatio or 0)
         streamWriteFloat32(streamId, nutrition.milkShare or -1)
-        RLFeed.writeAnimalStream(animal, streamId)
+        RLFeed.writeAnimalStream(animal, streamId, self.tick)
     end
 end
 
