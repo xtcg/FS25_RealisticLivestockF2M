@@ -153,6 +153,22 @@ function FeedSim.hour(pen, opts)
 end
 
 
+--- Run hours until the pen has taken a model-time step (RLFeed: one 0.25-day step is 1/5 of a
+--- one-day month's hour, or several hours of a long month).
+--- @return number hours run
+function FeedSim.untilStep(pen, opts)
+    local hours = 0
+    repeat
+        if opts ~= nil and opts.refill ~= nil then opts.refill(pen) end
+        FeedSim.hour(pen, opts)
+        hours = hours + 1
+        local window = pen.spec_husbandryFood.rlFeedLast
+    until (pen.spec_husbandryFood.rlFeedLast ~= nil and pen.spec_husbandryFood.rlFeedLast.tick == RLBodyCondition.getTickId())
+        or hours >= 200 or not pen.spec_husbandryFood.rlFeedPen.active
+    return hours
+end
+
+
 --- Run whole months: age moves on at each period change, a lactating cow's months since calving
 --- too.
 function FeedSim.months(pen, months, opts)

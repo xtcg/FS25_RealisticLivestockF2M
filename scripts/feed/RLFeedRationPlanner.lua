@@ -122,7 +122,7 @@ RLFeedRationPlanner.AUTO_STEP = 0.05
 ---   eaten to a demand, need not add energy;
 ---   then at most what the animal's rumen is adapted to (continuous, so the step-up is the same
 ---   at any hour length), and less in step when the stock cannot cover every animal's share.
-local function planAnimal(a, forageMix, concMix, wheatShare, concScale, request)
+local function planAnimal(a, forageMix, concMix, wheatShare, concScale, request, estimate)
     local ration = request.ration
     local c, limit = 0, nil
     if a.concEligible and concMix ~= nil then
@@ -131,7 +131,7 @@ local function planAnimal(a, forageMix, concMix, wheatShare, concScale, request)
         c, limit = cLimit, why
         if request.share ~= nil then
             if request.share < c then c, limit = request.share, "TARGET" end
-        elseif c > 0 then
+        elseif c > 0 and not estimate then
             -- The best-scoring share on the AUTO_STEP grid for a fully adapted animal: a coarse
             -- choice, steady from hour to hour while the scores barely move.
             local adapted = a.adapted
@@ -272,7 +272,8 @@ function RLFeedRationPlanner.plan(request)
         for pass = 1, 2 do
             local forageNeed, concNeed, eligibleIntake = 0, 0, 0
             for _, a in ipairs(group.animals) do
-                planAnimal(a, forageMix, concMix, wheatShare, concScale, request)
+                -- The first pass only sizes the forage the plan takes: no AUTO search there.
+                planAnimal(a, forageMix, concMix, wheatShare, concScale, request, pass == 1)
                 forageNeed, concNeed = forageNeed + a.forageKg, concNeed + a.concKg
                 if a.concEligible then eligibleIntake = eligibleIntake + a.forageKg + a.concKg end
             end

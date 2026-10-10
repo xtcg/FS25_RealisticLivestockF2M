@@ -26,6 +26,11 @@
     version             Feed data version (saved with each pen's monthly record).
     resourceScale       Game liters per real-equivalent liter (0 < s <= 1).
     realDaysPerPeriod   Model days in a game month.
+    stepDays            Model days of one feeding and growth step. A pen keeps a model clock; each
+                        game hour adds its model days and the pen runs a step for each whole
+                        stepDays it holds (5 in an hour of a one-day month, one every 5-6 hours of
+                        a 28-day month), so any month length runs the same steps. What is left of
+                        the clock is saved with the pen.
 
     requirements (ME, MJ; per real day unless noted)
     maintenanceMEPerKgMetabolic  ME for maintenance per kg^0.75 of live weight (x maintenance gene).
@@ -120,7 +125,7 @@
     copy replaces this file. A file that fails a check keeps the mode off and logs why; a single
     feed that fails is left uneaten and listed.
 -->
-<feedProfiles version="1" resourceScale="0.125" realDaysPerPeriod="30">
+<feedProfiles version="1" resourceScale="0.125" realDaysPerPeriod="30" stepDays="0.25">
 
     <requirements maintenanceMEPerKgMetabolic="0.50" growthMEPerKgAt500="50" growthWeightExponent="0.75"
         growthMEPerKgMin="18" reserveDepositMEPerKg="52" reserveMobilizeMEPerKg="38" catabolismMEPerKg="10"

@@ -20,7 +20,7 @@ RLFeedProfiles.STATUSES = { TYPICAL = true, PROXY = true, UNCONFIGURED = true }
 RLFeedProfiles.STAGES = { PRE_WEANING = true, WEANING = true, WEANED = true }
 RLFeedProfiles.CLASSES = { "CALF", "GROWING", "LACTATING", "DRY" }
 
-RLFeedProfiles.ROOT = { version = 1, resourceScale = 0.125, realDaysPerPeriod = 30 }
+RLFeedProfiles.ROOT = { version = 1, resourceScale = 0.125, realDaysPerPeriod = 30, stepDays = 0.25 }
 
 RLFeedProfiles.REQUIREMENTS = {
     maintenanceMEPerKgMetabolic = 0.50, growthMEPerKgAt500 = 50, growthWeightExponent = 0.75, growthMEPerKgMin = 18,
@@ -149,6 +149,9 @@ function RLFeedProfiles.validate(config)
         return false, "resourceScale must be in (0, 1]"
     end
     if not finite(config.realDaysPerPeriod) or config.realDaysPerPeriod <= 0 then return false, "realDaysPerPeriod must be > 0" end
+    if not finite(config.stepDays) or config.stepDays <= 0 or config.stepDays > config.realDaysPerPeriod then
+        return false, "stepDays must be in (0, realDaysPerPeriod]"
+    end
     local reason = positive(config.requirements, "requirements") or positive(config.intake, "intake")
         or positive(config.ration, "ration") or positive(config.health, "health")
         or positive(config.calfMilk, "calfMilk")
@@ -284,6 +287,7 @@ function RLFeedProfiles.computeHash(config)
     add("version", config.version)
     add("resourceScale", config.resourceScale)
     add("realDaysPerPeriod", config.realDaysPerPeriod)
+    add("stepDays", config.stepDays)
     addGroup("req", config.requirements)
     addGroup("intake", config.intake)
     addGroup("protein", config.protein)

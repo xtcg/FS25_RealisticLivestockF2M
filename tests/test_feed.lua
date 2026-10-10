@@ -389,14 +389,15 @@ do
         RLFeed.setRation(pen, { share = 0.6 })
         local refill = FeedSim.keepStocked({ GRASS_WINDROW = 1e6, MAIZE = 1e5 })
         refill(pen)
-        FeedSim.hour(pen)
+        FeedSim.untilStep(pen, { refill = refill })
         local first = bull.rlFeedIntake.concShare
         FeedSim.months(pen, 1, { refill = refill })
         adapted[days] = { first = first, after = bull.rlFeedIntake.concShare, state = bull.rlGrowth.feedAdapted }
     end
     GrowthSim.setDaysPerPeriod(1)
-    check(string.format("adaptation: a bull new to grain starts at %.2f of the ration and is at the 60%% target a month on (%.2f)",
-        adapted[1].first, adapted[1].after), within(adapted[1].first, 0.2, 0.02) and within(adapted[1].after, 0.6, 1e-6))
+    -- The first hour of a one-day month is five steps: the last of them is a little past 0.2.
+    check(string.format("adaptation: a bull new to grain starts near 20%% of the ration (%.2f) and is at the 60%% target a month on (%.2f)",
+        adapted[1].first, adapted[1].after), adapted[1].first >= 0.2 and adapted[1].first <= 0.26 and within(adapted[1].after, 0.6, 1e-6))
     check(string.format("adaptation: the same in model time at 1 and 7 days a month (adapted %.3f / %.3f)", adapted[1].state, adapted[7].state),
         within(adapted[1].state, adapted[7].state, 0.01))
 
@@ -606,11 +607,12 @@ do
         and AnimalFoodSystem.consumeFoodGroup(nil, FeedSim.cowFood.groups[1], 12, nil, {}) == 0)
     local bull = GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })
     local pen = FeedSim.makePen({ bull }, { FORAGE = 1e4 })
+    GrowthSim.advanceHour()
     RLFeed.beginFeeding(pen)
     local consumed = {}
     local factor = AnimalFoodSystem.consumeFood(nil, GrowthSim.COW_TYPE, 99, pen, consumed)
-    check("engine: in a pen running the mode, consumeFood is the planner's - its liters per fill type, its food factor",
-        engineCalls == 0 and consumed[FILL.FORAGE] ~= nil and consumed[FILL.FORAGE] > 0 and factor > 0.99)
+    check("engine: in a pen running the mode, consumeFood is the planner's steps - they take from the trough themselves, the engine removes nothing more",
+        engineCalls == 0 and next(consumed) == nil and pen:level("FORAGE") < 1e4 and factor > 0.99)
     local other = FeedSim.makePen({}, {})
     AnimalFoodSystem.consumeFood(nil, GrowthSim.COW_TYPE, 99, other, {})
     check("engine: any other pen keeps the engine's own consumption", engineCalls == 1)
@@ -802,6 +804,82 @@ do
     -- Shares above 0.8 are out of range.
     local _, okShare = RLFeed.sanitizeRation({ share = 0.95 })
     check("ration: a concentrate share target above 0.8 is refused", okShare == false)
+end
+
+
+-- FEED-10: model-time steps ---------------------------------------------------------------------------
+
+do
+    -- Same model time, same steps: 6 months of hay + maize at 1, 3, 7 and 28 days a month.
+    local function run(days)
+        GrowthSim.setDaysPerPeriod(days)
+        local animal = GrowthSim.makeAnimal("BULL_ANGUS", { age = 7 })
+        local pen = FeedSim.makePen({ animal }, {})
+        local used = { DRYGRASS_WINDROW = 0, MAIZE = 0 }
+        local function refill(p)
+            for name in pairs(used) do
+                local level = p:level(name)
+                if level < 1e7 then used[name] = used[name] + 1e7 - level; p:add(name, 1e7 - level) end
+            end
+        end
+        refill(pen)
+        used = { DRYGRASS_WINDROW = 0, MAIZE = 0 }
+        FeedSim.months(pen, 6, { refill = refill })
+        for name in pairs(used) do used[name] = used[name] + 1e7 - pen:level(name) end
+        GrowthSim.setDaysPerPeriod(1)
+        return animal, used, pen
+    end
+    local base, baseUsed, basePen = run(1)
+    local worstW, worstFeed = 0, 0
+    for _, days in ipairs({ 3, 7, 28 }) do
+        local animal, used = run(days)
+        worstW = math.max(worstW, math.abs(animal.weight - base.weight))
+        for name, liters in pairs(baseUsed) do worstFeed = math.max(worstFeed, relative(used[name], liters)) end
+    end
+    check(string.format("steps: 6 months of hay + maize at 1, 3, 7 and 28 days a month - weight within %.6f kg, each feed within %.6f%%",
+        worstW, worstFeed * 100), worstW < 0.001 and worstFeed < 1e-6)
+    check("steps: the pen's leftover model time is under one step", basePen.spec_husbandryFood.rlFeedClock.pendingDays < RLFeed.getStepDays())
+
+    -- An hour fed twice adds its model time once.
+    local animal = GrowthSim.makeAnimal("BULL_ANGUS", { age = 12 })
+    local pen = FeedSim.makePen({ animal }, { FORAGE = 1e5 })
+    GrowthSim.advanceHour()
+    RLFeed.beginFeeding(pen)
+    RLFeed.consume(pen, {})
+    local after = pen:level("FORAGE")
+    RLFeed.beginFeeding(pen)
+    RLFeed.consume(pen, {})
+    check("steps: an hour fed twice runs its steps once (no second removal)", pen:level("FORAGE") == after)
+
+    -- At 28 days a month most hours hold no step: the animal waits, health and milk untouched.
+    GrowthSim.setDaysPerPeriod(28)
+    local cow = GrowthSim.makeAnimal("COW_HOLSTEIN", { age = 40, isParent = true, isLactating = true, monthsSinceLastBirth = 2 })
+    local cowPen = FeedSim.makePen({ cow }, { FORAGE = 1e6 })
+    FeedSim.untilStep(cowPen)
+    local stepTick = cow.rlFeedIntake.tick
+    local paid = cow.rlMilkPaid.litersPerHour
+    FeedSim.hour(cowPen)
+    local noStep = cowPen.spec_husbandryFood.rlFeedLast.tick == stepTick
+    check("steps: in a 28-day month an hour without a step leaves the cow as she was (no step, no milk paid that hour)",
+        noStep and cow.rlMilkPaid.tick == stepTick and paid > 0 and RLFeedInfoService.getAnimalInfo(cow) ~= nil)
+    GrowthSim.setDaysPerPeriod(1)
+
+    -- Saved and loaded, the pen's clock is kept (no step repeated or dropped).
+    local saved = {}
+    local xml = {
+        setString = function(_, k, v) saved[k] = v end, setFloat = function(_, k, v) saved[k] = v end,
+        setInt = function(_, k, v) saved[k] = v end, setBool = function(_, k, v) saved[k] = v end,
+        getString = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
+        getFloat = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
+        getInt = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
+        getBool = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
+        iterate = function() end,
+    }
+    cowPen.spec_husbandryFood.rlFeedClock.pendingDays = 0.123
+    RLFeed.savePen(cowPen, xml, "food")
+    local copy = FeedSim.makePen({}, {})
+    RLFeed.loadPen(copy, xml, "food")
+    check("steps: a pen's model clock is saved and loaded", within(copy.spec_husbandryFood.rlFeedClock.pendingDays, 0.123, 1e-6))
 end
 
 FeedSim.setMode(false)

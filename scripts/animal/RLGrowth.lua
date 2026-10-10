@@ -968,16 +968,19 @@ end
 --- @param milkShare number Share of its full-feed milk the cow gives this hour (water; with no
 ---        ledger, the pen's food factor too, as the old milk rule deposits it)
 --- @param dtMonths number
+--- @param noReference boolean|nil Skip the request on full feed (ownReference 0): the
+---        real-equivalent mode values the feed eaten, not liters against a request
 --- @return table input
 --- @return number ownReference Liters the animal itself requests on full feed
-function RLGrowth.buildStepInput(animal, state, intakeLiters, milkShare, dtMonths)
+function RLGrowth.buildStepInput(animal, state, intakeLiters, milkShare, dtMonths, noReference)
     local bc = RLBodyCondition.getConfig()
     local s = RLGrowth.getSettings()
     local kappa = RLGrowth.getKappa()
     local _, speedGene, maintenanceGene = RLGrowth.getGeneFactors(animal.genetics.metabolism)
     local progress, fetuses = RLBodyCondition.getPregnancy(animal)
     local milk = getMilk(animal)
-    local ownReference = RLGrowth.getReferenceIntake(animal)
+    -- The real-equivalent mode prices nothing by the request (noReference): it is not worked out.
+    local ownReference = noReference and 0 or RLGrowth.getReferenceIntake(animal)
     local condition = animal.bodyCondition
 
     local input = {
@@ -1044,12 +1047,49 @@ end
 --- The hour each pen last logged having no ledger (weak keys: a removed pen goes with it).
 local lastNoLedger = setmetatable({}, { __mode = "k" })
 
+
+--- What every step does before its budget: the stage factors move toward their targets, the age
+--- clock and an old savegame's take-over fade move on by the step's months, the target weight
+--- follows.
+local function prepareStep(animal, state, dtMonths)
+    state.speedFactor = relax(state.speedFactor, RLGrowth.getStageSpeed(animal), dtMonths)
+    state.intakeFactor = relax(state.intakeFactor, RLBodyCondition.getIntakeCapacity(animal), dtMonths)
+    RLGrowth.advanceClock(state, animal.age or 0, dtMonths)
+    if state.legacyAnchor ~= nil then state.anchorElapsedMonths = (state.anchorElapsedMonths or 0) + dtMonths end
+    animal.targetWeight = RLGrowth.getAnimalTargetWeight(animal)
+end
+
+
+--- Put a step's result on the animal (false for a NaN result: nothing applied). The body
+--- condition reads the reserve as its index r = R / K.
+local function applyStepResult(animal, state, result, tick)
+    if result.weight ~= result.weight or result.reserveKg ~= result.reserveKg or result.development ~= result.development then
+        Log:warning("RLGrowth: step for %s/%s gave NaN, nothing applied", tostring(animal.farmId), tostring(animal.uniqueId))
+        state.lastTick = tick
+        return false
+    end
+    animal.weight = result.weight
+    state.weightKg = result.weight
+    state.reserveMassKg = result.reserveKg
+    state.developmentMonths = result.development
+    state.lastTick = tick
+    local condition = RLBodyCondition.ensureState(animal, "growth")
+    condition.reserve = math.clamp(result.reserve, 0, 1)
+    condition.capacityKg = math.max(result.capacityKg, 1)
+    condition.balanceEMA = result.balanceEMA
+    condition.lossRateEMA = result.lossRateEMA
+    return true
+end
+
+
 --- Run this hour's step for a covered animal. Called by the server from AnimalHealth.updateHealth
 --- in place of every old weight rule. With its pen's feed ledger the animal eats its share of
 --- what the pen ate and its milk is the budget's; without one (a pen with no trough, the first
 --- hour after a load) it eats the pen's food factor of its request and the hour's milk is the
 --- old rule's, which the budget then pays for. Either way the same budget, so there is no second
 --- weight rule. An animal that took this hour's step already (moved in the same hour) is done.
+--- An animal whose pen runs the real-equivalent nutrition mode is stepped by its pen instead
+--- (RLGrowth.stepFeed, from RLFeed's model-time steps).
 --- @param animal table
 --- @param foodFactor number The pen's (or the rearing pen's own) food factor
 --- @return boolean handled False: not covered or no game hour to count it in; the caller runs
@@ -1065,16 +1105,9 @@ function RLGrowth.step(animal, foodFactor)
 
     local environment = g_currentMission.environment
     local dtMonths = RLWeightMath.getHourMonths(environment.daysPerPeriod)
-    -- The real-equivalent nutrition mode (RLFeed): what the animal ate this hour in real DM and ME.
-    local feed = RLFeed ~= nil and RLFeed.getStepFeed(animal, tick) or nil
     local supply, owner, foodSpec = RLBodyCondition.getLedger(animal, tick)
-    local intakeStep, allocated, intakeSource
-    if feed ~= nil then
-        intakeStep, allocated, intakeSource = feed.kg, feed.kg, feed.missed and "none" or "feed"
-    else
-        intakeStep, allocated, intakeSource = getIntake(animal, supply, foodSpec, foodFactor)
-    end
-    local fromLedger = intakeSource ~= "foodFactor"
+    local intakeStep, allocated, intakeSource = getIntake(animal, supply, foodSpec, foodFactor)
+    local fromLedger = intakeSource == "ledger"
     if not fromLedger then
         local key = owner or lastNoLedger
         if lastNoLedger[key] ~= tick then
@@ -1086,55 +1119,51 @@ function RLGrowth.step(animal, foodFactor)
 
     local water = foodSpec ~= nil and foodSpec.rlWaterCoverage or nil
     local waterCoverage = (water ~= nil and water.tick == tick) and water.coverage or 1
-    if feed ~= nil then feed.water = waterCoverage end
     -- Without a ledger the milk store deposited this hour's milk by the old rule (scaled by the
     -- pen's food factor) before this step; the budget pays for that milk, not for more.
     local milkShare = fromLedger and waterCoverage or math.clamp(foodFactor or 0, 0, 1)
 
-    state.speedFactor = relax(state.speedFactor, RLGrowth.getStageSpeed(animal), dtMonths)
-    state.intakeFactor = relax(state.intakeFactor, RLBodyCondition.getIntakeCapacity(animal), dtMonths)
-    RLGrowth.advanceClock(state, animal.age or 0, dtMonths)
-    if state.legacyAnchor ~= nil then state.anchorElapsedMonths = (state.anchorElapsedMonths or 0) + dtMonths end
-    animal.targetWeight = RLGrowth.getAnimalTargetWeight(animal)
-
+    prepareStep(animal, state, dtMonths)
     local input, ownReference = RLGrowth.buildStepInput(animal, state, intakeStep / dtMonths, milkShare, dtMonths)
-    local cfg = RLBodyCondition.getConfig()
-    if feed ~= nil then
-        input, cfg = RLFeed.applyStepInput(animal, input, feed, dtMonths)
-        -- What it asks for on full feed, for the ration row: its planned DM a month.
-        ownReference = feed.plannedKg / dtMonths
-    end
-    local result = RLGrowthMath.step(input, cfg)
-
-    if result.weight ~= result.weight or result.reserveKg ~= result.reserveKg or result.development ~= result.development then
-        Log:warning("RLGrowth: step for %s/%s gave NaN, nothing applied this hour", tostring(animal.farmId), tostring(animal.uniqueId))
-        state.lastTick = tick
+    local result = RLGrowthMath.step(input, RLBodyCondition.getConfig())
+    if not applyStepResult(animal, state, result, tick) then
         animal.rlMilkPaid = { tick = tick, litersPerHour = 0, deposited = false }
         return true
     end
 
-    local weightBefore = animal.weight
-    animal.weight = result.weight
-    state.weightKg = result.weight
-    state.reserveMassKg = result.reserveKg
-    state.developmentMonths = result.development
-    state.lastTick = tick
-
-    -- The body condition reads the reserve as its index r = R / K. Its lastTick marks an hour the
-    -- budget's milk covers (RLBodyCondition.coversThisHour): only an hour with a ledger, so every
-    -- store in an hour without one keeps the old milk rule, as the first one did.
-    local condition = RLBodyCondition.ensureState(animal, "growth")
-    condition.reserve = math.clamp(result.reserve, 0, 1)
-    condition.capacityKg = math.max(result.capacityKg, 1)
-    condition.balanceEMA = result.balanceEMA
-    condition.lossRateEMA = result.lossRateEMA
-    if fromLedger then condition.lastTick = tick end
-    if feed ~= nil then RLFeed.afterStep(animal, state, feed, result, weightBefore, dtMonths) end
-
+    -- The body condition's lastTick marks an hour the budget's milk covers
+    -- (RLBodyCondition.coversThisHour): only an hour with a ledger, so every store in an hour
+    -- without one keeps the old milk rule, as the first one did.
+    if fromLedger then animal.bodyCondition.lastTick = tick end
     RLBodyCondition.recordHour(animal, owner, tick, { allocated = allocated, intakeStep = intakeStep, dtMonths = dtMonths,
         ownReference = ownReference, result = result, waterCoverage = waterCoverage, paysMilk = fromLedger,
-        intakeSource = intakeSource, milkScale = feed ~= nil and feed.proteinFactor or nil })
+        intakeSource = intakeSource })
     return true
+end
+
+
+--- One model-time step of the real-equivalent nutrition mode (RLFeed): the animal's growth budget
+--- on the ME it ate in it (feed), over dtMonths. Its pen runs these steps; the hour's milk and
+--- records are put together by RLFeed.
+--- @param animal table A covered animal
+--- @param feed table What it ate in the step (RLFeed: me, kg, cp, proteinFactor, target, water)
+--- @param dtMonths number
+--- @param tick number The game hour
+--- @return table|nil result The step's (nil: NaN, nothing applied)
+--- @return table input The budget's input (its milk potential after protein and water)
+--- @return number weightBefore
+function RLGrowth.stepFeed(animal, feed, dtMonths, tick)
+    local state = RLGrowth.ensureState(animal)
+    RLGrowth.resync(animal, state)
+    prepareStep(animal, state, dtMonths)
+    local input = RLGrowth.buildStepInput(animal, state, 0, feed.water or 1, dtMonths, true)
+    local cfg
+    input, cfg = RLFeed.applyStepInput(animal, input, feed, dtMonths)
+    local result = RLGrowthMath.step(input, cfg)
+    local weightBefore = animal.weight
+    if not applyStepResult(animal, state, result, tick) then return nil, input, weightBefore end
+    animal.bodyCondition.lastTick = tick
+    return result, input, weightBefore
 end
 
 

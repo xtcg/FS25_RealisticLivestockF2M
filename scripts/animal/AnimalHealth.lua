@@ -38,14 +38,9 @@ end
 --- @param animal table Animal instance
 --- @param foodFactor number Food factor (0.0-1.0)
 function AnimalHealth.updateHealth(animal, foodFactor)
-    -- Real-equivalent nutrition (RLFeed): the budget is settled first, and health follows what it
-    -- paid for, at per-month rates - not the food factor's threshold, not the calendar curve.
-    if RLFeed ~= nil and RLFeed.runsFor(animal) and RLGrowth.step(animal, foodFactor) then
-        local dtMonths = RLWeightMath.getHourMonths(g_currentMission.environment.daysPerPeriod)
-        RLFeed.applyHealth(animal, dtMonths)
-        RLFeed.applyUnderweight(animal, dtMonths)
-        return
-    end
+    -- Real-equivalent nutrition (RLFeed): its pen's model-time steps already settled its budget and
+    -- its health from what the budget paid for (RLFeed.runSteps) - nothing more this hour.
+    if RLFeed ~= nil and RLFeed.runsFor(animal) then return end
 
     -- In a calf rearing pen each animal has its own factor from what it could eat at its age.
     foodFactor = RLCalfRearing.getFoodFactor(animal, foodFactor)

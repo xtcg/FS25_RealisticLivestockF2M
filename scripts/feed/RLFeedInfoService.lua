@@ -214,7 +214,7 @@ function RLFeedInfoService.getAnimalInfo(animal)
     local pen = spec ~= nil and spec.rlFeedPen or nil
     if pen == nil or not pen.active or RLFeed.mode ~= RLFeed.MODE_REAL then return nil end
     local tick = RLBodyCondition.getTickId()
-    local function fresh(at) return at ~= nil and tick ~= nil and tick - at <= 1 end
+    local function fresh(at) return RLFeed.isFresh(at, tick) end
     local record = animal.rlFeedIntake
     if record ~= nil and record.dtDays ~= nil and record.dtDays > 0 and not record.missed and record.owner == owner and fresh(record.tick) then
         local days = record.dtDays

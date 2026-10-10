@@ -322,7 +322,7 @@ end
 --- @return table cfg Energy config
 local function buildEnergyInput(animal, dtMonths)
     local state = RLGrowth.peekState(animal)
-    local input = RLGrowth.buildStepInput(animal, state, 0, 1, dtMonths)
+    local input = RLGrowth.buildStepInput(animal, state, 0, 1, dtMonths, true)
     local config = RLFeed.getConfig()
     input.growthCostPerKg = RLFeedMath.getGrowthCost(animal.weight or 0, config.requirements)
     local _, mePerLiter = RLFeed.getMilkBridge(animal, input.potentialMilk)
@@ -499,105 +499,214 @@ function RLFeed.beginFeeding(placeable)
 end
 
 
---- The pen's feeding in the mode (from AnimalFoodSystem:consumeFood): plan, and hand the engine
---- the liters to remove per fill type.
+--- Model days per step (feedProfiles.xml stepDays).
+function RLFeed.getStepDays()
+    return RLFeed.getConfig().stepDays
+end
+
+
+--- Game hours an animal's last step stays its current one: the longest gap between two of its
+--- pen's steps (one step's model days in game hours), and the hour it was taken in.
+function RLFeed.getRecordHours()
+    local hourDays = RLFeed.getHourDays()
+    if hourDays <= 0 then return 1 end
+    return math.ceil(RLFeed.getStepDays() / hourDays - 1e-9) + 1
+end
+
+
+--- Whether a record of tick `at` is still an animal's current one at `tick`.
+function RLFeed.isFresh(at, tick)
+    tick = tick or RLBodyCondition.getTickId()
+    return at ~= nil and tick ~= nil and tick - at <= RLFeed.getRecordHours()
+end
+
+
+--- The pen's feeding in the mode (from AnimalFoodSystem:consumeFood). The pen keeps a model clock:
+--- each game hour adds its model days (realDaysPerPeriod / (24 x days per month)), and the pen runs
+--- one step of stepDays for each whole step the clock holds - five in an hour of a one-day month,
+--- one every fifth or sixth hour of a 28-day month. Each step plans, takes from the trough (the
+--- liters are removed here, step by step, so the next step sees what is left), and settles every
+--- animal's growth, adaptation and health. The same model time runs the same steps at any month
+--- length; what is left of the clock is saved with the pen.
 --- @param placeable table
---- @param consumedFood table fillTypeIndex -> liters (filled here)
---- @return number factor Share of the planned ME the pen gets (its food factor)
+--- @param consumedFood table fillTypeIndex -> liters (left empty: the steps removed their own)
+--- @return number factor Share of the hour's planned ME the pen got (its food factor); the last
+---         hour's in an hour without a step
 function RLFeed.consume(placeable, consumedFood)
     local spec = placeable.spec_husbandryFood
     local window = spec.rlFeedWindow
+    local clock = spec.rlFeedClock or { pendingDays = 0 }
+    spec.rlFeedClock = clock
+    -- One hour's model time once, however often the hour is fed.
+    if clock.tick ~= window.tick then
+        clock.tick = window.tick
+        clock.pendingDays = (clock.pendingDays or 0) + RLFeed.getHourDays()
+    end
+    local stepDays = RLFeed.getStepDays()
+    local steps = math.floor(clock.pendingDays / stepDays + 1e-9)
+    clock.pendingDays = clock.pendingDays - steps * stepDays
+    if clock.pendingDays < 1e-9 then clock.pendingDays = 0 end
+
+    local hour = { steps = steps, stepDays = stepDays, animals = {}, order = {}, byFill = {}, plannedMe = 0, plannedKg = 0, eatenMe = 0,
+        eatenKg = 0, limits = {}, plannedPerMonth = {}, unconfigured = {} }
+    window.hour = hour
+    for _ = 1, steps do RLFeed.runStep(placeable, window, stepDays) end
+    if steps == 0 or hour.plannedMe <= 0 then
+        if steps == 0 and spec.rlFeedFactor ~= nil then return spec.rlFeedFactor end
+        return #hour.order > 0 and 0 or 1
+    end
+    spec.rlFeedFactor = math.clamp(hour.eatenMe / hour.plannedMe, 0, 1)
+    return spec.rlFeedFactor
+end
+
+
+--- One model-time step of a pen: plan, remove, settle each animal.
+--- @param placeable table
+--- @param window table The hour's feeding
+--- @param stepDays number Model days
+function RLFeed.runStep(placeable, window, stepDays)
+    local spec = placeable.spec_husbandryFood
     local config = RLFeed.getConfig()
     local ration = RLFeed.getRation(placeable)
-    local environment = g_currentMission.environment
-    local dtMonths = RLWeightMath.getHourMonths(environment.daysPerPeriod)
-    local dtDays = RLFeed.getHourDays()
+    local dtMonths = stepDays / config.realDaysPerPeriod
+    local tick = window.tick
+    local hour = window.hour
 
     local animals = {}
     for _, animal in ipairs(placeable:getClusters() or {}) do
-        if not animal.isDead and (animal.numAnimals or 1) > 0 then
-            table.insert(animals, RLFeed.describeAnimal(animal, ration, dtMonths, dtDays))
+        -- Not twice in an hour: an animal stepped in another pen this hour (moved since) waits.
+        local stepped = animal.rlFeedStepTick == tick and animal.rlFeedStepOwner ~= placeable
+        if not animal.isDead and (animal.numAnimals or 1) > 0 and not stepped then
+            table.insert(animals, RLFeed.describeAnimal(animal, ration, dtMonths, stepDays))
         end
     end
     local forage, concentrate, milk, unconfigured = RLFeed.getStockLists(placeable, ration)
     local plan = RLFeedRationPlanner.plan({
         animals = animals, forage = forage, concentrate = concentrate, milk = milk,
-        scale = config.resourceScale, realDaysPerPeriod = config.realDaysPerPeriod, dtDays = dtDays,
+        scale = config.resourceScale, realDaysPerPeriod = config.realDaysPerPeriod, dtDays = stepDays,
         share = ration.share, ration = config.ration, classes = config.classes,
         proteinMaintenance = config.protein.maintenance, concentrateWanted = ration.grain ~= "NONE" and ration.share ~= 0,
     })
-    plan.unconfigured = unconfigured
-    plan.indices = {}
+    hour.unconfigured = unconfigured
+
+    -- Take it from the trough (and meadow) now; a feed the trough gave less of is shared as given.
+    local indices, ratio = {}, {}
     for _, list in ipairs({ forage, concentrate, milk }) do
-        for _, entry in ipairs(list) do plan.indices[entry.name] = entry.index end
+        for _, entry in ipairs(list) do indices[entry.name] = entry.index end
     end
     for name, liters in pairs(plan.withdraw) do
-        local index = plan.indices[name]
-        if index ~= nil and liters > 0 then consumedFood[index] = (consumedFood[index] or 0) + liters end
+        local index = indices[name]
+        if index ~= nil and liters > 0 then
+            local removed = placeable:removeFood(liters, index) or 0
+            ratio[name] = math.clamp(removed / liters, 0, 1)
+        end
     end
-    window.plan, window.dtDays, window.dtMonths = plan, dtDays, dtMonths
-    if plan.plannedMe <= 0 then return #animals > 0 and 0 or 1 end
-    return math.clamp(plan.eatenMe / plan.plannedMe, 0, 1)
+
+    local water = spec.rlWaterCoverage
+    local waterCoverage = (water ~= nil and water.tick ~= nil and tick - water.tick <= 1) and water.coverage or 1
+    local protein = config.protein
+    hour.plannedPerMonth = {}
+    for _, a in ipairs(plan.animals) do
+        for name, fill in pairs(a.byFill) do
+            local r = ratio[name] or 0
+            if r < 1 then fill.kg, fill.liters, fill.me, fill.cpKg = fill.kg * r, fill.liters * r, fill.me * r, fill.cpKg * r end
+        end
+        RLFeedRationPlanner.sumAnimal(a)
+        local animal = a.animal
+        local feed = { tick = tick, owner = placeable, kg = a.kg, me = a.me, cp = a.cp, byFill = a.byFill, plannedKg = a.plannedKg,
+            plannedMe = a.plannedMe, class = a.class, target = a.target, concShare = a.cEaten, concLimit = a.concLimit,
+            intakeLimit = a.intakeLimit, proteinFactor = RLFeedMath.getProteinFactor(a.cp, a.proteinNeed, protein.maintenance),
+            proteinNeed = a.proteinNeed, dtDays = stepDays, water = waterCoverage }
+        RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
+        animal.rlFeedPlanLiters = a.litersPerPeriod
+        for name, liters in pairs(a.plannedByFill or {}) do hour.plannedPerMonth[name] = (hour.plannedPerMonth[name] or 0) + liters end
+        for name, fill in pairs(a.byFill) do
+            local total = hour.byFill[name] or { liters = 0, kg = 0, me = 0 }
+            total.liters, total.kg, total.me = total.liters + fill.liters, total.kg + fill.kg, total.me + fill.me
+            hour.byFill[name] = total
+        end
+        hour.plannedMe, hour.plannedKg = hour.plannedMe + a.plannedMe, hour.plannedKg + a.plannedKg
+        hour.eatenMe, hour.eatenKg = hour.eatenMe + a.me, hour.eatenKg + a.kg
+        local limit = a.concLimit or a.intakeLimit
+        if limit ~= nil then hour.limits[limit] = (hour.limits[limit] or 0) + 1 end
+    end
+    if RLFeed.observe ~= nil then RLFeed.observe("STEP", { placeable = placeable, tick = tick, plan = plan, ratio = ratio, stepDays = stepDays }) end
 end
 
 
---- Close a pen's feeding (server, after the trough lost what it lost): each animal's record,
---- scaled per fill type to what was really removed, and the pen's hour and month.
+--- One animal's step: its growth budget on what it ate, its rumen's adaptation, its health, the
+--- milk the budget paid, all added to the hour's record of it.
+function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
+    local result, input, weightBefore = RLGrowth.stepFeed(animal, feed, dtMonths, tick)
+    animal.rlFeedStepTick, animal.rlFeedStepOwner = tick, placeable
+    local record = hour.animals[animal]
+    if record == nil then
+        record = { tick = tick, owner = placeable, kg = 0, me = 0, cpKg = 0, byFill = {}, plannedKg = 0, plannedMe = 0, dtDays = 0,
+            milkLiters = 0, steps = 0 }
+        hour.animals[animal] = record
+        table.insert(hour.order, animal)
+    end
+    record.steps = record.steps + 1
+    record.kg, record.me, record.cpKg = record.kg + feed.kg, record.me + feed.me, record.cpKg + feed.cp * feed.kg
+    record.plannedKg, record.plannedMe, record.dtDays = record.plannedKg + feed.plannedKg, record.plannedMe + feed.plannedMe, record.dtDays + feed.dtDays
+    for name, fill in pairs(feed.byFill) do
+        local total = record.byFill[name] or { liters = 0, kg = 0, me = 0, cpKg = 0 }
+        total.liters, total.kg, total.me, total.cpKg = total.liters + fill.liters, total.kg + fill.kg, total.me + fill.me, total.cpKg + fill.cpKg
+        record.byFill[name] = total
+    end
+    record.class, record.target, record.concShare, record.concLimit, record.intakeLimit = feed.class, feed.target, feed.concShare,
+        feed.concLimit, feed.intakeLimit
+    record.proteinFactor, record.proteinNeed, record.water = feed.proteinFactor, feed.proteinNeed, feed.water
+    if result == nil then return end
+    RLFeed.afterStep(animal, animal.rlGrowth, feed, result, weightBefore, dtMonths)
+    RLFeed.applyHealth(animal, feed, result, dtMonths)
+    RLFeed.applyUnderweight(animal, dtMonths)
+    -- The milk this step's budget paid (game liters), deposited by the pen's store this hour.
+    record.milkLiters = record.milkLiters + math.max(input.potentialMilk or 0, 0) * dtMonths * (result.milkFraction or 0)
+    record.milkPotential = (record.milkPotential or 0) + math.max(input.potentialMilk or 0, 0) * dtMonths
+    record.coverage, record.growthFraction = result.coverage, result.growthFraction
+    record.healthFactor, record.healthReason, record.gainPerMonth = feed.healthFactor, feed.healthReason, feed.gainPerMonth
+    record.result = result
+end
+
+
+--- Close a pen's feeding (server): each animal's record of the hour (what it ate over the hour's
+--- steps, the milk its budget paid for the store), the pen's hour and month.
 --- @param placeable table
 function RLFeed.endFeeding(placeable)
     local spec = placeable.spec_husbandryFood
     local window = spec ~= nil and spec.rlFeedWindow or nil
     if window == nil then return end
     spec.rlFeedWindow = nil
-    local plan = window.plan
-    if plan == nil then return end
-
-    -- What the trough (and meadow) really lost, per fill type (RLBodyCondition's ledger, closed
-    -- just before this).
-    local supply = spec.rlNutritionSupply
-    local removed = (supply ~= nil and supply.tick == window.tick) and supply.consumed or {}
-    -- A fill type the trough lost nothing of (no removal on record) was not eaten.
-    local ratio = {}
-    for name, liters in pairs(plan.withdraw) do
-        local index = plan.indices[name]
-        local lost = index ~= nil and removed[index] or 0
-        if liters > 0 then ratio[name] = math.clamp(lost / liters, 0, 1) end
-    end
-
+    local hour = window.hour
+    if hour == nil then return end
     local tick = window.tick
-    local water = spec.rlWaterCoverage
-    local pen = { tick = tick, byFill = {}, plannedMe = plan.plannedMe, plannedKg = plan.plannedKg, eatenMe = 0, eatenKg = 0,
-        limits = {}, unconfigured = plan.unconfigured, animals = 0, plannedPerMonth = {} }
-    local protein = RLFeed.getConfig().protein
-    for _, a in ipairs(plan.animals) do
-        for name, fill in pairs(a.byFill) do
-            local r = ratio[name] or 1
-            if r < 1 then fill.kg, fill.liters, fill.me, fill.cpKg = fill.kg * r, fill.liters * r, fill.me * r, fill.cpKg * r end
-            local total = pen.byFill[name] or { liters = 0, kg = 0, me = 0 }
-            total.liters, total.kg, total.me = total.liters + fill.liters, total.kg + fill.kg, total.me + fill.me
-            pen.byFill[name] = total
-        end
-        RLFeedRationPlanner.sumAnimal(a)
-        local animal = a.animal
-        animal.rlFeedIntake = {
-            tick = tick, owner = placeable, kg = a.kg, me = a.me, cp = a.cp, byFill = a.byFill,
-            plannedKg = a.plannedKg, plannedMe = a.plannedMe, class = a.class, target = a.target,
-            concShare = a.cEaten, concLimit = a.concLimit, intakeLimit = a.intakeLimit,
-            proteinFactor = RLFeedMath.getProteinFactor(a.cp, a.proteinNeed, protein.maintenance),
-            proteinNeed = a.proteinNeed, dtDays = window.dtDays,
-        }
-        animal.rlFeedPlanLiters = a.litersPerPeriod
-        for name, liters in pairs(a.plannedByFill or {}) do pen.plannedPerMonth[name] = (pen.plannedPerMonth[name] or 0) + liters end
-        pen.eatenMe, pen.eatenKg, pen.animals = pen.eatenMe + a.me, pen.eatenKg + a.kg, pen.animals + 1
-        local limit = a.concLimit or a.intakeLimit
-        if limit ~= nil then pen.limits[limit] = (pen.limits[limit] or 0) + 1 end
+    local timeAdjustment = g_currentMission.environment.timeAdjustment or 1
+
+    for _, animal in ipairs(hour.order) do
+        local record = hour.animals[animal]
+        record.cp = record.kg > 0 and record.cpKg / record.kg or 0
+        animal.rlFeedIntake = record
+        -- The store deposits liters per hour x the hour's time adjustment.
+        animal.rlMilkPaid = { tick = tick, litersPerHour = timeAdjustment > 0 and record.milkLiters / timeAdjustment or 0, deposited = false }
+        animal.rlNutrition = { tick = tick, allocatedLiters = 0, coverage = record.coverage,
+            intakeRatio = record.plannedKg > 0 and record.kg / record.plannedKg or 0,
+            milkShare = (record.milkPotential or 0) > 0 and record.milkLiters / record.milkPotential or nil,
+            growthFraction = record.growthFraction, intakeSource = "feed" }
     end
-    pen.water = (water ~= nil and water.tick == tick) and water.coverage or 1
-    pen.coverage = pen.plannedMe > 0 and pen.eatenMe / pen.plannedMe or (pen.animals > 0 and 0 or 1)
+    if hour.steps > 0 then placeable.rlBodyConditionStepped = tick end
+
+    local water = spec.rlWaterCoverage
+    hour.tick = tick
+    hour.animals, hour.order = #hour.order, nil
+    hour.water = (water ~= nil and water.tick == tick) and water.coverage or 1
+    hour.coverage = hour.plannedMe > 0 and hour.eatenMe / hour.plannedMe or (hour.animals > 0 and 0 or 1)
     -- The old ledger's energy row reads the share of the planned ME eaten in this mode.
-    if supply ~= nil and supply.tick == tick then supply.energyShare = { ME = math.clamp(pen.coverage, 0, 1) } end
-    spec.rlFeedLast = pen
-    RLFeed.addToMonth(placeable, pen)
+    local supply = spec.rlNutritionSupply
+    if supply ~= nil and supply.tick == tick and hour.steps > 0 then supply.energyShare = { ME = math.clamp(hour.coverage, 0, 1) } end
+    if hour.steps > 0 then spec.rlFeedLast = hour end
+    RLFeed.addToMonth(placeable, hour)
+    if RLFeed.observe ~= nil then RLFeed.observe("HOUR", { placeable = placeable, tick = tick, hour = hour }) end
 end
 
 
@@ -707,40 +816,37 @@ end
 -- Step and health
 -- =============================================================================
 
---- What the animal ate this hour, when its pen runs the mode this hour: its record, or a record
---- of nothing (it was not in the pen when the pen fed). nil: the old rules for this hour.
+--- The animal's current record in the mode (its pen's last hour with steps), when its pen runs
+--- the mode this hour; nil otherwise.
 --- @param animal table
 --- @param tick number|nil Defaults to this hour
 --- @return table|nil
 function RLFeed.getStepFeed(animal, tick)
     tick = tick or RLBodyCondition.getTickId()
+    if not RLFeed.runsFor(animal, tick) then return nil end
+    local record = animal.rlFeedIntake
+    if record ~= nil and record.owner == getOwner(animal) and RLFeed.isFresh(record.tick, tick) then return record end
+    return nil
+end
+
+
+--- Whether the animal's hour runs in the mode: its pen fed in the mode this hour.
+function RLFeed.runsFor(animal, tick)
+    tick = tick or RLBodyCondition.getTickId()
     local owner = getOwner(animal)
     local spec = owner ~= nil and owner.spec_husbandryFood or nil
     local pen = spec ~= nil and spec.rlFeedPen or nil
-    if tick == nil or pen == nil or pen.tick ~= tick or not pen.active then return nil end
-    if not RLGrowth.covers(animal) then return nil end
-    local record = animal.rlFeedIntake
-    if record ~= nil and record.tick == tick and record.owner == owner then return record end
-    local class = RLFeed.getRationClass(animal)
-    record = { tick = tick, owner = owner, kg = 0, me = 0, cp = 0, byFill = {}, plannedKg = 0, plannedMe = 0, class = class,
-        target = RLFeed.getAnimalTarget(animal, RLFeed.getRation(owner), class), concShare = 0, proteinFactor = 0, missed = true }
-    animal.rlFeedIntake = record
-    return record
+    if tick == nil or pen == nil or pen.tick ~= tick or not pen.active then return false end
+    return RLGrowth.covers(animal)
 end
 
 
---- Whether the animal's hour runs in the mode.
-function RLFeed.runsFor(animal, tick)
-    return RLFeed.getStepFeed(animal, tick) ~= nil
-end
-
-
---- The step input in ME units (RLGrowth.step): the ME eaten as the supply, the growth cost of its
---- weight, the ME of its milk, protein limiting growth and milk, no reserve for milk under
+--- The step input in ME units (RLGrowth.stepFeed): the ME eaten as the supply, the growth cost of
+--- its weight, the ME of its milk, protein limiting growth and milk, no reserve for milk under
 --- MAINTAIN.
 --- @param animal table
 --- @param input table RLGrowth.buildStepInput's
---- @param feed table getStepFeed's
+--- @param feed table The step's feed
 --- @param dtMonths number
 --- @return table input
 --- @return table cfg
@@ -758,16 +864,12 @@ function RLFeed.applyStepInput(animal, input, feed, dtMonths)
 end
 
 
---- After the step: the rumen's adaptation moves toward the concentrate share it ate (for the
---- model days the hour covers), and the step is kept for the health check.
+--- After a step: the rumen's adaptation moves toward the concentrate share it ate (for the step's
+--- model days), and its live weight trend for the finishing forecast.
 function RLFeed.afterStep(animal, state, feed, result, weightBefore, dtMonths)
     local config = RLFeed.getConfig()
-    if not feed.missed then
-        state.feedAdapted = RLFeedMath.adapt(state.feedAdapted or 0, feed.concShare or 0, feed.dtDays or RLFeed.getHourDays(),
-            config.ration)
-    end
+    state.feedAdapted = RLFeedMath.adapt(state.feedAdapted or 0, feed.concShare or 0, feed.dtDays, config.ration)
     feed.result = result
-    -- Its live weight trend (kg a month, smoothed over about a month) for the finishing forecast.
     if weightBefore ~= nil and dtMonths ~= nil and dtMonths > 0 then
         local gain = (result.weight - weightBefore) / dtMonths
         local alpha = 1 - math.exp(-dtMonths / RLFeed.GAIN_TAU_MONTHS)
@@ -777,15 +879,14 @@ function RLFeed.afterStep(animal, state, feed, result, weightBefore, dtMonths)
 end
 
 
---- Health from the hour's budget (after the step), at per-month rates: the old per-hour rates
---- hold for a one-day month, and a longer month spreads them over its hours. Fractions carry
---- over, so a slow change is not lost to whole-point health.
+--- Health from a step's budget, at per-month rates: the old per-hour rates hold for a one-day
+--- month's hour (1/24 of a month), so a step of dtMonths counts 24 x dtMonths of them. Fractions
+--- carry over, so a slow change is not lost to whole-point health.
 --- @param animal table
+--- @param feed table The step's feed
+--- @param result table The step's budget
 --- @param dtMonths number
-function RLFeed.applyHealth(animal, dtMonths)
-    local feed = animal.rlFeedIntake
-    local result = feed ~= nil and feed.tick == RLBodyCondition.getTickId() and feed.result or nil
-    if result == nil then return end
+function RLFeed.applyHealth(animal, feed, result, dtMonths)
     local body = RLBodyCondition.getConfig()
     local config = RLFeed.getConfig()
     local budget = { supply = result.supplyNU, maintenance = result.maintenanceNU, pregnancy = result.pregnancyNU,
@@ -793,10 +894,9 @@ function RLFeed.applyHealth(animal, dtMonths)
         mobilized = result.mobilizedNU, reserve = result.reserve, lowReserve = body.minReserve + body.mobilizeEaseRange }
     local shortfall = RLFeedMath.getShortfall(budget)
     local state = animal.rlGrowth
-    local dtDays = feed.dtDays or RLFeed.getHourDays()
     if state ~= nil then
         state.feedShortDays = RLFeedMath.updateShortDays(state.feedShortDays, shortfall,
-            (result.supplyNU or 0) >= (result.maintenanceNU or 0) + (result.pregnancyNU or 0), dtDays)
+            (result.supplyNU or 0) >= (result.maintenanceNU or 0) + (result.pregnancyNU or 0), feed.dtDays)
     end
     budget.shortfall, budget.shortDays, budget.bufferDays = shortfall, state ~= nil and state.feedShortDays or 0, config.health.shortageBufferDays
     budget.water, budget.cp, budget.cpMaintenance, budget.eatenDm = feed.water, feed.cp, config.protein.maintenance, feed.kg
@@ -804,8 +904,7 @@ function RLFeed.applyHealth(animal, dtMonths)
     feed.healthFactor, feed.healthReason = factor, reason
     local subType = animal:getSubType()
     local rate = factor >= 0 and (subType.healthIncreaseHour or 0) or (subType.healthDecreaseHour or 0)
-    local hours = 24 * dtMonths
-    RLFeed.addHealth(animal, rate * factor * (animal.genetics.health or 1) * hours)
+    RLFeed.addHealth(animal, rate * factor * (animal.genetics.health or 1) * 24 * dtMonths)
 end
 
 
@@ -837,7 +936,7 @@ function RLFeed.getRequestLitersPerPeriod(animal)
     local pen = spec ~= nil and spec.rlFeedPen or nil
     if pen == nil or not pen.active or animal.rlFeedPlanLiters == nil then return nil end
     local record = animal.rlFeedIntake
-    if record == nil or record.owner ~= owner then return nil end
+    if record == nil or record.owner ~= owner or not RLFeed.isFresh(record.tick) then return nil end
     return animal.rlFeedPlanLiters
 end
 
@@ -955,6 +1054,12 @@ function RLFeed.savePen(placeable, xmlFile, key)
     end
     saveMonth(spec.rlFeedMonth, base .. ".month")
     saveMonth(spec.rlFeedPrevious, base .. ".previous")
+    -- The model time the pen has not stepped yet, so a reload neither repeats nor drops it.
+    local clock = spec.rlFeedClock
+    if clock ~= nil then
+        xmlFile:setInt(base .. ".clock#version", RLFeed.STATE_VERSION)
+        xmlFile:setFloat(base .. ".clock#pendingDays", clock.pendingDays or 0)
+    end
 end
 
 
@@ -990,6 +1095,11 @@ function RLFeed.loadPen(placeable, xmlFile, key)
     end
     spec.rlFeedMonth = loadMonth(base .. ".month")
     spec.rlFeedPrevious = loadMonth(base .. ".previous")
+    local pending = xmlFile:getFloat(base .. ".clock#pendingDays")
+    if pending ~= nil and pending == pending and pending >= 0 then
+        -- At most one step's model time: a larger value is not from this mod's clock.
+        spec.rlFeedClock = { pendingDays = math.min(pending, RLFeed.getStepDays()) }
+    end
     -- A month counted under other feed data is history: the next hour starts a new one
     -- (RLFeed.addToMonth), and this one is kept as it was counted.
     if spec.rlFeedMonth ~= nil and spec.rlFeedMonth.hash ~= RLFeed.getConfig().hash then
@@ -1101,11 +1211,11 @@ function RLFeed.readRationStream(streamId)
 end
 
 
---- An animal's hour in the mode, for clients (per real day): only its record of this hour.
+--- An animal's hour in the mode, for clients (per real day): only its current record.
 function RLFeed.writeAnimalStream(animal, streamId, tick)
     local record = animal.rlFeedIntake
     local has = record ~= nil and record.dtDays ~= nil and record.dtDays > 0 and not record.missed
-        and (tick == nil or record.tick == tick)
+        and (tick == nil or RLFeed.isFresh(record.tick, tick))
     streamWriteBool(streamId, has)
     if not has then return end
     local days = record.dtDays
