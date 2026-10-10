@@ -24,7 +24,8 @@
         breeds      replaces the profile's breeds for this building
 
     construction:
-        filename    a building with a construction state machine, matched as above
+        filename    a building with a construction state machine (a husbandry, or a production
+                    point that takes animals), matched as above
         readyStates the construction states in which it takes animals (state names from the
                     building's own XML, space separated). In any other state no animal is bought
                     or moved in; animals already there stay and can be moved out. A building
@@ -89,4 +90,9 @@
     <construction filename="placeables/animalHusbandry/calfIglus/calfIglu05.xml" readyStates="DONE"/>
     <construction filename="placeables/constructibles/constructible_cowPasture.xml" readyStates="DONE"/>
     <construction filename="placeables/animalHusbandry/cowHusbandryOldFarm/cowHusbandryOldFarm.xml" readyStates="STEP1 STEP2 FINALIZE DONE"/>
+
+    <!-- The farm butcher is a production point that takes animals (SETUP, STATE_1-3, FINALIZE, DONE).
+         The map hides its production and animal trigger until FINALIZE, which passes to DONE on the
+         next update; RLRM's move menu and herdsman open it at DONE. -->
+    <construction filename="placeables/productionPoints/farmButcher/farmButcher.xml" readyStates="DONE"/>
 </husbandryProfiles>

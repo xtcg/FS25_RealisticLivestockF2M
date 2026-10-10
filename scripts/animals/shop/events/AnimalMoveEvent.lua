@@ -124,10 +124,79 @@ function AnimalMoveEvent.getFacilityMeanTargetWeight(targetObject, subTypeIndex)
 end
 
 
+--- Carcass parameters of a subtype, resolved through the layers (subtype, breed, animal type,
+--- root, then CARCASS_ATTRIBUTE_DEFAULTS), plus the type's meat per head. Read-only.
+--- With referenceGender only what the reference and anchor need is resolved (that sex's
+--- maturity, referenceWeight, anchorWeight): the body condition reads the reference often.
+--- @param subType table|nil
+--- @param referenceGender string|nil "male" / anything else; nil for every parameter
+--- @return table params RLMeatMath parameters
+function AnimalMoveEvent.getCarcassParams(subType, referenceGender)
+	local config = AnimalMoveEvent.getCarcassConfig()
+	local defaults = AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS
+
+	local function get(attr)
+		return RLBreedTraits.resolve(config.layers, subType, attr, defaults[attr])
+	end
+
+	if referenceGender ~= nil then
+		local maturity = referenceGender == "male" and "maleMaturity" or "femaleMaturity"
+		return { referenceWeight = get("referenceWeight"), anchorWeight = get("anchorWeight"), [maturity] = get(maturity) }
+	end
+
+	return {
+		referenceWeight = get("referenceWeight"),
+		anchorWeight = get("anchorWeight"),
+		maleMaturity = get("maleMaturity"),
+		femaleMaturity = get("femaleMaturity"),
+		carcassFactor = get("carcassFactor"),
+		qualitySwing = get("qualitySwing"),
+		meatPerHead = AnimalMoveEvent.getMeatPerHead(RLBreedTraits.getTypeName(subType)),
+	}
+end
+
+
+--- Frozen inputs of the carcass yield of one animal (RLMeatMath): live weight, own target
+--- weight (the subtype's when the animal has none), sex, meat gene, the facility mean when the
+--- reference or anchor needs it, and with withCondition the body condition yield factor.
+--- Without withCondition only the reference parameters are read (getCarcassParams).
+--- Reads only; sets up no state.
+--- @param animal table
+--- @param targetObject table|nil The receiving facility
+--- @param subTypeIndex number|nil
+--- @param withCondition boolean|nil
+--- @return table snapshot
+--- @return table params See getCarcassParams
+--- @return table formula The config's formula settings
+function AnimalMoveEvent.getCarcassSnapshot(animal, targetObject, subTypeIndex, withCondition)
+	local config = AnimalMoveEvent.getCarcassConfig()
+	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
+	subTypeIndex = subTypeIndex or animal.subTypeIndex
+	local subType = animalSystem ~= nil and animalSystem:getSubTypeByIndex(subTypeIndex) or nil
+	local params = AnimalMoveEvent.getCarcassParams(subType, not withCondition and (animal.gender == "male" and "male" or "female") or nil)
+
+	local snapshot = {
+		subTypeIndex = subTypeIndex,
+		age = animal.age,
+		weight = animal.weight,
+		targetWeight = animal.targetWeight or (subType ~= nil and subType.targetWeight) or nil,
+		gender = animal.gender,
+		quality = animal.genetics ~= nil and animal.genetics.quality or 1,
+	}
+	if RLMeatMath.needsFacilityMean(snapshot, params) then
+		snapshot.facilityMean = AnimalMoveEvent.getFacilityMeanTargetWeight(targetObject, subTypeIndex)
+	end
+	if withCondition then
+		snapshot.conditionFactor = RLBodyCondition ~= nil and RLBodyCondition.getYieldFactor(animal) or 1
+	end
+	return snapshot, params, config
+end
+
+
 --- The slaughter reference weight of an animal (its own target weight x maleMaturity /
 --- femaleMaturity, or a configured referenceWeight, else the facility's mean) and the anchor
 --- weight its size is measured against. Also the weight the body condition's finishing curve
---- (RLBodyCondition) reads a bull's progress against.
+--- (RLBodyCondition) reads a bull's progress against, so it reads no condition itself.
 --- @param animal table
 --- @param targetObject table|nil The receiving facility
 --- @param subTypeIndex number|nil
@@ -135,32 +204,21 @@ end
 --- @return number|nil anchor
 function AnimalMoveEvent.getCarcassReferenceWeight(animal, targetObject, subTypeIndex)
 	if animal == nil then return nil, nil end
+	local snapshot, params = AnimalMoveEvent.getCarcassSnapshot(animal, targetObject, subTypeIndex, false)
+	return RLMeatMath.getReference(snapshot, params)
+end
 
-	local config = AnimalMoveEvent.getCarcassConfig()
-	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
-	local subType = animalSystem ~= nil and animalSystem:getSubTypeByIndex(subTypeIndex or animal.subTypeIndex) or nil
-	local defaults = AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS
 
-	local function get(attr)
-		return RLBreedTraits.resolve(config.layers, subType, attr, defaults[attr])
-	end
-
-	local facilityMean
-	local function getFacilityMean()
-		if facilityMean == nil then
-			facilityMean = AnimalMoveEvent.getFacilityMeanTargetWeight(targetObject, subTypeIndex or animal.subTypeIndex) or false
-		end
-		return facilityMean or nil
-	end
-
-	local targetWeight = animal.targetWeight or (subType ~= nil and subType.targetWeight) or nil
-	local maturity = get(animal.gender == "male" and "maleMaturity" or "femaleMaturity")
-	local reference = get("referenceWeight")
-		or (targetWeight ~= nil and targetWeight > 0 and targetWeight * maturity)
-		or getFacilityMean()
-	local anchor = get("anchorWeight") or getFacilityMean() or reference
-
-	return reference, anchor
+--- Every step of an animal's carcass yield and its model meat (RLMeatMath.compute), for the
+--- trade report. modelMeat is nil when the type sets no meatPerHead.
+--- @return table|nil result nil without an animal
+--- @return table snapshot
+--- @return table params
+--- @return table formula
+function AnimalMoveEvent.getCarcassYield(animal, targetObject, subTypeIndex)
+	if animal == nil then return nil end
+	local snapshot, params, formula = AnimalMoveEvent.getCarcassSnapshot(animal, targetObject, subTypeIndex, true)
+	return RLMeatMath.compute(snapshot, params, formula), snapshot, params, formula
 end
 
 
@@ -179,7 +237,7 @@ end
 --- names but measure weight completion only; how well finished the animal is comes from its
 --- body condition (RLBodyCondition.getYieldFactor: 1 in the moderate finish band, less when
 --- lean or overfat), applied here once so meat kg, both slaughter routes and the live price's
---- slaughter floor all see it.
+--- slaughter floor all see it. The arithmetic is RLMeatMath.compute.
 ---
 --- The meat gene (0.25-1.75, 1 = average) prices the animal in Animal:getSellPrice. It is read
 --- as carcass merit here because a facility's meat fill type carries no grade to price it by.
@@ -189,32 +247,7 @@ end
 --- @return number factor
 function AnimalMoveEvent.getCarcassYieldFactor(animal, targetObject, subTypeIndex)
 	if animal == nil then return 1 end
-
-	local config = AnimalMoveEvent.getCarcassConfig()
-	local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
-	local subType = animalSystem ~= nil and animalSystem:getSubTypeByIndex(subTypeIndex or animal.subTypeIndex) or nil
-	local defaults = AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS
-
-	local function get(attr)
-		return RLBreedTraits.resolve(config.layers, subType, attr, defaults[attr])
-	end
-
-	local reference, anchor = AnimalMoveEvent.getCarcassReferenceWeight(animal, targetObject, subTypeIndex)
-
-	local size, weightCompletion = 1, 1
-	if reference ~= nil and reference > 0 then
-		if anchor ~= nil and anchor > 0 then
-			size = math.clamp((reference / anchor) ^ config.sizeExponent, config.minSizeFactor, config.maxSizeFactor)
-		end
-		if animal.weight ~= nil then
-			weightCompletion = math.clamp((animal.weight / reference) ^ config.finishExponent, config.minFinishFactor,
-				config.maxFinishFactor)
-		end
-	end
-
-	local quality = animal.genetics ~= nil and animal.genetics.quality or 1
-	local condition = RLBodyCondition ~= nil and RLBodyCondition.getYieldFactor(animal) or 1
-	return size * weightCompletion * get("carcassFactor") * (1 + get("qualitySwing") * (quality - 1)) * condition
+	return AnimalMoveEvent.getCarcassYield(animal, targetObject, subTypeIndex).factor
 end
 
 
@@ -322,21 +355,9 @@ function AnimalMoveEvent._getButcherRecipeRatio(targetObject, fillType, typeName
 	local meatFillType = meatName ~= nil and g_fillTypeManager ~= nil and g_fillTypeManager:getFillTypeIndexByName(meatName) or nil
 	if meatFillType == nil or type(targetObject.productions) ~= "table" then return nil end
 
-	for _, production in ipairs(targetObject.productions) do
-		local input, inputs = nil, 0
-		for _, candidate in ipairs(production.inputs or {}) do
-			inputs = inputs + 1
-			if (candidate.type or candidate.fillType) == fillType then input = candidate end
-		end
-		if input ~= nil and inputs == 1 and (input.amount or 0) > 0 then
-			for _, output in ipairs(production.outputs or {}) do
-				if (output.type or output.fillType) == meatFillType and (output.amount or 0) > 0 then
-					return output.amount / input.amount
-				end
-			end
-		end
-	end
-	return nil
+	-- The first matching production (RLFacilityRules; the trade report flags more than one).
+	local match = RLFacilityRules.getButcherProductions(targetObject.productions, fillType, meatFillType)[1]
+	return match ~= nil and match.output.amount / match.input.amount or nil
 end
 
 
@@ -436,16 +457,9 @@ function AnimalMoveEvent._getContractFee(targetObject, farmId, fillType, amount)
 	local serviceSpec = targetObject.spec_contractProductionService
 	if serviceSpec == nil or serviceSpec.orders == nil or serviceSpec.recipeById == nil then return nil, 0 end
 
-	local order, recipeInput, recipe
-	for _, candidate in pairs(serviceSpec.orders) do
-		local candidateRecipe = candidate.farmId == farmId and serviceSpec.recipeById[candidate.recipeId] or nil
-		local input = candidateRecipe ~= nil and candidateRecipe.inputs ~= nil and candidateRecipe.inputs[fillType] or nil
-		if input ~= nil and (order == nil or (candidate.id or 0) < (order.id or 0)) then
-			order, recipeInput, recipe = candidate, input, candidateRecipe
-		end
-	end
-	if order == nil or fillType ~= recipe.feeInputFillTypeIndex or (recipe.feePerBatch or 0) <= 0 then return order, 0 end
-	return order, amount / recipeInput.amount * recipe.feePerBatch
+	local order, recipe, recipeInput = RLFacilityRules.selectContractOrder(serviceSpec.orders, serviceSpec.recipeById, farmId, fillType)
+	if order == nil then return nil, 0 end
+	return order, RLFacilityRules.getBatchFee(amount, recipeInput.amount, recipe.feePerBatch, fillType == recipe.feeInputFillTypeIndex)
 end
 
 
@@ -464,17 +478,24 @@ function AnimalMoveEvent._canAffordContractInputs(targetObject, farmId, amountBy
 
 	local cash = 0
 	for order, fee in pairs(feeByOrder) do
-		cash = cash + math.max(fee - math.max(order.feeCredit or 0, 0), 0)
+		local _, orderCash = RLFacilityRules.splitFee(fee, order.feeCredit)
+		cash = cash + orderCash
 	end
-	return cash <= 0.001 or math.max(g_currentMission:getMoney(farmId), 0) + 0.001 >= cash
+	return RLFacilityRules.canPayCash(cash, g_currentMission:getMoney(farmId))
+end
+
+
+--- Whether a target is a contract facility with the weighted delivery calls.
+function AnimalMoveEvent._hasWeighedContractDelivery(targetObject)
+	return type(targetObject.contractProductionAddAnimals) == "function"
+		and type(targetObject.contractProductionDeliver) == "function"
+		and type(targetObject.contractProductionGetAnimalFreeSlots) == "function"
 end
 
 
 --- Whether a target is a contract facility that takes weighted deliveries from this farm.
 function AnimalMoveEvent._isWeighedContractTarget(targetObject, farmId)
-	return farmId ~= nil and type(targetObject.contractProductionAddAnimals) == "function"
-		and type(targetObject.contractProductionDeliver) == "function"
-		and type(targetObject.contractProductionGetAnimalFreeSlots) == "function"
+	return farmId ~= nil and AnimalMoveEvent._hasWeighedContractDelivery(targetObject)
 end
 
 
@@ -910,6 +931,23 @@ function AnimalMoveEvent:run(connection)
 
 		Log:debug("AnimalMoveEvent:run: all %d animals validated, starting transfer", validatedCount)
 
+		-- T02 (RLContractTrade): in TEST mode a contract slaughterhouse takes the batch as one
+		-- server transaction, whole or not at all, and never falls back to the path below;
+		-- SHADOW only logs what TEST would do. OFF (the default) leaves the old path alone.
+		if RLContractTrade ~= nil and RLContractTrade.getMode() ~= RLContractTrade.MODE_OFF
+			and AnimalMoveEvent._isWeighedContractTarget(self.targetObject, farmId) then
+			local request = { farmId = farmId, source = self.sourceObject, target = self.targetObject,
+				animals = self.animals, connection = connection }
+			if RLContractTrade.getMode() == RLContractTrade.MODE_TEST then
+				local record, reason = RLContractTrade.execute(request)
+				local errorCode = RLContractTrade.toMoveErrorCode(record, reason)
+				connection:sendEvent(AnimalMoveEvent.newServerToClient(errorCode))
+				if errorCode == AnimalMoveEvent.MOVE_SUCCESS then self:addMovedMessage() end
+				return
+			end
+			RLContractTrade.shadow(request)
+		end
+
 		local clusterSystemSource = self.sourceObject:getClusterSystem()
 		Log:trace("AnimalMoveEvent:run: got source cluster system: %s", tostring(clusterSystemSource))
 
@@ -1045,28 +1083,34 @@ function AnimalMoveEvent:run(connection)
 			return
 		end
 
-		if g_server ~= nil and not g_server.netIsRunning then return end
-
-		local husbandry, trailer
-
-		if self.moveType == "SOURCE" then
-			husbandry, trailer = self.sourceObject, self.targetObject
-		else
-			husbandry, trailer = self.targetObject, self.sourceObject
-		end
-
-		if husbandry.addRLMessage ~= nil then
-			if #self.animals == 1 then
-				husbandry:addRLMessage(string.format("MOVED_ANIMALS_%s_SINGLE", self.moveType), nil, { trailer:getName() })
-			elseif #self.animals > 0 then
-				husbandry:addRLMessage(string.format("MOVED_ANIMALS_%s_MULTIPLE", self.moveType), nil, { #self.animals, trailer:getName() })
-			end
-		end
+		self:addMovedMessage()
 
 		Log:debug("AnimalMoveEvent:run: complete")
 
 	end)
 
+end
+
+
+--- The pen's "animals moved" message after a successful move.
+function AnimalMoveEvent:addMovedMessage()
+	if g_server ~= nil and not g_server.netIsRunning then return end
+
+	local husbandry, trailer
+
+	if self.moveType == "SOURCE" then
+		husbandry, trailer = self.sourceObject, self.targetObject
+	else
+		husbandry, trailer = self.targetObject, self.sourceObject
+	end
+
+	if husbandry.addRLMessage ~= nil then
+		if #self.animals == 1 then
+			husbandry:addRLMessage(string.format("MOVED_ANIMALS_%s_SINGLE", self.moveType), nil, { trailer:getName() })
+		elseif #self.animals > 0 then
+			husbandry:addRLMessage(string.format("MOVED_ANIMALS_%s_MULTIPLE", self.moveType), nil, { #self.animals, trailer:getName() })
+		end
+	end
 end
 
 

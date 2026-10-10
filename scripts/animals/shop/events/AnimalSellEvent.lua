@@ -249,6 +249,24 @@ function AnimalSellEvent:run(connection)
 				tostring(clientTotal), quote.total, quote.price, quote.fee)
 		end
 
+		-- T02 batch 3 (RLLiveSale): in TEST the batch is one server transaction with a money
+		-- receipt and never falls back to the path below; SHADOW only logs what TEST would do.
+		-- OFF (the default) leaves the old path alone.
+		if RLLiveSale ~= nil and RLLiveSale.getMode() ~= RLLiveSale.MODE_OFF then
+			if RLLiveSale.getMode() == RLLiveSale.MODE_TEST then
+				local record, liveReason = RLLiveSale.executeManual(self.object, quote, farmId)
+				local liveCode = RLLiveSale.toSellErrorCode(record, liveReason)
+				reply(liveCode)
+				if liveCode == AnimalSellEvent.SELL_SUCCESS then
+					-- After the settled sale: a failing message never retries it.
+					local messaged, messageErr = pcall(self.addSoldMessage, self, #record.sale.removed, record.sale.amount)
+					if not messaged then RLLiveSale.noteNotification(record.id, messageErr) end
+				end
+				return
+			end
+			RLLiveSale.shadowManual(self.object, quote, farmId)
+		end
+
 		local removed, credit, err = AnimalSellEvent.commitSale(self.object, quote)
 		local numQuoted = #quote.clusters
 
@@ -265,17 +283,7 @@ function AnimalSellEvent:run(connection)
 
 		reply(AnimalSellEvent.SELL_SUCCESS)
 
-		-- Object may be a trailer on trailer-based dealer sales; only husbandry
-		-- placeables carry addRLMessage.
-		if self.object.addRLMessage ~= nil then
-			if removed == 1 then
-				self.object:addRLMessage("SOLD_ANIMALS_SINGLE", nil, { g_i18n:formatMoney(math.abs(credit), 2, true, true) })
-			else
-				self.object:addRLMessage("SOLD_ANIMALS_MULTIPLE", nil, { removed, g_i18n:formatMoney(math.abs(credit), 2, true, true) })
-			end
-		else
-			Log:trace("SellEvent:run: skipping addRLMessage (object has no husbandryAnimals spec, likely trailer sale) N=%d", removed)
-		end
+		self:addSoldMessage(removed, credit)
 
 		Log:debug("SellEvent:run: sold %d animals farmId=%s total=%s",
 			removed, tostring(farmId), tostring(credit))
@@ -285,6 +293,26 @@ function AnimalSellEvent:run(connection)
 	if not replied then
 		Log:error("SellEvent:run: failed before replying; reporting failure to the client")
 		connection:sendEvent(AnimalSellEvent.newServerToClient(AnimalSellEvent.SELL_ERROR_OBJECT_DOES_NOT_EXIST))
+	end
+
+end
+
+
+--- The pen's "animals sold" message after a successful sale.
+---@param removed number Animals sold
+---@param credit number Money paid for them
+function AnimalSellEvent:addSoldMessage(removed, credit)
+
+	-- Object may be a trailer on trailer-based dealer sales; only husbandry
+	-- placeables carry addRLMessage.
+	if self.object.addRLMessage ~= nil then
+		if removed == 1 then
+			self.object:addRLMessage("SOLD_ANIMALS_SINGLE", nil, { g_i18n:formatMoney(math.abs(credit), 2, true, true) })
+		else
+			self.object:addRLMessage("SOLD_ANIMALS_MULTIPLE", nil, { removed, g_i18n:formatMoney(math.abs(credit), 2, true, true) })
+		end
+	else
+		Log:trace("SellEvent:run: skipping addRLMessage (object has no husbandryAnimals spec, likely trailer sale) N=%d", removed)
 	end
 
 end

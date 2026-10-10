@@ -40,7 +40,22 @@ function RLConsoleCommandManager.new()
 
     -- Read-only debug commands - safe on SP, MP host, and MP client.
     addConsoleCommand("rlDumpSettings", "Dump effective RL settings to the log", "dumpSettings", self, "")
+    -- Trade report (RLTradeReportConsole): model meat vs facility units and recipe; changes nothing.
+    addConsoleCommand("rlTradeReport", "Slaughter facilities: model meat vs input unit and recipe in effect (read-only)", "report",
+        RLTradeReportConsole, "[facility] [uniqueId|pen:NAME] [farmId]")
+    addConsoleCommand("rlTradeTxReport", "T02 contract and sale transactions this run: state, stages, receipts, money actions, held locks (read-only)", "txReport",
+        RLTradeReportConsole, "[txId]")
+    if g_currentMission:getIsServer() then
+        -- Server only, never saved: OFF on every load. TEST is for test saves.
+        addConsoleCommand("rlTradeTxMode", "T02 contract delivery mode: OFF (old path), SHADOW (log only), TEST (transaction; test saves only)",
+            "txMode", RLTradeReportConsole, "[OFF|SHADOW|TEST]")
+        addConsoleCommand("rlTradeSaleMode", "T02 player/herdsman sale mode: OFF (old path), SHADOW (log only), TEST (transaction with money receipt; test saves only)",
+            "saleMode", RLTradeReportConsole, "[OFF|SHADOW|TEST]")
+    end
+    addConsoleCommand("rlTradePlan", "Read-only whole-batch contract budget (shadow, no reservation or delivery)", "plan",
+        RLTradeReportConsole, "<facility> <uniqueId|pen:NAME> [farmId]")
     addConsoleCommand("rlPenReport", "Log each profiled pen's rule, map filter, feed and animals (RLPEN PEN_REPORT)", "report", RLPenConsole, "[pen]")
+    addConsoleCommand("rlDealerCatalog", "Log what the dealer can sell per subtype (dealerStock.xml purposes, ages, gaps) and its pool (RLDEALER)", "catalog", RLDealerConsole, "[animalType]")
 
 	return self
 

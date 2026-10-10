@@ -14,6 +14,10 @@
 -- removed or paid. After the removal only the animals that left the source are paid, at the price
 -- quoted at execute. A failure after removal starts is recorded with its stage and never retried,
 -- refunded or rolled back here.
+--
+-- T02 batch 3: with RLLiveSale in TEST (rlTradeSaleMode; OFF by default) executeServer hands the
+-- quoted batch to RLLiveSale.executeAi - one transaction with a money receipt, a put-back only on a
+-- proven NOT_APPLIED payment - and a replayed sale id returns its first result. OFF is the above.
 
 AIAnimalSellEvent = {}
 
@@ -29,8 +33,8 @@ AIAnimalSellEvent.STATUS_FAILED = "failed"      -- failed during or after remova
 
 function AIAnimalSellEvent.emptyNew()
 
-    local self = Event.new(AIAnimalSellEvent_mt)
-    return self
+	local self = Event.new(AIAnimalSellEvent_mt)
+	return self
 
 end
 
@@ -118,6 +122,7 @@ local function identityKey(identity)
 	if country == nil then return nil end
 	return RLAnimalUtil.toKey(identity.farmId, identity.uniqueId, country)
 end
+AIAnimalSellEvent.identityKey = identityKey
 
 
 --- The number of entries in a batch that is a plain array 1..n, or nil for anything else: a table
@@ -251,15 +256,31 @@ end
 ---@param identities table Frozen identities from the plan
 ---@param sellerFarmId number The farm the plan belongs to; it must still own the source
 ---@param ctx table { server, mission } (g_server, g_currentMission)
+---@param saleId string|nil T02 batch 3 (RLLiveSale TEST): the transaction id, round + action
 ---@return table result
-function AIAnimalSellEvent.executeServer(object, identities, sellerFarmId, ctx)
+function AIAnimalSellEvent.executeServer(object, identities, sellerFarmId, ctx, saleId)
 
 	local requested = AIAnimalSellEvent.batchLength(identities) or 0
 	local result = { status = AIAnimalSellEvent.STATUS_REFUSED, requestedCount = requested, removedCount = 0,
 		settledCount = 0, amountGained = 0, quotedAmount = nil, failureStage = nil, reason = nil }
 
+	local liveTest = RLLiveSale ~= nil and RLLiveSale.getMode() == RLLiveSale.MODE_TEST
+	local liveShadow = RLLiveSale ~= nil and RLLiveSale.getMode() == RLLiveSale.MODE_SHADOW
+	local replayKeys
+	if liveTest and AIAnimalSellEvent.batchLength(identities) ~= nil then
+		replayKeys = {}
+		for i, identity in ipairs(identities) do
+			local key = identityKey(identity)
+			if key == nil then replayKeys = nil break end
+			replayKeys[i] = key
+		end
+	end
+
 	local function finish(status, stage, reason)
 		result.status, result.failureStage, result.reason = status, stage, reason
+		if liveTest and ctx ~= nil and ctx.server ~= nil and ctx.mission ~= nil then
+			RLLiveSale.rememberAiRefusal(saleId, object, replayKeys, sellerFarmId, result)
+		end
 		if status == AIAnimalSellEvent.STATUS_SOLD then
 			Log:debug("AIAnimalSellEvent.executeServer: sold %d animals farm=%s paid %.2f",
 				result.settledCount, tostring(sellerFarmId), result.amountGained)
@@ -278,6 +299,15 @@ function AIAnimalSellEvent.executeServer(object, identities, sellerFarmId, ctx)
 		return finish(AIAnimalSellEvent.STATUS_REFUSED, "server", "not running on the server")
 	end
 
+	-- T02 batch 3 (RLLiveSale): a replayed sale id returns its first result and sells nothing.
+	if liveTest and saleId ~= nil then
+		local replayed = RLLiveSale.replayAi(saleId, object, replayKeys, sellerFarmId, result)
+		if replayed ~= nil then
+			Log:info("AIAnimalSellEvent.executeServer: sale %s replayed (%s), nothing sold again", tostring(saleId), tostring(replayed.txState or replayed.reason))
+			return replayed
+		end
+	end
+
 	-- A throw while checking or pricing refuses the batch; nothing has been touched yet.
 	local quoted, quote, stage, reason = pcall(AIAnimalSellEvent.quoteSale, object, identities, sellerFarmId)
 	if not quoted then
@@ -287,6 +317,14 @@ function AIAnimalSellEvent.executeServer(object, identities, sellerFarmId, ctx)
 		return finish(AIAnimalSellEvent.STATUS_REFUSED, stage, reason)
 	end
 	result.quotedAmount = quote.total
+
+	-- TEST: one server transaction with a money receipt, never the path below. SHADOW only logs.
+	if liveTest then
+		result = RLLiveSale.executeAi(object, quote, sellerFarmId, ctx, saleId, result)
+		return finish(result.status, result.failureStage, result.reason)
+	elseif liveShadow then
+		RLLiveSale.shadow(RLLiveSale.AI, object, quote, sellerFarmId, ctx.mission)
+	end
 
 	local clusterSystem = object:getClusterSystem()
 
