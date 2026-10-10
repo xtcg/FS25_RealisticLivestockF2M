@@ -85,11 +85,24 @@ RLGrowth.ANCHOR_MAX = 5
 
 local bindingCache = setmetatable({}, { __mode = "k" })
 local nominalCache = {}
+local cacheConfig = nil
 
 --- Forget cached bindings and curves (after the config is replaced).
 function RLGrowth.resetCaches()
     bindingCache = setmetatable({}, { __mode = "k" })
     nominalCache = {}
+    cacheConfig = nil
+end
+
+
+--- The caches belong to one config table: a replaced config (a reload) empties them.
+local function checkCaches()
+    local config = RLWeightProfiles.config
+    if config ~= cacheConfig then
+        bindingCache = setmetatable({}, { __mode = "k" })
+        nominalCache = {}
+        cacheConfig = config
+    end
 end
 
 
@@ -118,6 +131,7 @@ end
 --- @return string resolution
 function RLGrowth.getBinding(subType)
     if subType == nil then return nil, "UNRESOLVED" end
+    checkCaches()
     local cached = bindingCache[subType]
     if cached == nil then
         local binding, resolution = RLWeightProfiles.getCurveBinding(subType)
@@ -199,6 +213,7 @@ end
 --- @param binding table
 --- @return table RLGrowthCurve
 function RLGrowth.getNominalCurve(binding)
+    checkCaches()
     local key = binding.profile .. "/" .. binding.sex
     local curve = nominalCache[key]
     if curve == nil then
@@ -934,7 +949,9 @@ function RLGrowth.getMigrationCatchUp(animal, state)
     if state.legacyAnchor == nil then return 0 end
     local remaining = RLGrowth.getAnchorRemaining(animal, state)
     if remaining <= 0 then return 0 end
-    local lag = RLGrowth.getContinuousAge(animal) - (state.developmentMonths or 0)
+    -- Lag behind its age on its curve: past the plateau month only what is left to the plateau.
+    local curve = RLGrowth.getCurve(animal)
+    local lag = math.min(RLGrowth.getContinuousAge(animal), curve.endMonth) - (state.developmentMonths or 0)
     if lag <= 0 then return 0 end
     return math.min(lag / (remaining * RLGrowth.getSettings().migrationBlendMonths), RLGrowth.CATCH_UP_MAX)
 end
@@ -1174,6 +1191,23 @@ RLGrowth.TRUSTED_BIRTH = { 0.2, 3 }
 RLGrowth.TRUSTED_STAGE = { 0.05, 3 }
 
 
+--- The server's own animal is the authority on its weight and its states: a copy built from a
+--- client's payload (AnimalMoveEvent puts the payload into the target pen) takes them, legacy
+--- anchor, clocks and the hour of its last step included, so a move neither drops a take-over
+--- nor lets the animal step twice in one hour.
+--- @param copy table The payload animal
+--- @param live table The server's animal
+function RLGrowth.takeLiveState(copy, live)
+    if copy == nil or live == nil or copy == live then return end
+    copy.weight = live.weight
+    copy.targetWeight = live.targetWeight
+    copy.bodyCondition = RLBodyCondition.copyState(live.bodyCondition)
+    copy.rlGrowth = RLGrowth.copyState(live.rlGrowth)
+    copy.rlGrowthDropped = live.rlGrowthDropped
+    copy.rlGrowthCurve, copy.rlGrowthPeek = nil, nil
+end
+
+
 --- Keep a state that came from elsewhere (a stream; a client's with an animal it buys) within its
 --- animal's breed: an adult or birth weight far off the breed's, a development past the curve,
 --- a stage factor out of reach are pulled back, and a client's legacy anchor is dropped.
@@ -1183,8 +1217,9 @@ RLGrowth.TRUSTED_STAGE = { 0.05, 3 }
 --- @return table|nil state
 function RLGrowth.sanitizeState(animal, state, fromClient)
     if state == nil then return state end
-    -- A client never sends an old savegame's take-over (the dealer's animals have none): an
-    -- anchor from one is not taken. Otherwise its clock stays within the blend.
+    -- A client never sends an old savegame's take-over (the dealer's animals have none; a moved
+    -- animal takes the server's own state, takeLiveState): an anchor from one is not taken.
+    -- Otherwise its clock stays within the blend.
     if fromClient then state.legacyAnchor, state.anchorElapsedMonths = nil, nil end
     if state.legacyAnchor ~= nil then
         state.anchorElapsedMonths = math.clamp(state.anchorElapsedMonths or 0, 0, RLGrowth.getSettings().migrationBlendMonths)
@@ -1283,12 +1318,6 @@ end
 -- Report
 -- =============================================================================
 
---- What the game offers the model for a subtype's animals: whether they are individual animals
---- here, whether the subtype file gives weights, whether they reproduce, and how many are loaded
---- as individuals and as vanilla clusters.
---- @param subType table
---- @param counts table|nil countHeldAnimals(), counted once for a whole report
---- @return table
 --- How many animals of each subtype the husbandries hold, as individuals and in vanilla clusters
 --- (one pass over every pen).
 --- @return table subTypeIndex -> { individuals, clusters }
@@ -1315,6 +1344,12 @@ function RLGrowth.countHeldAnimals()
 end
 
 
+--- What the game offers the model for a subtype's animals: whether they are individual animals
+--- here, whether the subtype file gives weights, whether they reproduce, and how many are loaded
+--- as individuals and as vanilla clusters.
+--- @param subType table
+--- @param counts table|nil countHeldAnimals(), counted once for a whole report
+--- @return table
 function RLGrowth.describeCapability(subType, counts)
     counts = counts or RLGrowth.countHeldAnimals()
     local held = counts[subType.subTypeIndex] or { individuals = 0, clusters = 0 }

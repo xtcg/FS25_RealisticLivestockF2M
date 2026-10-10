@@ -1189,10 +1189,13 @@ function Animal:updateHealth(foodFactor) AnimalHealth.updateHealth(self, foodFac
 --- the growth only: the decrease terms stay exactly as a healthy animal's.
 ---@param foodFactor number The pen's 0..1 food factor
 ---@return nil
-function Animal:updateWeight(foodFactor)
+---@param targetWeight number|nil The target the old rule runs to (default the animal's own; the
+---        weight model v2's fallback passes the old-rule target, RLGrowth.getLegacyTarget)
+function Animal:updateWeight(foodFactor, targetWeight)
     local dtMonths = RLWeightMath.getHourMonths(g_currentMission.environment.daysPerPeriod)
+    targetWeight = targetWeight or self.targetWeight
 
-    local increase = self:getFullFeedGain() * self:getGrowthNutrition(foodFactor) * dtMonths
+    local increase = self:getFullFeedGain(targetWeight) * self:getGrowthNutrition(foodFactor) * dtMonths
 
     if self.clusterSystem ~= nil and self.clusterSystem.owner ~= nil and self.clusterSystem.owner.spec_husbandryMilk ~= nil and self.isLactating then increase =
         increase * 0.75 end
@@ -1202,7 +1205,7 @@ function Animal:updateWeight(foodFactor)
             tostring(self.farmId), tostring(self.uniqueId), tostring(self.weight), tostring(self.targetWeight))
     end
 
-    self.weight = RLWeightMath.stepLegacy(self.weight, self.targetWeight, increase, self.genetics.metabolism,
+    self.weight = RLWeightMath.stepLegacy(self.weight, targetWeight, increase, self.genetics.metabolism,
         foodFactor == 0, dtMonths)
 
     self:applyUnderweightPenalty()
@@ -1212,10 +1215,11 @@ end
 --- (RLBreedTraits.getLineGain: base gain x sex x age x metabolism x breed growth, never negative)
 --- x 1.15 for a steer x the disease weight gain. The old weight rule and the body condition budget
 --- both start from it.
+---@param targetWeight number|nil Default the animal's own
 ---@return number gainKg per period (>= 0)
 ---@return number healthyGainKg the same without the disease (>= 0)
-function Animal:getFullFeedGain()
-    local gain = RLBreedTraits.getLineGain(self:getSubType(), self.gender, self.targetWeight, self.age,
+function Animal:getFullFeedGain(targetWeight)
+    local gain = RLBreedTraits.getLineGain(self:getSubType(), self.gender, targetWeight or self.targetWeight, self.age,
         self.genetics.metabolism)
 
     if self.isCastrated then gain = gain * 1.15 end

@@ -42,9 +42,13 @@ function AnimalHealth.updateHealth(animal, foodFactor)
     AnimalHealth.updateHealthOnly(animal, foodFactor)
 
     if RLGrowth.covers(animal) then
-        -- No game hour to count the step in: the old rule for this hour (the next step takes the
-        -- weight it leaves as it is).
-        if RLGrowth.step(animal, foodFactor) then animal:applyUnderweightPenalty() else animal:updateWeight(foodFactor) end
+        -- No game hour to count the step in: the old rule for this hour, to its old target (the
+        -- next step takes the weight it leaves as it is).
+        if RLGrowth.step(animal, foodFactor) then
+            animal:applyUnderweightPenalty()
+        else
+            animal:updateWeight(foodFactor, RLGrowth.getLegacyTarget(animal:getSubType(), animal.genetics.metabolism))
+        end
     elseif RLBodyCondition.step(animal) then
         animal:applyUnderweightPenalty()
     else

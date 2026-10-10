@@ -322,6 +322,17 @@ do
         handled and bull.rlGrowth.lastTick == RLBodyCondition.getTickId() and bull.rlGrowth.source == "birth"
         and RLGrowth.step(bull, 1) == true and bull.weight == after)
 
+    -- In multiplayer the server puts a client's payload copy into the target pen: it takes the live
+    -- animal's state, anchor and last step's hour included, so it does not step again this hour.
+    local payload = GrowthSim.makeAnimal("BULL_ANGUS", { age = 0 })
+    payload.rlGrowth.lastTick = -1
+    payload.weight = after - 3
+    G.takeLiveState(payload, bull)
+    payload.clusterSystem = { owner = GrowthSim.makePen({ payload }) }
+    check("adapter: a moved payload copy takes the server animal's weight and state, and is not stepped twice in the hour",
+        payload.weight == after and payload.rlGrowth ~= bull.rlGrowth and payload.rlGrowth.lastTick == bull.rlGrowth.lastTick
+        and G.step(payload, 1) == true and payload.weight == after)
+
     -- Moved to a pen without a ledger in the same hour: done, no second step by any rule.
     bull.clusterSystem = { owner = GrowthSim.makePen() }
     check("adapter: an animal moved within the hour is not stepped again", RLGrowth.step(bull, 1) and bull.weight == after)
@@ -462,6 +473,14 @@ do
     local share = bull.weight / G.getCurve(bull):value(bull.age)
     check(string.format("migration: left behind its curve by the change of model, it caught up on full feed meanwhile (development %.1f at %d months, %.0f%% of its curve), not counted stunted",
         bull.rlGrowth.developmentMonths, bull.age, share * 100), lag < 0.6 and share > 0.97 and G.getMigrationCatchUp(bull, bull.rlGrowth) == 0)
+
+    -- An old cow past her curve's plateau month catches up only what is left to the plateau.
+    local oldCow = GrowthSim.makeAnimal("COW_HOLSTEIN", { age = 100, weight = 726 })
+    local oldState = G.ensureState(oldCow)
+    local expected = (G.getCurve(oldCow).endMonth - oldState.developmentMonths) / settings.migrationBlendMonths
+    check(string.format("migration: past the plateau month the catch-up closes only the lag to the plateau (%.3f months a month)",
+        G.getMigrationCatchUp(oldCow, oldState)), near(G.getMigrationCatchUp(oldCow, oldState), math.min(expected, G.CATCH_UP_MAX), 1e-9)
+        and expected < G.CATCH_UP_MAX)
 
     -- Growth lost for want of feed, by contrast, never catches up (no anchor, no catch-up).
     local fed = GrowthSim.makeAnimal("BULL_HIGHLAND_CATTLE", { age = 12 })
@@ -1077,6 +1096,19 @@ do
     routed(legacy)
     check(string.format("routing: a covered calf takes the v2 step (+%.2f kg) and never the old weight rule; an uncovered one the old rule",
         gain), gain > 0 and v2Calls == 0 and calls == 1)
+
+    -- No game hour to count a step in: the old rule this hour, run to the old target.
+    local strong = GrowthSim.makeAnimal("BULL_ANGUS", { age = 3, genetics = { metabolism = 1.5, quality = 1, productivity = 1, fertility = 1, health = 1 } })
+    local usedTarget
+    local sub = strong:getSubType()
+    sub.healthThresholdFactor, sub.healthIncreaseHour, sub.healthDecreaseHour = 0.5, 1, 1
+    strong.updateWeight = function(_, _, target) usedTarget = target end
+    local day = GrowthSim.env.currentMonotonicDay
+    GrowthSim.env.currentMonotonicDay = nil
+    AnimalHealth.updateHealth(strong, 1)
+    GrowthSim.env.currentMonotonicDay = day
+    check(string.format("routing: with no game hour a covered animal takes the old rule to its old target (%.0f kg, not the size gene's %.0f)",
+        usedTarget or -1, strong.targetWeight), near(usedTarget or 0, 1000 * 1.2, 1e-9) and strong.targetWeight < 1100)
 end
 
 
