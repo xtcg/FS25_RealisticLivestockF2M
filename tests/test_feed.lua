@@ -213,14 +213,14 @@ do
 end
 
 do
-    check("grain: the cattle troughs' grain group is the map's grains no cattle group lists (MAIZE BARLEY OAT WHEAT), registered once",
+    check("grain: the cattle troughs' grain group is the map's grains and peas no cattle group lists (MAIZE BARLEY OAT WHEAT PEA), registered once",
         (function()
             local groups, grain = FeedSim.cowFood.groups, nil
             local count = 0
             for _, g in ipairs(groups) do if g.rlGrain then grain, count = g, count + 1 end end
             RLFeed.registerCattleGrains(g_currentMission.animalFoodSystem)
             for _, g in ipairs(groups) do if g.rlGrain then count = count + 1 end end
-            return grain ~= nil and count == 2 and #grain.fillTypes == 4 and grain.productionWeight == 0
+            return grain ~= nil and count == 2 and #grain.fillTypes == 5 and grain.fillTypes[5] == FILL.PEA and grain.productionWeight == 0
         end)())
 end
 

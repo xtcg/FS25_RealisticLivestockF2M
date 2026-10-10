@@ -1,4 +1,8 @@
-"""Offline candidate sweep. Does not mutate shipped mod parameters.
+"""Offline candidate sweep (Codex, 2026-10-11). Does not mutate shipped mod parameters.
+
+Historical: it tunes intake.calfPerKgMetabolic, the calf appetite FEED-11 replaced (the calf's milk
+allowance and solid capacity are separate since); its calf sections reproduce only on commit
+5ff7f71 or earlier. The FEED-11 calibration is tests/feedbalance/calf.py.
 Run: python3 tests/feedbalance/calibrate.py [output_directory]
 Uses the same pack and Lua54 harness bootstrap as run.py.
 """

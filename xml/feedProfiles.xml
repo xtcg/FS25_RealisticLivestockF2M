@@ -44,13 +44,33 @@
     catabolismMEPerKg            ME a kg of frame gives back once the reserve is spent.
     pregnancyFactor              Extra ME per fetus at term, as a share of maintenance.
 
+    calf (a calf on milk, NRC 2001 "Nutrient requirements of the young calf"; ME and NE in MJ / Mcal)
+    maintenanceMEPerKgMetabolic  ME for maintenance of a milk-fed calf per kg^0.75 (0.1 Mcal ME =
+                                 NEm 0.086 / km 0.86). It moves to the adult value with the calf's milk
+                                 cap (milkMax, calfRearing.xml): weaned, the adult value exactly.
+    negCoefficient,              The energy in its gain: NEg (Mcal a day) = negCoefficient x
+    negWeightExponent,           W^negWeightExponent x LWG^negGainExponent, LWG the gain of its own
+    negGainExponent              curve around its growth phase (at least minGainKgPerDay), so a kg of
+    minGainKgPerDay              gain holds NEg / LWG.
+    kgMilk, kgSolid              Efficiency of ME for gain from milk (0.69) and from dry feed (0.57); a
+                                 calf's moves from the first to the second with its milkMax, and its
+                                 cost a kg of gain into the adult cost (requirements) the same way, so
+                                 a weaned calf - and every animal from 8 months - pays the adult cost.
+                                 About 20 MJ ME a kg at birth, 25 at two months: above the adult floor
+                                 (growthMEPerKgMin), as NRC's calf values are.
+    The plan and the step's settlement use the same values (RLFeed.getGrowthCost,
+    RLFeed.getCalfMaintenanceFactor).
+
     intake (kg DM per real day)
     growingPerKgMetabolic        Most a growing or finishing animal eats, per kg^0.75 (NRC 2000).
     dryPerKgMetabolic            The same for a cow that has calved and is dry.
     lactatingPerKgMetabolic,     A lactating cow: this x kg^0.75 + lactatingPerKgMilk x real milk
     lactatingPerKgMilk           (kg a day) (NRC 2001).
-    calfPerKgMetabolic           A calf on milk; it moves to the growing value from one month
-                                 before weaning to one month after (calfRearing.xml).
+    calfSolidPerKgMetabolic      Solid feed a calf on milk's rumen takes at full solidMax, per
+                                 kg^0.75; x its solidMax (calfRearing.xml), moving to the growing
+                                 value from one month before weaning to one month after. Its milk
+                                 is its allowance (calfMilk), apart from this; milk and solids
+                                 together stay within the growing value.
     ndfFill*                     NDF an animal can hold, as a share of live weight (Mertens: 1.2%):
                                  a bulky ration fills it before the animal's appetite is met.
     All intakes x the maintenance gene's factor (weightProfiles.xml maintenanceGeneEffect).
@@ -92,7 +112,9 @@
     calfMilk: separate intake ceiling, in prepared standard milk (not powder). realLitersPerDay
     is 10 L/day for a reference Holstein, density 1.03 kg/L and dm 0.125 define that reference
     liquid. Scale its DM allowance by breed/sex mean birth weight relative to a Holstein of the
-    same sex and by calfRearing milkMax, once. Appetite can further reduce it. No extra gene
+    same sex to sizeExponent (0.75: feeding guides give a Jersey about three quarters of a
+    Holstein's milk, more than her weight share) and by calfRearing milkMax, once. Total
+    appetite can further reduce it. No extra gene
     multiplier and no growth in the ceiling with current live weight. At default scale 0.125 and 30 days,
     the reference ceiling is 37.5 game L/month before weaning reduction, not guaranteed intake.
     This is a game calibration (8-10 real L/day), not a biological maximum; milk energy and
@@ -113,6 +135,11 @@
     peFactor     Physically effective share of the NDF.
     starch, sugar  Share of DM (starch + sugar: fermentable).
     stages       Feeding stages it may be fed in (PRE_WEANING WEANING WEANED; calfRearing.xml).
+                 A calf on milk eats concentrate its stage allows as a starter, with the forage
+                 (CALF rules: fermentableMax), at the feed's own ME; the calf's solidEnergy
+                 (rumen development) discounts forage and complete rations only.
+    maxShare     Most of a ration's DM the feed may make (optional; wheat: the ration's
+                 wheatMaxShare); the concentrate share is held there (limit FEED_CAP; WHEAT for wheat).
     source, year Evidence.
 
     Sources (checked 2026-10-10): OSU "Nutritive value of feeds for beef cattle" (DM/CP/TDN of
@@ -131,13 +158,16 @@
         growthMEPerKgMin="18" reserveDepositMEPerKg="52" reserveMobilizeMEPerKg="38" catabolismMEPerKg="10"
         pregnancyFactor="0.35"/>
 
+    <calf maintenanceMEPerKgMetabolic="0.42" negCoefficient="0.84" negWeightExponent="0.355" negGainExponent="1.2"
+        kgMilk="0.69" kgSolid="0.57" minGainKgPerDay="0.2"/>
+
     <intake growingPerKgMetabolic="0.105" dryPerKgMetabolic="0.090" lactatingPerKgMetabolic="0.0968"
-        lactatingPerKgMilk="0.372" calfPerKgMetabolic="0.060"
+        lactatingPerKgMilk="0.372" calfSolidPerKgMetabolic="0.105"
         ndfFillGrowing="0.0125" ndfFillDry="0.0115" ndfFillLactating="0.0135" ndfFillCalf="0.0100"/>
 
     <health extremeUnderweightRatio="0.45" shortageBufferDays="3"/>
 
-    <calfMilk realLitersPerDay="10" density="1.03" dm="0.125"/>
+    <calfMilk realLitersPerDay="10" density="1.03" dm="0.125" sizeExponent="0.75"/>
 
     <protein maintenance="0.065" calf="0.18" young="0.14" growing="0.12" finishing="0.105"
         lactating="0.16" dry="0.10" youngUntilMonth="8" growingUntilMonth="14" lactatingAtKg="30"/>
@@ -228,6 +258,10 @@
         density="0.70" dm="0.23" tdn="80" meBasis="TDN_NRC2000" cp="0.07" ndf="0.12" peFactor="0.3"
         starch="0" sugar="0.65" stages="WEANED"
         source="Fodder/sugar beet roots, NRC 2000; density = engine massPerLiter" year="2000"/>
+    <feed fillType="PEA" role="CONCENTRATE" status="TYPICAL" form="field pea grain, whole"
+        density="0.80" dm="0.89" tdn="87" meBasis="TDN_NRC2000" cp="0.24" ndf="0.15" peFactor="0.4"
+        starch="0.46" sugar="0.05" maxShare="0.40" stages="PRE_WEANING WEANING WEANED"
+        source="NRC 2000 book value (TDN 87); CP/NDF/starch/sugar Feedipedia pea seeds; NDSU AS-1301 field peas up to 40% of growing diets and calf starters; density = Hof Bergmann massPerLiter (base game 0.72)" year="2000"/>
     <feed fillType="GRAINGRIST" role="CONCENTRATE" status="UNCONFIGURED" form="map grain grist, recipe unknown"
         source="Hof Bergmann pig feed; not a fixed maize/wheat mix" year="0"/>
 

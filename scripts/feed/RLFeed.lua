@@ -48,6 +48,9 @@ RLFeed.mode = RLFeed.MODE_LEGACY
 RLFeed.TARGETS = { "AUTO", "FINISH", "GROW", "MAINTAIN" }
 --- Grains cattle troughs take, in the order AUTO takes them (wheat last: it has its own limit).
 RLFeed.GRAINS = { "MAIZE", "BARLEY", "OAT", "WHEAT" }
+--- Other concentrates cattle troughs take with the grains (a protein feed: a calf's starter with
+--- the ration's forage), after them in AUTO's order.
+RLFeed.SUPPLEMENTS = { "PEA" }
 --- Highest concentrate share target a pen may set (nil: as much as the ration rules allow).
 RLFeed.MAX_SHARE = 0.8
 
@@ -360,6 +363,43 @@ function RLFeed.getMilkBridge(animal, potentialPerPeriod)
 end
 
 
+--- A calf's maintenance against the adult value: NRC 2001's milk-fed calf (requirements
+--- calfMaintenanceMEPerKgMetabolic: 0.1 Mcal ME/kg^0.75) by the share of milk it may still drink
+--- (milkMax halfway through the step), the adult value once weaned (1). The plan and the step's
+--- settlement both use it.
+--- @param animal table
+--- @param dtMonths number|nil
+--- @return number factor on maintenance
+function RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
+    local milkMax = getCalfCaps(animal, 0.5 * (dtMonths or 0))
+    if milkMax <= 0 then return 1 end
+    local config = RLFeed.getConfig()
+    local calf = config.calf.maintenanceMEPerKgMetabolic / config.requirements.maintenanceMEPerKgMetabolic
+    return 1 + (calf - 1) * math.clamp(milkMax, 0, 1)
+end
+
+
+--- ME a kg of an animal's growth costs: the adult cost at its weight; a calf on milk NRC 2001's
+--- young calf at its curve's gain (its growth phase, a real day) and its milk cap halfway through
+--- the step (RLFeedMath.getCalfGrowthCost). The plan and the step's settlement both use it.
+--- @param animal table
+--- @param dtMonths number|nil
+--- @return number MJ ME per kg
+function RLFeed.getGrowthCost(animal, dtMonths)
+    local config = RLFeed.getConfig()
+    local adult = RLFeedMath.getGrowthCost(animal.weight or 0, config.requirements)
+    local milkMax = getCalfCaps(animal, 0.5 * (dtMonths or 0))
+    if milkMax <= 0 then return adult end
+    -- Its curve's gain a real day over the month around its growth phase (from birth: its first month).
+    local curve = RLGrowth.getCurve(animal)
+    local state = RLGrowth.peekState(animal)
+    local phase = state ~= nil and state.developmentMonths or RLGrowth.getContinuousAge(animal)
+    local from = math.max(phase - 0.5, 0)
+    local gain = curve ~= nil and (curve:value(from + 1) - curve:value(from)) / config.realDaysPerPeriod or 0
+    return RLFeedMath.getCalfGrowthCost(animal.weight or 0, gain, milkMax, config.calf, adult)
+end
+
+
 --- The weight model's step input for an animal before it eats, in ME units: its frame, reserve,
 --- development, genes, pregnancy and milk at full feed, with the growth cost of its weight and the
 --- ME of its milk.
@@ -369,7 +409,8 @@ local function buildEnergyInput(animal, dtMonths)
     local state = RLGrowth.peekState(animal)
     local input = RLGrowth.buildStepInput(animal, state, 0, 1, dtMonths, true)
     local config = RLFeed.getConfig()
-    input.growthCostPerKg = RLFeedMath.getGrowthCost(animal.weight or 0, config.requirements)
+    input.maintenanceFactor = (input.maintenanceFactor or 1) * RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
+    input.growthCostPerKg = RLFeed.getGrowthCost(animal, dtMonths)
     local _, mePerLiter = RLFeed.getMilkBridge(animal, input.potentialMilk)
     input.milkCostPerLiter = mePerLiter
     return input, RLFeed.getEnergyConfig()
@@ -419,8 +460,11 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
     return {
         animal = animal, class = class, target = target, stage = getFeedStage(animal, milkMax),
         appetite = RLFeedMath.getAppetite(weight, class, config.intake, { milkKgPerDay = milkKg, weaningX = weaningX, gene = gene }),
+        -- A calf on milk: what its rumen takes of solids, at its solidMax.
+        solidCap = class == "CALF" and solidMax * RLFeedMath.getCalfSolidCapacity(weight, config.intake, weaningX, gene) or nil,
         fill = RLFeedMath.getFillCapacity(weight, class, config.intake, gene),
-        concEligible = class ~= "CALF",
+        -- Every animal may eat concentrate its feeding stage allows (a calf: a starter feed).
+        concEligible = true,
         adapted = state.feedAdapted or 0,
         milkMax = class == "CALF" and milkMax or 0,
         milkMaxKgPerDay = milkLimit,
@@ -935,7 +979,8 @@ end
 function RLFeed.applyStepInput(animal, input, feed, dtMonths)
     local config = RLFeed.getConfig()
     input.supplyPerPeriod = dtMonths > 0 and feed.me / dtMonths or 0
-    input.growthCostPerKg = RLFeedMath.getGrowthCost(animal.weight or 0, config.requirements)
+    input.maintenanceFactor = (input.maintenanceFactor or 1) * RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
+    input.growthCostPerKg = RLFeed.getGrowthCost(animal, dtMonths)
     local _, mePerLiter = RLFeed.getMilkBridge(animal, input.potentialMilk)
     input.milkCostPerLiter = mePerLiter
     local protein = feed.proteinFactor or 0
@@ -1043,9 +1088,11 @@ function RLFeed.registerCattleGrains(foodSystem)
         for _, index in ipairs(group.fillTypes or {}) do used[index] = true end
     end
     local fillTypes = {}
-    for _, name in ipairs(RLFeed.GRAINS) do
-        local index = fillTypeIndex(name)
-        if index ~= nil and not used[index] then table.insert(fillTypes, index) end
+    for _, list in ipairs({ RLFeed.GRAINS, RLFeed.SUPPLEMENTS }) do
+        for _, name in ipairs(list) do
+            local index = fillTypeIndex(name)
+            if index ~= nil and not used[index] then table.insert(fillTypes, index) end
+        end
     end
     if #fillTypes == 0 then return end
     table.insert(animalFood.groups, { title = g_i18n:getText("rl_feed_grainGroup"), productionWeight = 0, eatWeight = 1,

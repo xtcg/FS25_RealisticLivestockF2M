@@ -5,23 +5,27 @@
     the request from the pen and its animals and removes the liters this returns.
 
     Order, per feeding:
-    1. Milk. A calf on milk plans milkMax of its appetite, capped by its real milk allowance;
+    1. Milk. A calf on milk plans its milk allowance (milkMax applied), within its total appetite;
        the pen's milk is taken in feed order and shared by plan.
     2. Ration. Each animal's ration is the pen's forage (complete rations and forages, taken in feed
-       order, so the forage the pen will actually eat sets its quality) and, for an animal past
-       weaning, the pen's concentrate at share c of the DM:
+       order, so the forage the pen will actually eat sets its quality) and the concentrate its
+       feeding stage may eat (a calf on milk: a starter) at share c of the DM:
            c = min(the pen's target share (none: as much as allowed),
-                   what keeps the ration's effective fibre, starch + sugar and wheat in bounds,
+                   what keeps the ration's effective fibre, starch + sugar and each capped feed
+                   (wheat, peas: maxShare) in bounds,
                    what the animal's rumen is adapted to + stepAllowance)
        and less in step when the concentrate in stock cannot cover every animal's share. Its intake
-       is the least of its appetite, what the ration's bulk lets it eat (NDF fill) and - when it
-       eats for a target rather than freely - its energy demand over the ration's ME.
+       is the least of its appetite (a calf on milk: its rumen's solid capacity beside the milk),
+       what the ration's bulk lets it eat (NDF fill) and - when it eats for a target rather than
+       freely - its energy demand over the ration's ME. A calf's rumen draws less from forage
+       (solidEnergy); concentrate counts at its own ME. A calf eating freely is scored on the
+       protein of milk and solids together.
        This is worked out twice: first on the forage the stock would give for the animals'
        appetites, then on the forage their planned intake actually takes.
     3. Forage is taken; when it runs short every animal gets the same share of its plan.
     4. Concentrate is taken, at most what each animal's forage eaten keeps within its share (no
-       concentrate without roughage: what is not eaten stays in the trough), wheat at most
-       wheatMaxShare of the pen's ration.
+       concentrate without roughage: what is not eaten stays in the trough), each capped feed at
+       most its maxShare of the pen's ration.
     5. Each animal's DM, ME and crude protein from what it got; liters per fill type by its share of
        each feed taken.
     A shortage is never made up by valuing the rest higher: what was not eaten carries nothing.
@@ -61,11 +65,47 @@ local function availableKg(list)
 end
 
 
---- A concentrate mix as the stock would give it for `needKg`, and wheat's share of it.
-local function concentrateMix(list, needKg, wheatCapKg)
-    local _, total, parts = RLFeedRationPlanner.takeSerial(list, needKg, { WHEAT = wheatCapKg }, false)
+--- Each capped feed's most kg in a ration of `rationKg` DM (its profile's maxShare: wheat's 30 %).
+local function feedCaps(list, rationKg)
+    local caps = {}
+    for _, entry in ipairs(list) do
+        if entry.profile.maxShare ~= nil then caps[entry.name] = entry.profile.maxShare * rationKg end
+    end
+    return caps
+end
+
+
+--- The capped feeds' shares of a concentrate mix: { { name, share, max }, ... } in stock order.
+local function cappedShares(list, mix)
+    local out = {}
+    if mix == nil then return out end
+    for _, entry in ipairs(list) do
+        local share = mix.shares[entry.name]
+        if entry.profile.maxShare ~= nil and share ~= nil and share > 0 then
+            out[#out + 1] = { name = entry.name, share = share, max = entry.profile.maxShare }
+        end
+    end
+    return out
+end
+
+
+--- A concentrate mix as the stock would give it for `needKg`, each capped feed at most its share
+--- of a ration of `rationKg`, and the capped feeds' shares of it.
+local function concentrateMix(list, needKg, rationKg)
+    local _, total, parts = RLFeedRationPlanner.takeSerial(list, needKg, feedCaps(list, rationKg), false)
     local mix = RLFeedMath.compose(parts)
-    return mix, mix ~= nil and (mix.shares.WHEAT or 0) or 0, total
+    return mix, cappedShares(list, mix), total
+end
+
+
+--- Most solid DM an animal may eat over a step: its appetite; a calf on milk its rumen's solid
+--- capacity (solidCap, kg a day) and what its total appetite leaves beside the milk it drinks.
+function RLFeedRationPlanner.getSolidCap(a, dt)
+    if a.milkMax ~= nil and a.milkMax > 0 then
+        local solid = a.solidCap ~= nil and a.solidCap * dt or (a.solidMax or 1) * a.appetite * dt
+        return math.max(math.min(solid, a.appetite * dt - (a.milkKg or a.milkPlanKg or 0)), 0)
+    end
+    return a.appetite * dt
 end
 
 
@@ -81,15 +121,18 @@ local function evaluate(a, c, forageMix, concMix, request)
         concEff = { me = concMix.me * util, cp = concMix.cp, ndf = concMix.ndf, peNdf = concMix.peNdf,
             fermentable = concMix.fermentable, starch = concMix.starch }
     end
-    local mix = RLFeedMath.blend(forageMix, concEff, c)
+    -- A calf's rumen draws less from forage (solidEnergy); concentrate it eats at its own worth.
+    local forageEff = forageMix
+    if forageMix ~= nil and (a.solidEnergy or 1) < 1 then
+        forageEff = { me = forageMix.me * a.solidEnergy, cp = forageMix.cp, ndf = forageMix.ndf, peNdf = forageMix.peNdf,
+            fermentable = forageMix.fermentable, starch = forageMix.starch }
+    end
+    local mix = RLFeedMath.blend(forageEff, concEff, c)
     if mix == nil or forageMix == nil then return nil end
 
     local dt = request.dtDays
-    local cap = a.appetite * dt
-    if a.milkMax ~= nil and a.milkMax > 0 then
-        cap = math.max(math.min((a.solidMax or 1) * a.appetite * dt, a.appetite * dt - a.milkKg), 0)
-    end
-    local me = mix.me * (a.solidEnergy or 1)
+    local cap = RLFeedRationPlanner.getSolidCap(a, dt)
+    local me = mix.me
     local needs = a.needs or {}
     local maintenance = (needs.maintenance or 0) + (needs.pregnancy or 0)
     local production = (needs.growth or 0) + (needs.milk or 0)
@@ -103,6 +146,11 @@ local function evaluate(a, c, forageMix, concMix, request)
     end
     if demandStep ~= nil then demandStep = math.max(demandStep - a.milkKg * (a.milkME or 0), 0) end
     local kg, limit = RLFeedMath.getIntake(cap, a.fill * dt, { me = me, ndf = mix.ndf }, demandStep)
+    if demandStep == nil and (a.milkKg or 0) > 0 and kg + a.milkKg > 0 then
+        -- A calf eating freely: the protein of all it takes, milk and solids together (as settled).
+        local cp = (kg * mix.cp + a.milkKg * (a.milkCP or 0)) / (kg + a.milkKg)
+        protein = RLFeedMath.getProteinFactor(cp, a.proteinNeed or 0, request.proteinMaintenance or 0)
+    end
 
     local energy = dt > 0 and (kg * me + a.milkKg * (a.milkME or 0)) / dt - maintenance or 0
     local paid = protein * math.min(math.max(energy, 0), production)
@@ -122,12 +170,11 @@ RLFeedRationPlanner.AUTO_STEP = 0.05
 ---   eaten to a demand, need not add energy;
 ---   then at most what the animal's rumen is adapted to (continuous, so the step-up is the same
 ---   at any hour length), and less in step when the stock cannot cover every animal's share.
-local function planAnimal(a, forageMix, concMix, wheatShare, concScale, request, estimate)
+local function planAnimal(a, forageMix, concMix, capped, concScale, request, estimate)
     local ration = request.ration
     local c, limit = 0, nil
     if a.concEligible and concMix ~= nil then
-        local cLimit, why = RLFeedMath.getConcentrateLimit(forageMix, concMix, request.classes[a.class], wheatShare,
-            ration.wheatMaxShare)
+        local cLimit, why = RLFeedMath.getConcentrateLimit(forageMix, concMix, request.classes[a.class], capped)
         c, limit = cLimit, why
         if request.share ~= nil then
             if request.share < c then c, limit = request.share, "TARGET" end
@@ -240,9 +287,12 @@ function RLFeedRationPlanner.plan(request)
     for _, group in ipairs(groups) do
         local need = 0
         for _, a in ipairs(group.animals) do
-            a.milkPlanKg = (a.milkMax ~= nil and a.milkMax > 0) and math.min(a.milkMax, 1) * a.appetite * dt or 0
-            if a.milkMaxKgPerDay ~= nil then
-                a.milkPlanKg = math.min(a.milkPlanKg, math.max(a.milkMaxKgPerDay, 0) * dt)
+            -- A calf drinks its milk allowance (milkMaxKgPerDay, already at its milkMax), within
+            -- its total appetite; without an allowance, milkMax of its appetite.
+            a.milkPlanKg = 0
+            if a.milkMax ~= nil and a.milkMax > 0 then
+                local allowance = a.milkMaxKgPerDay ~= nil and math.max(a.milkMaxKgPerDay, 0) or math.min(a.milkMax, 1) * a.appetite
+                a.milkPlanKg = math.min(allowance, a.appetite) * dt
             end
             need = need + a.milkPlanKg
         end
@@ -254,6 +304,7 @@ function RLFeedRationPlanner.plan(request)
         for _, a in ipairs(group.animals) do
             a.milkKg = a.milkPlanKg * fulfil
             a.milkME = group.milkMix ~= nil and group.milkMix.me or 0
+            a.milkCP = group.milkMix ~= nil and group.milkMix.cp or 0
         end
     end
 
@@ -261,28 +312,27 @@ function RLFeedRationPlanner.plan(request)
     for _, group in ipairs(groups) do
         local appetite, eligibleAppetite = 0, 0
         for _, a in ipairs(group.animals) do
-            appetite = appetite + a.appetite * dt
-            if a.concEligible then eligibleAppetite = eligibleAppetite + a.appetite * dt end
+            local solids = RLFeedRationPlanner.getSolidCap(a, dt)
+            appetite = appetite + solids
+            if a.concEligible then eligibleAppetite = eligibleAppetite + solids end
         end
-        local wheatCap = request.ration.wheatMaxShare * eligibleAppetite
         local _, _, forageParts = RLFeedRationPlanner.takeSerial(group.forage, appetite, nil, false)
         local forageMix = RLFeedMath.compose(forageParts)
-        local concMix, wheatShare = concentrateMix(group.concentrate, eligibleAppetite, wheatCap)
+        local concMix, capped = concentrateMix(group.concentrate, eligibleAppetite, eligibleAppetite)
         local concScale = 1
         for pass = 1, 2 do
             local forageNeed, concNeed, eligibleIntake = 0, 0, 0
             for _, a in ipairs(group.animals) do
                 -- The first pass only sizes the forage the plan takes: no AUTO search there.
-                planAnimal(a, forageMix, concMix, wheatShare, concScale, request, pass == 1)
+                planAnimal(a, forageMix, concMix, capped, concScale, request, pass == 1)
                 forageNeed, concNeed = forageNeed + a.forageKg, concNeed + a.concKg
                 if a.concEligible then eligibleIntake = eligibleIntake + a.forageKg + a.concKg end
             end
             if pass == 1 then
                 _, _, forageParts = RLFeedRationPlanner.takeSerial(group.forage, forageNeed, nil, false)
                 forageMix = RLFeedMath.compose(forageParts) or forageMix
-                wheatCap = request.ration.wheatMaxShare * eligibleIntake
-                local mix, share, total = concentrateMix(group.concentrate, concNeed, wheatCap)
-                if mix ~= nil then concMix, wheatShare = mix, share end
+                local mix, shares, total = concentrateMix(group.concentrate, concNeed, eligibleIntake)
+                if mix ~= nil then concMix, capped = mix, shares end
                 if concNeed > 0 and total < concNeed then concScale = total / concNeed end
             end
         end
@@ -339,7 +389,7 @@ function RLFeedRationPlanner.plan(request)
         end
         local parts
         group.concTaken, group.concTotal, parts = RLFeedRationPlanner.takeSerial(group.concentrate, need,
-            { WHEAT = request.ration.wheatMaxShare * eligibleEaten }, true)
+            feedCaps(group.concentrate, eligibleEaten), true)
         group.concEatenMix = RLFeedMath.compose(parts)
         local fulfil = need > 0 and group.concTotal / need or 0
         for _, a in ipairs(group.animals) do a.concEaten = a.concAllowed * fulfil end
@@ -391,7 +441,7 @@ function RLFeedRationPlanner.plan(request)
             end
             share(group.milkTaken, group.milkTotal, a.milkKg, group.milk, 1)
             share(group.forageTaken, group.forageTotal, a.forageEaten, group.forage, energy)
-            share(group.concTaken, group.concTotal, a.concEaten, group.concentrate, energy * util)
+            share(group.concTaken, group.concTotal, a.concEaten, group.concentrate, util)
             RLFeedRationPlanner.sumAnimal(a)
             result.eatenMe, result.eatenKg = result.eatenMe + a.me, result.eatenKg + a.kg
         end

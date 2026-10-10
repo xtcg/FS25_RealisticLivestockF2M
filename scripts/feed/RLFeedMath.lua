@@ -47,6 +47,27 @@ function RLFeedMath.getGrowthCost(weight, requirements)
 end
 
 
+--- ME (MJ) a kg of gain costs a calf on milk (NRC 2001, the young calf): NEg a kg of gain =
+--- negCoefficient x W^negWeightExponent x LWG^(negGainExponent - 1) Mcal, as ME at the efficiency of
+--- its diet - kgMilk while it drinks only milk, kgSolid once it eats only dry feed, between them by
+--- milkMax - and from there into the adult cost by milkMax, so a weaned calf pays the adult cost.
+--- @param weight number kg
+--- @param gainKgPerDay number Its curve's gain (kg a real day)
+--- @param milkMax number Its milk cap now (0..1)
+--- @param calf table feedProfiles calf values
+--- @param adult number The adult cost at this weight (getGrowthCost)
+--- @return number MJ ME per kg
+function RLFeedMath.getCalfGrowthCost(weight, gainKgPerDay, milkMax, calf, adult)
+    local m = math.clamp(milkMax or 0, 0, 1)
+    if m <= 0 then return adult end
+    local gain = math.max(gainKgPerDay or 0, calf.minGainKgPerDay)
+    local negPerKg = calf.negCoefficient * math.max(weight, 1) ^ calf.negWeightExponent * gain ^ (calf.negGainExponent - 1)
+    local efficiency = calf.kgSolid + (calf.kgMilk - calf.kgSolid) * m
+    local cost = negPerKg * RLFeedUnits.MCAL_TO_MJ / efficiency
+    return adult + (cost - adult) * m
+end
+
+
 -- =============================================================================
 -- Ration composition
 -- =============================================================================
@@ -91,15 +112,14 @@ end
 
 --- The most concentrate (share of DM) a ration of this forage and this concentrate may hold for a
 --- ration class: physically effective NDF at least peNdfMin, starch + sugar at most
---- fermentableMax, wheat at most wheatMaxShare of the ration.
+--- fermentableMax, each capped feed (wheat, peas) at most its maxShare of the ration.
 --- @param forage table|nil Forage mix (compose)
 --- @param concentrate table|nil Concentrate mix (compose)
 --- @param rules table { peNdfMin, fermentableMax }
---- @param wheatShare number Wheat's share of the concentrate DM
---- @param wheatMax number wheatMaxShare
+--- @param capped table|nil { { name, share (of the concentrate DM), max (of the ration) }, ... }
 --- @return number share 0..1
---- @return string|nil limit "FIBRE", "STARCH", "WHEAT" or "NO_FORAGE" (what holds it there)
-function RLFeedMath.getConcentrateLimit(forage, concentrate, rules, wheatShare, wheatMax)
+--- @return string|nil limit "FIBRE", "STARCH", "WHEAT", "FEED_CAP" or "NO_FORAGE" (what holds it there)
+function RLFeedMath.getConcentrateLimit(forage, concentrate, rules, capped)
     if concentrate == nil then return 0, nil end
     if forage == nil then return 0, "NO_FORAGE" end
     local limit, reason = 1, nil
@@ -114,9 +134,11 @@ function RLFeedMath.getConcentrateLimit(forage, concentrate, rules, wheatShare, 
             and (rules.fermentableMax - forage.fermentable) / (concentrate.fermentable - forage.fermentable) or 0
         if c < limit then limit, reason = c, "STARCH" end
     end
-    if wheatShare > 0 then
-        local c = wheatMax / wheatShare
-        if c < limit then limit, reason = c, "WHEAT" end
+    for _, cap in ipairs(capped or {}) do
+        if cap.share > 0 then
+            local c = cap.max / cap.share
+            if c < limit then limit, reason = c, cap.name == "WHEAT" and "WHEAT" or "FEED_CAP" end
+        end
     end
     return math.clamp(limit, 0, 1), reason
 end
@@ -127,17 +149,19 @@ end
 -- =============================================================================
 
 --- Milk ceiling in real-equivalent kg DM/day. Breed size uses mean birth weight against a
---- Holstein of the same sex, never the calf's current weight (nor sampled birth weight, litter
+--- Holstein of the same sex, to calfMilk sizeExponent (0.75: a smaller breed's calf is fed more
+--- than its weight share, as feeding guides give a Jersey about three quarters of a Holstein's
+--- milk), never the calf's current weight (nor sampled birth weight, litter
 --- size, or genes again). The legacy weaning fraction is applied once. Actual appetite and
 --- available stock can reduce this further. No resourceScale here: conversion is at the trough.
 function RLFeedMath.getCalfMilkLimit(birthMean, referenceBirthMean, milkMax, calfMilk)
-    local size = math.max(birthMean, 0) / referenceBirthMean
+    local size = (math.max(birthMean, 0) / referenceBirthMean) ^ (calfMilk.sizeExponent or 1)
     return calfMilk.realLitersPerDay * calfMilk.density * calfMilk.dm * size * math.clamp(milkMax or 0, 0, 1)
 end
 
 --- What an animal can eat (kg DM a real day) before the ration's bulk: by ration class, per
---- kg^0.75 (a lactating cow also by her milk), a calf moving to the growing value around weaning;
---- x the intake gene.
+--- kg^0.75 (a lactating cow also by her milk); a calf on milk the growing value in all, milk and
+--- solids together (its solids are held by getCalfSolidCapacity); x the intake gene.
 --- @param weight number kg
 --- @param class string CALF, GROWING, LACTATING, DRY
 --- @param intake table feedProfiles intake values
@@ -151,13 +175,20 @@ function RLFeedMath.getAppetite(weight, class, intake, ctx)
             * (ctx.gene or 1)
     elseif class == "DRY" then
         perKg = intake.dryPerKgMetabolic
-    elseif class == "CALF" then
-        local t = math.clamp(((ctx.weaningX or -1) + 1) / 2, 0, 1)
-        perKg = intake.calfPerKgMetabolic + (intake.growingPerKgMetabolic - intake.calfPerKgMetabolic) * t
     else
         perKg = intake.growingPerKgMetabolic
     end
     return perKg * metabolic * (ctx.gene or 1)
+end
+
+
+--- Solid DM (kg a real day) a calf's rumen takes at full solidMax: calfSolidPerKgMetabolic x kg^0.75,
+--- moving to the growing appetite from one month before weaning to one month after (weaningX:
+--- age - weaning month); x the intake gene. The calf's solidMax (calfRearing.xml) scales it.
+function RLFeedMath.getCalfSolidCapacity(weight, intake, weaningX, gene)
+    local t = math.clamp(((weaningX or -1) + 1) / 2, 0, 1)
+    local perKg = intake.calfSolidPerKgMetabolic + (intake.growingPerKgMetabolic - intake.calfSolidPerKgMetabolic) * t
+    return perKg * math.max(weight, 1) ^ 0.75 * (gene or 1)
 end
 
 

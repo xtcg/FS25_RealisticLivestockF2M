@@ -35,7 +35,7 @@ for _, lang in ipairs(languages) do
         "NO_TROUGH", "UNCOVERED_ANIMAL", "SUCKLING_CALF", "FUTURE_REASON"}) do
         ok = ok and translated(Info.getReasonText(reason))
     end
-    for _, limit in ipairs({"NONE", "FIBRE", "STARCH", "WHEAT", "NO_FORAGE", "TARGET", "PROTEIN_OR_DEMAND",
+    for _, limit in ipairs({"NONE", "FIBRE", "STARCH", "WHEAT", "FEED_CAP", "NO_FORAGE", "TARGET", "PROTEIN_OR_DEMAND",
         "ADAPTATION", "STOCK", "NO_CONCENTRATE", "NO_FEED", "APPETITE", "FILL", "DEMAND", "PROTEIN", "FUTURE_LIMIT"}) do
         ok = ok and translated(Info.getLimitText(limit))
     end

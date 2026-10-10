@@ -982,6 +982,7 @@
         <text name="rl_feed_limit_FIBRE" text="Fibre limit"/>
         <text name="rl_feed_limit_STARCH" text="Starch limit"/>
         <text name="rl_feed_limit_WHEAT" text="Wheat limit"/>
+        <text name="rl_feed_limit_FEED_CAP" text="Limit paszy"/>
         <text name="rl_feed_limit_NO_FORAGE" text="No roughage"/>
         <text name="rl_feed_limit_TARGET" text="Target share"/>
         <text name="rl_feed_limit_PROTEIN_OR_DEMAND" text="Protein/need"/>

@@ -27,9 +27,17 @@ RLFeedProfiles.REQUIREMENTS = {
     reserveDepositMEPerKg = 52, reserveMobilizeMEPerKg = 38, catabolismMEPerKg = 10, pregnancyFactor = 0.35,
 }
 
+-- A calf on milk (NRC 2001, the young calf): maintenance ME per kg^0.75; the energy in its gain,
+-- NEg (Mcal a day) = negCoefficient x W^negWeightExponent x LWG^negGainExponent, as ME at the
+-- efficiency of milk (kgMilk) or of dry feed (kgSolid); LWG its curve's gain, at least minGainKgPerDay.
+RLFeedProfiles.CALF = {
+    maintenanceMEPerKgMetabolic = 0.42, negCoefficient = 0.84, negWeightExponent = 0.355, negGainExponent = 1.2,
+    kgMilk = 0.69, kgSolid = 0.57, minGainKgPerDay = 0.2,
+}
+
 RLFeedProfiles.INTAKE = {
     growingPerKgMetabolic = 0.105, dryPerKgMetabolic = 0.090, lactatingPerKgMetabolic = 0.0968,
-    lactatingPerKgMilk = 0.372, calfPerKgMetabolic = 0.060,
+    lactatingPerKgMilk = 0.372, calfSolidPerKgMetabolic = 0.105,
     ndfFillGrowing = 0.0125, ndfFillDry = 0.0115, ndfFillLactating = 0.0135, ndfFillCalf = 0.0100,
 }
 
@@ -55,7 +63,7 @@ RLFeedProfiles.MILK = { realKgPerDay = 8, meMJPerKg = 5.0 }
 
 -- Prepared calf milk, independent of the cow's milk-output bridge above. Ten real liters a
 -- day is a calibration ceiling, not a promise of intake or an absolute biological maximum.
-RLFeedProfiles.CALF_MILK = { realLitersPerDay = 10, density = 1.03, dm = 0.125 }
+RLFeedProfiles.CALF_MILK = { realLitersPerDay = 10, density = 1.03, dm = 0.125, sizeExponent = 0.75 }
 
 --- Numeric fields of a feed profile and the range each must be in.
 RLFeedProfiles.FEED_SHARES = { "dm", "cp", "ndf", "peFactor", "starch", "sugar" }
@@ -88,6 +96,7 @@ function RLFeedProfiles.parseFeed(xmlFile, key)
         meBasis = (xmlFile:getString(key .. "#meBasis") or ""):upper(),
         density = xmlFile:getFloat(key .. "#density"),
         tdn = xmlFile:getFloat(key .. "#tdn"),
+        maxShare = xmlFile:getFloat(key .. "#maxShare"),
         stages = {},
     }
     for _, field in ipairs(RLFeedProfiles.FEED_SHARES) do profile[field] = xmlFile:getFloat(key .. "#" .. field) end
@@ -130,6 +139,9 @@ function RLFeedProfiles.validateFeed(profile)
         if not RLFeedProfiles.STAGES[stage] then return false, "unknown stage " .. stage end
     end
     if profile.role == "MILK" and profile.stages.WEANED then return false, "milk cannot be fed after weaning" end
+    if profile.maxShare ~= nil and (not finite(profile.maxShare) or profile.maxShare <= 0 or profile.maxShare > 1) then
+        return false, "maxShare must be a share in (0, 1]"
+    end
     profile.peNdf = profile.ndf * profile.peFactor
     profile.fermentable = profile.starch + profile.sugar
     return true
@@ -154,10 +166,16 @@ function RLFeedProfiles.validate(config)
     end
     local reason = positive(config.requirements, "requirements") or positive(config.intake, "intake")
         or positive(config.ration, "ration") or positive(config.health, "health")
-        or positive(config.calfMilk, "calfMilk")
+        or positive(config.calfMilk, "calfMilk") or positive(config.calf, "calf")
     if reason ~= nil then return false, reason end
     if config.calfMilk.dm > 1 then return false, "calfMilk dm must be in (0, 1]" end
     local req = config.requirements
+    local calf = config.calf
+    if calf.maintenanceMEPerKgMetabolic > req.maintenanceMEPerKgMetabolic then
+        return false, "calf maintenanceMEPerKgMetabolic must not exceed requirements maintenanceMEPerKgMetabolic"
+    end
+    if calf.kgMilk > 1 or calf.kgSolid > 1 then return false, "calf kgMilk and kgSolid must be efficiencies in (0, 1]" end
+    if config.calfMilk.sizeExponent > 1 then return false, "calfMilk sizeExponent must be in (0, 1]" end
     if not (req.reserveDepositMEPerKg > req.reserveMobilizeMEPerKg) then
         return false, "reserveDepositMEPerKg must exceed reserveMobilizeMEPerKg, or the reserve could be cycled into energy"
     end
@@ -213,6 +231,7 @@ function RLFeedProfiles.parse(xmlFile)
     for class, rules in pairs(RLFeedProfiles.CLASS_RULES) do config.classes[class] = table.clone(rules) end
     config.milk = readGroup(xmlFile, "feedProfiles.milk", RLFeedProfiles.MILK)
     config.calfMilk = readGroup(xmlFile, "feedProfiles.calfMilk", RLFeedProfiles.CALF_MILK)
+    config.calf = readGroup(xmlFile, "feedProfiles.calf", RLFeedProfiles.CALF)
     config.milk.breeds = {}
     config.feeds, config.feedOrder = {}, {}
 
@@ -259,6 +278,10 @@ function RLFeedProfiles.parse(xmlFile)
         end
     end)
 
+    -- Wheat's cap is the ration's wheatMaxShare unless its own profile sets one.
+    local wheat = config.feeds.WHEAT
+    if wheat ~= nil and wheat.valid and wheat.maxShare == nil then wheat.maxShare = config.ration.wheatMaxShare end
+
     local ok, reason = RLFeedProfiles.validate(config)
     config.valid = ok
     config.invalidReason = reason
@@ -296,6 +319,7 @@ function RLFeedProfiles.computeHash(config)
     for _, class in ipairs(RLFeedProfiles.CLASSES) do addGroup("class." .. class, config.classes[class]) end
     addGroup("milk", config.milk)
     addGroup("calfMilk", config.calfMilk)
+    addGroup("calf", config.calf)
     local breeds = {}
     for name in pairs(config.milk.breeds or {}) do breeds[#breeds + 1] = name end
     table.sort(breeds)
@@ -307,7 +331,7 @@ function RLFeedProfiles.computeHash(config)
         local profile = config.feeds[name]
         add("feed." .. name .. ".valid", profile.valid)
         if profile.valid then
-            for _, field in ipairs({ "role", "density", "dm", "me", "cp", "ndf", "peFactor", "starch", "sugar" }) do
+            for _, field in ipairs({ "role", "density", "dm", "me", "cp", "ndf", "peFactor", "starch", "sugar", "maxShare" }) do
                 add("feed." .. name .. "." .. field, profile[field])
             end
             local stages = {}

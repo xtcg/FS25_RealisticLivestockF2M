@@ -11,7 +11,7 @@ loadMod("scripts/animal/AnimalHealth.lua")
 FeedSim = {}
 
 local FILL = GrowthSim.FILL
-for _, name in ipairs({ "WHEAT", "MAIZE", "BARLEY", "OAT", "CLOVER_WINDROW", "SUGARBEET_CUT", "FORAGEPLUS", "ROUNDBALE", "GRAINGRIST" }) do
+for _, name in ipairs({ "WHEAT", "MAIZE", "BARLEY", "OAT", "CLOVER_WINDROW", "SUGARBEET_CUT", "FORAGEPLUS", "ROUNDBALE", "GRAINGRIST", "PEA" }) do
     if FILL[name] == nil then
         local index = 0
         for _, i in pairs(FILL) do index = math.max(index, i) end

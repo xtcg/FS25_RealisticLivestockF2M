@@ -9,8 +9,8 @@ check("calf milk: reference 10 real L/day = 1.2875 kg DM/day = 60 game L/30-day 
     near(baseLimit, 1.2875) and near(U.kgToLiters(baseLimit * 30, 0.2, milk.density, milk.dm), 60))
 check("calf milk: 8 real L/day maps to 48 game L/month, no extra resource discount",
     near(U.kgToLiters(8 * 1.03 * 0.125 * 30, 0.2, milk.density, milk.dm), 48))
-check("calf milk: a smaller breed gets proportionally less and weaning is applied once",
-    near(M.getCalfMilkLimit(30, 45, 0.7, config.calfMilk), baseLimit * 30 / 45 * 0.7)
+check("calf milk: a smaller breed gets less, by its birth weight share ^ sizeExponent (0.75), and weaning is applied once",
+    config.calfMilk.sizeExponent == 0.75 and near(M.getCalfMilkLimit(30, 45, 0.7, config.calfMilk), baseLimit * (30 / 45) ^ 0.75 * 0.7)
     and M.getCalfMilkLimit(45, 45, 0, config.calfMilk) == 0)
 local bad = table.clone(config)
 bad.calfMilk = table.clone(config.calfMilk)

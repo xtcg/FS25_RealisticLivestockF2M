@@ -993,6 +993,7 @@
         <text name="rl_feed_limit_FIBRE" text="粗料限制"/>
         <text name="rl_feed_limit_STARCH" text="糖类限制"/>
         <text name="rl_feed_limit_WHEAT" text="小麦限额"/>
+        <text name="rl_feed_limit_FEED_CAP" text="单料上限"/>
         <text name="rl_feed_limit_NO_FORAGE" text="缺少粗料"/>
         <text name="rl_feed_limit_TARGET" text="目标配比"/>
         <text name="rl_feed_limit_PROTEIN_OR_DEMAND" text="蛋白或需求"/>

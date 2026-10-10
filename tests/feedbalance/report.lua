@@ -142,26 +142,44 @@ function Report.dairy(name, route, real)
         kgDM = real and kg or nil, liters = used, litersTotal = litersTotal }
 end
 
---- A calf in a rearing pen from birth for 6 months on calf milk and TMR.
-function Report.calf(name)
+--- Calf routes from birth: STANDARD calf milk and the adult TMR; STARTER also field peas (with the
+--- TMR a starter of about 19 % CP), grain after weaning.
+Report.CALF_ROUTES = {
+    STANDARD = { CALFMILK = BIG, FORAGE = BIG },
+    STARTER = { CALFMILK = BIG, FORAGE = BIG, PEA = BIG, MAIZE = BIG },
+}
+
+--- A calf in a rearing pen from birth for `months` (6) on a route (STANDARD); opts.birthFactor,
+--- opts.gene. Each month: weight, development (its growth phase in months), liters per feed, health.
+function Report.calf(name, route, opts)
+    opts = opts or {}
     F.setMode(true)
-    local calf = S.newborn(name)
+    local genetics = opts.gene ~= nil and { metabolism = opts.gene, quality = 1, productivity = 1, fertility = 1, health = 1 } or nil
+    local calf = S.newborn(name, genetics ~= nil and { genetics = genetics } or nil, opts.birthFactor)
+    local birth = calf.weight
     local pen = F.makePen({ calf }, {}, { rearing = true })
-    local stock = { CALFMILK = BIG, FORAGE = BIG }
+    local stock = Report.CALF_ROUTES[route or "STANDARD"]
     local months = {}
     local perMonth = 24 * S.env.daysPerPeriod
-    for m = 1, 6 do
+    local minHealth = calf.health
+    for m = 1, opts.months or 6 do
         local used = {}
         stocked(pen, stock, used)
         for k in pairs(used) do used[k] = 0 end
-        for _ = 1, perMonth do stocked(pen, stock, used); F.hour(pen) end
+        for _ = 1, perMonth do
+            stocked(pen, stock, used); F.hour(pen)
+            minHealth = math.min(minHealth, calf.health)
+        end
         finalUse(pen, stock, used)
         calf.age = calf.age + 1
-        months[m] = { month = m, weightKg = calf.weight, milkL = used.CALFMILK or 0, tmrL = used.FORAGE or 0, health = calf.health,
-            development = calf.rlGrowth.developmentMonths }
+        local curve = RLGrowth.getCurve(calf)
+        months[m] = { month = m, weightKg = calf.weight, curveKg = curve:value(m), milkL = used.CALFMILK or 0, tmrL = used.FORAGE or 0,
+            peaL = used.PEA or 0, maizeL = used.MAIZE or 0, health = calf.health, minHealth = minHealth,
+            development = calf.rlGrowth.developmentMonths, adapted = calf.rlGrowth.feedAdapted or 0 }
     end
-    return { subType = name, months = months }
+    return { subType = name, route = route or "STANDARD", birthKg = birth, months = months }
 end
+
 
 --- Resource scale and month length: one route at s = 1 / shipped scale and 1 / 3 / 7 / 28 days a month.
 function Report.invariance()
