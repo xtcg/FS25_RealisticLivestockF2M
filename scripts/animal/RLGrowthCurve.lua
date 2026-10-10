@@ -29,8 +29,9 @@ function RLGrowthCurve.fade(x)
 end
 
 
---- Check knots: at least two, months strictly increasing from 0, finite kg >= 0, kg never
---- decreasing.
+--- Check knots: at least two, months strictly increasing from 0, finite kg > 0, kg strictly
+--- increasing. (A flat stretch before the plateau would hold a growing animal there: its frame
+--- would not grow, so its development would not move past it.)
 --- @param knots table { {month, kg}, ... }
 --- @return boolean ok
 --- @return string|nil reason
@@ -38,18 +39,22 @@ function RLGrowthCurve.validate(knots)
     if type(knots) ~= "table" or #knots < 2 then return false, "needs at least two knots" end
     for i, knot in ipairs(knots) do
         local t, w = knot[1], knot[2]
-        if type(t) ~= "number" or type(w) ~= "number" or t ~= t or w ~= w or w < 0
+        if type(t) ~= "number" or type(w) ~= "number" or t ~= t or w ~= w or w <= 0
             or t == math.huge or w == math.huge then
-            return false, string.format("knot %d is not a finite number >= 0", i)
+            return false, string.format("knot %d is not a finite number > 0", i)
         end
         if i == 1 and t ~= 0 then return false, "the first knot must be at month 0" end
         if i > 1 then
             if t <= knots[i - 1][1] then return false, string.format("knot %d: months must increase", i) end
-            if w < knots[i - 1][2] then return false, string.format("knot %d: kg must not decrease", i) end
+            if w <= knots[i - 1][2] then return false, string.format("knot %d: kg must increase", i) end
         end
     end
     return true
 end
+
+
+--- Smallest rise between an animal's own knots (RLGrowth.buildKnots keeps them increasing).
+RLGrowthCurve.MIN_RISE = 1e-3
 
 
 --- Build a curve. The knots are copied.

@@ -73,9 +73,10 @@ RLGrowth.RESYNC_TOLERANCE_KG = 0.01
 --- The continuous age never runs a whole month ahead of the whole months.
 RLGrowth.AGE_CLOCK_CAP = 0.999
 
---- A legacy anchor is kept within these bounds (a broken old weight line cannot blow it up).
-RLGrowth.ANCHOR_MIN = 0.5
-RLGrowth.ANCHOR_MAX = 2
+--- A legacy anchor is kept within these bounds (a broken old weight line cannot blow it up);
+--- every real breed and Hof Bergmann's MILKCOW fall well inside them.
+RLGrowth.ANCHOR_MIN = 0.2
+RLGrowth.ANCHOR_MAX = 5
 
 
 -- =============================================================================
@@ -209,7 +210,7 @@ end
 
 
 --- An animal's own knots: the reference knots x size, the birth knot replaced by its actual birth
---- weight and the difference faded out by fadeMonths, never decreasing.
+--- weight and the difference faded out by fadeMonths, always rising (by MIN_RISE at least).
 --- @param knots table Reference knots
 --- @param size number frame target / reference adult
 --- @param birthKg number
@@ -220,8 +221,8 @@ function RLGrowth.buildKnots(knots, size, birthKg, fadeMonths)
     local delta = birthKg - knots[1][2] * size
     for i, knot in ipairs(knots) do
         local weight = knot[2] * size + delta * RLGrowthCurve.fade(knot[1] / fadeMonths)
-        if i > 1 then weight = math.max(weight, out[i - 1][2]) end
-        out[i] = { knot[1], math.max(weight, 0) }
+        if i > 1 then weight = math.max(weight, out[i - 1][2] + RLGrowthCurve.MIN_RISE) end
+        out[i] = { knot[1], math.max(weight, RLGrowthCurve.MIN_RISE) }
     end
     return out
 end
@@ -539,8 +540,10 @@ end
 function RLGrowth.peekState(animal)
     if animal.rlGrowth ~= nil then return animal.rlGrowth end
     local peek = animal.rlGrowthPeek
-    if peek == nil or peek.weightKg ~= animal.weight then
+    local reserve = animal.bodyCondition ~= nil and animal.bodyCondition.reserve or nil
+    if peek == nil or peek.weightKg ~= animal.weight or peek.peekAge ~= animal.age or peek.peekReserve ~= reserve then
         peek = RLGrowth.deriveState(animal, "derived")
+        peek.peekAge, peek.peekReserve = animal.age, reserve
         animal.rlGrowthPeek = peek
     end
     return peek
@@ -728,11 +731,11 @@ function RLGrowth.initBirth(child, weight)
     if binding == nil then return end
     local bc = RLBodyCondition.getConfig()
     local _, reserveKg = RLGrowthMath.split(weight, bc.initialReserve, RLGrowth.getKappa())
-    local size = RLGrowth.getGeneFactors(child.genetics.metabolism)
     child.weight = weight
+    child.rlGrowth = nil
     child.rlGrowth = RLGrowth.newState({
         birthWeightKg = weight,
-        frameTargetKg = RLGrowth.getAdultReference(binding) * size,
+        frameTargetKg = RLGrowth.getFrameTarget(child, binding),
         developmentMonths = 0,
         reserveMassKg = reserveKg,
         speedFactor = RLGrowth.getStageSpeed(child),
@@ -741,7 +744,7 @@ function RLGrowth.initBirth(child, weight)
         ageMonths = 0,
         source = "birth",
     })
-    child.targetWeight = (subType.targetWeight or 0) * size
+    child.targetWeight = RLGrowth.getAnimalTargetWeight(child)
     child.rlGrowthCurve = nil
 end
 
@@ -868,7 +871,15 @@ local function getMilk(animal)
     local milk = animal.rlMilk
     if milk ~= nil then return milk end
     if animal.animalTypeIndex ~= nil and AnimalType ~= nil and animal.animalTypeIndex ~= AnimalType.COW then
-        local perPeriod = math.max((animal.output ~= nil and animal.output.milk or 0) * 24, 0)
+        -- Milk into the tank, or as milk cans from a pallet barn (Animal.isLactationPalletFillType).
+        local output = animal.output or {}
+        local perHour = output.milk or 0
+        local subType = animal:getSubType()
+        local pallets = subType ~= nil and subType.output ~= nil and subType.output.pallets or nil
+        if pallets ~= nil and Animal.isLactationPalletFillType ~= nil and Animal.isLactationPalletFillType(pallets.fillType) then
+            perHour = perHour + (output.pallets or 0)
+        end
+        local perPeriod = math.max(perHour * 24, 0)
         return { potential = perPeriod, anchor = perPeriod, lineAnchor = perPeriod }
     end
     return { potential = 0, anchor = 0, lineAnchor = 0 }
@@ -1058,21 +1069,9 @@ function RLGrowth.step(animal, foodFactor)
     condition.lossRateEMA = result.lossRateEMA
     if fromLedger then condition.lastTick = tick end
 
-    local potentialPerHour = animal.rlMilk ~= nil and animal.rlMilk.potential / 24 or 0
-    local paidShare = result.milkFraction * waterCoverage
-    animal.rlMilkPaid = { tick = tick, litersPerHour = fromLedger and potentialPerHour * paidShare or 0, deposited = not fromLedger }
-
-    animal.rlNutrition = {
-        tick = tick,
-        allocatedLiters = allocated,
-        intakeRatio = ownReference > 0 and (intakeStep / dtMonths) / ownReference or 0,
-        coverage = result.coverage,
-        milkShare = (fromLedger and potentialPerHour > 0) and paidShare or nil,
-        growthFraction = result.growthFraction,
-        intakeSource = intakeSource,
-    }
-
-    if owner ~= nil then owner.rlBodyConditionStepped = tick end
+    RLBodyCondition.recordHour(animal, owner, tick, { allocated = allocated, intakeStep = intakeStep, dtMonths = dtMonths,
+        ownReference = ownReference, result = result, waterCoverage = waterCoverage, paysMilk = fromLedger,
+        intakeSource = intakeSource })
     return true
 end
 
@@ -1134,6 +1133,35 @@ function RLGrowth.loadFromXMLFile(xmlFile, key)
         return nil
     end
     if state.legacyAnchor ~= nil then state.legacyAnchor = math.clamp(state.legacyAnchor, RLGrowth.ANCHOR_MIN, RLGrowth.ANCHOR_MAX) end
+    return state
+end
+
+
+--- Bounds a received state's values are kept within, against the animal's own breed: its adult
+--- and birth weight within these factors of the breed's (size and birth genes, a cross, a litter
+--- and a thin dam all fall inside), its development within its curve, its stage factors within
+--- what the settings can give.
+RLGrowth.TRUSTED_ADULT = { 0.5, 2 }
+RLGrowth.TRUSTED_BIRTH = { 0.2, 3 }
+RLGrowth.TRUSTED_STAGE = { 0.05, 3 }
+
+
+--- Keep a state that came from elsewhere (a client's stream with an animal it buys) within its
+--- animal's breed: an adult or birth weight far off the breed's, a development past the curve,
+--- a stage factor out of reach are pulled back. Nothing for an animal the model does not cover.
+--- @param animal table
+--- @param state table|nil
+--- @return table|nil state
+function RLGrowth.sanitizeState(animal, state)
+    if state == nil or animal == nil or animal.getSubType == nil then return state end
+    local binding = RLGrowth.getBinding(animal:getSubType())
+    if binding == nil then return state end
+    local adult, birth = RLGrowth.getAdultReference(binding), RLGrowth.getBirthMean(binding)
+    state.frameTargetKg = math.clamp(state.frameTargetKg, adult * RLGrowth.TRUSTED_ADULT[1], adult * RLGrowth.TRUSTED_ADULT[2])
+    state.birthWeightKg = math.clamp(state.birthWeightKg, birth * RLGrowth.TRUSTED_BIRTH[1], birth * RLGrowth.TRUSTED_BIRTH[2])
+    state.developmentMonths = math.min(state.developmentMonths, RLGrowth.getNominalCurve(binding).endMonth)
+    state.speedFactor = math.clamp(state.speedFactor, RLGrowth.TRUSTED_STAGE[1], RLGrowth.TRUSTED_STAGE[2])
+    state.intakeFactor = math.clamp(state.intakeFactor, RLGrowth.TRUSTED_STAGE[1], RLGrowth.TRUSTED_STAGE[2])
     return state
 end
 

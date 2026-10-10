@@ -69,9 +69,28 @@ do
     bad.birthWeightCV, bad.birthTruncateSD = 0.4, 2.5
     check("config: a spread that could draw a birth weight under 10% of the mean is rejected",
         RLWeightProfiles.validateSettings(bad) == false)
-    check("config: knots must rise in month and never fall in kg",
+    check("config: knots must rise in month and in kg (a flat stretch would hold development there), birth above 0",
         RLWeightProfiles.parseKnots("3:100 6:90", 40) == nil and RLWeightProfiles.parseKnots("6:100 3:120", 40) == nil
+        and RLWeightProfiles.parseKnots("3:100 6:100", 40) == nil and RLWeightProfiles.parseKnots("3:100", 0) == nil
         and RLWeightProfiles.parseKnots("3:100 6:200", 40) ~= nil and RLWeightProfiles.parseKnots("3:x", 40) == nil)
+    local profileXml = {
+        iterate = function(_, key, fn) if key == "weightProfiles.profile" then fn(0, "p0") end end,
+        getString = function(_, key, default)
+            local values = { ["p0#name"] = "testbreed", ["p0.female#knots"] = "3:100 60:500", ["p0.male#knots"] = "3:110 60:700" }
+            return values[key] or default
+        end,
+        getFloat = function(_, key, default)
+            local values = { ["p0#birthFemaleKg"] = 30, ["p0#maleBirthFactor"] = 0 }
+            if values[key] ~= nil then return values[key] end
+            return default
+        end,
+        getBool = function(_, _, default) return default end,
+    }
+    local logBefore = #LOG
+    local parsedProfile = RLWeightProfiles.parse(profileXml).profiles.TESTBREED
+    while #LOG > logBefore do table.remove(LOG) end
+    check("config: a profile's own maleBirthFactor of 0 makes the profile invalid (its animals keep the old rules)",
+        parsedProfile.invalid ~= nil and parsedProfile.knots.male == nil)
     local parsed = RLWeightProfiles.parse(nil)
     check("config: no file leaves the model off", parsed.enabled == false)
 end
@@ -458,6 +477,16 @@ do
     check("migration: a newborn or a dealer's animal has no anchor", born.rlGrowth.legacyAnchor == nil
         and GrowthSim.makeAnimal("BULL_HIGHLAND_CATTLE", { age = 24 }).rlGrowth.legacyAnchor == nil)
 
+    -- Read before it is taken over (a trailer, a client): what it would get is worked out again
+    -- when its age moves on, so its take-over does not start fading before it happens.
+    local waiting = GrowthSim.makeAnimal("BULL_HIGHLAND_CATTLE", { age = 24, weight = oldWeight })
+    local peekAt24 = G.peekState(waiting)
+    waiting.age = 25
+    local peekAt25 = G.peekState(waiting)
+    check("migration: an animal not yet taken over is read as taken over at its current age",
+        peekAt24.anchorAgeMonths == 24 and peekAt25.anchorAgeMonths == 25 and G.getAnchorRemaining(waiting, peekAt25) == 1
+        and waiting.rlGrowth == nil)
+
     -- Target weight: a high-metabolism bull's old target (x1.24) is what the slaughter reference,
     -- finishing and the slaughter-value floor read on load; it moves to the size gene's (x1.096).
     local genes = { metabolism = 1.6, quality = 1, productivity = 1, fertility = 1, health = 1 }
@@ -738,6 +767,15 @@ do
     check("network: a streamed state with NaN is dropped, a wild anchor kept within its bounds",
         droppedNaN == nil and bounded.legacyAnchor == G.ANCHOR_MAX)
 
+    -- A state from a client is kept within its animal's breed.
+    local bought = GrowthSim.makeAnimal("BULL_ANGUS", { age = 13 })
+    local wildState = G.copyState(state)
+    wildState.frameTargetKg, wildState.birthWeightKg, wildState.speedFactor, wildState.developmentMonths = 1e5, 900, 1e4, 500
+    G.sanitizeState(bought, wildState)
+    check("network: a received state is kept within its breed (adult at most 2x, birth 3x, stage factors 3, development the curve)",
+        wildState.frameTargetKg == 2000 and near(wildState.birthWeightKg, 32.11284 * 3, 1e-6) and wildState.speedFactor == 3
+        and wildState.developmentMonths == 60)
+
     -- A state saved without the weight it was set for keeps its saved split on its first step.
     local noWeight = G.copyState(state)
     noWeight.weightKg = nil
@@ -935,6 +973,19 @@ do
     GrowthSim.months(pen, "TMR", 2)
     check(string.format("milkcow: its budget counts the milk it gives (read only, %.0f l a period) and it keeps growing toward the curve (%.0f kg)",
         250, cow.weight), cow.weight > before and RLBodyCondition.isEligible(cow) == false and cow.rlMilkPaid ~= nil)
+
+    -- Milk as cans from a pallet barn counts too.
+    milkSub.output = { pallets = { fillType = 99 } }
+    local isPallet = Animal.isLactationPalletFillType
+    Animal.isLactationPalletFillType = function(fillType) return fillType == 99 end
+    local canCow = GrowthSim.makeAnimal("MILK_COW", { age = 30, weight = 500 })
+    canCow.animalTypeIndex = MILKCOW_TYPE
+    canCow.output = { pallets = 6 }
+    local canInput = G.buildStepInput(canCow, G.ensureState(canCow), 100, 1, 1 / 24)
+    Animal.isLactationPalletFillType = isPallet
+    milkSub.output = nil
+    check("milkcow: milk it gives as cans from a pallet barn is read into its budget too",
+        near(canInput.potentialMilk, 6 * 24, 1e-9))
 
     local cluster = GrowthSim.makeAnimal("MILK_COW", { age = 30, weight = 400 })
     cluster.isIndividual = nil

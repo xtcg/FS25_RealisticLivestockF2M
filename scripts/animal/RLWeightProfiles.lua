@@ -126,7 +126,12 @@ function RLWeightProfiles.parse(xmlFile)
         else
             profile.birthFemaleKg = birth
             profile.maleBirthFactor = xmlFile:getFloat(key .. "#maleBirthFactor")
+            local factor = profile.maleBirthFactor
+            if factor ~= nil and not (factor > 0 and factor < 3) then
+                profile.invalid = "maleBirthFactor must be > 0 and < 3"
+            end
             for _, sex in ipairs(RLWeightProfiles.SEXES) do
+                if profile.invalid ~= nil then break end
                 local births = sex == "male" and birth * (profile.maleBirthFactor or config.settings.maleBirthFactor) or birth
                 local knots, reason = RLWeightProfiles.parseKnots(xmlFile:getString(key .. "." .. sex .. "#knots"), births)
                 if knots == nil then

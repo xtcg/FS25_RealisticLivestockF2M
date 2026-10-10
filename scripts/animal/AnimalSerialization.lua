@@ -419,8 +419,8 @@ function AnimalSerialization.readStream(animal, streamId, connection)
     if cannotBeSold then animal.canBeSold = false end
 
     animal.bodyCondition = RLBodyCondition.readStream(streamId)
-    animal.rlGrowth = RLGrowth.readStream(streamId)
-    animal.rlGrowthCurve = nil
+    animal.rlGrowth = RLGrowth.sanitizeState(animal, RLGrowth.readStream(streamId))
+    animal.rlGrowthCurve, animal.rlGrowthPeek = nil, nil
 
     return true
 end

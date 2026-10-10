@@ -613,25 +613,43 @@ function RLBodyCondition.step(animal)
     state.lossRateEMA = result.lossRateEMA
     state.lastTick = tick
 
-    -- The milk this hour's budget paid for, in output liters per hour; the pen's milk deposit
-    -- for this hour takes exactly this (RLBodyCondition.depositMilk).
+    RLBodyCondition.recordHour(animal, owner, tick, { allocated = allocated, intakeStep = intakeStep, dtMonths = dtMonths,
+        ownReference = ownReference, result = result, waterCoverage = waterCoverage })
+
+    return true
+end
+
+
+--- What an hour's budget step leaves on the animal for the rest of the hour and the clients (the
+--- body condition's and the weight model v2's alike): the milk it paid for, in output liters per
+--- hour, which the pen's milk deposit takes this hour (RLBodyCondition.depositMilk); what it ate
+--- against its full-feed request, its coverage and milk share (rlNutrition, the info box and the
+--- state event); and the pen's mark that it stepped this hour.
+--- @param animal table
+--- @param owner table|nil The pen
+--- @param tick number
+--- @param record table { allocated, intakeStep (liters this step), dtMonths, ownReference (liters per
+---        period), result (the step's), waterCoverage, paysMilk (false: this hour's milk is the old
+---        rule's deposit, not the budget's), intakeSource }
+function RLBodyCondition.recordHour(animal, owner, tick, record)
+    local result = record.result
+    local paysMilk = record.paysMilk ~= false
     local potentialPerHour = animal.rlMilk ~= nil and animal.rlMilk.potential / 24 or 0
-    local milkShare = result.milkFraction * waterCoverage
-    animal.rlMilkPaid = { tick = tick, litersPerHour = potentialPerHour * milkShare, deposited = false }
+    local milkShare = result.milkFraction * record.waterCoverage
+    animal.rlMilkPaid = { tick = tick, litersPerHour = paysMilk and potentialPerHour * milkShare or 0, deposited = not paysMilk }
 
     animal.rlNutrition = {
         tick = tick,
-        allocatedLiters = allocated,
+        allocatedLiters = record.allocated,
         -- What it ate against what it asks for on full feed (under the fixed price not its reference).
-        intakeRatio = ownReference > 0 and (intakeStep / dtMonths) / ownReference or 0,
+        intakeRatio = record.ownReference > 0 and (record.intakeStep / record.dtMonths) / record.ownReference or 0,
         coverage = result.coverage,
-        milkShare = potentialPerHour > 0 and milkShare or nil,
+        milkShare = (paysMilk and potentialPerHour > 0) and milkShare or nil,
         growthFraction = result.growthFraction,
+        intakeSource = record.intakeSource,
     }
 
     if owner ~= nil then owner.rlBodyConditionStepped = tick end
-
-    return true
 end
 
 

@@ -193,8 +193,10 @@ function Animal.new(config)
     -- its age, and its target weight (what the slaughter reference and finishing read) is set
     -- once its state is known, below. Otherwise the old rules.
     self.targetWeight = RLBreedTraits.getGeneTarget(targetWeight, self.genetics.metabolism)
-    -- A blank animal (config nil) is a shell readStream is about to fill: no curve, no state.
-    local growthCovered = config ~= nil and RLGrowth.getTargetWeight(subType, self.genetics) ~= nil
+    -- A blank animal (config nil) is a shell readStream is about to fill, and an unborn one (age
+    -- below 0) has throwaway genes until its own are set and gets its state at birth
+    -- (RLGrowth.initBirth): neither gets a curve or a state here.
+    local growthCovered = config ~= nil and self.age >= 0 and RLGrowth.getTargetWeight(subType, self.genetics) ~= nil
     local weightFromCurve = false
 
     if self.weight == nil then
@@ -1242,8 +1244,7 @@ function Animal:applyUnderweightPenalty()
     if RLGrowth.covers(self) then
         minWeightForAge = RLGrowth.getUnderweightThreshold(self)
     else
-        local subType = self:getSubType()
-        minWeightForAge = subType.minWeight * (math.min(self.age, subType.reproductionMinAgeMonth * 1.5) + 0.5) * 0.5
+        minWeightForAge = RLGrowth.getLegacyUnderweight(self:getSubType(), self.age)
     end
     if minWeightForAge > 0 and self.weight < minWeightForAge then self.health = math.clamp(
         self.health - (((minWeightForAge - self.weight) / minWeightForAge) * 0.2), 0, 100) end
