@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    Feed profiles and the real-equivalent nutrition mode (scripts/feed).
+
+    Off by default: the mode is chosen per savegame in the RL settings (Nutrition model: Legacy /
+    Real-equivalent). It runs only for cattle (animal type COW) under the weight model v2
+    (weightProfiles.xml), with the body condition on and this file valid. In a pen it runs only
+    when every animal in it is covered and no calf there is still on milk outside a calf rearing
+    pen; any other pen keeps the old rules as a whole, and its info says why.
+
+    Real nutrition, game resources. An animal's intake and needs are worked out in real units -
+    kg of dry matter (DM) a real day, ME in MJ - and only the feed taken from the trough is scaled:
+
+        real days an hour stands for   dtDays = realDaysPerPeriod / (24 x days per period)
+        liters taken for kg DM         L = resourceScale x kgDM / (density x dm)
+        kg DM a liter eaten restores   kgDM = L x density x dm / resourceScale
+
+    resourceScale appears once on each side and nowhere else: weight, growth, health and milk do
+    not change with it, only how much of the game's feed the same nutrition costs (0.20: a fifth).
+    It is a game resource discount, not a five-fold better feed conversion. Water, straw, care,
+    pen capacity, prices and output are not touched. One game month is realDaysPerPeriod model days
+    (a convention: seasons stay as they are).
+
+    Root
+    version             Feed data version (saved with each pen's monthly record).
+    resourceScale       Game liters per real-equivalent liter (0 < s <= 1).
+    realDaysPerPeriod   Model days in a game month.
+
+    requirements (ME, MJ; per real day unless noted)
+    maintenanceMEPerKgMetabolic  ME for maintenance per kg^0.75 of live weight (x maintenance gene).
+                                 NRC 2000: NEm 0.077 Mcal/kg^0.75 = 0.322 MJ, km about 0.64.
+    growthMEPerKgAt500           ME per kg of frame grown at 500 kg live weight; it scales with
+    growthWeightExponent         (weight / 500) ^ this (the NRC 2000 NEg equation at about 1 kg a
+    growthMEPerKgMin             day, kg about 0.42), never below the minimum (NRC 2001 calf).
+    reserveDepositMEPerKg        ME per kg of body reserve laid down (about 31 MJ retained / kf 0.6).
+    reserveMobilizeMEPerKg       ME a kg of reserve gives back (31 MJ x 0.8 / km 0.65). Below the
+                                 deposit cost, so the reserve can never be cycled into energy.
+    catabolismMEPerKg            ME a kg of frame gives back once the reserve is spent.
+    pregnancyFactor              Extra ME per fetus at term, as a share of maintenance.
+
+    intake (kg DM per real day)
+    growingPerKgMetabolic        Most a growing or finishing animal eats, per kg^0.75 (NRC 2000).
+    dryPerKgMetabolic            The same for a cow that has calved and is dry.
+    lactatingPerKgMetabolic,     A lactating cow: this x kg^0.75 + lactatingPerKgMilk x real milk
+    lactatingPerKgMilk           (kg a day) (NRC 2001).
+    calfPerKgMetabolic           A calf on milk; it moves to the growing value from one month
+                                 before weaning to one month after (calfRearing.xml).
+    ndfFill*                     NDF an animal can hold, as a share of live weight (Mertens: 1.2%):
+                                 a bulky ration fills it before the animal's appetite is met.
+    All intakes x the maintenance gene's factor (weightProfiles.xml maintenanceGeneEffect).
+
+    health
+    extremeUnderweightRatio  Under this share of its curve at its age an animal loses health for its
+                             weight alone (the protection against a very stunted animal). Growth
+                             that lags its calendar is otherwise only shown, not punished: health
+                             follows what the hour's feed and reserve paid for (RLFeedMath).
+
+    protein: crude protein (share of DM) a ration needs for full growth or milk, by stage (NRC 2000
+    growing-finishing cattle, NRC 2001 dairy and calves): calf on milk, young (weaned, under
+    youngUntilMonth), growing (under growingUntilMonth), finishing, lactating, dry; a calf moves
+    from the young value to the calf value with the share of milk it may still drink. Below it, growth
+    and milk potential fall linearly to nothing at the maintenance level. A simplified limit, not a
+    metabolisable protein model; energy it leaves unused is laid down or lost in the budget.
+
+    ration
+    wheatMaxShare         Most wheat in a ration's DM (OSU 2025: about a third, with enough roughage).
+    adaptationDays        Model days a rumen needs to go from no concentrate to adaptationMaxShare.
+    adaptationMaxShare    Concentrate share a fully adapted animal is adapted to.
+    stepAllowance         Concentrate share an animal may eat above what it is adapted to.
+    unadaptedUtilisation  What concentrate above the adapted share is worth.
+    class                 Per ration class (CALF, GROWING, LACTATING, DRY): peNdfMin, the least
+                          physically effective NDF of the ration, and fermentableMax, the most
+                          starch + sugar. Concentrate is held below what keeps both.
+
+    milk: the bridge from the game's milk to real milk. A breed's real lactation average (kg a day)
+    over its game milk curve's mature value x the lactation mean (bodyCondition.xml) gives real kg
+    per game liter; meMJPerKg the ME a real kg needs (NRC 2001: NEL 3.1 MJ/kg at 4% fat / kl 0.62).
+    The game's milk output and price are not changed. Breed names are weightProfiles.xml profiles.
+
+    feed: one per fill type.
+    role         COMPLETE (a mixed ration, counted once as it is), FORAGE, CONCENTRATE or MILK.
+    status       TYPICAL (literature typical value), PROXY (a stated stand-in), UNCONFIGURED (no
+                 data: never eaten in the real-equivalent mode, shown as such).
+    form         Processing state (text).
+    density      kg as fed per game liter. The engine's massPerLiter, a game conversion, not a
+                 measured bulk density; used only here, never for vehicles or physics.
+    dm           Dry matter share of the fed weight.
+    tdn / me     Energy. meBasis TDN_NRC2000: ME (MJ/kg DM) = TDN% x 0.04409 x 0.82 x 4.184
+                 (NRC 1996/2000: DE = 0.04409 TDN Mcal/kg, ME = 0.82 DE). ME_DIRECT: me as given.
+                 NEm/NEg are never read as ME.
+    cp, ndf      Crude protein and NDF, share of DM.
+    peFactor     Physically effective share of the NDF.
+    starch, sugar  Share of DM (starch + sugar: fermentable).
+    stages       Feeding stages it may be fed in (PRE_WEANING WEANING WEANED; calfRearing.xml).
+    source, year Evidence.
+
+    Sources (checked 2026-10-10): OSU "Nutritive value of feeds for beef cattle" (DM/CP/TDN of
+    maize, wheat, barley); OSU "An introduction to finishing beef" and "Supplementing beef cows"
+    (intake ranges); OSU wheat feeding fact sheet and 2025 Cow-Calf Corner (wheat limits,
+    adaptation); Penn State "Total mixed rations for dairy cows" (dairy intake); NRC Beef 2000,
+    NRC Dairy 2001 (book values for forages, NDF, starch, energy equations).
+
+    Copy this file to modSettings/FS25_RealisticLivestockRM/feedProfiles.xml to change it; that
+    copy replaces this file. A file that fails a check keeps the mode off and logs why; a single
+    feed that fails is left uneaten and listed.
+-->
+<feedProfiles version="1" resourceScale="0.20" realDaysPerPeriod="30">
+
+    <requirements maintenanceMEPerKgMetabolic="0.50" growthMEPerKgAt500="50" growthWeightExponent="0.75"
+        growthMEPerKgMin="18" reserveDepositMEPerKg="52" reserveMobilizeMEPerKg="38" catabolismMEPerKg="10"
+        pregnancyFactor="0.35"/>
+
+    <intake growingPerKgMetabolic="0.105" dryPerKgMetabolic="0.090" lactatingPerKgMetabolic="0.0968"
+        lactatingPerKgMilk="0.372" calfPerKgMetabolic="0.060"
+        ndfFillGrowing="0.0125" ndfFillDry="0.0115" ndfFillLactating="0.0135" ndfFillCalf="0.0100"/>
+
+    <health extremeUnderweightRatio="0.45"/>
+
+    <protein maintenance="0.065" calf="0.18" young="0.14" growing="0.12" finishing="0.105"
+        lactating="0.16" dry="0.10" youngUntilMonth="8" growingUntilMonth="14"/>
+
+    <ration wheatMaxShare="0.30" adaptationDays="30" adaptationMaxShare="0.80" stepAllowance="0.20"
+        unadaptedUtilisation="0.85">
+        <class name="CALF" peNdfMin="0" fermentableMax="0.40"/>
+        <class name="GROWING" peNdfMin="0.12" fermentableMax="0.55"/>
+        <class name="LACTATING" peNdfMin="0.20" fermentableMax="0.35"/>
+        <class name="DRY" peNdfMin="0.20" fermentableMax="0.25"/>
+    </ration>
+
+    <milk realKgPerDay="8" meMJPerKg="5.0">
+        <breed name="HOLSTEIN" realKgPerDay="30"/>
+        <breed name="REDHOLSTEIN_PACK" realKgPerDay="28"/>
+        <breed name="SWISS_BROWN" realKgPerDay="25"/>
+        <breed name="MONTBELIARDE" realKgPerDay="24"/>
+        <breed name="AYRSHIRE_PACK" realKgPerDay="22"/>
+        <breed name="SHORTHORNMILKERS_PACK" realKgPerDay="21"/>
+        <breed name="JERSEY_PACK" realKgPerDay="20" meMJPerKg="6.0"/>
+        <breed name="GUERNSEY_PACK" realKgPerDay="19" meMJPerKg="5.7"/>
+        <breed name="VOSGIENNE" realKgPerDay="15"/>
+        <breed name="KERRY_PACK" realKgPerDay="13"/>
+        <breed name="WATER_BUFFALO" realKgPerDay="7" meMJPerKg="7.5"/>
+        <breed name="SIMMENTAL_PACK" realKgPerDay="11"/>
+        <breed name="CHAROLAIS_PACK" realKgPerDay="9"/>
+        <breed name="SHORTHORN_PACK" realKgPerDay="9"/>
+        <breed name="ANGUS" realKgPerDay="8"/>
+        <breed name="REDANGUS_PACK" realKgPerDay="8"/>
+        <breed name="IRISHMOILED_PACK" realKgPerDay="8"/>
+        <breed name="HEREFORD" realKgPerDay="7"/>
+        <breed name="LIMOUSIN" realKgPerDay="7"/>
+        <breed name="BRITISHBLUE_PACK" realKgPerDay="7"/>
+        <breed name="HIGHLAND" realKgPerDay="6"/>
+        <breed name="BELTEDGALLOWAY_PACK" realKgPerDay="6"/>
+    </milk>
+
+    <!-- Complete rations: the game's TMR is mixed in the mixer wagon or by the feeding robot and
+         no recipe is kept with it, so it is counted as one standard TMR (corn and grass silage, hay
+         and grain), never as its parts. Not a measured ration. -->
+    <feed fillType="FORAGE" role="COMPLETE" status="PROXY" form="TMR, standard proxy recipe"
+        density="0.30" dm="0.45" tdn="72" meBasis="TDN_NRC2000" cp="0.16" ndf="0.36" peFactor="0.65"
+        starch="0.22" sugar="0.03" stages="PRE_WEANING WEANING WEANED"
+        source="Standard TMR proxy within NRC 2001 dairy TMR ranges; density = engine massPerLiter, dm per design doc" year="2001"/>
+    <feed fillType="FORAGEPLUS" role="COMPLETE" status="PROXY" form="TMR with mineral feed (Hof Bergmann)"
+        density="0.30" dm="0.45" tdn="73" meBasis="TDN_NRC2000" cp="0.17" ndf="0.36" peFactor="0.65"
+        starch="0.22" sugar="0.03" stages="PRE_WEANING WEANING WEANED"
+        source="As FORAGE with mineral feed; Hof Bergmann fillTypes" year="2001"/>
+    <feed fillType="ROUNDBALE" role="COMPLETE" status="UNCONFIGURED" form="Hof Bergmann bale unit (massPerLiter 300)"
+        source="Composition unknown" year="0"/>
+
+    <!-- Forages -->
+    <feed fillType="SILAGE" role="FORAGE" status="TYPICAL" form="grass / maize silage, chopped"
+        density="0.45" dm="0.35" tdn="66" meBasis="TDN_NRC2000" cp="0.11" ndf="0.48" peFactor="0.85"
+        starch="0.15" sugar="0.02" stages="PRE_WEANING WEANING WEANED"
+        source="Mean of grass and maize silage, NRC 2000/2001 tables; density = engine massPerLiter" year="2001"/>
+    <feed fillType="DRYGRASS_WINDROW" role="FORAGE" status="TYPICAL" form="grass hay, long"
+        density="0.07" dm="0.85" tdn="56" meBasis="TDN_NRC2000" cp="0.11" ndf="0.63" peFactor="1.0"
+        starch="0.02" sugar="0.05" stages="PRE_WEANING WEANING WEANED"
+        source="Mid-quality grass hay, NRC 2000; density = engine massPerLiter, dm per design doc" year="2000"/>
+    <feed fillType="GRASS_WINDROW" role="FORAGE" status="TYPICAL" form="fresh grass, cut or grazed"
+        density="0.30" dm="0.20" tdn="64" meBasis="TDN_NRC2000" cp="0.16" ndf="0.52" peFactor="0.9"
+        starch="0.02" sugar="0.10" stages="PRE_WEANING WEANING WEANED"
+        source="Cool-season pasture, vegetative to mid, NRC 2000; density = engine massPerLiter" year="2000"/>
+    <feed fillType="CLOVER_WINDROW" role="FORAGE" status="TYPICAL" form="fresh clover-grass"
+        density="0.30" dm="0.18" tdn="64" meBasis="TDN_NRC2000" cp="0.20" ndf="0.40" peFactor="0.9"
+        starch="0.02" sugar="0.08" stages="PRE_WEANING WEANING WEANED"
+        source="Fresh clover / legume-grass, NRC 2000; density = engine massPerLiter" year="2000"/>
+
+    <!-- Concentrates -->
+    <feed fillType="MAIZE" role="CONCENTRATE" status="TYPICAL" form="maize grain, whole (fed as harvested)"
+        density="0.80" dm="0.88" tdn="88" meBasis="TDN_NRC2000" cp="0.09" ndf="0.10" peFactor="0.4"
+        starch="0.72" sugar="0.02" stages="WEANED"
+        source="OSU Nutritive value of feeds (DM/CP/TDN); NDF/starch NRC 2001; density = engine massPerLiter" year="2026"/>
+    <feed fillType="WHEAT" role="CONCENTRATE" status="TYPICAL" form="wheat grain (processing not tracked)"
+        density="0.78" dm="0.89" tdn="84" meBasis="TDN_NRC2000" cp="0.14" ndf="0.12" peFactor="0.4"
+        starch="0.64" sugar="0.02" stages="WEANED"
+        source="OSU Nutritive value of feeds (DM/CP/TDN); NDF/starch NRC 2001; limit OSU 2025" year="2026"/>
+    <feed fillType="BARLEY" role="CONCENTRATE" status="TYPICAL" form="dry barley grain"
+        density="0.68" dm="0.90" tdn="81" meBasis="TDN_NRC2000" cp="0.12" ndf="0.20" peFactor="0.4"
+        starch="0.56" sugar="0.02" stages="WEANED"
+        source="OSU Nutritive value of feeds (DM/CP/TDN); NDF/starch NRC 2001" year="2026"/>
+    <feed fillType="OAT" role="CONCENTRATE" status="TYPICAL" form="oat grain"
+        density="0.50" dm="0.89" tdn="77" meBasis="TDN_NRC2000" cp="0.13" ndf="0.30" peFactor="0.4"
+        starch="0.42" sugar="0.02" stages="WEANED"
+        source="NRC 2000 book value" year="2000"/>
+    <feed fillType="SUGARBEET_CUT" role="CONCENTRATE" status="TYPICAL" form="sugar beet, chopped"
+        density="0.70" dm="0.23" tdn="80" meBasis="TDN_NRC2000" cp="0.07" ndf="0.12" peFactor="0.3"
+        starch="0" sugar="0.65" stages="WEANED"
+        source="Fodder/sugar beet roots, NRC 2000; density = engine massPerLiter" year="2000"/>
+    <feed fillType="GRAINGRIST" role="CONCENTRATE" status="UNCONFIGURED" form="map grain grist, recipe unknown"
+        source="Hof Bergmann pig feed; not a fixed maize/wheat mix" year="0"/>
+
+    <!-- Milk: drunk by calves only (not rumen-fermented, so no starch or fibre counted). -->
+    <feed fillType="CALFMILK" role="MILK" status="PROXY" form="milk replacer, 12.5% solids"
+        density="1.03" dm="0.125" me="19.5" meBasis="ME_DIRECT" cp="0.22" ndf="0" peFactor="0"
+        starch="0" sugar="0" stages="PRE_WEANING WEANING"
+        source="NRC 2001 calf: milk replacer ME 4.65 Mcal/kg DM" year="2001"/>
+</feedProfiles>

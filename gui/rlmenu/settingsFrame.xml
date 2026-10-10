@@ -79,6 +79,12 @@
                     </MultiTextOption>
                     <Text profile="fs25_settingsMultiTextOptionTitle" text="$l10n_rl_settings_foodScale_label"/>
                 </Bitmap>
+                <Bitmap profile="fs25_multiTextOptionContainer" id="rlmenuSettingRow_nutritionMode">
+                    <MultiTextOption profile="fs25_settingsMultiTextOption" id="rlmenuSetting_nutritionMode" onClick="onClickGeneralSetting">
+                        <Text profile="fs25_multiTextOptionTooltip" name="tooltip"/>
+                    </MultiTextOption>
+                    <Text profile="fs25_settingsMultiTextOptionTitle" text="$l10n_rl_settings_nutritionMode_label"/>
+                </Bitmap>
                 <Bitmap profile="fs25_multiTextOptionContainer" id="rlmenuSettingRow_maxDealerAnimals">
                     <MultiTextOption profile="fs25_settingsMultiTextOption" id="rlmenuSetting_maxDealerAnimals" onClick="onClickGeneralSetting">
                         <Text profile="fs25_multiTextOptionTooltip" name="tooltip"/>

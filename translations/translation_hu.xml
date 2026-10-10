@@ -954,5 +954,10 @@
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
+        <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, and uses a fifth of the game feed for it."/>
+        <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>
+        <text name="rl_settings_nutritionMode_texts_2" text="Real-equivalent (1/5)"/>
+        <text name="rl_feed_grainGroup" text="Grain (supplement)"/>
     </texts>
 </l10n>

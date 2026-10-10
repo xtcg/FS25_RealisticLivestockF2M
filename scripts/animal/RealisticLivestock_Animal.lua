@@ -1764,6 +1764,10 @@ function Animal:updateInput()
                 RealisticLivestock_PlaceableHusbandryFood.foodScale,
                 self:getFeedModifier()
             )
+            -- Real-equivalent nutrition (RLFeed): the liters a month its pen's last plan gave it,
+            -- in place of the curve (foodScale and the old feed factors are not applied to it).
+            local planned = RLFeed ~= nil and RLFeed.getRequestLitersPerPeriod(self) or nil
+            if planned ~= nil then litersPerDay = planned end
         end
 
         if fillType == "water" then

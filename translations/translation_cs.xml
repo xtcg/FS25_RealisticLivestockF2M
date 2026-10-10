@@ -954,5 +954,10 @@
         <text name="rl_semen_sellConfirm" text="出售这个装有 %d 支细管的精液罐，售价 %s？"/>
         <text name="rl_semen_saleValue" text="出售价值"/>
         <text name="rl_semen_sale" text="精液销售"/>
+        <text name="rl_settings_nutritionMode_label" text="营养模型"/>
+        <text name="rl_settings_nutritionMode_tooltip" text="牛：旧版沿用原饲料规则。现实等效按现实干物质与能量计算采食和日粮，只消耗五分之一的游戏饲料。"/>
+        <text name="rl_settings_nutritionMode_texts_1" text="旧版"/>
+        <text name="rl_settings_nutritionMode_texts_2" text="现实等效（1/5）"/>
+        <text name="rl_feed_grainGroup" text="谷物补料"/>
     </texts>
 </l10n>

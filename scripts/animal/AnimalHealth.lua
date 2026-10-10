@@ -27,7 +27,8 @@ function AnimalHealth.getHealthFactor(animal)
 end
 
 
---- Update animal health based on food factor relative to subType threshold.
+--- Update animal health based on food factor relative to subType threshold (in a pen running
+--- the real-equivalent nutrition mode, on the hour's budget instead: RLFeed).
 --- Food above threshold increases health; below threshold decreases it.
 --- Then weight: cattle under the weight model v2 take its step (RLGrowth.step: frame, reserve
 --- and development, from birth, every hour) and never an old weight rule; other cattle under the
@@ -37,6 +38,15 @@ end
 --- @param animal table Animal instance
 --- @param foodFactor number Food factor (0.0-1.0)
 function AnimalHealth.updateHealth(animal, foodFactor)
+    -- Real-equivalent nutrition (RLFeed): the budget is settled first, and health follows what it
+    -- paid for, at per-month rates - not the food factor's threshold, not the calendar curve.
+    if RLFeed ~= nil and RLFeed.runsFor(animal) and RLGrowth.step(animal, foodFactor) then
+        local dtMonths = RLWeightMath.getHourMonths(g_currentMission.environment.daysPerPeriod)
+        RLFeed.applyHealth(animal, dtMonths)
+        RLFeed.applyUnderweight(animal, dtMonths)
+        return
+    end
+
     -- In a calf rearing pen each animal has its own factor from what it could eat at its age.
     foodFactor = RLCalfRearing.getFoodFactor(animal, foodFactor)
     AnimalHealth.updateHealthOnly(animal, foodFactor)

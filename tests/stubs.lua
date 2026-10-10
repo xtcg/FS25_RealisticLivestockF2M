@@ -156,6 +156,14 @@ loadMod("scripts/animal/RLGrowthMath.lua")
 loadMod("scripts/animal/RLWeightProfiles.lua")
 loadMod("scripts/animal/RLGrowth.lua")
 
+-- Real-equivalent nutrition (RLFeed). The mode is the legacy one unless a test switches it on
+-- (RLFeed.mode), so every other test sees the old rules; tests/test_feed.lua covers it.
+loadMod("scripts/feed/RLFeedUnits.lua")
+loadMod("scripts/feed/RLFeedProfiles.lua")
+loadMod("scripts/feed/RLFeedMath.lua")
+loadMod("scripts/feed/RLFeedRationPlanner.lua")
+loadMod("scripts/feed/RLFeed.lua")
+
 -- RLPEN_DUMP=path: tests that capture RLPEN records append them there as log.txt lines.
 function DUMP(line)
     local path = os.getenv("RLPEN_DUMP")

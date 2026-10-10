@@ -62,6 +62,13 @@ source(modDirectory .. "scripts/nutrition/RLBodyConditionConfig.lua")
 source(modDirectory .. "scripts/nutrition/RLBodyCondition.lua")
 source(modDirectory .. "scripts/nutrition/RLCalfRearing.lua")
 source(modDirectory .. "scripts/animal/RLGrowth.lua")
+-- Real-equivalent nutrition (xml/feedProfiles.xml): units and profiles, the pure ration math and
+-- planner, then the game side, which wraps AnimalFoodSystem after RLCalfRearing's wrapper.
+source(modDirectory .. "scripts/feed/RLFeedUnits.lua")
+source(modDirectory .. "scripts/feed/RLFeedProfiles.lua")
+source(modDirectory .. "scripts/feed/RLFeedMath.lua")
+source(modDirectory .. "scripts/feed/RLFeedRationPlanner.lua")
+source(modDirectory .. "scripts/feed/RLFeed.lua")
 
 -- SECTION 3: Animal Husbandry - Cluster System
 source(modDirectory .. "scripts/animals/husbandry/cluster/RealisticLivestock_AnimalCluster.lua")

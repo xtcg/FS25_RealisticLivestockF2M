@@ -1061,9 +1061,16 @@ function RLGrowth.step(animal, foodFactor)
 
     local environment = g_currentMission.environment
     local dtMonths = RLWeightMath.getHourMonths(environment.daysPerPeriod)
+    -- The real-equivalent nutrition mode (RLFeed): what the animal ate this hour in real DM and ME.
+    local feed = RLFeed ~= nil and RLFeed.getStepFeed(animal, tick) or nil
     local supply, owner, foodSpec = RLBodyCondition.getLedger(animal, tick)
-    local intakeStep, allocated, intakeSource = getIntake(animal, supply, foodSpec, foodFactor)
-    local fromLedger = intakeSource == "ledger"
+    local intakeStep, allocated, intakeSource
+    if feed ~= nil then
+        intakeStep, allocated, intakeSource = feed.kg, feed.kg, feed.missed and "none" or "feed"
+    else
+        intakeStep, allocated, intakeSource = getIntake(animal, supply, foodSpec, foodFactor)
+    end
+    local fromLedger = intakeSource ~= "foodFactor"
     if not fromLedger then
         local key = owner or lastNoLedger
         if lastNoLedger[key] ~= tick then
@@ -1075,6 +1082,7 @@ function RLGrowth.step(animal, foodFactor)
 
     local water = foodSpec ~= nil and foodSpec.rlWaterCoverage or nil
     local waterCoverage = (water ~= nil and water.tick == tick) and water.coverage or 1
+    if feed ~= nil then feed.water = waterCoverage end
     -- Without a ledger the milk store deposited this hour's milk by the old rule (scaled by the
     -- pen's food factor) before this step; the budget pays for that milk, not for more.
     local milkShare = fromLedger and waterCoverage or math.clamp(foodFactor or 0, 0, 1)
@@ -1086,7 +1094,13 @@ function RLGrowth.step(animal, foodFactor)
     animal.targetWeight = RLGrowth.getAnimalTargetWeight(animal)
 
     local input, ownReference = RLGrowth.buildStepInput(animal, state, intakeStep / dtMonths, milkShare, dtMonths)
-    local result = RLGrowthMath.step(input, RLBodyCondition.getConfig())
+    local cfg = RLBodyCondition.getConfig()
+    if feed ~= nil then
+        input, cfg = RLFeed.applyStepInput(animal, input, feed, dtMonths)
+        -- What it asks for on full feed, for the ration row: its planned DM a month.
+        ownReference = feed.plannedKg / dtMonths
+    end
+    local result = RLGrowthMath.step(input, cfg)
 
     if result.weight ~= result.weight or result.reserveKg ~= result.reserveKg or result.development ~= result.development then
         Log:warning("RLGrowth: step for %s/%s gave NaN, nothing applied this hour", tostring(animal.farmId), tostring(animal.uniqueId))
@@ -1110,10 +1124,11 @@ function RLGrowth.step(animal, foodFactor)
     condition.balanceEMA = result.balanceEMA
     condition.lossRateEMA = result.lossRateEMA
     if fromLedger then condition.lastTick = tick end
+    if feed ~= nil then RLFeed.afterStep(animal, state, feed, result) end
 
     RLBodyCondition.recordHour(animal, owner, tick, { allocated = allocated, intakeStep = intakeStep, dtMonths = dtMonths,
         ownReference = ownReference, result = result, waterCoverage = waterCoverage, paysMilk = fromLedger,
-        intakeSource = intakeSource })
+        intakeSource = intakeSource, milkScale = feed ~= nil and feed.proteinFactor or nil })
     return true
 end
 

@@ -554,6 +554,8 @@ function RLBodyCondition.coversThisHour(animal, tick)
     if tick == nil then return false end
     local state = animal.bodyCondition
     if state ~= nil and state.lastTick == tick then return true end
+    -- Real-equivalent nutrition: the hour is the budget's whatever the animal ate.
+    if RLFeed ~= nil and RLFeed.runsFor(animal, tick) then return true end
     return RLBodyCondition.getLedger(animal, tick) ~= nil and (animal:getInput("food") or 0) > 0
 end
 
@@ -631,12 +633,14 @@ end
 --- @param tick number
 --- @param record table { allocated, intakeStep (liters this step), dtMonths, ownReference (liters per
 ---        period), result (the step's), waterCoverage, paysMilk (false: this hour's milk is the old
----        rule's deposit, not the budget's), intakeSource }
+---        rule's deposit, not the budget's), intakeSource, milkScale (share of the potential the
+---        budget priced, 1 by default) }
 function RLBodyCondition.recordHour(animal, owner, tick, record)
     local result = record.result
     local paysMilk = record.paysMilk ~= false
     local potentialPerHour = animal.rlMilk ~= nil and animal.rlMilk.potential / 24 or 0
-    local milkShare = result.milkFraction * record.waterCoverage
+    -- milkScale: the share of the potential the budget priced (protein, real-equivalent mode).
+    local milkShare = result.milkFraction * record.waterCoverage * (record.milkScale or 1)
     animal.rlMilkPaid = { tick = tick, litersPerHour = paysMilk and potentialPerHour * milkShare or 0, deposited = not paysMilk }
 
     animal.rlNutrition = {
