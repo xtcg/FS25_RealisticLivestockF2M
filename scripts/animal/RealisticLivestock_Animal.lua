@@ -186,8 +186,10 @@ function Animal.new(config)
     end
 
 
-    -- Weight model v2 state: own copy, never a table shared with another animal.
+    -- Weight model v2 state: own copy, never a table shared with another animal. growthDropped:
+    -- saved with a state it cannot use, so taken over again without a legacy anchor.
     self.rlGrowth = RLGrowth.copyState(cfg.growth)
+    self.rlGrowthDropped = cfg.growthDropped == true or nil
 
     -- Under the weight model v2 (RLGrowth) an animal with no weight of its own gets its curve's at
     -- its age, and its target weight (what the slaughter reference and finishing read) is set

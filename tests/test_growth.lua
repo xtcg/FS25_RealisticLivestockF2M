@@ -348,6 +348,11 @@ do
     check("milk: without a ledger the budget pays for the milk the old rule deposits (the food factor's share)",
         near(input.potentialMilk, cow.rlMilk.potential * 0.6, 1e-9))
 
+    local yearling = GrowthSim.makeAnimal("BULL_ANGUS", { age = 12 })
+    yearling.clusterSystem = { owner = GrowthSim.makePen({ yearling }) }
+    check("adapter: the old budget step reports a covered animal as handled (the v2 step owns it), never the old weight rule",
+        RLBodyCondition.step(yearling) == true and yearling.rlGrowth.lastTick == -1)
+
     check("adapter: the body condition mirrors the reserve as its index r = R / K",
         near(bull.bodyCondition.reserve, bull.rlGrowth.reserveMassKg / ((bull.weight - bull.rlGrowth.reserveMassKg) * G.getKappa()), 1e-9))
 
@@ -467,8 +472,7 @@ do
         genetics = { metabolism = 0.3, quality = 1, productivity = 1, fertility = 1, health = 1 } })
     G.ensureState(low)
     local atLoad = low:getIntakeGene()
-    low.rlGrowth.ageMonths = low.age + 0.999
-    low.age = low.age + 12
+    low.rlGrowth.anchorElapsedMonths = 12
     local later = low:getIntakeGene()
     check(string.format("migration: a 0.3-metabolism cow's food gene is the old %.2f on load and the new %.3f a year on, no jump",
         atLoad, later), near(atLoad, 0.3, 1e-12) and near(later, 1 + 0.15 * (0.3 - 1) / 0.75, 1e-12))
@@ -484,8 +488,25 @@ do
     waiting.age = 25
     local peekAt25 = G.peekState(waiting)
     check("migration: an animal not yet taken over is read as taken over at its current age",
-        peekAt24.anchorAgeMonths == 24 and peekAt25.anchorAgeMonths == 25 and G.getAnchorRemaining(waiting, peekAt25) == 1
+        peekAt24 ~= peekAt25 and peekAt25.anchorElapsedMonths == 0 and G.getAnchorRemaining(waiting, peekAt25) == 1
+        and near(peekAt25.legacyAnchor, G.getCurve(waiting):value(25) / G.getLegacyLine(sub, "male", 1, 25), 1e-12)
         and waiting.rlGrowth == nil)
+
+    -- The fade runs on the months its steps covered, not on its whole-month age: ageing on its
+    -- birthday changes nothing.
+    local fading = GrowthSim.makeAnimal("BULL_HIGHLAND_CATTLE", { age = 20, weight = G.getLegacyLine(sub, "male", 1, 20) })
+    local fadingState = G.ensureState(fading)
+    fadingState.anchorElapsedMonths = 3
+    local before = G.getAnchorRemaining(fading, fadingState)
+    fading.age = 21
+    check("migration: a birthday does not step the fade (it counts the months the steps covered)",
+        before == G.getAnchorRemaining(fading, fadingState) and before == 0.75)
+
+    -- Saved with a state it cannot use: it grew under the model, so it is taken over again with
+    -- no legacy anchor.
+    local dropped = GrowthSim.makeAnimal("BULL_HIGHLAND_CATTLE", { age = 24, weight = oldWeight, rlGrowthDropped = true })
+    check("migration: an animal whose saved state was unusable is taken over again without an anchor",
+        G.ensureState(dropped).legacyAnchor == nil and dropped.rlGrowth.source == "rederived")
 
     -- Target weight: a high-metabolism bull's old target (x1.24) is what the slaughter reference,
     -- finishing and the slaughter-value floor read on load; it moves to the size gene's (x1.096).
@@ -618,11 +639,22 @@ do
     check(string.format("birth: 20000 draws around 45.11 kg: mean %.2f, CV %.3f (truncated normal of CV 0.10), none past 2.5 SD", avg, cv),
         math.abs(avg / 45.114 - 1) < 0.005 and math.abs(cv - 0.0985) < 0.004 and inRange)
 
+    -- An initial reserve off the reference one puts a newborn's development where its frame is.
+    local savedInitial = config.initialReserve
+    config.initialReserve = 0.30
+    local offCalf = GrowthSim.makeAnimal("BULL_HOLSTEIN", { age = 0 })
+    G.initBirth(offCalf, 48)
+    local offFrame = offCalf.weight - offCalf.rlGrowth.reserveMassKg
+    config.initialReserve = savedInitial
+    check(string.format("birth: with an initial reserve off the reference one the newborn's development follows its frame (%.3f months)",
+        offCalf.rlGrowth.developmentMonths), offCalf.rlGrowth.developmentMonths > 0
+        and near(G.getCurve(offCalf):value(offCalf.rlGrowth.developmentMonths), offFrame * (1 + config.referenceReserve * G.getKappa()), 1e-6))
+
     local calf = GrowthSim.makeAnimal("BULL_HOLSTEIN", { age = 0, genetics = { metabolism = 1.5, quality = 1, productivity = 1, fertility = 1, health = 1 } })
     G.initBirth(calf, 39.5)
     check(string.format("birth: a newborn keeps its own draw (%.1f kg, not the mean), development 0, the neutral reserve, its adult weight from its genes (%.0f kg)",
         calf.weight, calf.targetWeight), calf.weight == 39.5 and calf.rlGrowth.birthWeightKg == 39.5
-        and calf.rlGrowth.developmentMonths == 0 and near(calf.targetWeight, 1100 * (1 + 0.12 * 0.5 / 0.75), 1e-9)
+        and calf.rlGrowth.developmentMonths < 1e-9 and near(calf.targetWeight, 1100 * (1 + 0.12 * 0.5 / 0.75), 1e-9)
         and near(calf.rlGrowth.reserveMassKg / ((39.5 - calf.rlGrowth.reserveMassKg) * G.getKappa()), config.initialReserve, 1e-12))
 
     -- A light calf is not lifted to the mean: not in its first hour, not at 6 months.
@@ -729,15 +761,17 @@ do
     }
     local state = G.newState({ birthWeightKg = 41.2, frameTargetKg = 1043.5, developmentMonths = 13.25, reserveMassKg = 41.7,
         speedFactor = 0.95, intakeFactor = 1.07, weightKg = 512.25, ageMonths = 14.5, legacyAnchor = 1.25,
-        anchorAgeMonths = 9, source = "derived", lastTick = 4711 })
+        anchorElapsedMonths = 9, source = "derived", lastTick = 4711 })
     G.saveToXMLFile(state, xml, "a")
     local loaded = G.loadFromXMLFile(xml, "a")
     local same = true
     for k, v in pairs(state) do if loaded[k] ~= v then same = false end end
     check("persistence: a saved state loads back unchanged (birth, adult, development, reserve mass, stage factors)", same)
-    check("persistence: an animal saved without a state loads none (it gets one from its weight)", G.loadFromXMLFile(xml, "b") == nil)
+    local none, noneSaved = G.loadFromXMLFile(xml, "b")
+    check("persistence: an animal saved without a state loads none (it gets one from its weight)", none == nil and noneSaved == false)
     store["a.growth#reserveMassKg"] = -5
-    check("persistence: an unusable state is dropped, not used", G.loadFromXMLFile(xml, "a") == nil)
+    local unusable, unusableSaved = G.loadFromXMLFile(xml, "a")
+    check("persistence: an unusable state is dropped, not used, and said to have been there", unusable == nil and unusableSaved == true)
     store["a.growth#reserveMassKg"] = 41.7
     store["a.growth#version"] = 99
     check("persistence: a newer state version is dropped, not misread", G.loadFromXMLFile(xml, "a") == nil)
@@ -752,7 +786,7 @@ do
     local a, b = G.readStream(1), G.readStream(1)
     check("network: a state and no state both round-trip, in order",
         a.birthWeightKg == 41.2 and a.frameTargetKg == 1043.5 and a.developmentMonths == 13.25 and a.reserveMassKg == 41.7
-        and a.weightKg == 512.25 and a.ageMonths == 14.5 and a.legacyAnchor == 1.25 and a.anchorAgeMonths == 9
+        and a.weightKg == 512.25 and a.ageMonths == 14.5 and a.legacyAnchor == 1.25 and a.anchorElapsedMonths == 9
         and b == nil and readAt == #stream)
 
     -- A streamed state is checked like a saved one: NaN or nonsense is dropped, an anchor bounded.
@@ -775,6 +809,15 @@ do
     check("network: a received state is kept within its breed (adult at most 2x, birth 3x, stage factors 3, development the curve)",
         wildState.frameTargetKg == 2000 and near(wildState.birthWeightKg, 32.11284 * 3, 1e-6) and wildState.speedFactor == 3
         and wildState.developmentMonths == 60)
+    local clientState = G.copyState(state)
+    clientState.anchorElapsedMonths = -1e30
+    G.sanitizeState(bought, clientState, true)
+    local serverState = G.copyState(state)
+    serverState.anchorElapsedMonths = -1e30
+    G.sanitizeState(bought, serverState, false)
+    check("network: a legacy anchor a client sends is dropped; one from the server keeps its clock within the blend",
+        clientState.legacyAnchor == nil and clientState.anchorElapsedMonths == nil
+        and serverState.legacyAnchor == 1.25 and serverState.anchorElapsedMonths == 0)
 
     -- A state saved without the weight it was set for keeps its saved split on its first step.
     local noWeight = G.copyState(state)

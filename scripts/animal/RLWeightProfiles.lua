@@ -274,8 +274,9 @@ end
 
 --- A subtype's report record (no state change).
 --- @param subType table
+--- @param counts table|nil RLGrowth.countHeldAnimals(), counted once for a whole report
 --- @return table record
-function RLWeightProfiles.describe(subType)
+function RLWeightProfiles.describe(subType, counts)
     local typeName = RLBreedTraits.getTypeName(subType)
     local record = { kind = "WEIGHT_PROFILE", subType = subType.name, breed = subType.breed, gender = subType.gender,
         type = typeName }
@@ -286,14 +287,14 @@ function RLWeightProfiles.describe(subType)
         if binding == nil then
             record.resolution, record.reason, record.gap = "NOT_COVERED", RLWeightProfiles.UNCOVERED_TYPES[typeName]
                 or "animal type without a binding", true
-            if RLGrowth ~= nil then record.capability = RLGrowth.describeCapability(subType) end
+            if RLGrowth ~= nil then record.capability = RLGrowth.describeCapability(subType, counts) end
             return record
         end
         record.profile, record.resolution, record.proxySex = binding.profile, "PROXY", binding.sex
         record.profileStatus = binding.status
         record.gap = true
         if RLGrowth ~= nil then
-            record.capability = RLGrowth.describeCapability(subType)
+            record.capability = RLGrowth.describeCapability(subType, counts)
             record.curve = RLGrowth.describeCurve(subType)
         end
         return record
@@ -357,13 +358,14 @@ function RLWeightProfiles.enumerate(filter)
     if animalSystem == nil or animalSystem.subTypes == nil then return records end
     filter = filter ~= nil and filter:lower() or nil
     local bindings = RLWeightProfiles.getConfig().bindings
+    local counts = RLGrowth ~= nil and RLGrowth.countHeldAnimals() or nil
 
     for _, subType in ipairs(animalSystem.subTypes) do
         local typeName = RLBreedTraits.getTypeName(subType)
         if typeName == RLWeightProfiles.COVERED_TYPE or RLWeightProfiles.UNCOVERED_TYPES[typeName] ~= nil
             or (typeName ~= nil and bindings[typeName:upper()] ~= nil) then
             local name = ((subType.name or "") .. " " .. (subType.breed or "")):lower()
-            if filter == nil or name:find(filter, 1, true) ~= nil then table.insert(records, RLWeightProfiles.describe(subType)) end
+            if filter == nil or name:find(filter, 1, true) ~= nil then table.insert(records, RLWeightProfiles.describe(subType, counts)) end
         end
     end
 

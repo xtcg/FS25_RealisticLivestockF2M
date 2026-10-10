@@ -569,8 +569,9 @@ local lastInvalidWarning = {}
 --- @return boolean handled False: the caller runs the old weight update instead
 function RLBodyCondition.step(animal)
     if not RLBodyCondition.isEligible(animal) then return false end
-    -- The weight model v2 runs its own step (RLGrowth.step); never both in one hour.
-    if RLGrowth ~= nil and RLGrowth.covers(animal) then return false end
+    -- The weight model v2 runs its own step (RLGrowth.step, from AnimalHealth.updateHealth): the
+    -- animal is handled there, never by this budget or the old weight rule.
+    if RLGrowth ~= nil and RLGrowth.covers(animal) then return true end
 
     local tick = RLBodyCondition.getTickId()
     if tick == nil then return false end

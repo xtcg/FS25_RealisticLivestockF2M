@@ -174,9 +174,10 @@ function RLCalfRearing.getWeaningMonth(animal)
 end
 
 
---- Feeding stage by age: PRE_WEANING, WEANING (the weaning month) or WEANED.
+--- Feeding stage by age: PRE_WEANING, WEANING (the weaning month) or WEANED, on the same age as
+--- the caps (continuous under the weight model v2), so the stage shown matches what it gets.
 function RLCalfRearing.getStage(animal)
-    local x = (animal.age or 0) - RLCalfRearing.getWeaningMonth(animal)
+    local x = RLCalfRearing.getWeaningX(animal)
     if x < 0 then return RLCalfRearing.STAGE_PRE_WEANING end
     if x < 1 then return RLCalfRearing.STAGE_WEANING end
     return RLCalfRearing.STAGE_WEANED
@@ -186,11 +187,12 @@ end
 --- An animal's age against its weaning month, the x of the curves. Under the weight model v2 the
 --- age runs on within the month (RLGrowth.getContinuousAge), so the caps and the worth of solid
 --- feed change smoothly rather than once a month; otherwise whole months, as before.
-local function getWeaningX(animal)
+function RLCalfRearing.getWeaningX(animal)
     local age = animal.age or 0
     if RLGrowth ~= nil and RLGrowth.covers(animal) then age = RLGrowth.getContinuousAge(animal) end
     return age - RLCalfRearing.getWeaningMonth(animal)
 end
+local getWeaningX = RLCalfRearing.getWeaningX
 
 
 --- Most of its food request an animal can take from milk and from solid feed.

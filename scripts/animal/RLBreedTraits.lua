@@ -441,9 +441,11 @@ function RLBreedTraits.toPriceWeight(subType, gender, targetWeight, age, metabol
 end
 
 
---- Weight on the live-price reference line at `age`: from the subtype's minWeight to
---- priceTargetWeight by priceMatureAgeMonth, then flat (past 20 months at the latest); nil for a
---- subtype without a price line.
+--- Weight on the live-price reference line at `age`: from the subtype's minWeight toward
+--- priceTargetWeight at its rate (reached at priceMatureAgeMonth), rising on at that rate until
+--- max(priceMatureAgeMonth, 20) months and flat after; nil for a subtype without a price line.
+--- (A line that matures before 20 months runs past priceTargetWeight to month 20: the prices
+--- were calibrated so.)
 --- @param subType table
 --- @param age number Months
 --- @return number|nil

@@ -226,7 +226,8 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
     -- nil when absent: an old savegame's animal starts its body condition on its first step
     local bodyCondition = RLBodyCondition.loadFromXMLFile(xmlFile, key)
     -- nil when absent: the weight model v2 derives one from the saved weight on its first step
-    local growth = RLGrowth.loadFromXMLFile(xmlFile, key)
+    -- (with no legacy anchor when the animal was saved with a state it cannot use)
+    local growth, growthSaved = RLGrowth.loadFromXMLFile(xmlFile, key)
 
     local diseases = {}
 
@@ -407,7 +408,8 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
         semenCollectedAge = semenCollectedAge, semenProducedAge = semenProducedAge,
         diseases = diseases, recentlyBoughtByAI = recentlyBoughtByAI,
         marks = marks, insemination = insemination,
-        canBeSold = canBeSold, bodyCondition = bodyCondition, growth = growth
+        canBeSold = canBeSold, bodyCondition = bodyCondition, growth = growth,
+        growthDropped = growthSaved and growth == nil
     })
 
     animal:setBirthday(birthday)

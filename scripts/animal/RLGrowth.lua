@@ -33,7 +33,7 @@
         (how far along the curve its frame is), reserveMassKg (the reserve's mass inside the live
         weight), speedFactor and intakeFactor (stage factors in transition), weightKg (the live
         weight the state was last set for), ageMonths (a continuous age clock), legacyAnchor and
-        anchorAgeMonths (an old savegame's animal, below), source ("birth", "generated", "derived",
+        anchorElapsedMonths (an old savegame's animal, below), source ("birth", "generated", "derived",
         "resync", "stream"), lastTick (game hour of the last step), version.
     The body condition state (animal.bodyCondition) mirrors the reserve as its index r = R / K
     after every step, so BCS, finish score and their factors read it as before.
@@ -366,14 +366,15 @@ end
 
 
 --- How much of an old savegame's animal's take-over is left: 1 when taken over, falling evenly
---- to 0 over migrationBlendMonths of its age clock; 0 for an animal with no legacy anchor.
+--- to 0 over migrationBlendMonths of the months its steps have covered since (anchorElapsedMonths,
+--- its own clock: whole-month ageing on a birthday does not step it); 0 for an animal with no
+--- legacy anchor.
 --- @param animal table
 --- @param state table|nil
 --- @return number 0..1
 function RLGrowth.getAnchorRemaining(animal, state)
     if state == nil or state.legacyAnchor == nil then return 0 end
-    local elapsed = RLGrowth.getContinuousAge(animal) - (state.anchorAgeMonths or animal.age or 0)
-    return math.clamp(1 - elapsed / RLGrowth.getSettings().migrationBlendMonths, 0, 1)
+    return math.clamp(1 - (state.anchorElapsedMonths or 0) / RLGrowth.getSettings().migrationBlendMonths, 0, 1)
 end
 
 
@@ -440,7 +441,7 @@ function RLGrowth.newState(fields)
         weightKg = fields.weightKg,
         ageMonths = fields.ageMonths,
         legacyAnchor = fields.legacyAnchor,
-        anchorAgeMonths = fields.anchorAgeMonths,
+        anchorElapsedMonths = fields.anchorElapsedMonths,
         source = fields.source or "derived",
         lastTick = fields.lastTick or -1,
     }
@@ -458,8 +459,9 @@ end
 --- its development is where its curve has that frame; adult weight and birth weight from its
 --- genes. Read-only: nothing is stored.
 --- @param animal table A covered animal
---- @param source string "derived" (taken over from the old rules: with a legacy anchor) or
----        "generated" (its weight is its curve's: none)
+--- @param source string "derived" (taken over from the old rules: with a legacy anchor),
+---        "generated" (its weight is its curve's) or "rederived" (its saved state was unusable: it
+---        grew under the model, so no anchor either)
 --- @return table state
 function RLGrowth.deriveState(animal, source)
     local bc = RLBodyCondition.getConfig()
@@ -481,7 +483,7 @@ function RLGrowth.deriveState(animal, source)
         intakeFactor = RLBodyCondition.getIntakeCapacity(animal),
         weightKg = animal.weight,
         legacyAnchor = source == "derived" and RLGrowth.getLegacyAnchor(animal, curve) or nil,
-        anchorAgeMonths = source == "derived" and math.max(animal.age or 0, 0) or nil,
+        anchorElapsedMonths = source == "derived" and 0 or nil,
         source = source,
     })
 end
@@ -523,9 +525,16 @@ end
 
 
 --- The animal's state, derived and stored when it has none (server, from the step).
+--- How an animal without a state is taken over: from the old rules, or again under the model
+--- when the state it was saved with could not be used (Animal.new's rlGrowthDropped).
+local function getDeriveSource(animal)
+    return animal.rlGrowthDropped and "rederived" or "derived"
+end
+
+
 function RLGrowth.ensureState(animal)
     if animal.rlGrowth == nil then
-        animal.rlGrowth = RLGrowth.deriveState(animal, "derived")
+        animal.rlGrowth = RLGrowth.deriveState(animal, getDeriveSource(animal))
         animal.rlGrowthPeek = nil
         Log:debug("RLGrowth: state derived for %s/%s weight=%.1f adult=%.1f development=%.2f reserve=%.1f kg anchor=%.3f",
             tostring(animal.farmId), tostring(animal.uniqueId), animal.weight or 0, animal.rlGrowth.frameTargetKg,
@@ -542,7 +551,7 @@ function RLGrowth.peekState(animal)
     local peek = animal.rlGrowthPeek
     local reserve = animal.bodyCondition ~= nil and animal.bodyCondition.reserve or nil
     if peek == nil or peek.weightKg ~= animal.weight or peek.peekAge ~= animal.age or peek.peekReserve ~= reserve then
-        peek = RLGrowth.deriveState(animal, "derived")
+        peek = RLGrowth.deriveState(animal, getDeriveSource(animal))
         peek.peekAge, peek.peekReserve = animal.age, reserve
         animal.rlGrowthPeek = peek
     end
@@ -730,13 +739,18 @@ function RLGrowth.initBirth(child, weight)
     local binding = RLGrowth.getBinding(subType)
     if binding == nil then return end
     local bc = RLBodyCondition.getConfig()
-    local _, reserveKg = RLGrowthMath.split(weight, bc.initialReserve, RLGrowth.getKappa())
+    local kappa = RLGrowth.getKappa()
+    local frame, reserveKg = RLGrowthMath.split(weight, bc.initialReserve, kappa)
     child.weight = weight
     child.rlGrowth = nil
+    local frameTarget = RLGrowth.getFrameTarget(child, binding)
+    -- Development where its own curve has that frame: 0 when the initial reserve is the reference
+    -- one (the default), a little on either side otherwise, so frame and development agree.
+    local curve = RLGrowth.buildCurve(binding, frameTarget, weight)
     child.rlGrowth = RLGrowth.newState({
         birthWeightKg = weight,
-        frameTargetKg = RLGrowth.getFrameTarget(child, binding),
-        developmentMonths = 0,
+        frameTargetKg = frameTarget,
+        developmentMonths = RLGrowthMath.getDevelopment(curve, frame, kappa, bc.referenceReserve),
         reserveMassKg = reserveKg,
         speedFactor = RLGrowth.getStageSpeed(child),
         intakeFactor = RLBodyCondition.getIntakeCapacity(child),
@@ -871,13 +885,23 @@ local function getMilk(animal)
     local milk = animal.rlMilk
     if milk ~= nil then return milk end
     if animal.animalTypeIndex ~= nil and AnimalType ~= nil and animal.animalTypeIndex ~= AnimalType.COW then
-        -- Milk into the tank, or as milk cans from a pallet barn (Animal.isLactationPalletFillType).
+        -- Milk into the tank, or as milk cans from a pallet barn (Animal.isLactationPalletFillType):
+        -- the one its pen takes (a pen with a milk store takes the tank milk), never both.
         local output = animal.output or {}
-        local perHour = output.milk or 0
         local subType = animal:getSubType()
         local pallets = subType ~= nil and subType.output ~= nil and subType.output.pallets or nil
+        local cans = 0
         if pallets ~= nil and Animal.isLactationPalletFillType ~= nil and Animal.isLactationPalletFillType(pallets.fillType) then
-            perHour = perHour + (output.pallets or 0)
+            cans = output.pallets or 0
+        end
+        local owner = animal.clusterSystem ~= nil and animal.clusterSystem.owner or nil
+        local perHour
+        if owner ~= nil and owner.spec_husbandryMilk ~= nil then
+            perHour = output.milk or 0
+        elseif owner ~= nil and owner.spec_husbandryPallets ~= nil then
+            perHour = cans
+        else
+            perHour = (output.milk or 0) > 0 and output.milk or cans
         end
         local perPeriod = math.max(perHour * 24, 0)
         return { potential = perPeriod, anchor = perPeriod, lineAnchor = perPeriod }
@@ -1041,6 +1065,7 @@ function RLGrowth.step(animal, foodFactor)
     state.speedFactor = relax(state.speedFactor, RLGrowth.getStageSpeed(animal), dtMonths)
     state.intakeFactor = relax(state.intakeFactor, RLBodyCondition.getIntakeCapacity(animal), dtMonths)
     RLGrowth.advanceClock(state, animal.age or 0, dtMonths)
+    if state.legacyAnchor ~= nil then state.anchorElapsedMonths = (state.anchorElapsedMonths or 0) + dtMonths end
     animal.targetWeight = RLGrowth.getAnimalTargetWeight(animal)
 
     local input, ownReference = RLGrowth.buildStepInput(animal, state, intakeStep / dtMonths, milkShare, dtMonths)
@@ -1100,16 +1125,19 @@ end
 
 
 --- Read a saved state (nil when the animal has none or it is unusable; the animal then gets a
---- derived one, its weight kept).
+--- derived one, its weight kept - with no legacy anchor when it had a state, it grew under the
+--- model).
+--- @return table|nil state
+--- @return boolean saved The animal was saved with a state (usable or not)
 function RLGrowth.loadFromXMLFile(xmlFile, key)
     local base = key .. ".growth"
     local birth = xmlFile:getFloat(base .. "#birthWeightKg")
-    if birth == nil then return nil end
+    if birth == nil then return nil, false end
 
     local version = xmlFile:getInt(base .. "#version", 1)
     if version > RLGrowth.STATE_VERSION then
         Log:warning("RLGrowth: %s has state version %d, newer than this mod's %d; dropped", base, version, RLGrowth.STATE_VERSION)
-        return nil
+        return nil, true
     end
 
     local state = RLGrowth.newState({
@@ -1122,7 +1150,7 @@ function RLGrowth.loadFromXMLFile(xmlFile, key)
         weightKg = xmlFile:getFloat(base .. "#weightKg"),
         ageMonths = xmlFile:getFloat(base .. "#ageMonths"),
         legacyAnchor = xmlFile:getFloat(base .. "#legacyAnchor"),
-        anchorAgeMonths = xmlFile:getFloat(base .. "#anchorAgeMonths"),
+        anchorElapsedMonths = xmlFile:getFloat(base .. "#anchorElapsedMonths"),
         source = xmlFile:getString(base .. "#source", "derived"),
         lastTick = xmlFile:getInt(base .. "#lastTick", -1),
     })
@@ -1130,10 +1158,10 @@ function RLGrowth.loadFromXMLFile(xmlFile, key)
 
     if not RLGrowth.isUsable(state) then
         Log:warning("RLGrowth: %s has an unusable state; it is derived again from the weight", base)
-        return nil
+        return nil, true
     end
     if state.legacyAnchor ~= nil then state.legacyAnchor = math.clamp(state.legacyAnchor, RLGrowth.ANCHOR_MIN, RLGrowth.ANCHOR_MAX) end
-    return state
+    return state, true
 end
 
 
@@ -1146,14 +1174,22 @@ RLGrowth.TRUSTED_BIRTH = { 0.2, 3 }
 RLGrowth.TRUSTED_STAGE = { 0.05, 3 }
 
 
---- Keep a state that came from elsewhere (a client's stream with an animal it buys) within its
+--- Keep a state that came from elsewhere (a stream; a client's with an animal it buys) within its
 --- animal's breed: an adult or birth weight far off the breed's, a development past the curve,
---- a stage factor out of reach are pulled back. Nothing for an animal the model does not cover.
+--- a stage factor out of reach are pulled back, and a client's legacy anchor is dropped.
 --- @param animal table
 --- @param state table|nil
+--- @param fromClient boolean|nil The state came from a client (read on the server)
 --- @return table|nil state
-function RLGrowth.sanitizeState(animal, state)
-    if state == nil or animal == nil or animal.getSubType == nil then return state end
+function RLGrowth.sanitizeState(animal, state, fromClient)
+    if state == nil then return state end
+    -- A client never sends an old savegame's take-over (the dealer's animals have none): an
+    -- anchor from one is not taken. Otherwise its clock stays within the blend.
+    if fromClient then state.legacyAnchor, state.anchorElapsedMonths = nil, nil end
+    if state.legacyAnchor ~= nil then
+        state.anchorElapsedMonths = math.clamp(state.anchorElapsedMonths or 0, 0, RLGrowth.getSettings().migrationBlendMonths)
+    end
+    if animal == nil or animal.getSubType == nil then return state end
     local binding = RLGrowth.getBinding(animal:getSubType())
     if binding == nil then return state end
     local adult, birth = RLGrowth.getAdultReference(binding), RLGrowth.getBirthMean(binding)
@@ -1175,7 +1211,7 @@ function RLGrowth.isUsable(state)
     return finite(state.birthWeightKg) and state.birthWeightKg > 0 and finite(state.frameTargetKg) and state.frameTargetKg > 0
         and finite(state.developmentMonths) and state.developmentMonths >= 0 and finite(state.reserveMassKg)
         and state.reserveMassKg >= 0 and finite(state.speedFactor) and state.speedFactor > 0 and finite(state.intakeFactor)
-        and state.intakeFactor > 0 and optional(state.weightKg) and optional(state.ageMonths) and optional(state.anchorAgeMonths)
+        and state.intakeFactor > 0 and optional(state.weightKg) and optional(state.ageMonths) and optional(state.anchorElapsedMonths)
         and (state.legacyAnchor == nil or (finite(state.legacyAnchor) and state.legacyAnchor > 0))
 end
 
@@ -1194,7 +1230,7 @@ function RLGrowth.saveToXMLFile(state, xmlFile, key)
     if state.ageMonths ~= nil then xmlFile:setFloat(base .. "#ageMonths", state.ageMonths) end
     if state.legacyAnchor ~= nil then
         xmlFile:setFloat(base .. "#legacyAnchor", state.legacyAnchor)
-        xmlFile:setFloat(base .. "#anchorAgeMonths", state.anchorAgeMonths or 0)
+        xmlFile:setFloat(base .. "#anchorElapsedMonths", state.anchorElapsedMonths or 0)
     end
     xmlFile:setString(base .. "#source", state.source or "derived")
     xmlFile:setInt(base .. "#lastTick", state.lastTick or -1)
@@ -1214,7 +1250,7 @@ function RLGrowth.writeStream(state, streamId)
     streamWriteFloat32(streamId, state.weightKg or -1)
     streamWriteFloat32(streamId, state.ageMonths or -1)
     streamWriteFloat32(streamId, state.legacyAnchor or -1)
-    streamWriteFloat32(streamId, state.anchorAgeMonths or -1)
+    streamWriteFloat32(streamId, state.anchorElapsedMonths or -1)
 end
 
 
@@ -1234,7 +1270,7 @@ function RLGrowth.readStream(streamId)
         weightKg = optional(streamReadFloat32(streamId)),
         ageMonths = optional(streamReadFloat32(streamId)),
         legacyAnchor = optional(streamReadFloat32(streamId)),
-        anchorAgeMonths = optional(streamReadFloat32(streamId)),
+        anchorElapsedMonths = optional(streamReadFloat32(streamId)),
         source = "stream",
     })
     if not RLGrowth.isUsable(state) then return nil end
@@ -1251,29 +1287,43 @@ end
 --- here, whether the subtype file gives weights, whether they reproduce, and how many are loaded
 --- as individuals and as vanilla clusters.
 --- @param subType table
+--- @param counts table|nil countHeldAnimals(), counted once for a whole report
 --- @return table
-function RLGrowth.describeCapability(subType)
-    local capability = {
-        weightFields = subType.rlWeightFieldsGiven,
-        reproduction = subType.supportsReproduction == true,
-        individuals = 0,
-        clusters = 0,
-    }
+--- How many animals of each subtype the husbandries hold, as individuals and in vanilla clusters
+--- (one pass over every pen).
+--- @return table subTypeIndex -> { individuals, clusters }
+function RLGrowth.countHeldAnimals()
+    local counts = {}
     local mission = g_currentMission
     local placeables = mission ~= nil and mission.husbandrySystem ~= nil and mission.husbandrySystem.placeables or nil
     for _, placeable in pairs(placeables or {}) do
         local clusters = placeable.getClusters ~= nil and placeable:getClusters() or {}
         for _, cluster in ipairs(clusters) do
             local index = cluster.subTypeIndex or (cluster.getSubTypeIndex ~= nil and cluster:getSubTypeIndex()) or nil
-            if index == subType.subTypeIndex then
+            if index ~= nil then
+                local count = counts[index] or { individuals = 0, clusters = 0 }
+                counts[index] = count
                 if cluster.isIndividual == true then
-                    capability.individuals = capability.individuals + 1
+                    count.individuals = count.individuals + 1
                 else
-                    capability.clusters = capability.clusters + (cluster.numAnimals or 1)
+                    count.clusters = count.clusters + (cluster.numAnimals or 1)
                 end
             end
         end
     end
+    return counts
+end
+
+
+function RLGrowth.describeCapability(subType, counts)
+    counts = counts or RLGrowth.countHeldAnimals()
+    local held = counts[subType.subTypeIndex] or { individuals = 0, clusters = 0 }
+    local capability = {
+        weightFields = subType.rlWeightFieldsGiven,
+        reproduction = subType.supportsReproduction == true,
+        individuals = held.individuals,
+        clusters = held.clusters,
+    }
     capability.adapter = capability.clusters > 0 and capability.individuals == 0 and "INACTIVE_VANILLA_CLUSTERS"
         or "INDIVIDUALS_ONLY"
     return capability

@@ -419,7 +419,9 @@ function AnimalSerialization.readStream(animal, streamId, connection)
     if cannotBeSold then animal.canBeSold = false end
 
     animal.bodyCondition = RLBodyCondition.readStream(streamId)
-    animal.rlGrowth = RLGrowth.sanitizeState(animal, RLGrowth.readStream(streamId))
+    -- Read on the server from a client (an animal it buys): kept within its breed, no legacy anchor.
+    local fromClient = g_server ~= nil and connection ~= nil and connection.getIsServer ~= nil and not connection:getIsServer()
+    animal.rlGrowth = RLGrowth.sanitizeState(animal, RLGrowth.readStream(streamId), fromClient)
     animal.rlGrowthCurve, animal.rlGrowthPeek = nil, nil
 
     return true
