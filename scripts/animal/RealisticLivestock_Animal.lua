@@ -193,7 +193,8 @@ function Animal.new(config)
     -- its age, and its target weight (what the slaughter reference and finishing read) is set
     -- once its state is known, below. Otherwise the old rules.
     self.targetWeight = RLBreedTraits.getGeneTarget(targetWeight, self.genetics.metabolism)
-    local growthCovered = RLGrowth.getTargetWeight(subType, self.genetics) ~= nil
+    -- A blank animal (config nil) is a shell readStream is about to fill: no curve, no state.
+    local growthCovered = config ~= nil and RLGrowth.getTargetWeight(subType, self.genetics) ~= nil
     local weightFromCurve = false
 
     if self.weight == nil then
@@ -630,12 +631,10 @@ function Animal:addInfos(infos, forceShowAll)
         end
 
 
-        -- Under the weight model v2 the adult weight is its curve's (RLGrowth.getDisplayAdult).
-        local adult = RLGrowth.getDisplayAdult(self)
         self.infoWeight.value = 1
-        self.infoWeight.ratio = adult > 0 and self.weight / adult or 0
+        self.infoWeight.ratio = self.weight / self.targetWeight
         self.infoWeight.valueText = string.format("%.2f", self.weight) ..
-        "kg / " .. string.format("%.2f", adult) .. "kg"
+        "kg / " .. string.format("%.2f", self.targetWeight) .. "kg"
 
         table.insert(infos, self.infoWeight)
     end
@@ -1114,7 +1113,7 @@ function Animal:showMonitorInfo(box)
     end
 
     box:addLine(g_i18n:getText("rl_ui_weight"), string.format("%.2f", self.weight) .. "kg")
-    box:addLine(g_i18n:getText("rl_ui_targetWeight"), string.format("%.2f", RLGrowth.getDisplayAdult(self)) .. "kg")
+    box:addLine(g_i18n:getText("rl_ui_targetWeight"), string.format("%.2f", self.targetWeight) .. "kg")
     box:addLine(g_i18n:getText("rl_ui_valuePerKilo"),
         g_i18n:formatMoney(self:getSellPrice() / self.weight, 2, true, true))
 

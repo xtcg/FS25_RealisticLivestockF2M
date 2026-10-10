@@ -434,6 +434,14 @@ do
     check(string.format("migration: the anchor fades out within %d months (factor now %.3f), the price moving at most %.1f%% a month on the way",
         settings.migrationBlendMonths, G.getAnchorFactor(bull, bull.rlGrowth), maxStep * 100),
         G.getAnchorFactor(bull, bull.rlGrowth) == 1 and maxStep < 0.08)
+    local lag = bull.age - bull.rlGrowth.developmentMonths
+    local share = bull.weight / G.getCurve(bull):value(bull.age)
+    check(string.format("migration: left behind its curve by the change of model, it caught up on full feed meanwhile (development %.1f at %d months, %.0f%% of its curve), not counted stunted",
+        bull.rlGrowth.developmentMonths, bull.age, share * 100), lag < 0.6 and share > 0.97 and G.getMigrationCatchUp(bull, bull.rlGrowth) == 0)
+
+    -- Growth lost for want of feed, by contrast, never catches up (no anchor, no catch-up).
+    local fed = GrowthSim.makeAnimal("BULL_HIGHLAND_CATTLE", { age = 12 })
+    check("migration: a born or generated animal never catches up", G.getMigrationCatchUp(fed, fed.rlGrowth) == 0)
 
     -- A low-metabolism animal's request gene moves from the old m to the new maintenance factor.
     local low = GrowthSim.makeAnimal("COW_HOLSTEIN", { age = 30, weight = 600,
@@ -718,6 +726,26 @@ do
         and a.weightKg == 512.25 and a.ageMonths == 14.5 and a.legacyAnchor == 1.25 and a.anchorAgeMonths == 9
         and b == nil and readAt == #stream)
 
+    -- A streamed state is checked like a saved one: NaN or nonsense is dropped, an anchor bounded.
+    stream, readAt = {}, 0
+    local bad = G.copyState(state)
+    bad.developmentMonths = 0 / 0
+    G.writeStream(bad, 1)
+    local wild = G.copyState(state)
+    wild.legacyAnchor = 50
+    G.writeStream(wild, 1)
+    local droppedNaN, bounded = G.readStream(1), G.readStream(1)
+    check("network: a streamed state with NaN is dropped, a wild anchor kept within its bounds",
+        droppedNaN == nil and bounded.legacyAnchor == G.ANCHOR_MAX)
+
+    -- A state saved without the weight it was set for keeps its saved split on its first step.
+    local noWeight = G.copyState(state)
+    noWeight.weightKg = nil
+    local holder = { weight = 600, rlGrowth = noWeight }
+    check("persistence: a state without its weight on record keeps its saved development and reserve",
+        G.resync(holder, noWeight) == false and noWeight.developmentMonths == 13.25 and noWeight.reserveMassKg == 41.7
+        and noWeight.weightKg == 600)
+
     local copy = G.copyState(state)
     copy.reserveMassKg = 0
     check("clone: a copied state is a separate table", state.reserveMassKg == 41.7 and G.copyState(nil) == nil)
@@ -815,7 +843,7 @@ do
         and pack.rlGrowth.frameTargetKg == 1260)
     check(string.format("target: a pack bull grows to the design's %.0f kg, its target weight stays the pack's %.0f (slaughter reference %.1f kg, the design's arrival 790 kg at 20 months)",
         pack.rlGrowth.frameTargetKg, pack.targetWeight, pack.targetWeight * 0.75), pack.targetWeight == 1050
-        and near(G.getCurve(pack):value(20), 790, 1e-9) and G.getDisplayAdult(pack) == 1260)
+        and near(G.getCurve(pack):value(20), 790, 1e-9))
 
     -- Heavier or lighter than its curve: priced and fed by the same share as before.
     local heavy = GrowthSim.makeAnimal("BULL_ANGUS", { age = 15 })

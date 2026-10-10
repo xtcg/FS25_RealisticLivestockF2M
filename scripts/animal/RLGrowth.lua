@@ -52,6 +52,13 @@
     migrationBlendMonths, after which it is measured against its curve like any other. Its food
     request's gene factor (m to 1 + 0.15 z), its target weight (the old 1 + 0.4 (m - 1) to the size
     gene) and its underweight threshold (the old minWeight rule to the curve's) move the same way.
+    One that the change of model left behind its curve catches up during that time (its budget
+    paying for it), so it is not counted stunted once the anchor is gone; growth lost for want of
+    feed never catches up.
+
+    Calves. In a rearing pen a calf's own milk and solid liters are valued separately (solid feed
+    at RLCalfRearing.getSolidEnergyFactor). Anywhere else a calf's share of its pen's trough stands
+    for its whole diet, suckling included, and is valued as any animal's.
 ]]
 
 RLGrowth = {}
@@ -164,9 +171,7 @@ function RLGrowth.getIntakeGene(animal)
     local metabolism = animal.genetics ~= nil and animal.genetics.metabolism or 1
     if not RLGrowth.covers(animal) then return metabolism end
     local _, _, maintenance = RLGrowth.getGeneFactors(metabolism)
-    local remaining = RLGrowth.getAnchorRemaining(animal, RLGrowth.peekState(animal))
-    if remaining <= 0 or metabolism <= 0 then return maintenance end
-    return maintenance * (metabolism / maintenance) ^ remaining
+    return RLGrowth.blendLegacy(maintenance, metabolism, RLGrowth.getAnchorRemaining(animal, RLGrowth.peekState(animal)))
 end
 
 
@@ -371,6 +376,19 @@ function RLGrowth.getAnchorRemaining(animal, state)
 end
 
 
+--- An old savegame's animal's value moving from the old rules' to the model's as its take-over
+--- fades: newValue x (oldValue / newValue) ^ remaining (geometric, so a ratio moves evenly); the
+--- model's value when nothing is left or either value is not positive.
+--- @param newValue number
+--- @param oldValue number
+--- @param remaining number 0..1 (getAnchorRemaining)
+--- @return number
+function RLGrowth.blendLegacy(newValue, oldValue, remaining)
+    if remaining <= 0 or newValue <= 0 or oldValue <= 0 then return newValue end
+    return newValue * (oldValue / newValue) ^ math.min(remaining, 1)
+end
+
+
 --- What is left of an animal's legacy anchor now: anchor ^ getAnchorRemaining, down to 1.
 --- @param animal table
 --- @param state table|nil
@@ -477,7 +495,13 @@ end
 --- @return boolean changed
 function RLGrowth.resync(animal, state)
     local weight = animal.weight or 0
-    if state.weightKg ~= nil and math.abs(weight - state.weightKg) <= RLGrowth.RESYNC_TOLERANCE_KG then return false end
+    -- A state without the weight it was set for (written before weightKg existed) is taken as it
+    -- was saved, with the weight it came with.
+    if state.weightKg == nil then
+        state.weightKg = weight
+        return false
+    end
+    if math.abs(weight - state.weightKg) <= RLGrowth.RESYNC_TOLERANCE_KG then return false end
     local bc = RLBodyCondition.getConfig()
     local kappa = RLGrowth.getKappa()
     local reserve = animal.bodyCondition ~= nil and animal.bodyCondition.reserve or nil
@@ -578,9 +602,7 @@ function RLGrowth.getAnimalTargetWeight(animal)
     local legacy = RLGrowth.getLegacyTarget(subType, animal.genetics.metabolism)
     local state = animal.rlGrowth
     if state == nil then return legacy end
-    local remaining = RLGrowth.getAnchorRemaining(animal, state)
-    if remaining <= 0 or target <= 0 or legacy <= 0 then return target end
-    return target * (legacy / target) ^ remaining
+    return RLGrowth.blendLegacy(target, legacy, RLGrowth.getAnchorRemaining(animal, state))
 end
 
 
@@ -591,19 +613,6 @@ end
 --- @return number kg
 function RLGrowth.getNewAnimalWeight(animal)
     return RLGrowth.getCurve(animal):value(math.max(animal.age or 0, 0))
-end
-
-
---- The adult weight shown for an animal: its curve's plateau under the model, its target weight
---- otherwise.
---- @param animal table
---- @return number kg
-function RLGrowth.getDisplayAdult(animal)
-    if RLGrowth.covers(animal) then
-        local binding = RLGrowth.getBinding(animal:getSubType())
-        return RLGrowth.getFrameTarget(animal, binding)
-    end
-    return animal.targetWeight or 0
 end
 
 
@@ -843,12 +852,9 @@ function RLGrowth.getUnderweightThreshold(animal)
     if curve == nil then return 0 end
     local age = math.max(animal.age or 0, 0)
     local threshold = RLGrowth.getSettings().underweightRatio * curve:value(age)
-    local state = RLGrowth.peekState(animal)
-    local remaining = state.legacyAnchor ~= nil and RLGrowth.getAnchorRemaining(animal, state) or 0
+    local remaining = RLGrowth.getAnchorRemaining(animal, RLGrowth.peekState(animal))
     if remaining <= 0 then return threshold end
-    local legacy = RLGrowth.getLegacyUnderweight(animal:getSubType(), age)
-    if legacy <= 0 or threshold <= 0 then return threshold end
-    return threshold * (legacy / threshold) ^ remaining
+    return RLGrowth.blendLegacy(threshold, RLGrowth.getLegacyUnderweight(animal:getSubType(), age), remaining)
 end
 
 
@@ -874,6 +880,28 @@ local function getDiseaseFactor(animal)
     if animal.getDiseaseMultipliers == nil then return 1 end
     local multipliers = animal:getDiseaseMultipliers("updateWeight")
     return multipliers ~= nil and multipliers.weightGain or 1
+end
+
+
+--- Most extra development speed (months per month) a taken-over animal catches up with.
+RLGrowth.CATCH_UP_MAX = 1
+
+
+--- Extra development speed of an old savegame's animal that grew on an old line below its new
+--- curve: while its take-over fades, enough to close its lag behind its age by the time it is
+--- gone (at most CATCH_UP_MAX), so it is not left behind its curve by the change of model. Its
+--- budget pays for the growth like any other; underfed, it catches up less. 0 for any other
+--- animal - growth that fell behind for want of feed never catches up.
+--- @param animal table
+--- @param state table
+--- @return number months per month
+function RLGrowth.getMigrationCatchUp(animal, state)
+    if state.legacyAnchor == nil then return 0 end
+    local remaining = RLGrowth.getAnchorRemaining(animal, state)
+    if remaining <= 0 then return 0 end
+    local lag = RLGrowth.getContinuousAge(animal) - (state.developmentMonths or 0)
+    if lag <= 0 then return 0 end
+    return math.min(lag / (remaining * RLGrowth.getSettings().migrationBlendMonths), RLGrowth.CATCH_UP_MAX)
 end
 
 
@@ -904,7 +932,7 @@ function RLGrowth.buildStepInput(animal, state, intakeLiters, milkShare, dtMonth
         curve = RLGrowth.getCurve(animal),
         kappa = kappa,
         frameFloorKg = s.frameFloorRatio * state.birthWeightKg / (1 + bc.referenceReserve * kappa),
-        speed = speedGene * state.speedFactor,
+        speed = speedGene * state.speedFactor + RLGrowth.getMigrationCatchUp(animal, state),
         diseaseFactor = getDiseaseFactor(animal),
         maintenanceFactor = maintenanceGene,
         potentialMilk = milk.potential * milkShare,
@@ -957,7 +985,8 @@ local function relax(value, target, dtMonths)
 end
 
 
-local lastNoLedger = {}
+--- The hour each pen last logged having no ledger (weak keys: a removed pen goes with it).
+local lastNoLedger = setmetatable({}, { __mode = "k" })
 
 --- Run this hour's step for a covered animal. Called by the server from AnimalHealth.updateHealth
 --- in place of every old weight rule. With its pen's feed ledger the animal eats its share of
@@ -984,7 +1013,7 @@ function RLGrowth.step(animal, foodFactor)
     local intakeStep, allocated, intakeSource = getIntake(animal, supply, foodSpec, foodFactor)
     local fromLedger = intakeSource == "ledger"
     if not fromLedger then
-        local key = owner ~= nil and tostring(owner) or "?"
+        local key = owner or lastNoLedger
         if lastNoLedger[key] ~= tick then
             lastNoLedger[key] = tick
             Log:debug("RLGrowth: no feed ledger this hour in %s (tick=%s), intake from the food factor %.2f",
@@ -1001,7 +1030,7 @@ function RLGrowth.step(animal, foodFactor)
     state.speedFactor = relax(state.speedFactor, RLGrowth.getStageSpeed(animal), dtMonths)
     state.intakeFactor = relax(state.intakeFactor, RLBodyCondition.getIntakeCapacity(animal), dtMonths)
     RLGrowth.advanceClock(state, animal.age or 0, dtMonths)
-    if state.legacyAnchor ~= nil then animal.targetWeight = RLGrowth.getAnimalTargetWeight(animal) end
+    animal.targetWeight = RLGrowth.getAnimalTargetWeight(animal)
 
     local input, ownReference = RLGrowth.buildStepInput(animal, state, intakeStep / dtMonths, milkShare, dtMonths)
     local result = RLGrowthMath.step(input, RLBodyCondition.getConfig())
@@ -1100,14 +1129,26 @@ function RLGrowth.loadFromXMLFile(xmlFile, key)
     })
     state.version = version
 
-    if not (finite(state.birthWeightKg) and state.birthWeightKg > 0 and finite(state.frameTargetKg) and state.frameTargetKg > 0
-        and finite(state.developmentMonths) and state.developmentMonths >= 0 and finite(state.reserveMassKg)
-        and state.reserveMassKg >= 0 and finite(state.speedFactor) and finite(state.intakeFactor)
-        and (state.legacyAnchor == nil or (finite(state.legacyAnchor) and state.legacyAnchor > 0))) then
+    if not RLGrowth.isUsable(state) then
         Log:warning("RLGrowth: %s has an unusable state; it is derived again from the weight", base)
         return nil
     end
+    if state.legacyAnchor ~= nil then state.legacyAnchor = math.clamp(state.legacyAnchor, RLGrowth.ANCHOR_MIN, RLGrowth.ANCHOR_MAX) end
     return state
+end
+
+
+--- Whether a read state can be used: finite numbers, weights above 0, development, reserve and the
+--- optional clocks not below 0, the stage factors above 0.
+--- @param state table
+--- @return boolean
+function RLGrowth.isUsable(state)
+    local function optional(value) return value == nil or (finite(value) and value >= 0) end
+    return finite(state.birthWeightKg) and state.birthWeightKg > 0 and finite(state.frameTargetKg) and state.frameTargetKg > 0
+        and finite(state.developmentMonths) and state.developmentMonths >= 0 and finite(state.reserveMassKg)
+        and state.reserveMassKg >= 0 and finite(state.speedFactor) and state.speedFactor > 0 and finite(state.intakeFactor)
+        and state.intakeFactor > 0 and optional(state.weightKg) and optional(state.ageMonths) and optional(state.anchorAgeMonths)
+        and (state.legacyAnchor == nil or (finite(state.legacyAnchor) and state.legacyAnchor > 0))
 end
 
 
@@ -1149,10 +1190,13 @@ function RLGrowth.writeStream(state, streamId)
 end
 
 
+--- Read a streamed state. Every value is checked as a saved one is (a state a client sends with
+--- an animal it buys is not taken on trust): an unusable one is dropped and the animal gets a
+--- state derived from its weight, a legacy anchor is kept within its bounds.
 function RLGrowth.readStream(streamId)
     if not streamReadBool(streamId) then return nil end
-    local function optional(value) return value >= 0 and value or nil end
-    return RLGrowth.newState({
+    local function optional(value) return (finite(value) and value >= 0) and value or nil end
+    local state = RLGrowth.newState({
         birthWeightKg = streamReadFloat32(streamId),
         frameTargetKg = streamReadFloat32(streamId),
         developmentMonths = streamReadFloat32(streamId),
@@ -1165,6 +1209,9 @@ function RLGrowth.readStream(streamId)
         anchorAgeMonths = optional(streamReadFloat32(streamId)),
         source = "stream",
     })
+    if not RLGrowth.isUsable(state) then return nil end
+    if state.legacyAnchor ~= nil then state.legacyAnchor = math.clamp(state.legacyAnchor, RLGrowth.ANCHOR_MIN, RLGrowth.ANCHOR_MAX) end
+    return state
 end
 
 

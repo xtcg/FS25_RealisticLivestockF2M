@@ -20,7 +20,9 @@
     birth: each calf's own milk and solid liters are valued separately - milk at its fill type's
     energy (bodyCondition.xml feedEnergy, CALFMILK 1.20), solid feed at its energy x solidEnergy
     below - and the curves are read at the age within the month, so the change from milk to solid
-    feed is gradual, with no step at weaning or at 6 months. Without v2, calves under 6 months
+    feed is gradual, with no step at weaning or at 6 months. Outside a rearing pen a calf's share
+    of its pen's trough stands for its whole diet, suckling included, and is valued as any
+    animal's: there is no milk to share out there. Without v2, calves under 6 months
     are outside the budget (bodyCondition.xml calfLegacyUntilAgeMonth) and an older animal still
     in a rearing pen keeps its own share there.
 
