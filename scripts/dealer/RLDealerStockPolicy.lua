@@ -1,8 +1,9 @@
 --[[
     RLDealerStockPolicy.lua
     What the animal dealer may sell, from xml/dealerStock.xml: each animal is generated for a
-    purpose (weaned calf, store bull, heifer ready to breed...) at an age, sex and breeding state
-    that purpose allows. Good genetics are no exemption.
+    purpose (weaned calf, store bull, heifer ready to breed...) from a source that supplies it
+    (dairy herd, rearing unit...), at an age, sex, birth history, milk and health that purpose
+    allows. Good genetics are no exemption.
 
     Pure: every function takes its subtype, entry and context as arguments and draws only through
     the `randomFn(lo, hi) -> int` it is given, so it runs outside the game. Only getConfig touches
@@ -34,6 +35,7 @@ RLDealerStockPolicy.REASON = {
     NO_AGE = "NO_AGE",                          -- window empty after caps, breeding and weaning ages
     NOT_BUYABLE = "NOT_BUYABLE",                -- no age left whose visual can be bought
     NO_TIMELINE = "NO_TIMELINE",                -- no birth / pregnancy history fits the age
+    NO_SOURCE = "NO_SOURCE",                    -- no source supplies the purpose for this breed and sex
     NO_PURPOSE = "NO_PURPOSE",                  -- nothing offerable for the subtype and sex
     UNKNOWN_PURPOSE = "UNKNOWN_PURPOSE",        -- listing names a purpose the config lacks
     GENDER = "GENDER",
@@ -44,12 +46,17 @@ RLDealerStockPolicy.REASON = {
     TIMELINE = "TIMELINE",                      -- birth or conception earlier than possible
     CASTRATED = "CASTRATED",                    -- breeding male that is castrated
     TOO_LIGHT = "TOO_LIGHT",                    -- under breedingWeightRatio x target weight
+    PARITY = "PARITY",                          -- births outside the purpose's, or more than fit its age
+    LACTATION = "LACTATION",                    -- milking against its last birth
+    HEALTH = "HEALTH",                          -- health under the profile's minHealth
+    SICK = "SICK",                              -- shows a disease
+    SOURCE = "SOURCE",                          -- its source does not (or no longer) supply it
 }
 
 local REASON = RLDealerStockPolicy.REASON
 
 RLDealerStockPolicy.DEFAULTS = {
-    version = 1,
+    version = 2,
     maxAttempts = 8,
     femaleShare = 0.5,
 }
@@ -60,7 +67,17 @@ RLDealerStockPolicy.TIMELINE_SLACK_MONTHS = 1
 RLDealerStockPolicy.PROFILE_DEFAULTS = {
     maxPregnancyProgress = 0.75,
     minRecoveryMonth = 3,
+    minHealth = 90,
 }
+
+--- Source traceability labels and their rank, least first (a label only: no certificate is implied).
+RLDealerStockPolicy.TRACEABILITY = { UNKNOWN = 1, PARTIAL = 2, RECORDED = 3 }
+
+--- Breed use a source takes whatever the breed (and the only one a breed without a use matches).
+RLDealerStockPolicy.ANY_USE = "any"
+
+--- The one source a profile without any gets (a file from before sources).
+RLDealerStockPolicy.DEFAULT_SOURCE = "UNSPECIFIED"
 
 local RULES = { never = true, always = true, optional = true }
 local GENDERS = { female = true, male = true, any = true }
@@ -68,6 +85,22 @@ local GENDERS = { female = true, male = true, any = true }
 --- True with probability p, from an integer draw.
 local function chance(randomFn, p)
     return randomFn(1, 1000) <= p * 1000
+end
+
+
+--- One of `items` by `weightOf(item)` (> 0 in total), from one draw; nil when the total is 0.
+local function pickWeighted(items, weightOf, randomFn)
+    local total = 0
+    for _, item in ipairs(items) do total = total + weightOf(item) end
+    if total <= 0 then return nil end
+
+    local roll = randomFn(1, 1000000) / 1000000 * total
+    local cumulative = 0
+    for _, item in ipairs(items) do
+        cumulative = cumulative + weightOf(item)
+        if roll <= cumulative then return item end
+    end
+    return items[#items]
 end
 
 
@@ -79,6 +112,7 @@ local LAYER_ATTRIBUTES = {
     breedingWeightRatio = "getFloat",
     breedingMinAgeMonth = "getFloat",
     femaleShare = "getFloat",
+    use = "getString",
 }
 
 
@@ -92,6 +126,7 @@ local function readLayer(xmlFile, key)
         local value = xmlFile[getter](xmlFile, key .. "#" .. attr)
         if value ~= nil then
             if attr == "profile" then value = value:upper() end
+            if attr == "use" then value = value:lower() end
             values[attr] = value
         end
     end
@@ -122,6 +157,8 @@ local function readPurpose(xmlFile, key, profileName)
         breeding = xmlFile:getBool(key .. "#breeding", false),
         breedingWeight = xmlFile:getBool(key .. "#breedingWeight", false),
         weaned = xmlFile:getBool(key .. "#weaned", false),
+        minParity = xmlFile:getInt(key .. "#minParity", 1),
+        maxParity = xmlFile:getInt(key .. "#maxParity", 1),
     }
     purpose.slowMinAge = xmlFile:getInt(key .. "#slowMinAgeMonth", purpose.minAge)
     purpose.slowMaxAge = xmlFile:getInt(key .. "#slowMaxAgeMonth", purpose.maxAge)
@@ -142,6 +179,8 @@ local function readPurpose(xmlFile, key, profileName)
     elseif not (purpose.parentChance >= 0 and purpose.parentChance <= 1)
         or not (purpose.pregnancyChance >= 0 and purpose.pregnancyChance <= 1) then
         problem = "parentChance and pregnancyChance must be 0..1"
+    elseif purpose.minParity < 1 or purpose.maxParity < purpose.minParity then
+        problem = "needs 1 <= minParity <= maxParity"
     end
 
     if problem ~= nil then
@@ -154,16 +193,83 @@ local function readPurpose(xmlFile, key, profileName)
 end
 
 
+--- A source table (readSource and the fallback for a profile without sources).
+local function newSource(id, uses, weight, traceability)
+    local source = { id = id, uses = {}, weight = weight, traceability = traceability }
+    for _, use in ipairs(uses) do source.uses[use:lower()] = true end
+    source.anyUse = source.uses[RLDealerStockPolicy.ANY_USE] == true
+    return source
+end
+
+
+--- Split a space-separated list.
+local function words(text)
+    local list = {}
+    for word in string.gmatch(text or "", "%S+") do table.insert(list, word) end
+    return list
+end
+
+
+--- Read one source element; nil (with a warning) when it cannot be used.
+--- @return table|nil source {id, uses{[use]=true}, anyUse, purposes{["ID"|"ID:sex"]=true}|nil (all),
+---         purposeList{{id, sex|nil}}|nil, weight, traceability}
+local function readSource(xmlFile, key, profileName)
+    local id = xmlFile:getString(key .. "#id")
+    local weight = xmlFile:getFloat(key .. "#weight", 1)
+    local traceability = (xmlFile:getString(key .. "#traceability", "UNKNOWN")):upper()
+
+    local problem
+    if id == nil then
+        problem = "no id"
+    elseif not (weight > 0) then
+        problem = "weight must be > 0"
+    elseif not RLDealerStockPolicy.TRACEABILITY[traceability] then
+        problem = "traceability must be RECORDED, PARTIAL or UNKNOWN"
+    end
+    if problem ~= nil then
+        Log:warning("RLDealerStockPolicy: profile %s source %s ignored: %s", profileName, tostring(id), problem)
+        return nil
+    end
+
+    local source = newSource(id:upper(), words(xmlFile:getString(key .. "#uses", RLDealerStockPolicy.ANY_USE)),
+        weight, traceability)
+
+    local purposes = words(xmlFile:getString(key .. "#purposes", "*"))
+    if not (#purposes == 1 and purposes[1] == "*") then
+        source.purposes, source.purposeList = {}, {}
+        for _, token in ipairs(purposes) do
+            local purposeId, sex = token:match("^([^:]+):?(%a*)$")
+            sex = sex ~= nil and sex:lower() or ""
+            if purposeId == nil or (sex ~= "" and sex ~= "female" and sex ~= "male") then
+                Log:warning("RLDealerStockPolicy: profile %s source %s: purpose %s not understood, ignored",
+                    profileName, source.id, token)
+            else
+                purposeId = purposeId:upper()
+                source.purposes[purposeId .. (sex ~= "" and (":" .. sex) or "")] = true
+                table.insert(source.purposeList, { id = purposeId, sex = sex ~= "" and sex or nil })
+            end
+        end
+    end
+    return source
+end
+
+
 --- Read a dealer stock config.
 --- @param xmlFile table|nil An XMLFile with a dealerStock root; nil gives an empty config (every type NOT_COVERED)
---- @return table config {version, maxAttempts, femaleShare, profiles[name], layers{types, breeds, subTypes}}
+--- @return table config {version, maxAttempts, femaleShare, profiles[name] {.., purposes, sources}, layers{types, breeds, subTypes}}
 function RLDealerStockPolicy.parseConfig(xmlFile)
     local config = table.clone(RLDealerStockPolicy.DEFAULTS)
     config.profiles = {}
     config.layers = { types = {}, breeds = {}, subTypes = {} }
     if xmlFile == nil then return config end
 
-    config.version = xmlFile:getInt("dealerStock#version", config.version)
+    local version = xmlFile:getInt("dealerStock#version")
+    if version == nil or version < RLDealerStockPolicy.DEFAULTS.version then
+        Log:warning("RLDealerStockPolicy: dealerStock.xml is version %s, the mod's is %d; copy the mod's file "
+            .. "again to get its newer settings (sources, calving counts, health, weaning ages).",
+            tostring(version), RLDealerStockPolicy.DEFAULTS.version)
+    end
+    config.version = version or config.version
     config.maxAttempts = math.max(1, xmlFile:getInt("dealerStock#maxAttempts", config.maxAttempts))
     config.femaleShare = math.clamp(xmlFile:getFloat("dealerStock#femaleShare", config.femaleShare), 0, 1)
 
@@ -179,7 +285,11 @@ function RLDealerStockPolicy.parseConfig(xmlFile)
                 RLDealerStockPolicy.PROFILE_DEFAULTS.maxPregnancyProgress), 0, 1),
             minRecoveryMonth = math.max(0, xmlFile:getInt(key .. "#minRecoveryMonth",
                 RLDealerStockPolicy.PROFILE_DEFAULTS.minRecoveryMonth)),
+            minHealth = math.clamp(xmlFile:getFloat(key .. "#minHealth",
+                RLDealerStockPolicy.PROFILE_DEFAULTS.minHealth), 0, 100),
+            weaningMonth = xmlFile:getFloat(key .. "#weaningMonth"),
             purposes = {},
+            sources = {},
         }
         if profile.maxFemaleAge == nil or profile.maxMaleAge == nil then
             Log:warning("RLDealerStockPolicy: profile %s needs maxFemaleAgeMonth and maxMaleAgeMonth, ignored", name)
@@ -205,6 +315,36 @@ function RLDealerStockPolicy.parseConfig(xmlFile)
             for _, sex in ipairs(sexes) do seen[purpose.id .. ":" .. sex] = true end
             table.insert(profile.purposes, purpose)
         end)
+
+        local sourceIds, sourceElements = {}, 0
+        xmlFile:iterate(key .. ".source", function(_, sourceKey)
+            sourceElements = sourceElements + 1
+            local source = readSource(xmlFile, sourceKey, name)
+            if source == nil then return end
+            if sourceIds[source.id] then
+                Log:warning("RLDealerStockPolicy: profile %s has source %s twice, the later one ignored", name, source.id)
+                return
+            end
+            sourceIds[source.id] = true
+            for _, named in ipairs(source.purposeList or {}) do
+                if not seen[named.id .. ":female"] and not seen[named.id .. ":male"] then
+                    Log:warning("RLDealerStockPolicy: profile %s source %s names purpose %s, which the profile does not have",
+                        name, source.id, named.id)
+                elseif named.sex ~= nil and not seen[named.id .. ":" .. named.sex] then
+                    Log:warning("RLDealerStockPolicy: profile %s source %s names purpose %s for %s, which the profile does not have",
+                        name, source.id, named.id, named.sex)
+                end
+            end
+            table.insert(profile.sources, source)
+        end)
+        if sourceElements == 0 and #profile.purposes > 0 then
+            -- A file from before sources (version 1): one source of unknown history that supplies
+            -- every purpose of any breed, so the profile keeps selling as it did. Not for a profile
+            -- whose sources were all invalid: those were warned about and it offers nothing.
+            table.insert(profile.sources, newSource(RLDealerStockPolicy.DEFAULT_SOURCE, { RLDealerStockPolicy.ANY_USE }, 1, "UNKNOWN"))
+            Log:warning("RLDealerStockPolicy: profile %s has no source; its purposes come from one source, %s "
+                .. "(any breed, history unknown), until the file names its sources", name, RLDealerStockPolicy.DEFAULT_SOURCE)
+        end
 
         if config.profiles[name] ~= nil then
             Log:warning("RLDealerStockPolicy: profile %s defined twice, the later one used", name)
@@ -267,7 +407,7 @@ end
 --- @param config table
 --- @param subType table {name, breed, gender, ...}
 --- @param typeName string|nil The subtype's animal type name
---- @return table entry {status, typeName, profile, slow, breedingWeightRatio, breedingMinAge}
+--- @return table entry {status, typeName, profile, slow, breedingWeightRatio, breedingMinAge, use}
 function RLDealerStockPolicy.getEntry(config, subType, typeName)
     local name, breed = subType.name, subType.breed
     local function get(attr) return RLDealerStockPolicy.lookup(config, typeName, breed, name, attr) end
@@ -277,6 +417,7 @@ function RLDealerStockPolicy.getEntry(config, subType, typeName)
         slow = get("slowMaturing") == true,
         breedingWeightRatio = get("breedingWeightRatio"),
         breedingMinAge = get("breedingMinAgeMonth"),
+        use = get("use"),
     }
 
     if get("legacy") == true then
@@ -311,6 +452,80 @@ function RLDealerStockPolicy.findPurpose(entry, gender, id)
         if purpose.id == id then return purpose end
     end
     return nil
+end
+
+
+--- Whether a source supplies a purpose for the entry's breed (use) and this sex.
+function RLDealerStockPolicy.supplies(source, entry, purpose, gender)
+    if not (source.anyUse or (entry.use ~= nil and source.uses[entry.use])) then return false end
+    if source.purposes == nil then return true end
+    return source.purposes[purpose.id] == true or source.purposes[purpose.id .. ":" .. tostring(gender)] == true
+end
+
+
+--- Whether a breed without a use loses anything: some source of the profile keeps only certain uses.
+function RLDealerStockPolicy.isUseMissing(entry)
+    if entry.use ~= nil or entry.profile == nil then return false end
+    for _, source in ipairs(entry.profile.sources) do
+        if not source.anyUse then return true end
+    end
+    return false
+end
+
+
+--- Whether any source of the entry's profile supplies a purpose for its breed and this sex.
+function RLDealerStockPolicy.hasSource(entry, purpose, gender)
+    if entry.profile == nil or purpose == nil then return false end
+    for _, source in ipairs(entry.profile.sources) do
+        if RLDealerStockPolicy.supplies(source, entry, purpose, gender) then return true end
+    end
+    return false
+end
+
+
+--- The least traceable of some sources (the first of equals): what an old listing, whose history
+--- is not known, is labelled with.
+--- @param sources table[]
+--- @return table|nil source nil for none
+function RLDealerStockPolicy.getLeastTraceableSource(sources)
+    local best = sources[1]
+    if best == nil then return nil end
+    for _, source in ipairs(sources) do
+        local rank = RLDealerStockPolicy.TRACEABILITY
+        if rank[source.traceability] < rank[best.traceability] then best = source end
+    end
+    return best
+end
+
+
+--- The sources of the entry's profile that supply a purpose for its breed and this sex, in file order.
+--- @return table[]
+function RLDealerStockPolicy.getSources(entry, purpose, gender)
+    local list = {}
+    if entry.profile == nil or purpose == nil then return list end
+    for _, source in ipairs(entry.profile.sources) do
+        if RLDealerStockPolicy.supplies(source, entry, purpose, gender) then table.insert(list, source) end
+    end
+    return list
+end
+
+
+--- The source with this id in the entry's profile, or nil.
+function RLDealerStockPolicy.findSource(entry, id)
+    if id == nil or entry.profile == nil then return nil end
+    for _, source in ipairs(entry.profile.sources) do
+        if source.id == id then return source end
+    end
+    return nil
+end
+
+
+--- Draw a source by weight; no draw when there is only one.
+--- @param sources table[] From getSources, not empty
+--- @return table source
+function RLDealerStockPolicy.pickSource(sources, randomFn)
+    if #sources == 1 then return sources[1] end
+    return pickWeighted(sources, function(source) return source.weight end, randomFn)
 end
 
 
@@ -400,6 +615,15 @@ function RLDealerStockPolicy.getBreedingAge(entry, subType)
 end
 
 
+--- The month in which the young are weaned (weaned from the next): the profile's weaningMonth,
+--- else the calf rearing one in ctx.
+--- @return number|nil
+function RLDealerStockPolicy.getWeaningMonth(entry, ctx)
+    if entry.profile ~= nil and entry.profile.weaningMonth ~= nil then return entry.profile.weaningMonth end
+    return ctx.weaningMonth
+end
+
+
 --- Absolute age cap (exclusive) for the subtype's sex.
 function RLDealerStockPolicy.getCap(entry, gender)
     local profile = entry.profile
@@ -410,7 +634,7 @@ end
 
 --- A purpose's age window for a subtype, after the absolute cap, maxBuyAge, breeding and weaning
 --- ages (not yet the buyable visuals).
---- @param ctx table {maxBuyAge, weaningMonth|nil}
+--- @param ctx table {maxBuyAge, weaningMonth|nil (calf rearing)}
 --- @return number lo
 --- @return number hi exclusive; hi <= lo means empty
 function RLDealerStockPolicy.getAgeWindow(purpose, entry, subType, ctx)
@@ -418,7 +642,8 @@ function RLDealerStockPolicy.getAgeWindow(purpose, entry, subType, ctx)
     local hi = entry.slow and purpose.slowMaxAge or purpose.maxAge
     hi = math.min(hi, RLDealerStockPolicy.getCap(entry, subType.gender), (ctx.maxBuyAge or hi) + 1)
     if purpose.breeding then lo = math.max(lo, math.ceil(RLDealerStockPolicy.getBreedingAge(entry, subType))) end
-    if purpose.weaned and ctx.weaningMonth ~= nil then lo = math.max(lo, math.ceil(ctx.weaningMonth + 1)) end
+    local weaningMonth = RLDealerStockPolicy.getWeaningMonth(entry, ctx)
+    if purpose.weaned and weaningMonth ~= nil then lo = math.max(lo, math.ceil(weaningMonth + 1)) end
     return lo, hi
 end
 
@@ -432,6 +657,7 @@ local function getStaticReason(purpose, entry, subType)
         and (subType.gender ~= "female" or not subType.supportsReproduction) then
         return REASON.NO_REPRODUCTION
     end
+    if not RLDealerStockPolicy.hasSource(entry, purpose, subType.gender) then return REASON.NO_SOURCE end
     return nil
 end
 
@@ -477,17 +703,7 @@ end
 --- Draw a candidate by purpose weight.
 --- @return table|nil candidate
 function RLDealerStockPolicy.pickCandidate(candidates, randomFn)
-    local total = 0
-    for _, candidate in ipairs(candidates) do total = total + candidate.purpose.weight end
-    if total <= 0 then return nil end
-
-    local roll = randomFn(1, 1000000) / 1000000 * total
-    local cumulative = 0
-    for _, candidate in ipairs(candidates) do
-        cumulative = cumulative + candidate.purpose.weight
-        if roll <= cumulative then return candidate end
-    end
-    return candidates[#candidates]
+    return pickWeighted(candidates, function(candidate) return candidate.purpose.weight end, randomFn)
 end
 
 
@@ -522,15 +738,34 @@ end
 -- Breeding history
 -- =============================================================================
 
+--- Months from one birth to the next at the earliest: a gestation after the recovery.
+local function getBirthCycle(entry, duration)
+    return duration + entry.profile.minRecoveryMonth
+end
+
+
+--- The most births that fit before a last birth at `lastBirthAge`: the first at the breeding age
+--- plus a gestation at the earliest, each later one at least a cycle after the one before.
+--- @return number births 0 when not even one fits
+function RLDealerStockPolicy.getMostBirths(entry, subType, lastBirthAge)
+    local duration = subType.reproductionDurationMonth or 0
+    local spare = lastBirthAge - RLDealerStockPolicy.getBreedingAge(entry, subType) - duration
+    if spare < 0 then return 0 end
+    return 1 + math.floor(spare / getBirthCycle(entry, duration) + 1e-9)
+end
+
+
 --- A birth and pregnancy history that fits the purpose at this age.
---- A parent gave birth `monthsSinceLastBirth` months ago, no earlier than the breeding age plus a
---- gestation. A pregnancy is `pregnancyMonths` months along (at least 1, at most
---- maxPregnancyProgress of the gestation), conceived no earlier than the breeding age, or
---- minRecoveryMonth after the last birth.
---- @return table|nil plan {isParent, monthsSinceLastBirth, isPregnant, pregnancyMonths, duration}
+--- A parent has had `parity` births (minParity..maxParity, as many as fit its age), the last
+--- `monthsSinceLastBirth` months ago (at least 1). A pregnancy is `pregnancyMonths` months along
+--- (at least 1, at most maxPregnancyProgress of the gestation), conceived no earlier than the
+--- breeding age, or minRecoveryMonth after the last birth.
+--- Draws: the parent chance, the parity (only when more than one fits), the months since the last
+--- birth, the pregnancy chance and its months.
+--- @return table|nil plan {isParent, parity, monthsSinceLastBirth, isPregnant, pregnancyMonths, duration}
 --- @return string|nil reason
 function RLDealerStockPolicy.planReproduction(purpose, entry, subType, age, randomFn)
-    local plan = { isParent = false, monthsSinceLastBirth = 12, isPregnant = false, pregnancyMonths = 0,
+    local plan = { isParent = false, parity = 0, monthsSinceLastBirth = 12, isPregnant = false, pregnancyMonths = 0,
         duration = subType.reproductionDurationMonth or 0 }
 
     local canBreed = subType.gender == "female" and subType.supportsReproduction and plan.duration > 0
@@ -539,10 +774,14 @@ function RLDealerStockPolicy.planReproduction(purpose, entry, subType, age, rand
 
     local wantsParent = purpose.parent == "always" or (purpose.parent == "optional" and chance(randomFn, purpose.parentChance))
     if wantsParent then
+        -- Most months since a single birth; each further birth takes a cycle off it.
         local latest = canBreed and math.floor(age - breedingAge - plan.duration) or 0
-        if latest >= 1 then
+        local most = latest >= 1 and 1 + math.floor((latest - 1) / getBirthCycle(entry, plan.duration)) or 0
+        local hi = math.min(purpose.maxParity, most)
+        if hi >= purpose.minParity then
             plan.isParent = true
-            plan.monthsSinceLastBirth = randomFn(1, latest)
+            plan.parity = hi > purpose.minParity and randomFn(purpose.minParity, hi) or hi
+            plan.monthsSinceLastBirth = randomFn(1, latest - (plan.parity - 1) * getBirthCycle(entry, plan.duration))
         elseif purpose.parent == "always" then
             return nil, REASON.NO_TIMELINE
         end
@@ -572,6 +811,26 @@ function RLDealerStockPolicy.planReproduction(purpose, entry, subType, age, rand
 end
 
 
+--- Whether a mother milks now: a female, since her last birth, within RLLactation.MONTHS
+--- (ctx.lactates: the species milks at all). The game's own rule (RLLactation), so a listing stays in step
+--- as it ages on the shelf.
+--- @param ctx table {lactates}
+--- @return boolean
+function RLDealerStockPolicy.isInMilk(gender, isParent, monthsSinceLastBirth, ctx)
+    return ctx.lactates == true and gender == "female" and isParent == true
+        and RLLactation.isWithin(monthsSinceLastBirth)
+end
+
+
+--- A dealer animal's health: from a healthy herd, minHealth..100 whatever its health genetics.
+--- One draw.
+--- @return number health 0..100
+function RLDealerStockPolicy.drawHealth(entry, randomFn)
+    local minHealth = entry.profile.minHealth
+    return minHealth + randomFn(0, 1000) / 1000 * (100 - minHealth)
+end
+
+
 -- =============================================================================
 -- Validation
 -- =============================================================================
@@ -583,9 +842,16 @@ end
 --- runs ahead of the calendar (28 days a month: 28% a month, 2.8 nominal cow months). `onShelf`
 --- therefore skips the two conception-time checks for a listing that already passed them when it
 --- was generated; its ages, breeding state and progress limit are still checked.
+--- The listing record (animal.sale) is checked when it names a source or a parity: the source must
+--- supply the purpose for the breed and sex; the parity must be the purpose's and fit the age. A
+--- parent without a parity (a listing saved before parities) qualifies only when no more births
+--- than the purpose allows can fit its age (its last birth taken a slack month early, as age and
+--- months since birth step apart on the shelf).
 --- @param animal table {age, gender, isParent, monthsSinceLastBirth, isPregnant, pregnancy,
----        reproduction (0..100), isCastrated, weight, targetWeight}
---- @param ctx table {maxBuyAge, weaningMonth|nil, union|nil}
+---        reproduction (0..100), isLactating, isCastrated, health, weight, targetWeight,
+---        getHasAnyDisease|nil, sale|nil {source, parity}}
+--- @param ctx table {maxBuyAge, weaningMonth|nil, union|nil, lactates|nil}
+---        (lactates nil: milk not checked)
 --- @param onShelf boolean|nil See above
 --- @return boolean ok
 --- @return string[] reasons
@@ -646,7 +912,39 @@ function RLDealerStockPolicy.validate(animal, purpose, entry, subType, ctx, onSh
         fail(REASON.TIMELINE)
     end
 
+    local sale = animal.sale or {}
+    local parity = sale.parity
+    if isParent then
+        local sinceBirth = animal.monthsSinceLastBirth or 0
+        if parity ~= nil then
+            if parity < purpose.minParity or parity > purpose.maxParity
+                or parity > RLDealerStockPolicy.getMostBirths(entry, subType, age - sinceBirth + slack) then
+                fail(REASON.PARITY)
+            end
+        elseif purpose.minParity > 1
+            or RLDealerStockPolicy.getMostBirths(entry, subType, age - sinceBirth - slack) > purpose.maxParity then
+            fail(REASON.PARITY)
+        end
+    elseif parity ~= nil and parity > 0 then
+        fail(REASON.PARITY)
+    end
+
+    if ctx.lactates ~= nil
+        and (animal.isLactating == true) ~= RLDealerStockPolicy.isInMilk(animal.gender, isParent, animal.monthsSinceLastBirth, ctx) then
+        fail(REASON.LACTATION)
+    end
+
     if purpose.breeding and animal.gender == "male" and animal.isCastrated then fail(REASON.CASTRATED) end
+
+    if not ((animal.health or 0) >= profile.minHealth - eps) then fail(REASON.HEALTH) end
+    if type(animal.getHasAnyDisease) == "function" and animal:getHasAnyDisease() then fail(REASON.SICK) end
+
+    if sale.source ~= nil then
+        local source = RLDealerStockPolicy.findSource(entry, sale.source)
+        if source == nil or not RLDealerStockPolicy.supplies(source, entry, purpose, animal.gender) then
+            fail(REASON.SOURCE)
+        end
+    end
 
     if purpose.breedingWeight and entry.breedingWeightRatio ~= nil
         and not ((animal.weight or 0) >= entry.breedingWeightRatio * (animal.targetWeight or 0)) then

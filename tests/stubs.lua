@@ -127,6 +127,9 @@ function loadAnimalSection(first, last)
     assert(load("local Log = RmLogging.getLogger()\n" .. text:sub(from, to), "Animal section " .. first))()
 end
 
+-- The game's milk rule (births, the monthly tick, yield, the forecast and the dealer).
+loadMod("scripts/animal/RLLactation.lua")
+
 -- Livestock prices at the calibration level (HARD, x1), so a test sees the calibrated prices;
 -- tests/test_livestockprices.lua loads the real module over it.
 RLLivestockPrices = { getMultiplier = function() return 1 end }

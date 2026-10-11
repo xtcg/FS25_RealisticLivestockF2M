@@ -780,7 +780,7 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
     if childNum > 0 then
         animal.isParent = true
-        if animalType == AnimalType.COW or animal.subType == "GOAT" then animal.isLactating = true end
+        if RLLactation.startsAtBirth(animalType, animal.subType) then animal.isLactating = true end
     end
 
     childNum = childNum - animalsToSell

@@ -1253,7 +1253,7 @@ end
 --- -- reads/writes only these two fields, touches no game state and sets no
 --- dirty flag -- so MP clients can run it locally in lockstep with the server,
 --- the same property that lets aging run client-side. The isLactating flip is
---- one-directional at >= 10; re-enabling lactation is AnimalBirthEvent's job.
+--- one-directional at RLLactation.MONTHS; re-enabling lactation is AnimalBirthEvent's job.
 --- @see RealisticLivestock_PlaceableHusbandryAnimals.onPeriodChanged (client branch)
 function Animal:advanceRecoveryPeriod()
     -- A legacy/corrupt savegame may carry a nil counter (Animal.new coerces it to
@@ -1262,7 +1262,7 @@ function Animal:advanceRecoveryPeriod()
 
     self.monthsSinceLastBirth = self.monthsSinceLastBirth + 1
 
-    if self.isLactating and self.monthsSinceLastBirth >= 10 then
+    if self.isLactating and not RLLactation.isWithin(self.monthsSinceLastBirth) then
         self.isLactating = false
     end
 
@@ -1782,15 +1782,12 @@ function Animal.isCowMilkPalletFillType(fillTypeIndex)
     return name ~= nil and Animal.COW_MILK_PALLET_FILL_TYPE_NAMES[name] == true
 end
 
---- Milk yield through the lactation: 0.8 at birth, rising to 1.3 at 3 months, falling to about
---- 0.93 at 9 months, and 0 from 10 months on or for an animal not lactating or never a mother.
+--- Milk yield through the lactation (RLLactation.getYieldFactor: 0.8 at birth, 1.3 at 3 months,
+--- about 0.93 at 9 months, 0 from 10 months on); 0 for an animal not lactating or never a mother.
 ---@return number
 function Animal:getLactationFactor()
-    local monthsSinceLastBirth = self.monthsSinceLastBirth or 12
-
-    if monthsSinceLastBirth >= 10 or not self.isLactating or not self.isParent then return 0 end
-    if monthsSinceLastBirth <= 3 then return 0.8 + (monthsSinceLastBirth / 6) end
-    return 0.8 + ((11 - monthsSinceLastBirth) / 15)
+    if not self.isLactating or not self.isParent then return 0 end
+    return RLLactation.getYieldFactor(self.monthsSinceLastBirth or 12)
 end
 
 function Animal:updateOutput(temp)

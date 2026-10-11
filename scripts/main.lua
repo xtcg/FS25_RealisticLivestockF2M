@@ -145,7 +145,9 @@ source(modDirectory .. "scripts/animal/RLGenetics.lua")
 -- SECTION 11c: Horse Logic (delegate module, sourced before Animal.lua)
 source(modDirectory .. "scripts/animal/AnimalHorse.lua")
 
--- SECTION 11d: Reproduction Logic (delegate module, sourced before Animal.lua)
+-- SECTION 11d: Reproduction Logic (delegate module, sourced before Animal.lua); the milk rule
+-- births, the monthly tick, milk yield, the feed forecast and the dealer share.
+source(modDirectory .. "scripts/animal/RLLactation.lua")
 source(modDirectory .. "scripts/animal/AnimalReproduction.lua")
 
 -- SECTION 11e: Health/Death Logic (delegate module, sourced before Animal.lua)

@@ -18,7 +18,6 @@ RLPenFeedForecast = {}
 local Log = RmLogging.getLogger("RLRM")
 
 RLPenFeedForecast.MAX_MONTHS         = 12   -- Projection cap; UI maps this to "~12+m".
-RLPenFeedForecast.LACTATION_CUTOFF   = 10   -- Mirrors Animal:onPeriodChanged.
 RLPenFeedForecast.WARNING_DAYS       = 2    -- < this many real days of feed -> orange alert (RLDetailPaneHelper).
 RLPenFeedForecast.DANGER_DAYS        = 1    -- < this many real days of feed -> red alert.
 
@@ -109,7 +108,8 @@ local function tickStateAdvance(scratch, daysPerPeriod)
         local s = scratch[i]
         s.age = s.age + 1
         s.monthsSinceLastBirth = s.monthsSinceLastBirth + 1
-        if s.isLactating and s.monthsSinceLastBirth >= RLPenFeedForecast.LACTATION_CUTOFF then
+        -- The game's milk rule (RLLactation), as Animal:advanceRecoveryPeriod applies it.
+        if s.isLactating and not RLLactation.isWithin(s.monthsSinceLastBirth) then
             s.isLactating = false
         end
 
@@ -178,14 +178,12 @@ local function tickBirths(scratch, simMonth, simYear, maxNumAnimals)
                 })
             end
 
-            -- Mother post-birth state per AnimalReproduction (COW or GOAT lactates).
+            -- Mother post-birth state per the game's milk rule (RLLactation: cattle and goats).
             s.isPregnant           = false
             s.pregnancy            = nil
             s.reproduction         = 0
             s.monthsSinceLastBirth = 0
-            if (AnimalType ~= nil and s.animalTypeIndex == AnimalType.COW)
-                or s.subTypeName == "GOAT"
-            then
+            if RLLactation.startsAtBirth(s.animalTypeIndex, s.subTypeName) then
                 s.isLactating = true
             end
 

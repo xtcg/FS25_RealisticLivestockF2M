@@ -92,7 +92,7 @@ function AnimalBirthEvent:run(connection)
             parent.isPregnant = false
             parent.reproduction = 0
 
-            if parent.animalTypeIndex == AnimalType.COW or parent.subType == "GOAT" then parent.isLactating = true end
+            if RLLactation.startsAtBirth(parent.animalTypeIndex, parent.subType) then parent.isLactating = true end
 
             if self.parentDied then RLAnimalUtil.findAndRemove(animals, identifiers.farmId, identifiers.uniqueId, country) end
         else
@@ -132,7 +132,7 @@ function AnimalBirthEvent:run(connection)
             parent.isPregnant = false
             parent.reproduction = 0
 
-            if parent.animalTypeIndex == AnimalType.COW or parent.subType == "GOAT" then parent.isLactating = true end
+            if RLLactation.startsAtBirth(parent.animalTypeIndex, parent.subType) then parent.isLactating = true end
         else
             Log:trace("BirthEvent:run parent not found uniqueId=%s (cluster)", tostring(identifiers.uniqueId))
         end
