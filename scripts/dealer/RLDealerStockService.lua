@@ -21,6 +21,7 @@ end
 -- unscreened reference replay is a listing. Source IDs cannot be relisted.
 function V.publish(store, sourceId, candidate, lifetimeClass)
     if store.recoveryRequired then return nil, "RECOVERY_REQUIRED" end
+    if store.sourceOwners ~= nil then return nil, "OWNED_SOURCE_PUBLICATION_REQUIRED" end
     if type(candidate) ~= "table" or candidate.eligibility ~= "VERIFIED_CANDIDATE" then return nil, "CANDIDATE_REQUIRED" end
     local screened, reason = RLDealerReplay.screen(candidate)
     if not screened then return nil, reason end
@@ -49,6 +50,7 @@ end
 -- at the latest quarter-month boundary, never run by a page or quote read.
 function V.advanceSegments(store, segments, resolveSubType, resolveEntry, eligible)
     if store.recoveryRequired or store.purchase.recoveryRequired then return nil, "RECOVERY_REQUIRED" end
+    if store.sourceOwners ~= nil then return nil, "OWNED_SOURCE_PROGRESSION_REQUIRED" end
     if type(eligible) ~= "function" then return nil, "ELIGIBILITY_REQUIRED" end
     -- Transactions own reserved sources. An update must not mutate assets under
     -- an in-flight or interrupted ownership decision.
@@ -82,9 +84,16 @@ function V.readListing(store, saleId)
     return RLDealerListingRegistry.get(store.listings, saleId)
 end
 function V.buildSnapshot(store, meta, markers)
+    local ownership
+    if store.sourceOwners ~= nil then
+        local why
+        ownership, why = RLDealerOwnedStock.export(store.sourceOwners, store.sourceBindings,
+            store.sourceRecordsByOwner, store.observedChildren, store.farm.sources, store.farm.clock.months)
+        if not ownership then return nil, why end
+    end
     return RLDealerPersistence.capture(meta, RLDealerClock.export(store.farm.clock),
         RLDealerListingRegistry.export(store.listings), copy(store.farm.sources),
-        RLDealerPurchase.export(store.purchase), markers)
+        RLDealerPurchase.export(store.purchase), markers, ownership)
 end
 function V.fromVerifiedDocument(document)
     if type(document) ~= "table" or document.state ~= "VERIFIED" or document.sourceResolution ~= "RESOLVED" then
@@ -92,9 +101,18 @@ function V.fromVerifiedDocument(document)
     end
     local data = document.restored
     if type(data) ~= "table" then return nil, "VERIFIED_SOURCE_CHECKPOINT_REQUIRED" end
+    if data.ownershipResolution ~= nil and data.ownershipResolution ~= "RESOLVED" then
+        return nil, "VERIFIED_OWNERSHIP_CHECKPOINT_REQUIRED"
+    end
     local farm, why = RLDealerSourceFarm.restore({ version = RLDealerSourceFarm.VERSION,
         namespace = data.listings.namespace, clock = data.clock, sources = data.sources })
     if not farm then return nil, why end
-    return { version = V.VERSION, farm = farm, listings = copy(data.listings), purchase = copy(data.purchase),
+    local store = { version = V.VERSION, farm = farm, listings = copy(data.listings), purchase = copy(data.purchase),
         recoveryRequired = data.recoveryRequired == true }
+    if data.ownedStock then
+        for _, key in ipairs({"sourceOwners", "sourceBindings", "sourceRecordsByOwner", "observedChildren"}) do
+            store[key] = data.ownedStock[key]
+        end
+    end
+    return store
 end

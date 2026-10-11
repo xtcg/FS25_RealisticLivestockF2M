@@ -10,14 +10,15 @@ local function resolve(name)
     local system = g_currentMission and g_currentMission.animalSystem
     if system == nil then return nil end
     -- Engine subtype indices are map-local; persisted names must match exactly.
-    local found
-    for _, sub in pairs(system.subTypes or {}) do
+    local found, index
+    for key, sub in pairs(system.subTypes or {}) do
         if sub.name == name then
             if found ~= nil and found ~= sub then return nil end
             found = sub
+            index = sub.subTypeIndex or (type(key) == "number" and key)
         end
     end
-    return found
+    return found, index
 end
 local function close(reason, evidence)
     R.state, R.reason, R.evidence = "RECOVERY_REQUIRED", reason, evidence
@@ -32,6 +33,10 @@ function R.reset(isServer)
     if RLDealerQuoteEvent then RLDealerQuoteEvent.service = nil end
     local runtime = {
         resolver = resolve,
+        ownershipContext = {isServer=R.server, resolveDiseaseModel=function(title)
+            local manager = g_diseaseManager
+            if manager and type(manager.getDiseaseByTitle) == "function" then return manager:getDiseaseByTitle(title) end
+        end},
         getSnapshot = function(meta, participants)
             if R.store == nil or R.store.recoveryRequired then return nil, "STOCK_NOT_READY" end
             return RLDealerStockService.buildSnapshot(R.store, meta, participants)
@@ -58,10 +63,20 @@ function R.compareJournal(document, generation, lineage)
     local purchase, why = RLDealerPurchase.import(wal.purchase, { forceReconciliation = true })
     if not purchase then return nil, why end
     local current = RLDealerPurchase.export(R.store.purchase)
-    if RLTradePersistence.canonical(wal.purchase) == RLTradePersistence.canonical(current) then return true end
+    local recoveryMatches = wal.recovery == nil and R.store.sourceOwners == nil
+    local currentRecovery
+    if R.store.sourceOwners ~= nil then
+        local ownership, failure = RLDealerOwnedStock.export(R.store.sourceOwners, R.store.sourceBindings,
+            R.store.sourceRecordsByOwner, R.store.observedChildren, R.store.farm.sources, R.store.farm.clock.months)
+        if not ownership then return nil, failure end
+        currentRecovery = {version=1,clockMonths=R.store.farm.clock.months,sources=copy(R.store.farm.sources),sourceOwnership=ownership}
+        if R.store.money then currentRecovery.money=RLDealerMoneyAdapter.export(R.store.money) end
+        recoveryMatches = wal.recovery ~= nil and RLTradePersistence.canonical(wal.recovery)==RLTradePersistence.canonical(currentRecovery)
+    end
+    if RLTradePersistence.canonical(wal.purchase) == RLTradePersistence.canonical(current) and recoveryMatches then return true end
     -- Retain the independently saved stock as compensation evidence. A COMMITTED
     -- WAL cannot overrule old saved source/target/money ownership by itself.
-    R.evidence = { checkpointPurchase = current, wal = copy(document), generation = generation, lineage = lineage }
+    R.evidence = { checkpointPurchase = current, checkpointRecovery=currentRecovery, wal = copy(document), generation = generation, lineage = lineage }
     R.store.purchase, R.store.recoveryRequired = purchase, true
     return nil, "WAL_ASSET_RECONCILIATION_REQUIRED"
 end

@@ -330,3 +330,60 @@ The actual target cluster and money adapters, real source identity persistence, 
 feeding, full ownership coordination and UI listing route remain work in progress.
 Ordinary `addMoney` refund also changes positive-income statistics; a balance-only refund
 cannot be accepted as complete business compensation. No release flag bypasses that gate.
+
+### D3-5 real source births and D4 ownership evidence
+
+The dormant core is committed as `fd4882c`. The subsequent batch adds actual source
+ownership without enrolling those objects in the legacy dealer pool or opening v2:
+
+- `RLDealerSourceReproduction` calls the ordinary reproduction sampler through an
+  explicit private-source context. PREPARED precedes RNG, true fetal identities survive,
+  and COMMITTED records retain actual draws, newborn survival and maternal mortality.
+  Unknown outcomes quarantine; retries never redraw. A separate observed ledger bridges
+  exact gestation term back into continued maternal growth without changing assumed history.
+- `RLDealerSourceOwnership` persists real animals, unborn identities, pinned sire contexts,
+  disease records and the birth journal independently of ordinary player animal XML.
+  Real newborn genes, including fertility zero and values outside candidate preset bounds,
+  survive without candidate filtering. Restore resolves exact current subtype/model names
+  and constructs negative-age shells without RNG, migration or physiology repair.
+- `RLDealerObservedGrowth` keeps true newborn rearing separate from MODEL_ASSUMED history.
+  It validates committed birth weight/draw/identity evidence, advances actual calendar
+  segments through shared hourly feed/growth, and retains an independent cursor. Further
+  parent/pregnancy states require a recorded reproductive controller, not invented events.
+- `RLDealerOwnedStock` couples every historical source record to one real private-owner
+  animal; every real child requires its own observed growth record. Duplicate adult/fetal
+  identities, unbound assets, unequal records, changed calf rules, future birth cursors and
+  missing models reject restoration. The dealer checkpoint now carries this complete
+  envelope. Data-only validation explicitly cannot authorize real ownership; engine load
+  passes server and disease-model resolution context and keeps restored owner cycles intact.
+- `RLDealerSourceAdapter` detaches an exact frozen source batch once. Compensation restores
+  only unchanged original detached objects and original inventory order; foreign target
+  ownership or mutations block rollback. After restart, a removed batch requires actual
+  asset reconciliation instead of reconstruction from its receipt.
+- `RLDealerDestination` distinguishes ephemeral network references, persistent target IDs,
+  player farm permission scope and source herd IDs. `RLDealerTargetAdapter` observes actual
+  pen/trailer queues and world ownership before declaring transfer or compensation.
+  `RLDealerMoneyAdapter` uses actual mission/farm/statistics call-path witnesses, persists
+  debit/refund intent and reports unknown compensation when ordinary refunds are not an
+  inverse of statistics. Restored money receipts never authorize an automatic debit/refund.
+- The synchronous WAL optionally binds the complete source ownership and money receipt
+  evidence alongside purchase stages. Runtime compares ownership as well as purchase
+  records against the independently coordinated game checkpoint; equal purchase records
+  cannot hide divergent inventory. Both snapshots remain available for reconciliation.
+
+Focused integrated ownership/source-transfer/WAL checks pass **36/36**; source birth/bridge
+**22/22**, ownership codec **15/15**, observed newborn growth **18/18**, target transfer
+**38/38**, money **52/52**, destination **10/10**. All **36** dealer/loader files parse as
+standard Lua 5.1. Core reproduction retains inherited GIANTS `continue` syntax; its actual
+function is exercised by the documented fixture transformation, not claimed to parse
+unmodified in stock Lua. An intermediate full run passed **3335/3335**; the final expanded
+run passed **3357/3357** (`/private/tmp/rlrm-dealer-real-source-tests.log`), including the
+396-case source-state roundtrip matrix. These remain fixture-based checks; installed-game
+multiplayer and interrupted-save acceptance have not been completed.
+
+Next implementation gates: atomic owned-source calendar progression including pending
+birth persistence and child adoption; full purchase adapter composing source/target/money
+and durable stage evidence; authoritative listing-view/UI route; same-generation money
+reconciliation and proven compensation; installed-map and multiplayer/save interruption
+validation. Pure StockService publication/progression now explicitly refuse stores with
+real owners so no path silently updates only detached physiology. Complete v2 stays closed.

@@ -129,6 +129,58 @@ end
 
 function R.validateHistory(history) return validateHistory(history) end
 
+-- Assumed birth/history stays immutable. Actual source events have their own schema
+-- and evidence; they cannot invent a conception or retrospectively fix a failed mating.
+function R.getSourceLifecycle(history, observations, time)
+    if not validateHistory(history) or not finite(time) or time < history.saleAgeMonths then return nil, "SOURCE_HISTORY" end
+    local life = { birthCount = 0, nextEventIndex = 1 }
+    for index, event in ipairs(history.events) do
+        if event.atMonths <= time + 1e-10 then
+            life.nextEventIndex = index + 1
+            if event.kind == "CONCEPTION" then life.conceptionMonths = event.atMonths end
+            if event.kind == "CALVING" then
+                life.birthCount, life.lastBirthMonths, life.conceptionMonths = life.birthCount + 1, event.atMonths, nil
+            end
+        end
+    end
+    if observations == nil then return life end
+    if type(observations) ~= "table" or observations.version ~= 1 or type(observations.events) ~= "table" then
+        return nil, "SOURCE_OBSERVATIONS"
+    end
+    local count, ids, last = 0, {}, history.saleAgeMonths
+    for key in pairs(observations.events) do
+        if not finite(key) or key % 1 ~= 0 or key < 1 or key > #observations.events then return nil, "SOURCE_OBSERVATIONS" end
+        count = count + 1
+    end
+    if count ~= #observations.events then return nil, "SOURCE_OBSERVATIONS" end
+    for _, event in ipairs(observations.events) do
+        if type(event) ~= "table" or event.kind ~= "CALVING" or event.evidence ~= "OBSERVED_SOURCE_BIRTH"
+            or type(event.eventId) ~= "string" or event.eventId == "" or ids[event.eventId]
+            or not finite(event.atAgeMonths) or event.atAgeMonths < last or event.atAgeMonths > time + 1e-10
+            or not finite(event.cursorMonths) or event.cursorMonths < 0 or type(event.parentDied) ~= "boolean"
+            or type(event.newborns) ~= "table" or type(event.draws) ~= "table" or #event.draws < 1 or #event.draws > 3
+            or life.conceptionMonths == nil or event.atAgeMonths ~= life.conceptionMonths + history.durationMonths
+            or event.parity ~= life.birthCount + 1 or life.isDead then return nil, "SOURCE_OBSERVATIONS" end
+        local children = {}
+        for _, draw in ipairs(event.draws) do
+            if type(draw) ~= "table" or type(draw.uniqueId) ~= "string" or draw.uniqueId == ""
+                or children[draw.uniqueId] or not finite(draw.weightKg) or draw.weightKg <= 0
+                or not finite(draw.z) or not finite(draw.meanWeightKg) or draw.meanWeightKg <= 0 then return nil, "SOURCE_OBSERVATIONS" end
+            children[draw.uniqueId] = draw
+        end
+        local survivors = {}
+        for _, child in ipairs(event.newborns) do
+            if type(child) ~= "table" or children[child.uniqueId] == nil or survivors[child.uniqueId]
+                or child.birthWeightKg ~= children[child.uniqueId].weightKg or child.alive ~= true then return nil, "SOURCE_OBSERVATIONS" end
+            survivors[child.uniqueId] = true
+        end
+        ids[event.eventId], last = true, event.atAgeMonths
+        life.birthCount, life.lastBirthMonths, life.conceptionMonths = event.parity, event.atAgeMonths, nil
+        life.isDead = event.parentDied
+    end
+    return life
+end
+
 local function refreshMilk(animal, lastBirth, time)
     animal.monthsSinceLastBirth = lastBirth ~= nil and time - lastBirth or 12
     animal.isLactating = lastBirth ~= nil and RLLactation.isWithin(animal.monthsSinceLastBirth)
@@ -164,7 +216,7 @@ end
 -- pregnancySubTypes[eventIndex] (selected physical fetal subtypes, no unborn animal identities),
 -- minHealth (default 90). Input seed carries subtype + genes, never an existing animal state.
 -- Result retains detached replay animal for review; it is NOT a listing/purchase payload.
-local function replay(seed, history, options, previous, targetAge)
+local function replay(seed, history, options, previous, targetAge, sourceBoundary)
     options = options or {}
     local function reject(reason, at, detail) return nil, { reason = reason, atMonths = at, detail = detail } end
     if not validateHistory(history) then return reject("INVALID_HISTORY") end
@@ -237,10 +289,18 @@ local function replay(seed, history, options, previous, targetAge)
                 if e.kind == "CALVING" then lastBirth, conception = e.atMonths, nil end
             end
         end
+        local life, lifeReason = R.getSourceLifecycle(history, previous.observedSourceEvents, time)
+        if life == nil or life.isDead then return reject(lifeReason or "SOURCE_DEAD", time) end
+        lastBirth, conception, eventIndex = life.lastBirthMonths, life.conceptionMonths, life.nextEventIndex
+        if animal.birthCount ~= life.birthCount then return reject("SOURCE_STATE", time) end
         if (conception ~= nil) ~= animal.isPregnant or animal.birthCount ~= (previous.state.birthCount or 0) then
             return reject("SOURCE_STATE", time)
         end
-        if conception ~= nil and targetAge >= conception + history.durationMonths - 1e-10 then
+        if sourceBoundary and (conception == nil or targetAge ~= conception + history.durationMonths) then
+            return reject("SOURCE_BIRTH_BOUNDARY", time)
+        end
+        if conception ~= nil and targetAge >= conception + history.durationMonths - 1e-10
+            and not (sourceBoundary and targetAge == conception + history.durationMonths) then
             return reject("SOURCE_CALVING_REQUIRED", conception + history.durationMonths)
         end
     end
@@ -325,6 +385,8 @@ local function replay(seed, history, options, previous, targetAge)
     return { version = R.VERSION, recipe = recipe, animal = animal, state = snapshot(animal),
         conceptionSnapshots = snapshots, steps = steps, ledger = ledger, history = copy(history),
         fetalSelections = fetalSelections,
+        observedSourceEvents = previous ~= nil and copy(previous.observedSourceEvents) or nil,
+        sourceBirthBoundary = sourceBoundary and { version = 1, atAgeMonths = time, conceptionMonths = conception } or nil,
         session = { version = 1, timeMonths = time, lastBirthMonths = lastBirth,
             conceptionMonths = conception, nextEventIndex = eventIndex },
         advancedSteps = steps - initialSteps,
@@ -337,7 +399,7 @@ end
 
 -- Copy-on-success progression from the existing birth ledger. A failed update cannot
 -- overwrite the source record, and a resume never replays birth or earlier feeding.
-function R.resume(previous, targetAge, options)
+local function resume(previous, targetAge, options, sourceBoundary)
     if type(previous) ~= "table" or previous.version ~= R.VERSION or type(previous.animal) ~= "table"
         or type(previous.state) ~= "table" or not validState(previous.animal, previous.state.ageMonths)
         or previous.state.weightKg ~= previous.animal.weight or not validateHistory(previous.history)
@@ -353,8 +415,14 @@ function R.resume(previous, targetAge, options)
     local animal = previous.animal
     return replay({ subType = animal:getSubType(), subTypeIndex = animal.subTypeIndex,
         genetics = animal.genetics, geneticsScreened = true, diseases = animal.diseases,
-        health = animal.health, isCastrated = animal.isCastrated }, previous.history, options, previous, targetAge)
+        health = animal.health, isCastrated = animal.isCastrated }, previous.history, options, previous, targetAge, sourceBoundary)
 end
+
+function R.resume(previous, targetAge, options) return resume(previous, targetAge, options, false) end
+
+-- Only the source birth service may consume this exact endpoint. It is deliberately
+-- not a portable/listable record: reproduction is 100 until actual births commit.
+function R.runToSourceBirth(previous, dueAgeMonths, options) return resume(previous, dueAgeMonths, options, true) end
 
 -- Unweaned cattle remain closed until a separate calf reserve rule is calibrated.
 function R.screen(result)

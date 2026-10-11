@@ -7,17 +7,36 @@ local J = RLDealerJournal
 local function finite(v) return type(v) == "number" and v == v and math.abs(v) < math.huge end
 local function integer(v) return finite(v) and v >= 0 and v % 1 == 0 end
 local function text(v) return type(v) == "string" and #v > 0 and #v <= 256 end
+local function keys(t, allowed)
+    if type(t) ~= "table" then return false end
+    for k in pairs(t) do if not allowed[k] then return false end end
+    return true
+end
 function J.new(lineage, epoch)
     if not text(lineage) or not lineage:match("^DL[%w%-]+$") or not text(epoch) then return nil, "JOURNAL_IDENTITY" end
     return { version = J.VERSION, lineage = lineage, epoch = epoch, sequence = 0, recoveryRequired = false }
 end
 local function valid(data)
-    if type(data) ~= "table" or RLTradePersistence.check(data, RLDealerPersistence.LIMITS)
+    if not keys(data,{version=true,lineage=true,epoch=true,sequence=true,baseGeneration=true,purchase=true,recovery=true})
+        or RLTradePersistence.check(data, RLDealerPersistence.LIMITS)
         or data.version ~= J.VERSION or not text(data.lineage) or not data.lineage:match("^DL[%w%-]+$")
         or not text(data.epoch) or not integer(data.sequence) or data.sequence < 1
         or not integer(data.baseGeneration) then return nil, "BAD_JOURNAL_HEADER" end
     local store, why = RLDealerPurchase.import(data.purchase)
     if not store then return nil, why end
+    if data.recovery ~= nil then
+        local r=data.recovery
+        if not keys(r,{version=true,clockMonths=true,sources=true,sourceOwnership=true,money=true}) or r.version~=1
+            or not finite(r.clockMonths) or r.clockMonths<0 or type(r.sources)~="table" or r.sourceOwnership==nil
+            or RLDealerOwnedStock==nil then return nil,"BAD_JOURNAL_RECOVERY" end
+        local owned;owned,why=RLDealerOwnedStock.validate(r.sourceOwnership,r.sources,r.clockMonths)
+        if not owned then return nil,why end
+        if r.money~=nil then
+            if RLDealerMoneyAdapter==nil then return nil,"JOURNAL_MONEY_CAPABILITY" end
+            local money;money,why=RLDealerMoneyAdapter.validate(r.money)
+            if not money then return nil,why end
+        end
+    end
     return store
 end
 local function write(xml, data)
@@ -74,12 +93,12 @@ function defaultStorage.load(path)
     local data, digest = read(xml); xml:delete()
     return data, digest
 end
-function J.checkpoint(journal, directory, purchase, baseGeneration, storage)
+function J.checkpoint(journal, directory, purchase, baseGeneration, storage, recovery)
     if type(journal) ~= "table" or journal.version ~= J.VERSION or journal.recoveryRequired
         or not text(directory) or not integer(journal.sequence) or not integer(baseGeneration) then return nil, "JOURNAL_CLOSED" end
     storage = storage or defaultStorage
     local data = { version = J.VERSION, lineage = journal.lineage, epoch = journal.epoch,
-        sequence = journal.sequence + 1, baseGeneration = baseGeneration, purchase = purchase }
+        sequence = journal.sequence + 1, baseGeneration = baseGeneration, purchase = purchase, recovery = recovery }
     local store, why = valid(data); if not store then return nil, why end
     local canonical = RLTradePersistence.canonical(data)
     local digest = RLTradePersistence.checksum(canonical)

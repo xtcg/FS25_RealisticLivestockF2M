@@ -20,7 +20,7 @@ local function exactKeys(t, allowed)
     return true
 end
 local snapshotKeys = { version=true, scope=true, lineage=true, generation=true, parentGeneration=true,
-    checkpointId=true, clock=true, listings=true, sources=true, purchase=true, participants=true }
+    checkpointId=true, clock=true, listings=true, sources=true, purchase=true, participants=true, sourceOwnership=true }
 local markerKeys = { lineage=true, generation=true, checkpointId=true, digest=true }
 local function header(s)
     return s.version == D.VERSION and s.scope == "DEALER_STOCK_ONLY" and str(s.lineage)
@@ -57,7 +57,7 @@ function D.validateParticipants(snapshot, actual)
     for role in pairs(actual) do if snapshot.participants[role] == nil then return nil, "UNEXPECTED_PARTICIPANT:" .. tostring(role) end end
     return true
 end
-function D.validateSnapshot(s, actualParticipants, resolver)
+function D.validateSnapshot(s, actualParticipants, resolver, ownershipContext)
     local why = RLTradePersistence.check(s, D.LIMITS)
     if why then return nil, "BAD_SNAPSHOT:" .. why end
     if not exactKeys(s, snapshotKeys) or not header(s) then return nil, "BAD_SNAPSHOT_HEADER" end
@@ -104,17 +104,32 @@ function D.validateSnapshot(s, actualParticipants, resolver)
             end
         end
     end
+    local owned, ownedResolution
+    if s.sourceOwnership ~= nil then
+        if RLDealerOwnedStock == nil then return nil, "OWNED_STOCK_CAPABILITY" end
+        owned, why = RLDealerOwnedStock.validate(s.sourceOwnership, s.sources, clock.months)
+        if not owned then return nil, why end
+        ownedResolution = "NOT_CHECKED"
+        if resolver ~= nil and ownershipContext ~= nil then
+            owned, why = RLDealerOwnedStock.restore(s.sourceOwnership, s.sources, clock.months, resolver, ownershipContext)
+            if not owned then return nil, "OWNED_STOCK_RESOLVE:" .. tostring(why) end
+            ownedResolution = "RESOLVED"
+        end
+    end
     local verified; verified, why = D.validateParticipants(s, actualParticipants)
     if not verified then return nil, why end
     return { clock=clock, listings=listings, purchase=purchase, sources=copy(s.sources), restoredSources=restoredSources,
-        recoveryRequired=purchase.recoveryRequired or #RLDealerListingRegistry.listRecords(listings,"QUARANTINED") > 0 }
+        ownedStock=owned, ownershipResolution=ownedResolution,
+        recoveryRequired=purchase.recoveryRequired or (owned and owned.recoveryRequired == true)
+            or #RLDealerListingRegistry.listRecords(listings,"QUARANTINED") > 0 }
 end
 -- capture takes authoritative participant stores, never animals from a client.
-function D.capture(meta, clock, listings, sources, purchase, participantMarkers)
+function D.capture(meta, clock, listings, sources, purchase, participantMarkers, sourceOwnership)
     if type(meta) ~= "table" then return nil, "BAD_META" end
     local raw = { version=D.VERSION, scope="DEALER_STOCK_ONLY", lineage=meta.lineage,
         generation=meta.generation, parentGeneration=meta.parentGeneration, checkpointId=meta.checkpointId,
-        clock=clock, listings=listings, sources=sources, purchase=purchase, participants=participantMarkers }
+        clock=clock, listings=listings, sources=sources, purchase=purchase, participants=participantMarkers,
+        sourceOwnership=sourceOwnership }
     local why = RLTradePersistence.check(raw,D.LIMITS)
     if why then return nil,"BAD_SNAPSHOT:" .. why end
     local s = copy(raw)
@@ -162,7 +177,7 @@ function D.validateCommit(snapshot, documentDigest, careerMarker)
     if RLTradePersistence.canonical(expected) ~= RLTradePersistence.canonical(careerMarker) then return nil,"CAREER_COMMIT_MISMATCH" end
     return true
 end
-function D.readDocument(xml, actualParticipants, resolver, careerMarker)
+function D.readDocument(xml, actualParticipants, resolver, careerMarker, ownershipContext)
     local raw = { schema=xml:getString(D.ROOT .. "#schema"), lineage=xml:getString(D.ROOT .. "#lineage"),
         generation=xml:getString(D.ROOT .. "#generation"), checkpointId=xml:getString(D.ROOT .. "#checkpointId"),
         digest=xml:getString(D.ROOT .. "#digest"), encoded="" }
@@ -185,7 +200,7 @@ function D.readDocument(xml, actualParticipants, resolver, careerMarker)
     if not s then return quarantine("BAD_DATA:" .. tostring(why),raw) end
     if s.version ~= D.VERSION then return quarantine("UNKNOWN_SNAPSHOT_VERSION",raw) end
     if s.lineage ~= raw.lineage or s.generation ~= tonumber(raw.generation) or s.checkpointId ~= raw.checkpointId then return quarantine("HEADER_MISMATCH",raw) end
-    local restored; restored,why=D.validateSnapshot(s,actualParticipants,resolver)
+    local restored; restored,why=D.validateSnapshot(s,actualParticipants,resolver,ownershipContext)
     if not restored then return quarantine(why,raw) end
     local committed; committed,why=D.validateCommit(s,raw.digest,careerMarker)
     if not committed then return quarantine(why,raw) end

@@ -34,13 +34,17 @@ end
 local fields = { "age", "subType", "subTypeIndex", "animalTypeIndex", "breed", "gender", "isIndividual",
     "isCastrated", "genetics", "health", "isParent", "birthCount", "isPregnant", "reproduction", "diseases",
     "input", "output", "weight", "targetWeight", "rlGrowth", "bodyCondition", "rlFeedGain", "rlHealthCarry",
-    "monthsSinceLastBirth", "isLactating", "sale" }
+    "monthsSinceLastBirth", "isLactating", "isDead", "sale" }
 local function selection(record)
     local active
     for i, e in ipairs(record.history.events) do
         if e.atMonths <= record.ageMonths + 1e-10 then
             if e.kind == "CONCEPTION" then active = i elseif e.kind == "CALVING" then active = nil end
         end
+    end
+    if record.observedSourceEvents ~= nil then
+        local life = RLDealerReplay.getSourceLifecycle(record.history, record.observedSourceEvents, record.ageMonths)
+        if life == nil or life.conceptionMonths == nil then active = nil end
     end
     return active ~= nil and record.fetalSelections[active] or nil, active
 end
@@ -110,6 +114,15 @@ function S.validate(r)
             end
         end
     end
+    local life, lifeReason = RLDealerReplay.getSourceLifecycle(h, r.observedSourceEvents, r.ageMonths)
+    if life == nil then return false, lifeReason end
+    births, active, lastBirth, nextEvent = life.birthCount, life.conceptionMonths, life.lastBirthMonths, life.nextEventIndex
+    if (a.isDead == true) ~= (life.isDead == true) then return false, "SOURCE_MORTALITY" end
+    if r.observedSourceEvents ~= nil then
+        for _, event in ipairs(r.observedSourceEvents.events) do
+            if not near(event.cursorMonths - event.atAgeMonths, r.birthOriginMonths) then return false, "SOURCE_CURSOR" end
+        end
+    end
     if births ~= a.birthCount or a.isPregnant ~= (active ~= nil)
         or (active ~= nil and (not finite(h.durationMonths) or h.durationMonths <= 0
             or not near(a.reproduction, 100 * (r.ageMonths - active) / h.durationMonths)))
@@ -136,7 +149,8 @@ function S.capture(result, cursorMonths)
         ageMonths = animal.rlGrowth ~= nil and animal.rlGrowth.ageMonths or nil,
         history = result.history, recipe = result.recipe, animal = animal,
         conceptionSnapshots = result.conceptionSnapshots, fetalSelections = result.fetalSelections,
-        ledger = result.ledger, steps = result.steps, eligibility = result.eligibility, session = result.session }
+        ledger = result.ledger, steps = result.steps, eligibility = result.eligibility, session = result.session,
+        observedSourceEvents = result.observedSourceEvents }
     if finite(cursorMonths) and finite(r.ageMonths) then r.birthOriginMonths = cursorMonths - r.ageMonths end
     local ok, why = S.validate(r)
     if not ok then return fail(why) end
@@ -159,6 +173,8 @@ function S.restore(record, resolver)
     local sub; sub, why = resolve(record, resolver)
     if sub == nil then return fail(why) end
     local r, a = copy(record), copy(record.animal)
+    if sub.subTypeIndex ~= nil then a.subTypeIndex = sub.subTypeIndex end
+    a.animalTypeIndex = sub.typeIndex
     local size = RLGrowth.getGeneFactors(a.genetics.metabolism)
     local binding = RLGrowth.getBinding(sub)
     local curve = RLGrowth.buildCurve(binding, a.rlGrowth.frameTargetKg, a.rlGrowth.birthWeightKg)
@@ -186,7 +202,8 @@ function S.restore(record, resolver)
     state.health, state.birthCount = a.health, a.birthCount
     return { version = r.replayVersion, animal = a, state = state, history = r.history,
         recipe = r.recipe, conceptionSnapshots = r.conceptionSnapshots, fetalSelections = r.fetalSelections,
-        ledger = r.ledger, steps = r.steps, eligibility = r.eligibility, session = r.session }
+        ledger = r.ledger, steps = r.steps, eligibility = r.eligibility, session = r.session,
+        observedSourceEvents = r.observedSourceEvents }
 end
 
 -- Accept only an already advanced result. This module never replays from birth to move a cursor.
@@ -209,6 +226,12 @@ function S.advanceCursor(record, result, cursorMonths)
             if not equal(nextRecord[key][index], value) then return fail("SOURCE_PROVENANCE") end
         end
     end
+    if record.observedSourceEvents ~= nil then
+        if nextRecord.observedSourceEvents == nil then return fail("SOURCE_PROVENANCE") end
+        for index, event in ipairs(record.observedSourceEvents.events) do
+            if not equal(nextRecord.observedSourceEvents.events[index], event) then return fail("SOURCE_PROVENANCE") end
+        end
+    end
     if cursorMonths == record.cursorMonths and not equal(nextRecord, record) then return fail("SOURCE_CURSOR_REPLAY") end
     return nextRecord
 end
@@ -219,6 +242,7 @@ end
 function S.prepareHandoff(record, target, completedLiveTick)
     local ok, why = S.validate(record)
     if not ok then return fail(why) end
+    if record.animal.isDead == true then return fail("HANDOFF_SOURCE_DEAD") end
     if type(target) ~= "table" or type(target.getSubType) ~= "function" then return fail("HANDOFF_TARGET") end
     if completedLiveTick ~= nil and (not finite(completedLiveTick) or completedLiveTick < 0
         or completedLiveTick ~= math.floor(completedLiveTick)) then return fail("HANDOFF_TICK") end

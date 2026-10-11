@@ -56,7 +56,7 @@ local function readCareer(directory)
     local text=RLTradePersistence.decodeText(encoded);if not text then return nil,"BAD_CAREER_MARKER" end
     return RLTradePersistence.parse(text)
 end
-function C.verifyDisk(directory,expected,resolver)
+function C.verifyDisk(directory,expected,resolver,ownershipContext)
     if type(directory)~="string" then return nil,"NO_DIRECTORY" end
     local career,why=readCareer(directory);if not career then return nil,why end
     if expected and (career.lineage~=expected.lineage or career.generation~=expected.generation
@@ -68,7 +68,7 @@ function C.verifyDisk(directory,expected,resolver)
     end
     local x=storage().load(directory .. "/" .. RLDealerPersistence.FILENAME)
     if not x then return nil,"MISSING_DEALER_DOCUMENT" end
-    local doc,q;doc,why,q=RLDealerPersistence.readDocument(x,participants,resolver,career);x:delete()
+    local doc,q;doc,why,q=RLDealerPersistence.readDocument(x,participants,resolver,career,ownershipContext);x:delete()
     return doc,why,q
 end
 function C.onSaveBegin(missionInfo)
@@ -112,7 +112,7 @@ function C.onSaveEnd(missionInfo)
     if not written then close("DEALER_WRITE_FAILED:" .. tostring(digest));return end
     local commit=RLDealerPersistence.commitMarker(snapshot,digest)
     x=ioAdapter.load(path);if not x then close("DEALER_READBACK_MISSING");return end
-    local check;check,why=RLDealerPersistence.readDocument(x,participants,C.runtime.resolver,commit);x:delete()
+    local check;check,why=RLDealerPersistence.readDocument(x,participants,C.runtime.resolver,commit,C.runtime.ownershipContext);x:delete()
     if not check or check.digest~=digest then close("DEALER_READBACK_FAILED:" .. tostring(why));return end
     if missionInfo.xmlFile==nil or missionInfo.xmlFile==0 then close("NO_CAREER_DOCUMENT");return end
     ioAdapter.careerSet(missionInfo.xmlFile,"careerSavegame#" .. C.MARKER,RLTradePersistence.encodeText(RLTradePersistence.canonical(commit)))
@@ -127,9 +127,10 @@ function C.onSaveComplete(errorCode,directory,generation)
     if not last or last.status~="WRITTEN" then return end
     if C.state==C.RECOVERY_REQUIRED then return end
     if Savegame==nil or errorCode~=Savegame.ERROR_OK then last.status="FAILED";close("ENGINE_ERROR");return end
-    local doc,why,q=C.verifyDisk(directory or last.directory,last,C.runtime.resolver)
+    local doc,why,q=C.verifyDisk(directory or last.directory,last,C.runtime.resolver,C.runtime.ownershipContext)
     if not doc then last.status="INCOMPLETE";close("FINAL_READBACK:" .. tostring(why),q);return end
     if doc.sourceResolution~="RESOLVED" and next(doc.data.sources)~=nil then close("SOURCE_RESOLVER_REQUIRED");return end
+    if doc.restored.ownershipResolution=="NOT_CHECKED" then close("OWNERSHIP_RESOLVER_REQUIRED",doc);return end
     if doc.restored.recoveryRequired then last.status="RECOVERY_REQUIRED";close("OWNERSHIP_RECOVERY_REQUIRED",doc);return end
     last.status="COMMITTED";C.state,C.reason=C.READY,"DISK_VERIFIED"
 end
@@ -153,13 +154,14 @@ function C.onMissionStarted(mission,evidence)
         C.state,C.reason=C.UNARMED,"EMPTY_STOCK_CHECKPOINT";return
     end
     C.armed=true;C.state="VERIFYING"
-    local doc,why,q=C.verifyDisk(directory,nil,C.runtime.resolver)
+    local doc,why,q=C.verifyDisk(directory,nil,C.runtime.resolver,C.runtime.ownershipContext)
     if not doc then close("LOAD:" .. tostring(why),q or {raw=storage().read(path)});return end
     C.lineage,C.generation=doc.data.lineage,doc.data.generation
     if type(evidence)=="table" and type(evidence.identityRepairs)=="number" and evidence.identityRepairs>0 then
         close("IDENTITY_REPAIRS_AFTER_CHECKPOINT",doc);return
     end
     if doc.sourceResolution~="RESOLVED" and next(doc.data.sources)~=nil then close("SOURCE_RESOLVER_REQUIRED",doc);return end
+    if doc.restored.ownershipResolution=="NOT_CHECKED" then close("OWNERSHIP_RESOLVER_REQUIRED",doc);return end
     if doc.restored.recoveryRequired then close("OWNERSHIP_RECOVERY_REQUIRED",doc);return end
     if type(C.runtime.acceptLoaded)~="function" or C.runtime.acceptLoaded(doc.data,doc.restored)~=true then close("LOAD_RUNTIME_REJECTED",doc);return end
     C.state,C.reason=C.READY,"LOADED_VERIFIED"

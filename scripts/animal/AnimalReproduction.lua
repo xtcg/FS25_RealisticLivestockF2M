@@ -13,7 +13,7 @@
     and serialized as part of the MP protocol.
 ]]
 
-AnimalReproduction = {}
+AnimalReproduction = { SOURCE_BIRTH_VERSION = 1 }
 
 local Log = RmLogging.getLogger("RLRM")
 
@@ -715,7 +715,40 @@ end
 --- @return boolean parentDied Whether the parent died during birth
 --- @return number animalsToSell Count of offspring auto-sold
 --- @return number totalAnimalPrice Total money from auto-sold offspring
-function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnimal)
+function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnimal, sourceContext)
+
+    -- Source births share every draw/survival/initialisation rule below. Only ownership
+    -- effects differ: private source stock must never enter a player pen or sale pool.
+    local sourceBirth = sourceContext ~= nil
+    if sourceBirth then
+        local function reject(reason) return nil, false, 0, 0, reason end
+        if type(sourceContext) ~= "table" or sourceContext.mode ~= "DEALER_SOURCE" or sourceContext.isServer ~= true
+            or g_server == nil or isSaleAnimal == true or type(animal) ~= "table" or animal.rlHistoryReplay == true
+            or type(animal.clusterSystem) ~= "table" or animal.clusterSystem ~= sourceContext.clusterSystem
+            or type(animal.clusterSystem.owner) ~= "table"
+            or animal.clusterSystem.owner.rlDealerSourceId ~= sourceContext.sourceId
+            or type(sourceContext.sourceId) ~= "string" or sourceContext.sourceId == ""
+            or type(spec) ~= "table" or spec ~= sourceContext.spec then return reject("SOURCE_BIRTH_CONTEXT") end
+        if type(animal.pregnancy) ~= "table" or type(animal.pregnancy.pregnancies) ~= "table"
+            or #animal.pregnancy.pregnancies < 1 or #animal.pregnancy.pregnancies > 3
+            or type(animal.birthday) ~= "table" or animal.birthday.country == nil
+            or type(sourceContext.sireContext) ~= "table" or type(sourceContext.sireContext.breed) ~= "string"
+            or sourceContext.sireContext.breed == "" then return reject("SOURCE_BIRTH_PREGNANCY") end
+        local ids = {}
+        for _, child in ipairs(animal.pregnancy.pregnancies) do
+            if type(child) ~= "table" or type(child.getSubType) ~= "function" or child.rlHistoryReplay == true
+                or type(child.uniqueId) ~= "string" or child.uniqueId == "" or child.uniqueId == "-1"
+                or type(child.farmId) ~= "string" or child.farmId == "" or child.farmId ~= animal.farmId
+                or ids[child.uniqueId] or type(child.age) ~= "number" or child.age >= 0 then return reject("SOURCE_BIRTH_IDENTITY") end
+            ids[child.uniqueId] = true
+        end
+        -- This preflight precedes parity changes, RNG and newborn mutation. Source
+        -- capacity is not an instruction to auto-sell a calf to a player/dealer pool.
+        local _, _, pending = animal.clusterSystem:getPendingDelta()
+        if spec.maxNumAnimals - (spec:getNumOfAnimals() + pending) < #animal.pregnancy.pregnancies then
+            return reject("SOURCE_BIRTH_CAPACITY")
+        end
+    end
 
     if animal.pregnancy == nil or animal.pregnancy.pregnancies == nil then return 0, false, 0, 0 end
 
@@ -806,7 +839,7 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
     local fatherFull
 
-    if not isSaleAnimal and animal.impregnatedBy ~= nil and animal.impregnatedBy.uniqueId ~= nil and animal.impregnatedBy.uniqueId ~= "-1" then
+    if not sourceBirth and not isSaleAnimal and animal.impregnatedBy ~= nil and animal.impregnatedBy.uniqueId ~= nil and animal.impregnatedBy.uniqueId ~= "-1" then
 
         local placeables = g_currentMission.placeableSystem.placeables
         local motherTypeIndex = animal.animalTypeIndex
@@ -866,10 +899,11 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
     local childrenToRemove = {}
     local deadChildrenCount = 0
     local birthday = animal.pregnancy.expected
-    local country = isSaleAnimal and animal.birthday.country or RealisticLivestock.getMapCountryIndex()
+    local country = (sourceBirth or isSaleAnimal) and animal.birthday.country or RealisticLivestock.getMapCountryIndex()
 
 
-    local sireBreed = (fatherFull ~= nil and fatherFull.breed)
+    local sireBreed = sourceBirth and sourceContext.sireContext.breed
+        or (fatherFull ~= nil and fatherFull.breed)
         or (animal.impregnatedBy ~= nil and animal.impregnatedBy.breed) or nil
 
     for i, child in pairs(pregnancies) do
@@ -893,13 +927,18 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
         else
             weight, z, meanWeight = RLBirthWeight.draw(childSubType, birthContext)
         end
+        if sourceBirth then
+            sourceContext.draws = sourceContext.draws or {}
+            sourceContext.draws[#sourceContext.draws + 1] = { uniqueId = child.uniqueId, farmId = child.farmId,
+                subType = child.subType, weightKg = weight, z = z, meanWeightKg = meanWeight }
+        end
         Log:trace("  child %d birth weight %.3f (mean %.3f, z=%.2f, litter=%d, firstBirth=%s)",
             i, weight, meanWeight, z, litterSize, tostring(firstBirth))
 
         if animal.deathEnabled and math.random() >= RLBirthWeight.getSurvivalChance(childSubType, genetics.health, z) then
 
             childNum = childNum - 1
-            animalsToSell = animalsToSell - 1
+            if not sourceBirth then animalsToSell = animalsToSell - 1 end
 
             table.insert(childrenToRemove, i)
             deadChildrenCount = deadChildrenCount + 1
@@ -918,7 +957,10 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
         child:setBirthday({["day"] = day, ["month"] = month, ["year"] = year, ["country"] = country, ["lastAgeMonth"] = month})
 
-        if not isSaleAnimal then
+        if sourceBirth then
+            child:setClusterSystem(animal.clusterSystem)
+            -- Stable unborn identity/farm were prepared and persisted before birth.
+        elseif not isSaleAnimal then
             child:setClusterSystem(animal.clusterSystem)
             child:setUniqueId()
         else
@@ -934,10 +976,12 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
         if fatherFull ~= nil then table.insert(fatherFull.children, childInfo) end
 
 
-        table.insert(sellPrices, {
-            ["index"] = i,
-            ["sellPrice"] = child:getSellPrice(),
-        })
+        if not sourceBirth then
+            table.insert(sellPrices, {
+                ["index"] = i,
+                ["sellPrice"] = child:getSellPrice(),
+            })
+        end
 
     end
 
@@ -1023,7 +1067,7 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
         fatherId, fatherSubType, fatherIdx, fatherBreedName,
         #pregnancies, table.concat(childSummary, ", "))
 
-    if not isSaleAnimal then
+    if not sourceBirth and not isSaleAnimal then
 
         local farmIndex = spec:getOwnerFarmId()
         local animalTypeReal = animalSystem:getTypeByIndex(subType.typeIndex)
@@ -1038,11 +1082,13 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
     animal.impregnatedBy = nil
 
-    g_server:broadcastEvent(AnimalBirthEvent.new(
-        animal.clusterSystem ~= nil and animal.clusterSystem.owner or nil,
-        animal, pregnancies, parentDied))
+    if not sourceBirth then
+        g_server:broadcastEvent(AnimalBirthEvent.new(
+            animal.clusterSystem ~= nil and animal.clusterSystem.owner or nil,
+            animal, pregnancies, parentDied))
+    end
 
-    if #pregnancies > 0 then
+    if not sourceBirth and #pregnancies > 0 then
 
         if #pregnancies == 1 then
             animal:addMessage("PREGNANCY_SINGLE")
@@ -1052,11 +1098,11 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
     end
 
-    if animalsToSell > 0 then animal:addMessage("PREGNANCY_SOLD", { animalsToSell, g_i18n:formatMoney(totalAnimalPrice, 2, true, true) }) end
+    if not sourceBirth and animalsToSell > 0 then animal:addMessage("PREGNANCY_SOLD", { animalsToSell, g_i18n:formatMoney(totalAnimalPrice, 2, true, true) }) end
 
-    if deadChildrenCount > 0 then animal:addMessage("PREGNANCY_DIED", { deadChildrenCount }) end
+    if not sourceBirth and deadChildrenCount > 0 then animal:addMessage("PREGNANCY_DIED", { deadChildrenCount }) end
 
-    if parentDied then animal:die("rl_death_pregnancy") end
+    if not sourceBirth and parentDied then animal:die("rl_death_pregnancy") end
 
     Log:trace("reproduce: result children=%d parentDied=%s sold=%d soldAmount=%.0f deadChildren=%d",
         childNum, tostring(parentDied), animalsToSell, totalAnimalPrice, deadChildrenCount)
