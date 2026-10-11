@@ -630,7 +630,7 @@ check("E05 SETUP -> ... -> DONE: one CHANGE record per state, only the last one 
 
 local offered = offersButcher(RLMoveDestinationHelper.getValidDestinations(dairy, 1, cow.subTypeIndex, { cow }))
 check("E06 at DONE the butcher is offered at once (EPP entry with its age window), and validate passes",
-    offered ~= nil and offered.isEPP == true and offered.placeable == pp and offered.minAge == 6 and offered.maxAge == 60
+    offered ~= nil and offered.isEPP == true and offered.placeable == pp and offered.minAge == 6 and offered.maxAge == nil
     and AnimalMoveEvent.validate(dairy, pp, 1, cow.subTypeIndex) == nil
     and AIAnimalMoveEvent.validate(dairy, butcher, 1, cow.subTypeIndex) == nil)
 dairy.animals = {}

@@ -70,8 +70,7 @@ local function resolveInsemination(animal, month, year)
             ["health"] = insemination.genetics.health,
             ["fertility"] = insemination.genetics.fertility,
             ["productivity"] = insemination.genetics.productivity,
-            -- The sire's breed, for a cross's birth weight (RLGrowth).
-            ["breed"] = strawSubType ~= nil and strawSubType.breed or nil,
+            ["breed"] = AnimalReproduction.getSubTypeBreed(insemination.subTypeIndex),
         })
 
         Log:trace("  insemination success, pregnancy created (fertility=%s)", tostring(fertility))
@@ -351,6 +350,13 @@ end
 ---   of caller, covering both the eligible-father selection branch (where the selected pig/horse male
 ---   has genetics.productivity == nil) and resolveInsemination's explicit-father path (where AI-straw
 ---   semen for pigs/horses has insemination.genetics.productivity == nil) uniformly.
+--- Breed of a subtype index, or nil.
+function AnimalReproduction.getSubTypeBreed(subTypeIndex)
+    local subType = subTypeIndex ~= nil and g_currentMission.animalSystem:getSubTypeByIndex(subTypeIndex) or nil
+    return subType ~= nil and subType.breed or nil
+end
+
+
 function AnimalReproduction.createPregnancy(animal, childNum, month, year, father)
 
     local fertility = animal.genetics.fertility
@@ -428,7 +434,7 @@ function AnimalReproduction.createPregnancy(animal, childNum, month, year, fathe
             father.health = selectedFather.genetics.health
             father.fertility = selectedFather.genetics.fertility
             father.productivity = selectedFather.genetics.productivity
-            father.breed = selectedFather.breed
+            father.breed = selectedFather:getSubType() ~= nil and selectedFather:getSubType().breed or nil
             father.animal = selectedFather
 
             Log:trace("createPregnancy: selected father %s (subType=%s) genetics m=%s q=%s h=%s f=%s p=%s",
@@ -868,21 +874,27 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
         local genetics = child.genetics
         local childSubType = child:getSubType()
-        local weightChance = math.random() * genetics.metabolism
-        local minWeight = childSubType.minWeight
-        local weight = minWeight + 0.5
-
-        if weightChance < 0.05 then
-            weight = weight * (math.random(70, 90) / 100)
-        elseif weightChance <= 0.95 then
-            weight = weight * (math.random(90, 110) / 100)
+        local birthContext = {
+            dam = animal,
+            damBreed = subType ~= nil and subType.breed or animal.breed,
+            sireBreed = sireBreed,
+            litterSize = litterSize,
+            firstBirth = firstBirth,
+            metabolism = genetics.metabolism,
+        }
+        -- Draw once from the model that will initialise this child. Survival
+        -- uses this same draw's z; surviving v2 calves keep this exact weight.
+        local useGrowth = RLGrowth ~= nil and RLGrowth.coversSubType(childSubType)
+        local weight, z, meanWeight
+        if useGrowth then
+            weight, z, meanWeight = RLGrowth.drawBirthWeight(childSubType, birthContext)
         else
-            weight = weight * (math.random(110, 130) / 100)
+            weight, z, meanWeight = RLBirthWeight.draw(childSubType, birthContext)
         end
+        Log:trace("  child %d birth weight %.3f (mean %.3f, z=%.2f, litter=%d, firstBirth=%s)",
+            i, weight, meanWeight, z, litterSize, tostring(firstBirth))
 
-        -- The survival roll keeps its old rule exactly (the weight model v2 leaves birth survival
-        -- alone); under v2 the weight a calf is born with is drawn after it, below.
-        if animal.deathEnabled and math.random() >= genetics.health * (weight / minWeight) * 1.15 then
+        if animal.deathEnabled and math.random() >= RLBirthWeight.getSurvivalChance(childSubType, genetics.health, z) then
 
             childNum = childNum - 1
             animalsToSell = animalsToSell - 1
@@ -892,25 +904,13 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
             child.isDead = true
 
-            Log:trace("  child %d died at birth (weight=%.1f minWeight=%.1f)", i, weight, minWeight)
+            Log:trace("  child %d died at birth (weight=%.3f mean=%.3f z=%.2f)", i, weight, meanWeight, z)
 
             continue
 
         end
 
-        -- Weight model v2: the calf's weight is drawn around this birth's mean (breed and sex, a
-        -- cross, litter size, first calving, the dam's reserve, the calf's gene), normal with
-        -- birthWeightCV, truncated, and its state set up from it.
-        if RLGrowth.coversSubType(childSubType) then
-            local z, mean
-            weight, z, mean = RLGrowth.drawBirthWeight(childSubType, {
-                damBreed = animal.breed, sireBreed = sireBreed, litterSize = litterSize, firstBirth = firstBirth,
-                dam = animal, metabolism = genetics.metabolism,
-            })
-            Log:trace("  child %d birth weight %.2f kg (mean %.2f, z %.2f)", i, weight, mean, z)
-            RLGrowth.initBirth(child, weight)
-        end
-
+        if useGrowth then RLGrowth.initBirth(child, weight) end
         child.weight = weight
         child.age = 0
 

@@ -206,8 +206,10 @@
         <text name="rl_ui_moveSelectDestination" text="Hedef Seçin"/>
         <text name="rl_ui_moveNoDestinations" text="Bu hayvan türü için kullanılabilir hedef yok."/>
         <text name="rl_ui_moveEPPAgeFormat" text="%d-%d aylık" tag="format"/>
+        <text name="rl_ui_moveEPPMinAgeFormat" text="%d+ aylık" tag="format"/>
         <text name="rl_ui_moveValidSummary" text="%d hayvan taşınacak" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="%d hayvan atlandı: yaş gereksinimini karşılamıyor (%d-%d ay)" tag="format"/>
+        <text name="rl_ui_moveRejectedMinAge" text="%d hayvan atlandı: minimum yaşın altında (%d ay)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="%d hayvan atlandı: hedefte yeterli yer yok" tag="format"/>
         <text name="rl_ui_moveRejectedPenRules" text="%d animal(s) skipped: not allowed in this pen (breed, sex, castration or age)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="Bu hedefe hiçbir hayvan taşınamaz."/>

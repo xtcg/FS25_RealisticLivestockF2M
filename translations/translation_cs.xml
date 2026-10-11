@@ -211,6 +211,8 @@
         <text name="rl_ui_moveErrorNoSpace" text="目的地空间不足。"/>
         <text name="rl_ui_tradeRequestInProgress" text="已有交易正在进行，请稍候。"/>
         <text name="rl_ui_tradeRequestTimeout" text="服务器没有响应，请重试。"/>
+        <text name="rl_ui_moveEPPMinAgeFormat" text="%d 月龄以上" tag="format"/>
+        <text name="rl_ui_moveRejectedMinAge" text="%d 头动物已跳过：低于最低月龄（%d 个月）" tag="format"/>
 
         <text name="rl_ui_monitor" text="检测器"/>
         <text name="rl_ui_monitorSubscriptions" text="检测器订阅"/>

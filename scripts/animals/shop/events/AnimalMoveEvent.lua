@@ -982,12 +982,10 @@ function AnimalMoveEvent:run(connection)
 
 			local skip = false
 			if eppTypeData ~= nil then
-				local age = animal.age or 0
-				local minAge = eppTypeData.minimumAge or 0
-				local maxAge = eppTypeData.maximumAge or 999
-				if age < minAge or age > maxAge then
-					Log:trace("AnimalMoveEvent:run: skipping animal '%s' age=%d (EPP range %d-%d)",
-						animal.uniqueId or "?", age, minAge, maxAge)
+				if not RLEppAge.check(animal.age, eppTypeData) then
+					Log:trace("AnimalMoveEvent:run: skipping animal '%s' age=%d (EPP range %s)",
+						animal.uniqueId or "?", animal.age or 0,
+						RLEppAge.format(RLEppAge.getWindow(eppTypeData)))
 					skip = true
 				end
 			end

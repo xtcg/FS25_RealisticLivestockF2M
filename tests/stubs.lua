@@ -129,6 +129,8 @@ end
 
 -- The game's milk rule (births, the monthly tick, yield, the forecast and the dealer).
 loadMod("scripts/animal/RLLactation.lua")
+-- Shared butcher age window, sourced by main.lua before move modules.
+loadMod("scripts/utils/RLEppAge.lua")
 
 -- Livestock prices at the calibration level (HARD, x1), so a test sees the calibrated prices;
 -- tests/test_livestockprices.lua loads the real module over it.

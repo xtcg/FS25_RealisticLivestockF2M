@@ -205,8 +205,10 @@
         <text name="rl_ui_moveSelectDestination" text="Sélectionner une destination"/>
         <text name="rl_ui_moveNoDestinations" text="Aucune destination disponible pour ce type d'animal."/>
         <text name="rl_ui_moveEPPAgeFormat" text="âges %d-%d mois" tag="format"/>
+        <text name="rl_ui_moveEPPMinAgeFormat" text="âges %d+ mois" tag="format"/>
         <text name="rl_ui_moveValidSummary" text="%d animal(aux) seront déplacés" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="%d animal(aux) ignorés : ne respecte pas l'âge requis (%d-%d mois)" tag="format"/>
+        <text name="rl_ui_moveRejectedMinAge" text="%d animal(aux) ignorés : en dessous de l'âge minimum (%d mois)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="%d animal(aux) ignorés : capacité insuffisante à destination" tag="format"/>
         <text name="rl_ui_moveRejectedPenRules" text="%d animal(s) skipped: not allowed in this pen (breed, sex, castration or age)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="Aucun animal ne peut être déplacé vers cette destination."/>
