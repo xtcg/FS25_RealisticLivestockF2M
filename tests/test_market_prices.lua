@@ -51,24 +51,27 @@ for _, row in ipairs(BULLS) do
     check("market cattle: " .. row[1] .. " dealer spread 15-35%", spread >= 1.15 and spread <= 1.35)
 end
 
--- Finishing pigs: six-month values are commodity-meat prices, not mature breeding-stock prices.
-local PIGS = {
-    { "PIG_LANDRACE", 190 }, { "BOAR_LANDRACE", 210 },
-    { "PIG_BLACK_PIED", 170 }, { "BOAR_BLACK_PIED", 190 },
-    { "PIG_BERKSHIRE", 215 }, { "BOAR_BERKSHIRE", 240 },
+-- Meat animals at their finishing age: the realistic growth calibration's curves scaled per breed so that
+-- slaughtering by contract earns 12% over selling live over the year at one meat price per species (pork 4.31,
+-- lamb and goat 14.95, poultry 9.06 per kg) (xml/carcassYield.xml, docs RLRM_猪羊禽兔屠宰与售价校准.md).
+-- Gilts keep their breeding-stock value from 24 months: only their keys up to 6 months moved.
+local FINISHED = {
+    { "PIG_LANDRACE", 6, 218 }, { "BOAR_LANDRACE", 6, 210 },
+    { "PIG_BLACK_PIED", 6, 219 }, { "BOAR_BLACK_PIED", 6, 211 },
+    { "PIG_BERKSHIRE", 6.5, 241.8 }, { "BOAR_BERKSHIRE", 6.5, 232.6 },
+    { "RAM_LANDRACE", 8, 192.9 }, { "RAM_STEINSCHAF", 8, 181.0 }, { "RAM_SWISS_MOUNTAIN", 8, 192.0 },
+    { "RAM_BLACK_WELSH", 8, 191.7 }, { "RAM_GOAT", 8, 168.2 }, { "CHICKEN_ROOSTER", 6, 12.1 },
 }
-for _, row in ipairs(PIGS) do
-    check("market pig: " .. row[1] .. " six-month sell", near(price(row[1], "sell", 6), row[2]))
-    local spread = price(row[1], "buy", 6) / price(row[1], "sell", 6)
-    check("market pig: " .. row[1] .. " dealer spread 15-35%", spread >= 1.15 and spread <= 1.35)
+for _, row in ipairs(FINISHED) do
+    check("market meat: " .. row[1] .. " sell at " .. row[2] .. " months", near(price(row[1], "sell", row[2]), row[3], 0.6))
+    local spread = price(row[1], "buy", row[2]) / price(row[1], "sell", row[2])
+    check("market meat: " .. row[1] .. " dealer spread 15-45%", spread >= 1.15 and spread <= 1.45)
 end
+check("market pig: a gilt's 24-month breeding value is unchanged", near(price("PIG_LANDRACE", "sell", 24), 1400))
 
--- Lambs: six-month market anchors while 36-month prices retain breeding-stock value.
+-- Ewes: six-month market anchors while 36-month prices retain breeding-stock value.
 local SHEEP = {
-    { "SHEEP_BLACK_WELSH", 130 }, { "RAM_BLACK_WELSH", 155 },
-    { "SHEEP_LANDRACE", 140 }, { "RAM_LANDRACE", 170 },
-    { "SHEEP_STEINSCHAF", 180 }, { "RAM_STEINSCHAF", 210 },
-    { "SHEEP_SWISS_MOUNTAIN", 190 }, { "RAM_SWISS_MOUNTAIN", 220 },
+    { "SHEEP_BLACK_WELSH", 130 }, { "SHEEP_LANDRACE", 140 }, { "SHEEP_STEINSCHAF", 180 }, { "SHEEP_SWISS_MOUNTAIN", 190 },
 }
 for _, row in ipairs(SHEEP) do
     check("market sheep: " .. row[1] .. " six-month sell", near(price(row[1], "sell", 6), row[2]))

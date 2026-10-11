@@ -59,7 +59,7 @@ AnimalMoveEvent.CARCASS_CONFIG_DEFAULTS = {
 AnimalMoveEvent.CARCASS_ATTRIBUTES = { "anchorWeight", "referenceWeight", "maleMaturity", "femaleMaturity",
 	"carcassFactor", "qualitySwing", "meatPerHead", "dressingRate", "saleableRate",
 	"slaughterFee", "processingFeePerKg", "maxSlaughterMargin", "cullFloorFactor", "referencePrice",
-	"marketPassThrough", "marketFactorMin", "marketFactorMax", "slaughterShare", "cullShare", "cullAgeMonth", "slaughterMinAgeMonth" }
+	"marketPassThrough", "marketFactorMin", "marketFactorMax", "marketFemales", "slaughterShare", "cullShare", "cullAgeMonth", "slaughterMinAgeMonth" }
 
 --- Used when no layer sets them.
 AnimalMoveEvent.CARCASS_ATTRIBUTE_DEFAULTS = { maleMaturity = 1, femaleMaturity = 1, carcassFactor = 1, qualitySwing = 0.2 }
