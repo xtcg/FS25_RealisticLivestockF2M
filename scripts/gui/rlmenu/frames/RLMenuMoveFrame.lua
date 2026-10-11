@@ -933,6 +933,19 @@ function RLMenuMoveFrame:startMoveFlow(animals)
 end
 
 
+--- The "skipped for age" line for a butcher destination: its min-max window, or only its
+--- minimum when it takes animals of any age.
+---@param count number Animals skipped
+---@param entry table Destination entry with minAge and an optional maxAge
+---@return string
+function RLMenuMoveFrame.formatAgeRejection(count, entry)
+    if entry.maxAge ~= nil then
+        return string.format(g_i18n:getText("rl_ui_moveRejectedAge"), count, entry.minAge, entry.maxAge)
+    end
+    return string.format(g_i18n:getText("rl_ui_moveRejectedMinAge"), count, entry.minAge)
+end
+
+
 --- Callback from AnimalMoveDestinationDialog.
 --- @param entry table|nil Selected destination entry, or nil if cancelled
 function RLMenuMoveFrame:onMoveDestinationSelected(entry)
@@ -962,7 +975,7 @@ function RLMenuMoveFrame:onMoveDestinationSelected(entry)
     local ageTooYoung, ageTooOld, noCapacity, sick, penRules, notBuilt = 0, 0, 0, 0, 0, 0
     for _, r in ipairs(validationResult.rejected) do
         -- A pen's age window has no min/max on the entry to print, so it counts as a pen rule.
-        local isPenAge = (r.reason == "AGE_TOO_YOUNG" or r.reason == "AGE_TOO_OLD") and (entry.minAge == nil or entry.maxAge == nil)
+        local isPenAge = (r.reason == "AGE_TOO_YOUNG" or r.reason == "AGE_TOO_OLD") and entry.minAge == nil
         if r.reason == RLPenConstruction.REJECT then notBuilt = notBuilt + 1
         elseif r.reason == RLHusbandryProfiles.REJECT_PEN_RULES or isPenAge then penRules = penRules + 1
         elseif r.reason == "AGE_TOO_YOUNG" then ageTooYoung = ageTooYoung + 1
@@ -977,9 +990,8 @@ function RLMenuMoveFrame:onMoveDestinationSelected(entry)
     -- All rejected: show reason and abort
     if #validationResult.valid == 0 then
         local lines = { g_i18n:getText("rl_ui_moveAllRejected") }
-        if ageTooYoung + ageTooOld > 0 and entry.minAge ~= nil and entry.maxAge ~= nil then
-            table.insert(lines, string.format(g_i18n:getText("rl_ui_moveRejectedAge"),
-                ageTooYoung + ageTooOld, entry.minAge, entry.maxAge))
+        if ageTooYoung + ageTooOld > 0 and entry.minAge ~= nil then
+            table.insert(lines, RLMenuMoveFrame.formatAgeRejection(ageTooYoung + ageTooOld, entry))
         end
         if sick > 0 then
             table.insert(lines, string.format(g_i18n:getText("rl_ui_moveRejectedSick"), sick))
@@ -1008,9 +1020,8 @@ function RLMenuMoveFrame:onMoveDestinationSelected(entry)
     table.insert(confirmLines, string.format(g_i18n:getText("rl_ui_moveValidSummary"), #validationResult.valid))
 
     if #validationResult.rejected > 0 then
-        if ageTooYoung + ageTooOld > 0 and entry.minAge ~= nil and entry.maxAge ~= nil then
-            table.insert(confirmLines, string.format(g_i18n:getText("rl_ui_moveRejectedAge"),
-                ageTooYoung + ageTooOld, entry.minAge, entry.maxAge))
+        if ageTooYoung + ageTooOld > 0 and entry.minAge ~= nil then
+            table.insert(confirmLines, RLMenuMoveFrame.formatAgeRejection(ageTooYoung + ageTooOld, entry))
         end
         if sick > 0 then
             table.insert(confirmLines, string.format(g_i18n:getText("rl_ui_moveRejectedSick"), sick))

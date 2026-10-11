@@ -267,6 +267,8 @@ function RealisticLivestock_AnimalSystem:loadMapData(_, mapXml, mission, baseDir
     Log:info("AnimalSystem: === PHASE 3 END === %d total subtypes after bridge loading", #self.subTypes)
     logSubTypeRegistry(self, "Phase 3")
 
+    RLBirthWeight.syncMinWeights(self)
+
     Log:info("AnimalSystem: Loaded %s animals:", #self.types)
 
     for _, type in pairs(self.types) do

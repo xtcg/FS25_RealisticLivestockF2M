@@ -179,8 +179,10 @@
         <text name="rl_ui_moveSelectDestination" text="Оберіть місце призначення"/>
         <text name="rl_ui_moveNoDestinations" text="Немає доступних місць призначення для цього типу тварин."/>
         <text name="rl_ui_moveEPPAgeFormat" text="вік %d-%d міс." tag="format"/>
+        <text name="rl_ui_moveEPPMinAgeFormat" text="вік %d+ міс." tag="format"/>
         <text name="rl_ui_moveValidSummary" text="Буде переміщено тварин: %d" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="Пропущено тварин: %d (не відповідає віковим вимогам %d-%d міс.)" tag="format"/>
+        <text name="rl_ui_moveRejectedMinAge" text="Пропущено тварин: %d (молодші за мінімальний вік %d міс.)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="Пропущено тварин: %d (недостатньо місця у місці призначення)" tag="format"/>
         <text name="rl_ui_moveRejectedPenRules" text="%d animal(s) skipped: not allowed in this pen (breed, sex, castration or age)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="Жодну тварину не вдалося перемістити до цього місця призначення."/>

@@ -1099,21 +1099,20 @@ function RLHerdsmanExecutor._doMoveToEPP(action, ctx, placeable, dest, pp, farmI
         return true, false, "bad-data"
     end
 
-    -- 2. Delivery-time age filter, with the player path's own `or 0` / `or 999` defaults.
-    local minAge = typeData.minimumAge or 0
-    local maxAge = typeData.maximumAge or 999
+    -- 2. Delivery-time age filter, the same window the player path applies.
     local eligible = {}
     local skippedAge = 0
     for _, animal in ipairs(action.animals) do
         local age = (type(animal) == "table" and animal.age) or 0
-        if age >= minAge and age <= maxAge then
+        if RLEppAge.check(age, typeData) then
             eligible[#eligible + 1] = animal
         else
             skippedAge = skippedAge + 1
         end
     end
-    Log:info("%s rule=%s op=move husbandry=%s farm=%s: butcher age filter (window %d-%d) -> %d eligible, %d skipped-age of %d",
-        LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), minAge, maxAge, #eligible, skippedAge, count)
+    Log:info("%s rule=%s op=move husbandry=%s farm=%s: butcher age filter (window %s) -> %d eligible, %d skipped-age of %d",
+        LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId),
+        RLEppAge.format(RLEppAge.getWindow(typeData)), #eligible, skippedAge, count)
 
     -- 2b. The sick gate over the age-eligible only, so skippedAge stays exactly the age count.
     local skippedSick = 0

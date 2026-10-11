@@ -75,6 +75,7 @@ function RLMoveDestinationHelper.getValidDestinations(sourceHusbandry, farmId, a
                     local maxCount = eppTypeData.maxNumAnimals or 0
                     local currentCount = maxCount - freeSlots
 
+                    local minAge, maxAge = RLEppAge.getWindow(eppTypeData)
                     local entry = {
                         placeable = pp,
                         name = placeable:getName(),
@@ -82,8 +83,8 @@ function RLMoveDestinationHelper.getValidDestinations(sourceHusbandry, farmId, a
                         maxCount = maxCount,
                         freeSlots = freeSlots,
                         isEPP = true,
-                        minAge = eppTypeData.minimumAge,
-                        maxAge = eppTypeData.maximumAge,
+                        minAge = minAge,
+                        maxAge = maxAge, -- nil: no upper limit
                     }
 
                     table.insert(destinations, entry)
@@ -117,9 +118,9 @@ end
 
 --- Split animals into valid and rejected against one destination entry, in input order.
 ---
---- The EPP age gate applies only when the entry is an EPP advertising BOTH bounds - a single
---- missing bound skips it. `destination.name` and `.freeSlots` are indexed unconditionally,
---- so the caller guards a nil destination.
+--- EPP destinations carry a normalized age window: minAge defaults to 0 and maxAge may be nil
+--- for an open upper bound (including Hof Bergmann's sentinel maximumAge=60). `destination.name`
+--- and `.freeSlots` are indexed unconditionally, so the caller guards a nil destination.
 ---@param animals table Array of animals to validate (each may carry age, name, uniqueId)
 ---@param destination table Destination entry from getValidDestinations
 ---@param animalTypeIndex number Animal type index (logged only)
@@ -142,7 +143,7 @@ function RLMoveDestinationHelper.buildMoveValidationResult(animals, destination,
             table.insert(result.rejected, { animal = animal, reason = "SICK" })
             Log:trace("  rejected '%s': SICK", tostring(animal.name or animal.uniqueId or "?"))
             rejected = true
-        elseif destination.isEPP and destination.minAge ~= nil and destination.maxAge ~= nil then
+        elseif destination.isEPP and destination.minAge ~= nil then
             local minAge = destination.minAge
             local maxAge = destination.maxAge
 
@@ -151,7 +152,7 @@ function RLMoveDestinationHelper.buildMoveValidationResult(animals, destination,
                 Log:trace("  rejected '%s': AGE_TOO_YOUNG (age=%d, min=%d)",
                     animal.name or animal.uniqueId or "?", age, minAge)
                 rejected = true
-            elseif age > maxAge then
+            elseif maxAge ~= nil and age > maxAge then
                 table.insert(result.rejected, { animal = animal, reason = "AGE_TOO_OLD" })
                 Log:trace("  rejected '%s': AGE_TOO_OLD (age=%d, max=%d)",
                     animal.name or animal.uniqueId or "?", age, maxAge)

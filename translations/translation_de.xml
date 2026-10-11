@@ -193,8 +193,10 @@
         <text name="rl_ui_moveSelectDestination" text="Zielort auswählen"/>
         <text name="rl_ui_moveNoDestinations" text="Kein Zielort für diesen Tiertyp verfügbar."/>
         <text name="rl_ui_moveEPPAgeFormat" text="Alter %d-%d mo" tag="format"/>
+        <text name="rl_ui_moveEPPMinAgeFormat" text="Alter ab %d mo" tag="format"/>
         <text name="rl_ui_moveValidSummary" text="%d Tier(e) werden verschoben" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="%d Tier(e) übersprungen: Erfüllen nicht die Altersanforderung (%d-%d months)" tag="format"/>
+        <text name="rl_ui_moveRejectedMinAge" text="%d Tier(e) übersprungen: jünger als das Mindestalter (%d Monate)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="%d Tier(e) übersprungen: Nicht genug Platz am Zielort" tag="format"/>
         <text name="rl_ui_moveRejectedPenRules" text="%d Tier(e) übersprungen: In diesem Stall nicht erlaubt (Rasse, Geschlecht, Kastration oder Alter)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="Keine Tiere können an diesen Zielort verschoben werden."/>
