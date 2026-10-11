@@ -207,7 +207,7 @@ g_time = nil
 local pig = bvAnimal("BOAR_LANDRACE", 6)
 check("other species: not covered (old price rules)", not RLBreedingValue.covers(pig, pig:getSubType()))
 
--- Calibration to the 2025 UK market (docs: breeding-value-formulas-v3.md §11) ---------------------------
+-- Calibration: game prices = 1.2 x the 2025 UK market; the game slaughter value is about 0.9 x real culls (docs §12) ---------------------------
 
 local function inCalfRatio(name)
     local q = bvQuote(bvAnimal(name, 40, { isParent = true, isPregnant = true, reproduction = 50, birthCount = 1,
@@ -215,13 +215,13 @@ local function inCalfRatio(name)
     return q.price / q.meat
 end
 local dairyRatio, beefRatio = inCalfRatio("COW_HOLSTEIN"), inCalfRatio("COW_ANGUS")
-check(string.format("market: an in-calf Holstein is 1.5x her cull value (%.2f), an in-calf suckler cow 1.75x (Angus %.2f)", dairyRatio, beefRatio),
-    math.abs(dairyRatio - 1.5) < 0.02 and math.abs(beefRatio - 1.75) < 0.02)
+check(string.format("market: an in-calf Holstein is 1.91x her game cull value (%.2f), an in-calf suckler cow 2.33x (Angus %.2f)", dairyRatio, beefRatio),
+    math.abs(dairyRatio - 1.91) < 0.03 and math.abs(beefRatio - 2.33) < 0.03)
 local allBeef = true
 for _, name in ipairs({ "COW_LIMOUSIN", "COW_HEREFORD", "COW_HIGHLAND_CATTLE" }) do
-    if math.abs(inCalfRatio(name) - 1.75) > 0.03 then allBeef = false end
+    if math.abs(inCalfRatio(name) - 2.33) > 0.04 then allBeef = false end
 end
-check("market: every shipped suckler breed's in-calf cow at 1.75x her cull value", allBeef)
+check("market: every shipped suckler breed's in-calf cow at 2.33x her game cull value", allBeef)
 check("market: a standard suckler cow is worth more than a standard dairy cow, as in the market",
     priceAt("COW_ANGUS", 40, 1, { isParent = true, monthsSinceLastBirth = 11, birthCount = 1 }).price > stdCow.price)
 
@@ -236,12 +236,34 @@ local beefStd = priceAt("COW_ANGUS", 40, 1, { isParent = true, monthsSinceLastBi
 check(string.format("beef: fertility alone raises a suckler cow's value (+%.0f: calves weaned, fewer fertility culls)", beefFertile.price - beefStd.price),
     beefFertile.price > beefStd.price and beefFertile.deltaOwn > 0)
 local beefTop = priceAt("COW_ANGUS", 40, 1.75, { isParent = true, monthsSinceLastBirth = 11, birthCount = 1 })
-check(string.format("beef: a top suckler cow earns a real premium (x%.2f)", beefTop.price / beefStd.price), beefTop.price / beefStd.price > 1.25)
+check(string.format("beef: a top suckler cow earns a real premium (x%.2f)", beefTop.price / beefStd.price), beefTop.price / beefStd.price > 1.5)
 
 local ctx = RLBreedingValue.buildContext(BV_SUB.COW_ANGUS)
-local eliteSon = RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(bvGenes(1.75), 1.35), "male")
-local meatOnlySon = RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(bvGenes(1.75), 1.35), "male", 1)
+local eliteSon = RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(bvGenes(1.75), 1.6), "male")
+local meatOnlySon = RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(bvGenes(1.75), 1.6), "male", 1)
 check(string.format("seedstock: an elite cow's son is worth more as a breeding bull than as beef (%.0f > %.0f)", eliteSon, meatOnlySon),
     eliteSon > meatOnlySon)
 check("seedstock: expected excellence integrates the gene spread (an average-score son can still prove out)",
     RLBreedingValue.expectedExcellence(bvGenes(1.1), params, "male") > 0 and RLBreedingValue.excellence(1.1, params) == 0)
+
+-- Targets at 1.2 x real (2025 UK sale averages) for the top genes, within 12%
+local function inCalf(name, g)
+    return bvQuote(bvAnimal(name, 40, { genes = bvGenes(g), isParent = true, isPregnant = true, reproduction = 50, birthCount = 1,
+        pregnancy = { duration = 10, pregnancies = {} }, monthsSinceLastBirth = 8, isLactating = name == "COW_HOLSTEIN" })).price
+end
+local targets = {
+    { "Holstein in-calf cow, standard (1.2 x GBP 2,400)", inCalf("COW_HOLSTEIN", 1), 2880 },
+    { "Holstein in-calf cow, top (1.2 x GBP 4,725)", inCalf("COW_HOLSTEIN", 1.75), 5670 },
+    { "Angus in-calf cow, standard (1.2 x GBP 3,087)", inCalf("COW_ANGUS", 1), 3700 },
+    { "Angus in-calf cow, top (1.2 x GBP 4,760, pedigree female averages 3,867-5,276)", inCalf("COW_ANGUS", 1.75), 5710 },
+    { "Holstein bull 18 months, top (1.2 x GBP 5,208)", priceAt("BULL_HOLSTEIN", 18, 1.75).price, 6250 },
+    { "Angus bull 18 months, top (1.2 x GBP 7,700)", priceAt("BULL_ANGUS", 18, 1.75).price, 9240 },
+}
+for _, t in ipairs(targets) do
+    check(string.format("target: %s -> %.0f vs %.0f", t[1], t[2], t[3]), math.abs(t[2] / t[3] - 1) < 0.12)
+end
+
+-- Game balance: an elite calf is not yet a proven sire; a bull calf earns only part of a grown bull's premium
+local eliteCalf, eliteBull = priceAt("BULL_ANGUS", 1, 1.75), priceAt("BULL_ANGUS", 18, 1.75)
+check(string.format("balance: a top bull calf at 1 month is worth well under a third of a top 18-month bull (%.0f vs %.0f)",
+    eliteCalf.price, eliteBull.price), eliteCalf.price < eliteBull.price / 3)

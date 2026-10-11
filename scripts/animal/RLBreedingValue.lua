@@ -45,7 +45,7 @@ RLBreedingValue.ATTRIBUTES = {
     "femaleBirthSlots", "breedingExitAgeMonth", "dairyShare",
     "milkNetShare", "milkIncrementShare", "offspringCapture", "sonSlaughterAgeMonth",
     "sireFemalesPerSeason", "sireSeasons", "sireConception", "sireExitAgeMonth",
-    "sireCaptureDairy", "sireCaptureBeef", "sireQualificationAtBirth", "sonSaleAgeMonth",
+    "sireCaptureDairy", "sireCaptureBeef", "sireQualificationAtBirth", "heiferQualificationAtBirth", "sonSaleAgeMonth",
     "cowMateGene", "cowCurveScale", "cowCurveScaleFromMonth", "cowCurveScaleFullMonth", "beefCalfSaleAgeMonth", "beefCalfNetShare", "maternalMilkEffect", "fertilityExitShare", "fertilityExitSlope",
     "exitReplacementDairy", "exitReplacementBeef",
     "wDairyProductivity", "wDairyFertility", "wDairyHealth",
@@ -56,14 +56,14 @@ RLBreedingValue.ATTRIBUTES = {
 --- Used where the file sets nothing (and with no file at all).
 RLBreedingValue.DEFAULTS = {
     enabled = 1, alphaNormal = 0.60, alphaOwn = 0.35, alphaHered = 0.65, rhoOwn = 0.85, rhoHered = 0.85,
-    excellenceThreshold = 1.10, excellenceTop = 1.75, excellenceK = 5,
+    excellenceThreshold = 1.10, excellenceTop = 1.75, excellenceK = 1,
     discountRate = 0.10, annualExitRisk = 0.14, healthExitSlope = 0.35,
     referenceOpenMonths = 1.5, minOpenMonths = 0.5, maxOpenMonths = 8, postpartumWaitMonth = 3,
     femaleBirthSlots = 4, breedingExitAgeMonth = 96, dairyShare = 0.5,
-    milkNetShare = 0.25, milkIncrementShare = 0.40, offspringCapture = 0.60, sonSlaughterAgeMonth = 20,
-    sireFemalesPerSeason = 24, sireSeasons = 3, sireConception = 0.90, sireExitAgeMonth = 132,
-    sireCaptureDairy = 0.15, sireCaptureBeef = 0.85, sireQualificationAtBirth = 0.50, sonSaleAgeMonth = 12,
-    cowMateGene = 1.35, cowCurveScale = 1, cowCurveScaleFromMonth = 24, cowCurveScaleFullMonth = 36,
+    milkNetShare = 0.25, milkIncrementShare = 0.40, offspringCapture = 0.70, sonSlaughterAgeMonth = 20,
+    sireFemalesPerSeason = 24, sireSeasons = 4, sireConception = 0.90, sireExitAgeMonth = 132,
+    sireCaptureDairy = 0.20, sireCaptureBeef = 0.52, sireQualificationAtBirth = 0.35, heiferQualificationAtBirth = 0.50, sonSaleAgeMonth = 12,
+    cowMateGene = 1.60, cowCurveScale = 1, cowCurveScaleFromMonth = 6, cowCurveScaleFullMonth = 12,
     beefCalfSaleAgeMonth = 8, beefCalfNetShare = 0.55, maternalMilkEffect = 0.10,
     fertilityExitShare = 0.35, fertilityExitSlope = 0.60, exitReplacementDairy = 0.50, exitReplacementBeef = 0.75,
     wDairyProductivity = 0.40, wDairyFertility = 0.30, wDairyHealth = 0.30,
@@ -433,8 +433,9 @@ function RLBreedingValue.combine(input, params)
         -- A bull's own genes act through his calves; a poor one is simply not a breeding bull.
         heredPremium = params.alphaHered * params.rhoHered * input.excellence * math.max(own + hered, 0)
     else
-        ownPremium = params.alphaOwn * params.rhoOwn * math.max(own, 0)
-        heredPremium = params.alphaHered * params.rhoHered * input.excellence * math.max(hered, 0)
+        local qualification = input.qualification or 1
+        ownPremium = params.alphaOwn * params.rhoOwn * math.max(own, 0) * qualification
+        heredPremium = params.alphaHered * params.rhoHered * input.excellence * math.max(hered, 0) * qualification
         loss = params.alphaNormal * (math.max(-own, 0) + math.max(-hered, 0))
     end
     local raw = standard + body - loss + ownPremium + heredPremium
@@ -677,8 +678,16 @@ local function quoteCow(animal, subType, ctx, curve, meatRoute, body)
         if not birth.existing then future = future + birth.weight end
     end
 
+    -- A heifer calf may not make a cow (rearing losses, failed selection): her premium is paid at
+    -- heiferQualificationAtBirth, rising to 1 at breeding age. Shortfalls are taken in full.
+    local qualification = 1
+    if not animal.isParent and ctx.minAge > 0 then
+        local grown = math.min(math.max(animal.age or 0, 0) / ctx.minAge, 1)
+        qualification = ctx.params.heiferQualificationAtBirth + (1 - ctx.params.heiferQualificationAtBirth) * grown
+    end
     local score = RLBreedingValue.getScore(genes, ctx.params, "female")
     local quote = RLBreedingValue.combine({
+        qualification = qualification,
         role = "cow", curve = curve, meatRoute = meatRoute, stateValue = stateValue, bodyDifference = body,
         deltaOwn = pvP - pv0, deltaHered = future * perCalf,
         excellence = RLBreedingValue.excellence(score, ctx.params),
