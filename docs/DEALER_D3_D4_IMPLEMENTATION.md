@@ -441,3 +441,53 @@ pregnant-dam save/load and normal subsequent offspring need explicit acceptance 
 Owned source calendar/birth/newborn progression, complete cross-save ownership recovery,
 installed-map aliases and multiplayer/save interruptions remain required. No release flag
 or unused server capability declaration bypasses these gates.
+
+### Owned source rearing continuation (after `c7e891d`)
+
+`RLDealerOwnedProgress.advance` now stages historical source feeding and actual observed
+calf rearing together, using each supplied segment's real month length. It restores new
+private-owner objects without RNG/migration, advances source records and every child
+cursor, installs exact physiological fields while preserving real identity, pregnancy
+and model-backed disease objects, and progresses listing eligibility/withdrawal. It
+publishes the entire farm/owner/listing set only after a complete evidence barrier and
+rechecking the original inventory. No known storage error publishes half an inventory;
+unknown storage or callback mutation retains before/staged evidence and closes recovery.
+The source-update fence also blocks purchase entry during source progression.
+
+Real child cursors use the shared source clock's segment-by-segment arithmetic, with only
+sub-1e-8 floating-point roundoff normalized. Mixed 1/3/7-day segments match persisted split
+continuation exactly. Zero elapsed time neither rebuilds owners nor writes storage;
+invalid calendars still reject. Withdrawn offers retain both real mothers and calves.
+Source/purchase reservations and unfinished purchase journals prevent progression.
+
+Twenty focused progression checks pass, including 1/3/7-day calendars, full owned
+roundtrip, both source and child cursor advancement, no RNG/migration, partial calendar
+failure, storage uncertainty, callback mutation, replay refusal after uncertainty, due
+birth gating, withdrawal and concurrent transaction fences. Observed child validation
+now also requires exact selected genes and an actual calendar birth date (20 checks).
+Owned inventory compares every persisted physiological field, including health/carry,
+instead of accepting equal growth mass alone (38 integrated ownership checks).
+All 38 dealer/loader files parse in standard Lua 5.1.
+The complete regression passes **3406/3406**
+(`/private/tmp/rlrm-dealer-owned-progress-tests.log`).
+
+The real calving boundary remains deliberately explicit: an update reaching gestation
+term returns SOURCE_CALVING_REQUIRED before publishing any elapsed source time. Next is
+the controller that stages all inventory to that boundary, persists PREPARED before the
+ordinary birth sampler, refreshes the maternal observed record and adopts actual children
+before COMMITTED, then resumes the remaining calendar interval. The standalone sampler,
+ownership codec and newborn integrator already exist; their callbacks alone do not count
+as a completed production birth pipeline. Runtime clock/generation installation and the
+previous D4 recovery/UI/game acceptance gates remain outstanding.
+
+Birth-controller design checkpoint: simultaneous due dams cannot all be installed as
+pending endpoints before the first PREPARED write, because the ownership codec correctly
+refuses an unjournaled physiological jump. Stage other due dams at their prior recorded
+state until their own persisted PREPARED transition, or introduce an explicit multi-dam
+prepare/apply boundary. COMMITTED callbacks must refresh maternal SourceState through
+captureObserved and enroll surviving actual children before exporting the owner. Maternal
+mortality also needs a retired source-record/identity mapping: deleting the source record
+while retaining the dead real mother would make the strict owned inventory unbound, while
+retaining her as an active fed source would block subsequent feeding. Retain actual dead
+identity and committed mortality evidence; withdraw offers and remove her from active
+feeding explicitly. Never discard a dead mother or fabricate a newborn assumed history.

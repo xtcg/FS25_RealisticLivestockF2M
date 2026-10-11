@@ -166,3 +166,7 @@ local matched,matchReason=RLDealerRuntime.compareJournal(changedWal,1,meta.linea
 check("owned runtime: equal purchase journal cannot hide different source ownership evidence",not matched
     and matchReason=="WAL_ASSET_RECONCILIATION_REQUIRED" and stock.recoveryRequired
     and RLDealerRuntime.evidence.checkpointRecovery.clockMonths==100 and RLDealerRuntime.evidence.wal.data.recovery.clockMonths==101)
+bad=copy(encoded);bad.owners["OWNER-A"].animals[1].physiology.health=99
+check("owned stock: historical record cannot overwrite divergent real source health",not K.validate(bad,sources,100))
+bad=copy(encoded);bad.owners["OWNER-A"].animals[1].physiology.rlHealthCarry=0.5
+check("owned stock: actual source health carry must match its stored physiology",not K.validate(bad,sources,100))

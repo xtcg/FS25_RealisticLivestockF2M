@@ -17,6 +17,17 @@ local function detachedState(state)
     if type(out) == "table" and out.lastTick == -1 then out.lastTick = nil end
     return out
 end
+local physiologyFields={"age","health","monthsSinceLastBirth","birthCount","gender","breed","isIndividual",
+    "isParent","isPregnant","isLactating","isCastrated","reproduction","weight","targetWeight","genetics",
+    "rlGrowth","bodyCondition","rlFeedGain","rlHealthCarry","input","output"}
+local function samePhysiology(record,animal)
+    for _,key in ipairs(physiologyFields) do
+        local actual=animal.physiology[key]
+        if key=="rlGrowth" or key=="bodyCondition" then actual=detachedState(actual) end
+        if not equal(record.animal[key],actual) then return false end
+    end
+    return true
+end
 local function keys(t, allowed)
     if type(t) ~= "table" then return false end
     for k in pairs(t) do if not allowed[k] then return false end end
@@ -67,6 +78,12 @@ function K.validate(data, sources, months)
         local record = sources[sourceId]
         if animal == nil or record == nil or animal.sourceRecord == nil or not equal(record, animal.sourceRecord)
             or bound[binding.ownerId][binding.animalId] then return nil, "OWNED_STOCK_SOURCE_MISMATCH" end
+        local pending=false
+        for _,event in pairs(data.owners[binding.ownerId].birthJournal) do
+            if event.stage~="COMMITTED" and event.damId==binding.animalId
+                and event.atAgeMonths==animal.physiology.rlGrowth.ageMonths then pending=true end
+        end
+        if not pending and not samePhysiology(record,animal) then return nil,"OWNED_STOCK_SOURCE_PHYSIOLOGY" end
         bound[binding.ownerId][binding.animalId] = true
     end
     for sourceId in pairs(sources) do
@@ -88,7 +105,7 @@ function K.validate(data, sources, months)
                 or record.animal.weight ~= animal.physiology.weight
                 or record.animal.health ~= animal.physiology.health
                 or not equal(record.animal.input, animal.physiology.input)
-                or not equal(record.animal.output, animal.physiology.output)
+                or not equal(record.animal.output, animal.physiology.output) or not samePhysiology(record,animal)
                 or not equal(record.birthEvent, data.owners[ownerId].birthJournal[record.birthEvent.eventId]) then
                 return nil, "OWNED_STOCK_CHILD_MISMATCH"
             end

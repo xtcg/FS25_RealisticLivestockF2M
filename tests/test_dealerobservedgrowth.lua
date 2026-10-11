@@ -86,3 +86,7 @@ local selectedWeight=RLGrowth.drawBirthWeight(newborn:getSubType(),{})
 assert(RLGrowth.initBirth(newborn,selectedWeight));local once=assert(G.capture(newborn,100,evt));assert(G.resume(once,{{hours=1,daysPerMonth=1}},resolver))
 RLGrowth.drawBirthWeight=initialDraw
 check("observed growth: selected actual birth weight is drawn once and never redrawn by capture or feeding", calls==1)
+local altered=clone(record);altered.animal.genetics.fertility=0.5
+check("observed growth: actual selected newborn genes cannot be rewritten after birth",not G.validate(altered))
+altered=clone(record);altered.birthEvent.day=nil;altered.animal.birthday.day=nil
+check("observed growth: absent calendar evidence cannot validate by two missing dates matching",not G.validate(altered))

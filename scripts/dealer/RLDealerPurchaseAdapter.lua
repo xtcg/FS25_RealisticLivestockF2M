@@ -76,7 +76,7 @@ function A.new(ctx)
     stock.money=a.money
     a.isServer=function() return ctx.mission and ctx.mission:getIsServer()==true end
     a.authorize=function(principal,reference)
-        if a.busy or stock.recoveryRequired then return false end
+        if a.busy or stock.recoveryRequired or stock.sourceUpdateInProgress then return false end
         return authority(principal,reference)~=nil
     end
     a.monotonicMs=ctx.monotonicMs

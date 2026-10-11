@@ -38,12 +38,16 @@ local function actualBirth(a,event)
         or event.evidence~="OBSERVED_SOURCE_BIRTH" or not id(event.eventId) or not id(event.sourceId)
         or not finite(event.cursorMonths) or type(event.result)~="table" or event.result.eventId~=event.eventId
         or event.result.evidence~=event.evidence or type(event.draws)~="table" or type(event.selected)~="table"
-        or not array(event.selected) or not array(event.draws) or not array(event.result.newborns) then return false end
+        or not array(event.selected) or not array(event.draws) or not array(event.result.newborns)
+        or not finite(event.day) or event.day<1 or event.day>31 or event.day%1~=0
+        or not finite(event.month) or event.month<1 or event.month>12 or event.month%1~=0
+        or not finite(event.year) or event.year%1~=0 then return false end
     local selected,draw,born,ns,nd,nb=nil,nil,nil,0,0,0
     for _,v in ipairs(event.selected) do if v.uniqueId==a.uniqueId and v.farmId==a.farmId then selected=v;ns=ns+1 end end
     for _,v in ipairs(event.draws) do if v.uniqueId==a.uniqueId and v.farmId==a.farmId then draw=v;nd=nd+1 end end
     for _,v in ipairs(event.result.newborns) do if v.uniqueId==a.uniqueId and v.farmId==a.farmId then born=v;nb=nb+1 end end
     return ns==1 and nd==1 and nb==1 and selected.subType==a.subType and draw.subType==a.subType and born.subType==a.subType
+        and equal(selected.genetics,a.genetics)
         and born.alive==true and finite(draw.z) and finite(draw.meanWeightKg) and draw.meanWeightKg>0
         and draw.weightKg==a.rlGrowth.birthWeightKg and born.birthWeightKg==draw.weightKg
         and a.birthday.day==event.day and a.birthday.month==event.month and a.birthday.year==event.year
