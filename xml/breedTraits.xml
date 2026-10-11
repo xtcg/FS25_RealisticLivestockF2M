@@ -74,11 +74,11 @@
                 birthSurvivalBase="0.97" birthHealthEffect="0.20"
                 birthLowWeightSD="1.8" birthLowWeightPenalty="0.10"
                 birthHighWeightSD="1.3" birthHighWeightPenalty="0.12">
-        <breed name="HIGHLAND"      feed="0.80" growth="0.90" grass="1.25" hay="1.15" silage="1.00" birthWeightRatio="0.054"/>   <!-- 27 / 29 kg -->
-        <breed name="HEREFORD"      feed="0.90" growth="1.02" grass="1.15" hay="1.10" silage="1.00" birthWeightRatio="0.0567"/>  <!-- 34 / 36 kg -->
+        <breed name="HIGHLAND"      feed="0.80" growth="0.90" grass="1.25" hay="1.15" silage="1.00" birthWeightRatio="0.054" milkCollect="0"/>   <!-- 27 / 29 kg -->
+        <breed name="HEREFORD"      feed="0.90" growth="1.02" grass="1.15" hay="1.10" silage="1.00" birthWeightRatio="0.0567" milkCollect="0"/>  <!-- 34 / 36 kg -->
         <breed name="WATER_BUFFALO" feed="0.90" growth="0.96" grass="1.15" hay="1.05" silage="1.00" birthWeightRatio="0.0618"/>  <!-- 34 / 36 kg -->
-        <breed name="LIMOUSIN"      feed="0.95" growth="1.08" grass="0.95" hay="1.00" silage="1.05" birthWeightRatio="0.0585"/>  <!-- 38 / 41 kg -->
-        <breed name="ANGUS"         feed="1.00" growth="1.00" grass="1.00" hay="1.00" silage="1.00" birthWeightRatio="0.0492"/>  <!-- 32 / 34 kg, easy calving -->
+        <breed name="LIMOUSIN"      feed="0.95" growth="1.08" grass="0.95" hay="1.00" silage="1.05" birthWeightRatio="0.0585" milkCollect="0"/>  <!-- 38 / 41 kg -->
+        <breed name="ANGUS"         feed="1.00" growth="1.00" grass="1.00" hay="1.00" silage="1.00" birthWeightRatio="0.0492" milkCollect="0"/>  <!-- 32 / 34 kg, easy calving -->
         <breed name="SWISS_BROWN"   feed="1.00" growth="1.00" grass="1.05" hay="1.05" silage="1.00" birthWeightRatio="0.0615"/>  <!-- 40 / 43 kg -->
         <breed name="HOLSTEIN"      feed="1.10" growth="0.95" grass="0.90" hay="0.95" silage="1.10" birthWeightRatio="0.0618"/>  <!-- 42 / 45 kg -->
     </animalType>
@@ -178,17 +178,24 @@
         scaled curve, so feed cost does not move. (Jersey: 667 game liters a month at maturity,
         Holstein-type Red Holstein about 820, the beef breeds 230-430.)
     -->
+    <!--
+        milkCollect: share of a cow's milk beyond what her own calves drink that reaches the milk tank or cans (0..1, default 1).
+        Suckler (beef) breeds 0: a beef cow does give milk, but little, and in a cow-calf herd it is her calf's - there is no
+        surplus worth collecting. In the real-equivalent nutrition mode such a cow makes only what her calves at foot drink
+        (none without a calf) and is fed for that; under the old rules her store gets nothing and her budget is unchanged.
+        Dairy and dual-purpose breeds, the water buffalo and goats keep 1.
+    -->
     <subType name="COW_REDHOLSTEIN_PACK" milkScale="3.487"/>
     <subType name="COW_AYRSHIRE_PACK" milkScale="2.609"/>
     <subType name="COW_KERRY_PACK" milkScale="1.816"/>
     <subType name="COW_SHORTHORNMILKERS_PACK" milkScale="2.267"/>
     <subType name="COW_JERSEY_PACK" milkScale="2.578"/>
     <subType name="COW_GUERNSEY_PACK" milkScale="2.507"/>
-    <subType name="COW_CHAROLAIS_PACK" milkScale="1.667"/>
-    <subType name="COW_REDANGUS_PACK" milkScale="1.786"/>
-    <subType name="COW_SHORTHORN_PACK" milkScale="1.506"/>
-    <subType name="COW_IRISHMOILED_PACK" milkScale="1.296"/>
-    <subType name="COW_BRITISHBLUE_PACK" milkScale="1.553"/>
-    <subType name="COW_BELTEDGALLOWAY_PACK" milkScale="1.340"/>
-    <subType name="COW_SIMMENTAL_PACK" milkScale="1.693"/>
+    <subType name="COW_CHAROLAIS_PACK" milkScale="1.667" milkCollect="0"/>
+    <subType name="COW_REDANGUS_PACK" milkScale="1.786" milkCollect="0"/>
+    <subType name="COW_SHORTHORN_PACK" milkScale="1.506" milkCollect="0"/>
+    <subType name="COW_IRISHMOILED_PACK" milkScale="1.296" milkCollect="0"/>
+    <subType name="COW_BRITISHBLUE_PACK" milkScale="1.553" milkCollect="0"/>
+    <subType name="COW_BELTEDGALLOWAY_PACK" milkScale="1.340" milkCollect="0"/>
+    <subType name="COW_SIMMENTAL_PACK" milkScale="1.693" milkCollect="0"/>
 </breedTraits>
