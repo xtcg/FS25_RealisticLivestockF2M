@@ -246,7 +246,7 @@ end
 ---                   WEANED: the feeds it may eat), target (FINISH eats freely, GROW for its needs,
 ---                   MAINTAIN for maintenance and pregnancy), concEligible, adapted,
 ---                   needs = { maintenance, pregnancy, growth, milk, deposit } (MJ/day), proteinNeed,
----                   milkMax, milkMaxKgPerDay (real-equivalent DM ceiling), solidMax, solidEnergy }, ... },
+---                   milkMax, milkMaxKgPerDay (DM ceiling of the trough's milk), nursingMaxKgPerDay (real ceiling at its dam), solidMax, solidEnergy }, ... },
 ---     forage, concentrate, milk = { { name, profile, liters }, ... } in the order they are taken,
 ---     scale, realDaysPerPeriod, dtDays, share (nil: AUTO), ration, classes, proteinMaintenance,
 ---     concentrateWanted (the pen offers concentrate) }
@@ -309,6 +309,8 @@ function RLFeedRationPlanner.plan(request)
         a.milkPlanKg, a.damMilkKg = 0, 0
         if a.milkMax ~= nil and a.milkMax > 0 then
             local allowance = a.milkMaxKgPerDay ~= nil and math.max(a.milkMaxKgPerDay, 0) or math.min(a.milkMax, 1) * a.appetite
+            -- With its dam it drinks real whole milk: the real allowance, not the trough's game strength.
+            if a.damPool ~= nil and a.nursingMaxKgPerDay ~= nil then allowance = math.max(a.nursingMaxKgPerDay, 0) end
             a.milkPlanKg = math.min(allowance, a.appetite) * dt
         end
         local pool = a.damPool

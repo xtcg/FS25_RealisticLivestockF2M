@@ -133,7 +133,7 @@ do
     local pen2 = FeedSim.makePen({ cow2, a2, b2 }, { FORAGE = 1e5, CALFMILK = 1e4 })
     -- Its allowance at the start (it only falls with age on the weaning curve).
     local d = RLFeed.describeAnimal(a2, RLFeed.getRation(pen2), config.stepDays / 30, config.stepDays)
-    local allowanceStep = d.milkMaxKgPerDay * config.stepDays
+    local allowanceStep = d.nursingMaxKgPerDay * config.stepDays
     local steps2 = step(pen2)
     local planned, drunk = 0, 0
     for _, data in ipairs(steps2) do

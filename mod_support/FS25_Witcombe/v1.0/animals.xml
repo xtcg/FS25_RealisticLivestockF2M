@@ -269,11 +269,11 @@
                 <milk fillType="MILK">
                     <key ageMonth="0" value="0"/>
                     <key ageMonth="12" value="0"/>
-                    <key ageMonth="12" value="113"/>
-                    <key ageMonth="36" value="113"/>
-                    <key ageMonth="36" value="160"/>
-                    <key ageMonth="72" value="160"/>
-                    <key ageMonth="120" value="69"/>
+                    <key ageMonth="12" value="188"/>
+                    <key ageMonth="36" value="188"/>
+                    <key ageMonth="36" value="267"/>
+                    <key ageMonth="72" value="267"/>
+                    <key ageMonth="120" value="115"/>
                 </milk>
             </output>
         </subType>

@@ -5,10 +5,14 @@ local function near(a, b, tolerance) return math.abs(a - b) <= (tolerance or 1e-
 local U, M = RLFeedUnits, RLFeedMath
 local milk = RLFeedProfiles.getUsableFeed("CALFMILK")
 local baseLimit = M.getCalfMilkLimit(45, 45, 1, config.calfMilk)
-check("calf milk: reference 10 real L/day = 1.2875 kg DM/day = 60 game L/30-day month",
-    near(baseLimit, 1.2875) and near(U.kgToLiters(baseLimit * 30, 0.2, milk.density, milk.dm), 60))
-check("calf milk: 8 real L/day maps to 48 game L/month, no extra resource discount",
-    near(U.kgToLiters(8 * 1.03 * 0.125 * 30, 0.2, milk.density, milk.dm), 48))
+check("calf milk: reference 5 game L/day at 50% solids = 2.575 kg DM/day = 30 game L/30-day month (scale 0.2), twice the old 10 L at 12.5%",
+    near(baseLimit, 2.575) and near(baseLimit, 2 * 10 * 1.03 * 0.125)
+    and near(U.kgToLiters(baseLimit * 30, 0.2, milk.density, milk.dm), 30))
+check("calf milk: 4 L/day maps to 24 game L/month, no extra resource discount",
+    near(U.kgToLiters(4 * 1.03 * 0.50 * 30, 0.2, milk.density, milk.dm), 24))
+check("calf milk: at its dam a calf keeps the real reference - 10 L/day of whole milk at 12.5% = 1.2875 kg DM/day, half the trough's game allowance",
+    near(M.getCalfNursingLimit(45, 45, 1, config.calfMilk, config.damMilk), 1.2875)
+    and near(M.getCalfNursingLimit(45, 45, 1, config.calfMilk, config.damMilk) * 2, baseLimit))
 check("calf milk: a smaller breed gets less, by its birth weight share ^ sizeExponent (0.75), and weaning is applied once",
     config.calfMilk.sizeExponent == 0.75 and near(M.getCalfMilkLimit(30, 45, 0.7, config.calfMilk), baseLimit * (30 / 45) ^ 0.75 * 0.7)
     and M.getCalfMilkLimit(45, 45, 0, config.calfMilk) == 0)

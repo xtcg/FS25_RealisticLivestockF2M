@@ -498,7 +498,7 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
     -- Appetite and rumen fill at the weight halfway through the hour (its weight plus half the
     -- growth it could make), so a long hour does not size a growing animal's intake late.
     local weight = math.max(animal.weight or 0, 0) + 0.5 * (demands.growthKg or 0)
-    local milkLimit = 0
+    local milkLimit, nursingLimit = 0, 0
     if class == "CALF" then
         local binding = RLGrowth.getBinding(animal:getSubType())
         -- The reference calf is a Holstein of its sex; a weight profile file without Holstein
@@ -506,6 +506,8 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
         local reference = RLGrowth.getConfig().profiles.HOLSTEIN ~= nil and { profile = "HOLSTEIN", sex = binding.sex } or binding
         milkLimit = RLFeedMath.getCalfMilkLimit(RLGrowth.getBirthMean(binding), RLGrowth.getBirthMean(reference),
             milkMax, config.calfMilk)
+        nursingLimit = RLFeedMath.getCalfNursingLimit(RLGrowth.getBirthMean(binding), RLGrowth.getBirthMean(reference),
+            milkMax, config.calfMilk, config.damMilk)
     end
 
     return {
@@ -519,6 +521,7 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
         adapted = state.feedAdapted or 0,
         milkMax = class == "CALF" and milkMax or 0,
         milkMaxKgPerDay = milkLimit,
+        nursingMaxKgPerDay = nursingLimit,
         solidMax = solidMax,
         solidEnergy = class == "CALF" and RLCalfRearing.getSolidEnergyFactor(animal) or 1,
         proteinNeed = RLFeedMath.getProteinNeed(class, RLGrowth.getContinuousAge(animal), config.protein, milkMax, milkKg),

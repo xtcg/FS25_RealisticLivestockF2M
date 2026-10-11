@@ -159,6 +159,13 @@ function RLFeedMath.getCalfMilkLimit(birthMean, referenceBirthMean, milkMax, cal
     return calfMilk.realLitersPerDay * calfMilk.density * calfMilk.dm * size * math.clamp(milkMax or 0, 0, 1)
 end
 
+--- The same ceiling for a calf that drinks from its dam: her whole milk (damMilk.dm), the real
+--- reference of calfMilk nursingLitersPerDay, not the trough's game-strength calf milk.
+function RLFeedMath.getCalfNursingLimit(birthMean, referenceBirthMean, milkMax, calfMilk, damMilk)
+    local size = (math.max(birthMean, 0) / referenceBirthMean) ^ (calfMilk.sizeExponent or 1)
+    return calfMilk.nursingLitersPerDay * calfMilk.density * damMilk.dm * size * math.clamp(milkMax or 0, 0, 1)
+end
+
 --- What an animal can eat (kg DM a real day) before the ration's bulk: by ration class, per
 --- kg^0.75 (a lactating cow also by her milk); a calf on milk the growing value in all, milk and
 --- solids together (its solids are held by getCalfSolidCapacity); x the intake gene.

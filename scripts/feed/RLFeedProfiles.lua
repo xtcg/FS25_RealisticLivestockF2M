@@ -63,7 +63,7 @@ RLFeedProfiles.MILK = { realKgPerDay = 8, meMJPerKg = 5.0 }
 
 -- Prepared calf milk, independent of the cow's milk-output bridge above. Ten real liters a
 -- day is a calibration ceiling, not a promise of intake or an absolute biological maximum.
-RLFeedProfiles.CALF_MILK = { realLitersPerDay = 10, density = 1.03, dm = 0.125, sizeExponent = 0.75 }
+RLFeedProfiles.CALF_MILK = { realLitersPerDay = 5, density = 1.03, dm = 0.50, sizeExponent = 0.75, nursingLitersPerDay = 10 }
 
 -- A dam's own milk as her calf drinks it (whole milk, NRC 2001: 12.5% DM, ME 5.37 Mcal/kg DM).
 RLFeedProfiles.DAM_MILK = { dm = 0.125, me = 22.5, cp = 0.25 }

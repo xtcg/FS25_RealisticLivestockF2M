@@ -20,29 +20,32 @@ HARNESS = Path(__file__).resolve().parent
 source = (HARNESS / "run.py").read_text()
 exec(compile(source.split("# Hof Bergmann 1.5 prices")[0], str(HARNESS / "run.py"), "exec"))
 
-SOLIDS = [0.075, 0.090, 0.105]
-MILK = [8, 9, 10]
-SIZE = [1.0, 0.75]
+SOLIDS = [0.090, 0.105]
+MILK = [4, 5, 6]            # game liters a day of the reference Holstein calf
+DM = [0.40, 0.50]           # solids of a game liter of calf milk (a real liter 0.125)
+SIZE = [0.75]
 ROUTES = ["STANDARD", "STARTER"]
 names = plain(R.subTypes("male")) + plain(R.subTypes("female"))
 
 lua.execute("""
-function SET_CALF_CANDIDATE(solid, liters, exponent)
+function SET_CALF_CANDIDATE(solid, liters, exponent, dm)
     local config = RLFeed.getConfig()
     config.intake.calfSolidPerKgMetabolic = solid
     config.calfMilk.realLitersPerDay = liters
     config.calfMilk.sizeExponent = exponent
+    config.calfMilk.dm = dm
+    config.feeds.CALFMILK.dm = dm
 end
 """)
 shipped = (lua.eval("RLFeed.getConfig().intake.calfSolidPerKgMetabolic"), lua.eval("RLFeed.getConfig().calfMilk.realLitersPerDay"),
-           lua.eval("RLFeed.getConfig().calfMilk.sizeExponent"))
+           lua.eval("RLFeed.getConfig().calfMilk.sizeExponent"), lua.eval("RLFeed.getConfig().calfMilk.dm"))
 
 rows, summary = [], []
 started = time.time()
 for exponent in SIZE:
     for solid in SOLIDS:
-        for liters in MILK:
-            lua.globals().SET_CALF_CANDIDATE(solid, liters, exponent)
+        for liters, dm in [(l, d) for l in MILK for d in DM]:
+            lua.globals().SET_CALF_CANDIDATE(solid, liters, exponent, dm)
             for route in ROUTES:
                 passed, worstPhase, worstError, minHealth = 0, 99.0, 0.0, 100.0
                 for name in names:
@@ -55,11 +58,11 @@ for exponent in SIZE:
                     worstError = max(worstError, abs(error))
                     minHealth = min(minHealth, six["minHealth"])
                     for m in calf["months"]:
-                        rows.append(dict(sizeExponent=exponent, solid=solid, allowanceL=liters, route=route, subType=name,
+                        rows.append(dict(sizeExponent=exponent, solid=solid, allowanceL=liters, milkDm=dm, route=route, subType=name,
                                          birthKg=calf["birthKg"], **m))
-                summary.append(dict(sizeExponent=exponent, solid=solid, allowanceL=liters, route=route, passed=passed, of=len(names),
+                summary.append(dict(sizeExponent=exponent, solid=solid, allowanceL=liters, milkDm=dm, route=route, passed=passed, of=len(names),
                                     worstPhase=round(worstPhase, 3), worstWeightError=round(worstError, 4), minHealth=minHealth))
-                print(exponent, solid, liters, route, f"{passed}/{len(names)}", round(worstPhase, 2), round(worstError, 4),
+                print(exponent, solid, liters, dm, route, f"{passed}/{len(names)}", round(worstPhase, 2), round(worstError, 4),
                       f"{time.time() - started:.0f}s", flush=True)
 lua.globals().SET_CALF_CANDIDATE(*shipped)
 

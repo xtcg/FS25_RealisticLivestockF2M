@@ -46,8 +46,8 @@ end
 -- Dairy: Swiss Brown gives about 85% of Holstein's milk at a similar milk/feed ratio.
 local _, holstein = Economics.find("COW_HOLSTEIN")
 local _, swiss = Economics.find("COW_SWISS_BROWN")
-check("dairy: Holstein peak 378, Swiss Brown 320", near(Economics.curve(holstein.milk, 60), 378)
-    and near(Economics.curve(swiss.milk, 60), 320))
+check("dairy: Holstein peak 1000, Swiss Brown 833 (1.2 x the real lactation average, 30 and 25 kg a day)", near(Economics.curve(holstein.milk, 60), 1000)
+    and near(Economics.curve(swiss.milk, 60), 833))
 
 -- Animals that appear with no weight (the dealer's stock, a new game's herds) are on the same
 -- growth line as one raised on full feed: a bull of finishing age weighs about its reference.

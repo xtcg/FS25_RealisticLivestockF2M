@@ -6,6 +6,7 @@
 
 ### Changed
 
+- Milk balance (2026-10-11): (1) calf milk in the trough is drunk and bought at half the real volume (calfMilk realLitersPerDay 10 -> 5) with 4 times the solids per game liter (dm 0.125 -> 0.50, also the CALFMILK feed profile), so the DM ceiling is twice the old one and all 40 cattle subtypes reach their 6-month curve on both routes (STARTER 40/40, STANDARD 40/40). A calf at its dam keeps the real ceiling (new calfMilk nursingLitersPerDay=10 of whole milk), so dam-fed calves and the dam bridge are unchanged. (2) Cow milk curves (RLRM animals.xml, the Cow Breeds pack, Hof Bergmann v1.4/v1.5 pallets, The Mechet, Witcombe) are set to 1.2 x the real lactation average of the milk bridge: mature game milk x 1.08 = 1.2 x realKgPerDay x 30 (Holstein 378 -> 1000, Swiss Brown 320 -> 833, Angus 70 -> 267 ...). The bridge divides by the curve, so a cow's feed cost is unchanged. Goat and buffalo milk unchanged. Results: FEED_奶量与产奶校准_2026-10-11.
 - Real-equivalent cattle nutrition defaults to resourceScale=0.125 (1/8 of real-equivalent feed volume), following the revised economy target. Feed DM fractions already apply to planning, actual intake and forecasts: TMR 45%, hay 85%, grass 20%, silage 35%; nutrition and growth are unchanged. Holstein annual TMR is approximately 5,960 L versus legacy 6,031 L. A uniform real-equivalent scale does not guarantee equal savings against legacy for other feeds. Mode remains off by default; explicit modSettings overrides keep their configured scale. See docs/FEED_BALANCE_AND_FOLLOWUP.md.
 
 ### Added

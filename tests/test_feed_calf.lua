@@ -107,10 +107,18 @@ do
         concentrate = {}, milk = { { name = "CALFMILK", profile = milk, liters = 1e6 } }, scale = config.resourceScale, realDaysPerPeriod = 30,
         dtDays = dtDays, ration = config.ration, classes = config.classes, proteinMaintenance = config.protein.maintenance }
     RLFeedRationPlanner.plan(request)
-    check(string.format("intake: a newborn drinks its whole allowance (%.3f kg DM a day), not the old calf appetite's %.3f",
-        d.milkMaxKgPerDay, 0.060 * calf.weight ^ 0.75 * gene), near(d.milkPlanKg / dtDays, d.milkMaxKgPerDay, 1e-12)
-        and d.milkMaxKgPerDay > 0.060 * calf.weight ^ 0.75 * gene)
-    check("intake: its solids are its rumen's capacity, beside the milk", d.forageKg > 0 and d.forageKg <= d.solidCap * dtDays + 1e-12)
+    -- The allowance (5 L of game strength = 2.575 kg DM) is above a newborn's appetite: milk fills it and the
+    -- solids start as the weaning curve lowers milkMax.
+    check(string.format("intake: a newborn's milk fills its appetite (%.3f kg DM a day) - its allowance %.3f is above it, and above the old calf appetite's %.3f",
+        d.milkPlanKg / dtDays, d.milkMaxKgPerDay, 0.060 * calf.weight ^ 0.75 * gene),
+        near(d.milkPlanKg / dtDays, math.min(d.milkMaxKgPerDay, d.appetite), 1e-9) and d.milkMaxKgPerDay > 0.060 * calf.weight ^ 0.75 * gene)
+    local older = GrowthSim.newborn("BULL_HOLSTEIN")
+    older.age = 3
+    d = RLFeed.describeAnimal(older, RLFeed.DEFAULT_RATION, dtDays / 30, dtDays)
+    request.animals = { d }
+    RLFeedRationPlanner.plan(request)
+    check("intake: at weaning age the milk falls and its solids are its rumen's capacity, beside the milk",
+        d.milkPlanKg > 0 and d.forageKg > 0 and d.forageKg <= d.solidCap * dtDays + 1e-12)
     check("intake: the TMR it eats counts at its rumen's solid energy", near(d.byFill.FORAGE.factor, d.solidEnergy) and d.solidEnergy < 1)
 end
 
@@ -121,7 +129,7 @@ do
     FeedSim.setMode(true)
     GrowthSim.setDaysPerPeriod(1)
     local calf = GrowthSim.newborn("BULL_HOLSTEIN")
-    calf.age = 1.5
+    calf.age = 3.5
     local pen = FeedSim.makePen({ calf }, { CALFMILK = 1e5, FORAGE = 1e5, PEA = 1e5 }, { rearing = true })
     RLGrowth.ensureState(calf).feedAdapted = 1
     local steps = {}

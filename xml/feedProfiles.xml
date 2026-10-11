@@ -107,11 +107,18 @@
     milk: the bridge from the game's milk to real milk. A breed's real lactation average (kg a day)
     over its game milk curve's mature value x the lactation mean (bodyCondition.xml) gives real kg
     per game liter; meMJPerKg the ME a real kg needs (NRC 2001: NEL 3.1 MJ/kg at 4% fat / kl 0.62).
-    The game's milk output and price are not changed. Breed names are weightProfiles.xml profiles.
+    The animal files' milk curves are set so that a cow's mature game milk x the lactation mean
+    = 1.2 x this real average x realDaysPerPeriod: the game pays 1.2 times the real litres for the
+    feed of the real litres. Breed names are weightProfiles.xml profiles.
 
-    calfMilk: separate intake ceiling, in prepared standard milk (not powder). realLitersPerDay
-    is 10 L/day for a reference Holstein, density 1.03 kg/L and dm 0.125 define that reference
-    liquid. Scale its DM allowance by breed/sex mean birth weight relative to a Holstein of the
+    calfMilk: separate intake ceiling, in prepared calf milk (not powder). realLitersPerDay
+    is 5 L/day for a reference Holstein (half the 10 L/day of a real calf: the game's calf milk is
+    drunk and bought at half the volume), density 1.03 kg/L and dm 0.50 define that reference
+    liquid: a game liter of calf milk carries 4 times the solids of a real 12.5% liter, so the
+    DM ceiling is 2 x the old 10 L at 12.5% and the 6-month weights reach the curves again (FEED_CALF_MILK_CALIBRATION.md).
+    nursingLitersPerDay: a calf that drinks from its dam keeps the real reference, 10 L/day of her
+    whole milk (damMilk dm); only the trough's calf milk is at game volume and strength.
+    Scale its DM allowance by breed/sex mean birth weight relative to a Holstein of the
     same sex to sizeExponent (0.75: feeding guides give a Jersey about three quarters of a
     Holstein's milk, more than her weight share) and by calfRearing milkMax, once. Total
     appetite can further reduce it. No extra gene
@@ -176,7 +183,7 @@
 
     <health extremeUnderweightRatio="0.45" shortageBufferDays="3"/>
 
-    <calfMilk realLitersPerDay="10" density="1.03" dm="0.125" sizeExponent="0.75"/>
+    <calfMilk realLitersPerDay="5" density="1.03" dm="0.50" sizeExponent="0.75" nursingLitersPerDay="10"/>
 
     <damMilk dm="0.125" me="22.5" cp="0.25"/>
 
@@ -290,8 +297,8 @@
         source="Proxy: mean of the WHEAT and BARLEY profiles (OSU / NRC 2001); Hof Bergmann grainMillSmall and contract mill GRAINFRUITS 1:1" year="2026"/>
 
     <!-- Milk: drunk by calves only (not rumen-fermented, so no starch or fibre counted). -->
-    <feed fillType="CALFMILK" role="MILK" status="PROXY" form="milk replacer, 12.5% solids"
-        density="1.03" dm="0.125" me="19.5" meBasis="ME_DIRECT" cp="0.22" ndf="0" peFactor="0"
+    <feed fillType="CALFMILK" role="MILK" status="PROXY" form="calf milk, game strength (50% solids, 4 x a real liter)"
+        density="1.03" dm="0.50" me="19.5" meBasis="ME_DIRECT" cp="0.22" ndf="0" peFactor="0"
         starch="0" sugar="0" stages="PRE_WEANING WEANING"
         source="NRC 2001 calf: milk replacer ME 4.65 Mcal/kg DM" year="2001"/>
 </feedProfiles>
