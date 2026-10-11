@@ -1926,10 +1926,10 @@ function Animal:updateOutput(temp)
             local productivity = self.genetics.productivity or 1
 
             if fillTypeIndex == FillType.WOOL then
-                if temp < 12 then litersPerDay = 0 end
-
-                Log:trace("updateOutput[wool]: animal=%s/%s temp=%s coldGateClosed=%s",
-                    tostring(self.farmId), tostring(self.uniqueId), tostring(temp), tostring(temp < 12))
+                -- A fleece grows every month; the old cold gate (no wool below a 12 C minimum) is gone
+                -- (sheep S3, 2026-10-11): the curves are 1.2 x real fleece a year spread over 12 months
+                -- (breedTraits woolScale), as Hof Bergmann's SHEEPWOOL_SHEARED, never gated, already was.
+                Log:trace("updateOutput[wool]: animal=%s/%s temp=%s", tostring(self.farmId), tostring(self.uniqueId), tostring(temp))
             elseif Animal.isLactationPalletFillType(fillTypeIndex) then
                 -- Milk sold in cans or pallets: goat milk, and cow and buffalo milk in Hof
                 -- Bergmann's pallet-spawner cattle buildings. Gated like the tank milk below, so a

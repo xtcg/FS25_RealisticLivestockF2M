@@ -113,17 +113,18 @@
         <breed name="BLACK_PIED" feed="0.90" growth="0.95" matureAgeMonth="15.1" birthWeightRatio="0.00722"/>  <!-- 120 kg at 6 months; born 1.30 / 1.35 kg -->
     </animalType>
 
-    <!-- Lambs and kids (goats share the SHEEP type): single 6-8% of the ewe, twins 85%, triplets 72%. -->
-    <animalType name="SHEEP" maleBirthFactor="1.07" birthWeightCV="0.12" firstBirthFactor="0.93"
+    <!-- Lambs and kids (goats share the SHEEP type): single 6-8% of the ewe, twins 85%, triplets 72%.
+         femaleGrowth 0.76: ewe lambs grow at 224 against ram lambs' 293 g a day (sex trials, sheep S3, 2026-10-11); goats keep 0.6. -->
+    <animalType name="SHEEP" femaleGrowth="0.76" maleBirthFactor="1.07" birthWeightCV="0.12" firstBirthFactor="0.93"
                 litter2="0.85" litter3="0.72" litter4="0.65"
                 birthSurvivalBase="0.97" birthHealthEffect="0.20"
                 birthLowWeightSD="1.2" birthLowWeightPenalty="0.15"
                 birthHighWeightSD="1.8" birthHighWeightPenalty="0.05">
-        <breed name="BLACK_WELSH"    feed="0.85" growth="0.90" birthWeightRatio="0.080"/>   <!-- 3.6 / 3.9 kg -->
-        <breed name="LANDRACE"       feed="0.95" growth="1.00" birthWeightRatio="0.080"/>   <!-- 4.4 / 4.7 kg -->
-        <breed name="STEINSCHAF"     feed="1.05" growth="1.05" birthWeightRatio="0.060"/>   <!-- 4.8 / 5.1 kg -->
-        <breed name="SWISS_MOUNTAIN" feed="1.10" growth="1.05" birthWeightRatio="0.0707"/>  <!-- 5.3 / 5.7 kg -->
-        <breed name="GOAT"           feed="0.85" growth="0.95" grass="1.15" hay="1.15" birthWeightRatio="0.0583"/>  <!-- 3.5 / 3.7 kg -->
+        <breed name="BLACK_WELSH"    feed="0.85" growth="0.90" birthWeightRatio="0.080"/>   <!-- 4.0 / 4.3 kg -->
+        <breed name="LANDRACE"       feed="0.95" growth="1.00" birthWeightRatio="0.07273"/> <!-- 6.4 / 6.85 kg, unchanged when the ewe went 80 -> 88 kg -->
+        <breed name="STEINSCHAF"     feed="1.05" growth="1.05" birthWeightRatio="0.060"/>   <!-- 3.3 / 3.5 kg -->
+        <breed name="SWISS_MOUNTAIN" feed="1.10" growth="1.05" birthWeightRatio="0.08347"/> <!-- 6.0 / 6.4 kg, unchanged when the ewe went 85 -> 72 kg -->
+        <breed name="GOAT"           feed="0.85" growth="0.95" grass="1.15" hay="1.15" birthWeightRatio="0.0583" femaleGrowth="0.6"/>  <!-- 3.8 / 4.1 kg -->
     </animalType>
 
     <!-- Foals: 10% of the mare, twins 80% each. -->
@@ -145,8 +146,8 @@
         Growth line of animals raised for meat: bulls, rams, buck kids, cockerels, drakes, ganders,
         rabbits and gilts (the boars' is on the PIG breeds above). Each reaches its slaughter reference
         (target weight x maturity in carcassYield.xml) at a realistic age on full feed: TMR for cattle.
-        Pigs, lambs, kids and birds are finished at the map butcher's youngest age (Hof Bergmann: pigs 6,
-        sheep and goats 8, poultry 6, geese 10, rabbits 4 months). Cows, ewes, does and laying birds keep
+        Pigs, kids and birds are finished at the map butcher's youngest age (Hof Bergmann: pigs 6, goats 8,
+        poultry 6, geese 10, rabbits 4 months); ram lambs at their real grass-system age (below). Cows, ewes, does and laying birds keep
         the mod's default (1.5 x the age they can first breed). Solved with tests/economics.py.
     -->
     <subType name="BULL_HOLSTEIN"        matureAgeMonth="40.2" priceTargetWeight="1000" priceMatureAgeMonth="32"/>  <!-- 649 kg at 17 months -->
@@ -159,10 +160,25 @@
     <subType name="PIG_LANDRACE"         matureAgeMonth="15.9"/>  <!-- gilt: 125 kg at 6 months -->
     <subType name="PIG_BLACK_PIED"       matureAgeMonth="10.0"/>  <!-- gilt: 120 kg at 6 months -->
     <subType name="PIG_BERKSHIRE"        matureAgeMonth="13.5"/>  <!-- gilt: 120 kg at 6.5 months -->
-    <subType name="RAM_LANDRACE"         matureAgeMonth="28.3"/>  <!-- 50 kg at 8 months -->
-    <subType name="RAM_STEINSCHAF"       matureAgeMonth="22.4"/>  <!-- 38 kg at 8 months -->
-    <subType name="RAM_SWISS_MOUNTAIN"   matureAgeMonth="29.5"/>  <!-- 50 kg at 8 months -->
-    <subType name="RAM_BLACK_WELSH"      matureAgeMonth="17.2"/>  <!-- 36 kg at 8 months -->
+    <!-- Ram lambs (sheep S3, 2026-10-11): each reaches its real market weight (carcassYield.xml, 42.7 kg lowland, 38 kg
+         hill) at the real grass-system age: about 13 weeks at dam on 250-300 g a day, then 200-250 g on grass (hill 232,
+         then 150-200). Pack rams (FS25_SheepBreedsRLRM) had none and grew to their mature weight by 7.5 months. -->
+    <subType name="RAM_LANDRACE"              matureAgeMonth="22.0"/>  <!-- 42.7 kg at 4.5 months -->
+    <subType name="RAM_STEINSCHAF"            matureAgeMonth="13.7"/>  <!-- 38 kg at 5.5 months -->
+    <subType name="RAM_SWISS_MOUNTAIN"        matureAgeMonth="16.8"/>  <!-- 42.7 kg at 4.8 months -->
+    <subType name="RAM_BLACK_WELSH"           matureAgeMonth="10.4"/>  <!-- 35.4 kg at 5.1 months -->
+    <subType name="RAM_TEXEL"                 matureAgeMonth="13.9"/>  <!-- 42.7 kg at 4.7 months -->
+    <subType name="RAM_SUFFOLK"               matureAgeMonth="13.5"/>  <!-- 42.7 kg at 4.5 months -->
+    <subType name="RAM_BLUE_FACED_LEICESTER"  matureAgeMonth="12.4"/>  <!-- 42.7 kg at 4.6 months -->
+    <subType name="RAM_BORDER_LEICESTER"      matureAgeMonth="12.8"/>  <!-- 42.7 kg at 4.3 months -->
+    <subType name="RAM_BELCLARE"              matureAgeMonth="11.4"/>  <!-- 42.7 kg at 4.7 months -->
+    <subType name="RAM_DORSET"                matureAgeMonth="11.0"/>  <!-- 42.7 kg at 4.6 months -->
+    <subType name="RAM_CHEVIOT"               matureAgeMonth="12.5"/>  <!-- 38 kg at 5.3 months -->
+    <subType name="RAM_KERRY_HILL"            matureAgeMonth="12.6"/>  <!-- 38 kg at 5.4 months -->
+    <subType name="RAM_NORFOLK"               matureAgeMonth="12.3"/>  <!-- 38 kg at 5.2 months -->
+    <subType name="RAM_BLACKFACE"             matureAgeMonth="13.9"/>  <!-- 38 kg at 5.4 months -->
+    <subType name="RAM_EASYCARE"              matureAgeMonth="10.7"/>  <!-- 42.7 kg at 4.8 months -->
+    <subType name="RAM_JACOB"                 matureAgeMonth="10.6"/>  <!-- 38 kg at 5.3 months -->
     <subType name="RAM_GOAT"             matureAgeMonth="27.9"/>  <!-- buck kid: 35 kg at 8 months -->
     <subType name="CHICKEN_ROOSTER"      matureAgeMonth="8.7"/>   <!-- cockerel: 3.2 kg at 6 months -->
     <subType name="DUCK_MALE"            matureAgeMonth="7.3"/>   <!-- drake: 3.8 kg at 6 months (Hof Bergmann) -->
@@ -216,4 +232,48 @@
     <subType name="COW_BRITISHBLUE_PACK" milkScale="1.553" milkCollect="0"/>
     <subType name="COW_BELTEDGALLOWAY_PACK" milkScale="1.340" milkCollect="0"/>
     <subType name="COW_SIMMENTAL_PACK" milkScale="1.693" milkCollect="0"/>
+    <!--
+        Sheep curve scales (sheep S3, 2026-10-11; RLCurveScale, applied once after every bridge and pack has loaded).
+        woolScale: wool = 1.2 x the breed's real fleece a year (0.76 kg/L), spread over 12 months (no cold gate).
+        waterScale / strawScale / manureScale: the cattle ratio - sheep game value = COW_ANGUS game value x (sheep real /
+        cattle real) at the same state: water 5.25 L/day for an 80 kg ewe (x weight^0.75) vs 38 L for a dry beef cow,
+        straw 1.0 kg/day (hill breeds 0.65) vs 8.33 kg, excreta 0.040 vs 0.0591 kg per kg weight a day.
+        priceScale (rams, both price curves): a dealer ram lamb at its real finishing age earns +12% a year by contract
+        slaughter over selling it live at SHEEPGOATMEAT 14.95 (the calibration PR #22 made at 8 months); solved with the real
+        price code by FS25_SheepBreeds_离线准备_2026-10-11/tools/calibrate_ram_prices.py.
+        Values and sources: FS25_SheepBreeds_离线准备_2026-10-11/change-set-v1.json. Goats are not scaled.
+    -->
+    <subType name="SHEEP_LANDRACE"            woolScale="0.00712" waterScale="0.4452" strawScale="0.3901" manureScale="1.5342"/>  <!-- wool 0.605 L/month (5.52 kg a year), water 26.7, straw 15.6, manure 53.7 -->
+    <subType name="RAM_LANDRACE"              woolScale="0.01053" waterScale="0.5521" strawScale="0.3901" manureScale="2.5105" priceScale="1.5035"/>  <!-- wool 0.895 L/month (8.16 kg a year), water 38.6, straw 15.6, manure 87.9 -->
+    <subType name="SHEEP_STEINSCHAF"          woolScale="0.00564" waterScale="0.2682" strawScale="0.2536" manureScale="0.9589"/>  <!-- wool 0.395 L/month (3.6 kg a year), water 18.8, straw 10.1, manure 33.6 -->
+    <subType name="RAM_STEINSCHAF"            woolScale="0.00658" waterScale="0.3118" strawScale="0.2536" manureScale="1.3076" priceScale="1.4999"/>  <!-- wool 0.461 L/month (4.2 kg a year), water 23.7, straw 10.1, manure 45.8 -->
+    <subType name="SHEEP_SWISS_MOUNTAIN"      woolScale="0.00909" waterScale="0.2703" strawScale="0.3901" manureScale="1.2553"/>  <!-- wool 0.5 L/month (4.56 kg a year), water 23, straw 15.6, manure 43.9 -->
+    <subType name="RAM_SWISS_MOUNTAIN"        woolScale="0.01136" waterScale="0.3500" strawScale="0.3901" manureScale="1.8829" priceScale="1.5536"/>  <!-- wool 0.625 L/month (5.7 kg a year), water 31.1, straw 15.6, manure 65.9 -->
+    <subType name="SHEEP_BLACK_WELSH"         woolScale="0.00263" waterScale="0.3237" strawScale="0.2536" manureScale="0.8717"/>  <!-- wool 0.25 L/month (2.28 kg a year), water 17.5, straw 10.1, manure 30.5 -->
+    <subType name="RAM_BLACK_WELSH"           woolScale="0.00329" waterScale="0.3796" strawScale="0.2536" manureScale="1.1855" priceScale="1.4614"/>  <!-- wool 0.312 L/month (2.85 kg a year), water 22, straw 10.1, manure 41.5 -->
+    <subType name="SHEEP_TEXEL"               woolScale="0.00899" waterScale="0.2925" strawScale="0.3901" manureScale="1.3076"/>  <!-- wool 0.539 L/month (4.92 kg a year), water 23.7, straw 15.6, manure 45.8 -->
+    <subType name="RAM_TEXEL"                 woolScale="0.01009" waterScale="0.3419" strawScale="0.3901" manureScale="1.7434" priceScale="0.8917"/>  <!-- wool 0.605 L/month (5.52 kg a year), water 29.4, straw 15.6, manure 61 -->
+    <subType name="SHEEP_SUFFOLK"             woolScale="0.00833" waterScale="0.2925" strawScale="0.3901" manureScale="1.3076"/>  <!-- wool 0.5 L/month (4.56 kg a year), water 23.7, straw 15.6, manure 45.8 -->
+    <subType name="RAM_SUFFOLK"               woolScale="0.01140" waterScale="0.3419" strawScale="0.3901" manureScale="1.7434" priceScale="1.003"/>  <!-- wool 0.684 L/month (6.24 kg a year), water 29.4, straw 15.6, manure 61 -->
+    <subType name="SHEEP_BLUE_FACED_LEICESTER" woolScale="0.00301" waterScale="0.2922" strawScale="0.3901" manureScale="1.2204"/>  <!-- wool 0.211 L/month (1.92 kg a year), water 22.5, straw 15.6, manure 42.7 -->
+    <subType name="RAM_BLUE_FACED_LEICESTER"  woolScale="0.00376" waterScale="0.3410" strawScale="0.3901" manureScale="1.6040" priceScale="0.9014"/>  <!-- wool 0.263 L/month (2.4 kg a year), water 27.6, straw 15.6, manure 56.1 -->
+    <subType name="SHEEP_BORDER_LEICESTER"    woolScale="0.00760" waterScale="0.2925" strawScale="0.3901" manureScale="1.3076"/>  <!-- wool 0.684 L/month (6.24 kg a year), water 23.7, straw 15.6, manure 45.8 -->
+    <subType name="RAM_BORDER_LEICESTER"      woolScale="0.01140" waterScale="0.3419" strawScale="0.3901" manureScale="1.7434" priceScale="1.061"/>  <!-- wool 1.026 L/month (9.36 kg a year), water 29.4, straw 15.6, manure 61 -->
+    <subType name="SHEEP_BELCLARE"            woolScale="0.00575" waterScale="0.2915" strawScale="0.3901" manureScale="1.1332"/>  <!-- wool 0.402 L/month (3.67 kg a year), water 21.3, straw 15.6, manure 39.7 -->
+    <subType name="RAM_BELCLARE"              woolScale="0.00719" waterScale="0.3410" strawScale="0.3901" manureScale="1.4993" priceScale="1.1089"/>  <!-- wool 0.503 L/month (4.59 kg a year), water 26.3, straw 15.6, manure 52.5 -->
+    <subType name="SHEEP_DORSET"              woolScale="0.00575" waterScale="0.2935" strawScale="0.3901" manureScale="1.0809"/>  <!-- wool 0.402 L/month (3.67 kg a year), water 20.5, straw 15.6, manure 37.8 -->
+    <subType name="RAM_DORSET"                woolScale="0.00719" waterScale="0.3439" strawScale="0.3901" manureScale="1.4645" priceScale="1.0519"/>  <!-- wool 0.503 L/month (4.59 kg a year), water 25.8, straw 15.6, manure 51.3 -->
+    <subType name="SHEEP_CHEVIOT"             woolScale="0.00592" waterScale="0.2889" strawScale="0.2536" manureScale="0.9589"/>  <!-- wool 0.474 L/month (4.32 kg a year), water 18.8, straw 10.1, manure 33.6 -->
+    <subType name="RAM_CHEVIOT"               woolScale="0.00740" waterScale="0.3415" strawScale="0.2536" manureScale="1.2727" priceScale="1.0674"/>  <!-- wool 0.592 L/month (5.4 kg a year), water 23.2, straw 10.1, manure 44.5 -->
+    <subType name="SHEEP_KERRY_HILL"          woolScale="0.00452" waterScale="0.2889" strawScale="0.2536" manureScale="0.9589"/>  <!-- wool 0.362 L/month (3.3 kg a year), water 18.8, straw 10.1, manure 33.6 -->
+    <subType name="RAM_KERRY_HILL"            woolScale="0.00565" waterScale="0.3415" strawScale="0.2536" manureScale="1.2727" priceScale="1.0245"/>  <!-- wool 0.452 L/month (4.12 kg a year), water 23.2, straw 10.1, manure 44.5 -->
+    <subType name="SHEEP_NORFOLK"             woolScale="0.00263" waterScale="0.2889" strawScale="0.2536" manureScale="0.9589"/>  <!-- wool 0.171 L/month (1.56 kg a year), water 18.8, straw 10.1, manure 33.6 -->
+    <subType name="RAM_NORFOLK"               woolScale="0.00329" waterScale="0.3415" strawScale="0.2536" manureScale="1.2727" priceScale="1.0143"/>  <!-- wool 0.214 L/month (1.95 kg a year), water 23.2, straw 10.1, manure 44.5 -->
+    <subType name="SHEEP_BLACKFACE"           woolScale="0.00372" waterScale="0.2916" strawScale="0.2536" manureScale="1.0112"/>  <!-- wool 0.334 L/month (3.05 kg a year), water 19.5, straw 10.1, manure 35.4 -->
+    <subType name="RAM_BLACKFACE"             woolScale="0.00464" waterScale="0.3437" strawScale="0.2536" manureScale="1.3599" priceScale="1.1236"/>  <!-- wool 0.418 L/month (3.81 kg a year), water 24.4, straw 10.1, manure 47.6 -->
+    <subType name="SHEEP_EASYCARE"            woolScale="0.00000" waterScale="0.2905" strawScale="0.3901" manureScale="1.0461"/>  <!-- wool 0 L/month (0 kg a year), water 20, straw 15.6, manure 36.6 -->
+    <subType name="RAM_EASYCARE"              woolScale="0.00000" waterScale="0.3407" strawScale="0.3901" manureScale="1.3947" priceScale="1.1637"/>  <!-- wool 0 L/month (0 kg a year), water 24.9, straw 15.6, manure 48.8 -->
+    <subType name="SHEEP_JACOB"               woolScale="0.00336" waterScale="0.2874" strawScale="0.2536" manureScale="0.8368"/>  <!-- wool 0.303 L/month (2.76 kg a year), water 17, straw 10.1, manure 29.3 -->
+    <subType name="RAM_JACOB"                 woolScale="0.00420" waterScale="0.3393" strawScale="0.2536" manureScale="1.1158" priceScale="1.2667"/>  <!-- wool 0.378 L/month (3.45 kg a year), water 21, straw 10.1, manure 39.1 -->
+
 </breedTraits>

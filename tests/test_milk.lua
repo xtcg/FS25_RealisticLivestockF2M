@@ -28,6 +28,15 @@ local function perDay(path, fillTypeIndex, state, multipliers)
     return a.output[path] * 24
 end
 
+-- Wool grows every month (sheep S3, 2026-10-11): no cold gate, whatever the day's minimum temperature.
+local function woolPerDay(temp)
+    local a = cow("pallets", 5, { isParent = false, isLactating = false })
+    a:updateOutput(temp)
+    return a.output.pallets * 24
+end
+check("wool: produced on a cold day (minimum -5 C) as on a warm one (20 C)", near(woolPerDay(-5), 100) and near(woolPerDay(20), 100))
+check("wool: not gated at 11 C either (the old 12 C gate is gone)", near(woolPerDay(11), 100))
+
 local fresh = { isParent = true, isLactating = true, months = 3 }
 local dry = { isParent = true, isLactating = false, months = 11 }
 local heifer = { isParent = false, isLactating = false, months = nil }

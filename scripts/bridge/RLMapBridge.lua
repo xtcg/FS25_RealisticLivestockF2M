@@ -582,6 +582,8 @@ function RLMapBridge.loadBridgeAnimals(animalSystem)
     RLMapBridge.pendingConfigOverrideConflictWarning = nil
     Log:trace("MapBridge: loadBridgeAnimals: reset configOverrideHistory and pendingConfigOverrideConflictWarning")
 
+    RLMapBridge.pendingPalletRemaps = {}
+
     if #RLMapBridge.activeBridges == 0 then
         Log:info("MapBridge: No active bridges, skipping animal loading")
         return
@@ -683,6 +685,11 @@ function RLMapBridge.loadBridgeAnimals(animalSystem)
             -- Apply property overrides on existing types and subtypes
             RLMapBridge.applyPropertyOverrides(animalSystem, xmlFile, bridge.name, mapModDir)
 
+            -- Pallet fill type remaps of a map bridge wait until every pack is in (see below)
+            if not bridge.isPack then
+                RLMapBridge.readPalletRemaps(xmlFile, bridge.name)
+            end
+
             -- Load breeding groups
             RLMapBridge.loadBreedingGroups(xmlFile, bridge.name)
 
@@ -706,6 +713,11 @@ function RLMapBridge.loadBridgeAnimals(animalSystem)
         end
     end
 
+    -- Post-loop: a map's pallet remaps reach the subtypes packs added after the map's bridge.
+    RmSafeUtils.safeCall("RLMapBridge.applyPalletRemaps", function()
+        RLMapBridge.applyPalletRemaps(animalSystem)
+    end)
+
     -- Post-loop: scan the complete configOverrideHistory for cross-bridge collisions.
     -- Wrapped in safeCall so a future schema change in the helper cannot abort the
     -- bridge loader's tail. safeCall provides TRACE enter/exit; do NOT add duplicate
@@ -713,6 +725,57 @@ function RLMapBridge.loadBridgeAnimals(animalSystem)
     RmSafeUtils.safeCall("RLMapBridge._summariseConfigOverrideConflicts", function()
         RLMapBridge._summariseConfigOverrideConflicts(animalSystem)
     end)
+end
+
+
+--- Read a map bridge's `animals.palletRemap` entries: every subtype of `type` whose pallets output
+--- is `from` gets `to` instead, applied after all bridges and packs have loaded (a map's buildings
+--- spawn only their own pallet fill types; Hof Bergmann's sheep pens take SHEEPWOOL_SHEARED, not the
+--- base game's WOOL that animal packs give their breeds).
+---@param xmlFile table The bridge's animals.xml
+---@param bridgeName string
+function RLMapBridge.readPalletRemaps(xmlFile, bridgeName)
+    RLMapBridge.pendingPalletRemaps = RLMapBridge.pendingPalletRemaps or {}
+    for _, key in xmlFile:iterator("animals.palletRemap") do
+        local typeName = xmlFile:getString(key .. "#type")
+        local from = xmlFile:getString(key .. "#from")
+        local to = xmlFile:getString(key .. "#to")
+        if typeName == nil or from == nil or to == nil then
+            Log:warning("MapBridge: '%s' palletRemap needs type, from and to; skipped", bridgeName)
+        else
+            table.insert(RLMapBridge.pendingPalletRemaps,
+                { typeName = typeName:upper(), from = from:upper(), to = to:upper(), bridgeName = bridgeName })
+        end
+    end
+end
+
+
+--- Apply the pallet remaps read from map bridges to every subtype now loaded.
+---@param animalSystem table
+---@return number count Subtypes changed
+function RLMapBridge.applyPalletRemaps(animalSystem)
+    local count = 0
+    for _, remap in ipairs(RLMapBridge.pendingPalletRemaps or {}) do
+        local animalType = animalSystem.nameToType ~= nil and animalSystem.nameToType[remap.typeName] or nil
+        local fromIndex = g_fillTypeManager:getFillTypeIndexByName(remap.from)
+        local toIndex = g_fillTypeManager:getFillTypeIndexByName(remap.to)
+        if animalType == nil or fromIndex == nil or toIndex == nil then
+            Log:warning("MapBridge: '%s' palletRemap %s %s -> %s: type or fill type unknown, skipped",
+                remap.bridgeName, remap.typeName, remap.from, remap.to)
+        else
+            for _, subTypeIndex in ipairs(animalType.subTypes) do
+                local subType = animalSystem.subTypes[subTypeIndex]
+                local pallets = subType ~= nil and subType.output ~= nil and subType.output.pallets or nil
+                if pallets ~= nil and pallets.fillType == fromIndex then
+                    pallets.fillType = toIndex
+                    count = count + 1
+                    Log:info("MapBridge: '%s' pallets of %s: %s -> %s", remap.bridgeName, subType.name, remap.from, remap.to)
+                end
+            end
+        end
+    end
+    RLMapBridge.pendingPalletRemaps = {}
+    return count
 end
 
 

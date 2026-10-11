@@ -22,7 +22,7 @@
     saleableRate   Animal type only: share of the carcass that is sold on as the map's meat products
                    (cattle 0.75). anchorWeight x dressingRate x saleableRate is the meat one typical
                    animal gives: a 600 kg standard cow -> 360 kg carcass -> 270 kg of meat, a 125 kg
-                   pig -> 75 kg, a 50 kg lamb -> 19.2 kg, a 3 kg bird -> 1.89 kg.
+                   pig -> 75 kg, a 42.67 kg lamb -> 19.2 kg (x 0.50 x 0.90), a 3 kg bird -> 1.89 kg.
     meatPerHead    Animal type only: kg of meat one typical animal gives, instead of the two rates.
                    The meat of a typical animal is what every facility is set to: a contract
                    slaughterhouse's recipe (Hof Bergmann's public one) is rescaled to it at load, and
@@ -68,6 +68,9 @@
                    as low-grade processing meat.
     cullAgeMonth   Age in months from which cullShare applies. None means never.
     slaughterMinAgeMonth  No floor below this age (the butcher takes none younger).
+    facilityMinAgeMonth  Animal type only: the youngest age every butcher and contract slaughterhouse takes the
+                   type at, written over the map's own minimum when the placeable is added (RLFacilityAge).
+                   None keeps the map's.
 
     Each of these is looked up by subType name first, then by breed within the animal type, then
     by animal type, then on the carcassYield element. A type with no anchorWeight uses the mean
@@ -99,15 +102,32 @@
         <breed name="BLACK_PIED" maleMaturity="0.444" femaleMaturity="0.60"  carcassFactor="0.96"/>  <!-- 120 kg -->
     </animalType>
 
-    <!-- Lambs: a 50 kg lamb x 0.48 to the carcass x 0.80 to sellable lamb = 19.2 kg. Ram lambs and buck kids are
-         finished at 8 months, the map's youngest age for the butcher; ewes and does are culled grown. Goats share
-         the SHEEP type and its anchor, so a 35 kg kid gives 19.2 x (35/50)^0.25 x 0.94 = 16.5 kg. -->
-    <animalType name="SHEEP" anchorWeight="50" dressingRate="0.48" saleableRate="0.80" slaughterFee="40" processingFeePerKg="1.20" marketPassThrough="0.6" marketFactorMin="0.5" marketFactorMax="1.5" meatFillType="SHEEPGOATMEAT" cullAgeMonth="12" slaughterMinAgeMonth="8" femaleMaturity="0.85">
-        <breed name="LANDRACE"       maleMaturity="0.40"  carcassFactor="1.00"/>  <!-- 50 kg -->
-        <breed name="STEINSCHAF"     maleMaturity="0.507" carcassFactor="1.02"/>  <!-- 38 kg -->
-        <breed name="SWISS_MOUNTAIN" maleMaturity="0.417" carcassFactor="1.04"/>  <!-- 50 kg -->
-        <breed name="BLACK_WELSH"    maleMaturity="0.529" carcassFactor="1.00"/>  <!-- 36 kg -->
-        <breed name="GOAT"           maleMaturity="0.389" carcassFactor="0.94" qualitySwing="0.12"/>  <!-- 35 kg -->
+    <!-- Lambs (sheep S3, 2026-10-11): the cattle chain's sellable share, 270 kg of a 600 kg cow = 0.45, as dressing 0.50
+         (LfL: 48-52% at 42 kg) x sellable 0.90. A typical lamb is 42.67 kg (the real market lamb, "about 42 kg"), so it
+         still gives 19.2 kg. Each breed's ram lamb is finished at its real market weight (maleMaturity = market weight /
+         the ram's target weight): 42.7 kg lowland and terminal breeds, 38 kg hill breeds, Black Welsh 35.4 kg (14-19 kg
+         carcass). Butchers and the slaughterhouse take sheep from 3 months (facilityMinAgeMonth; AHDB: early lambs on
+         concentrate are finished at 12-14 weeks), over the map's 8. Ewes and does are culled grown. Goats share the SHEEP
+         type but keep their own anchor of 50 kg (goats are outside the sheep work), so a 35 kg kid still gives
+         19.2 x (35/50)^0.25 x 0.94 = 16.5 kg. -->
+    <animalType name="SHEEP" anchorWeight="42.6667" dressingRate="0.50" saleableRate="0.90" slaughterFee="40" processingFeePerKg="1.20" marketPassThrough="0.6" marketFactorMin="0.5" marketFactorMax="1.5" meatFillType="SHEEPGOATMEAT" cullAgeMonth="12" slaughterMinAgeMonth="3" facilityMinAgeMonth="3" femaleMaturity="0.85">
+        <breed name="LANDRACE"             maleMaturity="0.296" carcassFactor="1.00"/>  <!-- 42.7 kg -->
+        <breed name="STEINSCHAF"           maleMaturity="0.507" carcassFactor="1.02"/>  <!-- 38 kg -->
+        <breed name="SWISS_MOUNTAIN"       maleMaturity="0.395" carcassFactor="1.04"/>  <!-- 42.7 kg -->
+        <breed name="BLACK_WELSH"          maleMaturity="0.521" carcassFactor="1.00"/>  <!-- 35.4 kg -->
+        <breed name="TEXEL"                maleMaturity="0.427"/>  <!-- 42.7 kg -->
+        <breed name="SUFFOLK"              maleMaturity="0.427"/>  <!-- 42.7 kg -->
+        <breed name="BLUE_FACED_LEICESTER" maleMaturity="0.464"/>  <!-- 42.7 kg -->
+        <breed name="BORDER_LEICESTER"     maleMaturity="0.427"/>  <!-- 42.7 kg -->
+        <breed name="BELCLARE"             maleMaturity="0.496"/>  <!-- 42.7 kg -->
+        <breed name="DORSET"               maleMaturity="0.508"/>  <!-- 42.7 kg -->
+        <breed name="CHEVIOT"              maleMaturity="0.521"/>  <!-- 38 kg -->
+        <breed name="KERRY_HILL"           maleMaturity="0.521"/>  <!-- 38 kg -->
+        <breed name="NORFOLK"              maleMaturity="0.521"/>  <!-- 38 kg -->
+        <breed name="BLACKFACE"            maleMaturity="0.487"/>  <!-- 38 kg -->
+        <breed name="EASYCARE"             maleMaturity="0.533"/>  <!-- 42.7 kg -->
+        <breed name="JACOB"                maleMaturity="0.594"/>  <!-- 38 kg -->
+        <breed name="GOAT"                 anchorWeight="50" maleMaturity="0.389" carcassFactor="0.94" qualitySwing="0.12"/>  <!-- 35 kg -->
     </animalType>
 
     <!-- Poultry and rabbits are sold whole: dressed bird or rabbit x 0.90 sellable. The map's fee of 5 per head
