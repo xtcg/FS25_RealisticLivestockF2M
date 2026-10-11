@@ -69,7 +69,11 @@ for _, name in ipairs(COWS) do
         local a = bvAnimal(name, age, { isParent = parent, monthsSinceLastBirth = parent and 11 or nil, birthCount = parent and 1 or 0 })
         local q = bvQuote(a)
         if q.ownPremium ~= 0 or q.heredPremium ~= 0 or q.loss > 1e-9 or math.abs(q.deltaOwn) > 1e-6 or math.abs(q.deltaHered) > 1e-6 then noPremium = false end
-        local diff = math.abs(q.price / oldPrice(a) - 1)
+        -- A grown cow's curve is scaled to the market (cowCurveScale); her meat value stays the floor.
+        local p = RLBreedingValue.getParams(a:getSubType())
+        local expected = math.max(a:getCurvePrice(nil, false) * RLBreedingValue.getCowCurveScale(p, age), q.meatRoute)
+        local diff = math.abs(q.price / expected - 1)
+        if age < p.cowCurveScaleFromMonth then diff = math.max(diff, math.abs(q.price / oldPrice(a) - 1)) end
         if diff > worst then worst, worstName = diff, name .. "@" .. age end
         if diff > 1e-9 then sameAsOld = false end
     end
@@ -84,7 +88,7 @@ for _, name in ipairs(BULLS) do
         if diff > 1e-9 then sameAsOld = false end
     end
 end
-check(string.format("standard genes: every shipped cattle subtype, open/dry/intact, prices as before (worst %.2e %s)", worst, worstName), sameAsOld)
+check(string.format("standard genes: open/dry cows at their scaled curve, heifers and intact bulls as before (worst %.2e %s)", worst, worstName), sameAsOld)
 check("standard genes: no own or offspring premium and no loss", noPremium)
 
 -- The fixed state parts are replaced by the state's PV
@@ -94,7 +98,7 @@ local inCalf = bvAnimal("COW_HOLSTEIN", 40, { isParent = true, isPregnant = true
     pregnancy = { duration = 10, pregnancies = {} }, monthsSinceLastBirth = 9, isLactating = true, birthCount = 1 })
 local qFresh, qDry, qCalf = bvQuote(fresh), bvQuote(dry), bvQuote(inCalf)
 check(string.format("state: a fresh cow is worth her lactation's PV over a dry one (%.0f > %.0f), not a fixed +15%%", qFresh.price, qDry.price),
-    qFresh.price > qDry.price and math.abs(qFresh.price / qDry.price - 1.15) > 0.01
+    qFresh.price > qDry.price and qFresh.stateValue > 0
     and near(qFresh.price, qDry.price + params.alphaNormal * qFresh.stateValue, 1e-6))
 check(string.format("state: a calf on the way is in the PV (%.0f), no fixed +25%%", qCalf.price),
     qCalf.price > qDry.price and math.abs(qCalf.price - oldPrice(inCalf)) > 1)
@@ -202,3 +206,42 @@ check("cache: a castration within the cache window prices anew", cached:getSellP
 g_time = nil
 local pig = bvAnimal("BOAR_LANDRACE", 6)
 check("other species: not covered (old price rules)", not RLBreedingValue.covers(pig, pig:getSubType()))
+
+-- Calibration to the 2025 UK market (docs: breeding-value-formulas-v3.md §11) ---------------------------
+
+local function inCalfRatio(name)
+    local q = bvQuote(bvAnimal(name, 40, { isParent = true, isPregnant = true, reproduction = 50, birthCount = 1,
+        pregnancy = { duration = 10, pregnancies = {} }, monthsSinceLastBirth = 8, isLactating = true }))
+    return q.price / q.meat
+end
+local dairyRatio, beefRatio = inCalfRatio("COW_HOLSTEIN"), inCalfRatio("COW_ANGUS")
+check(string.format("market: an in-calf Holstein is 1.5x her cull value (%.2f), an in-calf suckler cow 1.75x (Angus %.2f)", dairyRatio, beefRatio),
+    math.abs(dairyRatio - 1.5) < 0.02 and math.abs(beefRatio - 1.75) < 0.02)
+local allBeef = true
+for _, name in ipairs({ "COW_LIMOUSIN", "COW_HEREFORD", "COW_HIGHLAND_CATTLE" }) do
+    if math.abs(inCalfRatio(name) - 1.75) > 0.03 then allBeef = false end
+end
+check("market: every shipped suckler breed's in-calf cow at 1.75x her cull value", allBeef)
+check("market: a standard suckler cow is worth more than a standard dairy cow, as in the market",
+    priceAt("COW_ANGUS", 40, 1, { isParent = true, monthsSinceLastBirth = 11, birthCount = 1 }).price > stdCow.price)
+
+local angusTop = priceAt("BULL_ANGUS", 18, 1.75)
+local angusStd = priceAt("BULL_ANGUS", 18, 1)
+check(string.format("sires: a top beef bull out-earns a top dairy bull (x%.2f vs x%.2f: suckler herds use the bull, dairy herds AI)",
+    angusTop.price / angusStd.price, topBull.price / stdBull.price),
+    angusTop.price > topBull.price and angusTop.price / angusStd.price > topBull.price / stdBull.price)
+
+local beefFertile = bvQuote(bvAnimal("COW_ANGUS", 40, { genes = { fertility = 1.6 }, isParent = true, monthsSinceLastBirth = 11, birthCount = 1 }))
+local beefStd = priceAt("COW_ANGUS", 40, 1, { isParent = true, monthsSinceLastBirth = 11, birthCount = 1 })
+check(string.format("beef: fertility alone raises a suckler cow's value (+%.0f: calves weaned, fewer fertility culls)", beefFertile.price - beefStd.price),
+    beefFertile.price > beefStd.price and beefFertile.deltaOwn > 0)
+local beefTop = priceAt("COW_ANGUS", 40, 1.75, { isParent = true, monthsSinceLastBirth = 11, birthCount = 1 })
+check(string.format("beef: a top suckler cow earns a real premium (x%.2f)", beefTop.price / beefStd.price), beefTop.price / beefStd.price > 1.25)
+
+local ctx = RLBreedingValue.buildContext(BV_SUB.COW_ANGUS)
+local eliteSon = RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(bvGenes(1.75), 1.35), "male")
+local meatOnlySon = RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(bvGenes(1.75), 1.35), "male", 1)
+check(string.format("seedstock: an elite cow's son is worth more as a breeding bull than as beef (%.0f > %.0f)", eliteSon, meatOnlySon),
+    eliteSon > meatOnlySon)
+check("seedstock: expected excellence integrates the gene spread (an average-score son can still prove out)",
+    RLBreedingValue.expectedExcellence(bvGenes(1.1), params, "male") > 0 and RLBreedingValue.excellence(1.1, params) == 0)

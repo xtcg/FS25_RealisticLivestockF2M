@@ -45,7 +45,9 @@ RLBreedingValue.ATTRIBUTES = {
     "femaleBirthSlots", "breedingExitAgeMonth", "dairyShare",
     "milkNetShare", "milkIncrementShare", "offspringCapture", "sonSlaughterAgeMonth",
     "sireFemalesPerSeason", "sireSeasons", "sireConception", "sireExitAgeMonth",
-    "sireCapture", "sireQualificationAtBirth",
+    "sireCaptureDairy", "sireCaptureBeef", "sireQualificationAtBirth", "sonSaleAgeMonth",
+    "cowMateGene", "cowCurveScale", "cowCurveScaleFromMonth", "cowCurveScaleFullMonth", "beefCalfSaleAgeMonth", "beefCalfNetShare", "maternalMilkEffect", "fertilityExitShare", "fertilityExitSlope",
+    "exitReplacementDairy", "exitReplacementBeef",
     "wDairyProductivity", "wDairyFertility", "wDairyHealth",
     "wTerminalQuality", "wTerminalFertility", "wTerminalHealth",
     "wMaternalQuality", "wMaternalFertility", "wMaternalHealth",
@@ -60,7 +62,10 @@ RLBreedingValue.DEFAULTS = {
     femaleBirthSlots = 4, breedingExitAgeMonth = 96, dairyShare = 0.5,
     milkNetShare = 0.25, milkIncrementShare = 0.40, offspringCapture = 0.60, sonSlaughterAgeMonth = 20,
     sireFemalesPerSeason = 24, sireSeasons = 3, sireConception = 0.90, sireExitAgeMonth = 132,
-    sireCapture = 0.50, sireQualificationAtBirth = 0.50,
+    sireCaptureDairy = 0.15, sireCaptureBeef = 0.85, sireQualificationAtBirth = 0.50, sonSaleAgeMonth = 12,
+    cowMateGene = 1.35, cowCurveScale = 1, cowCurveScaleFromMonth = 24, cowCurveScaleFullMonth = 36,
+    beefCalfSaleAgeMonth = 8, beefCalfNetShare = 0.55, maternalMilkEffect = 0.10,
+    fertilityExitShare = 0.35, fertilityExitSlope = 0.60, exitReplacementDairy = 0.50, exitReplacementBeef = 0.75,
     wDairyProductivity = 0.40, wDairyFertility = 0.30, wDairyHealth = 0.30,
     wTerminalQuality = 0.70, wTerminalFertility = 0.20, wTerminalHealth = 0.10,
     wMaternalQuality = 0.45, wMaternalFertility = 0.35, wMaternalHealth = 0.20,
@@ -188,11 +193,21 @@ function RLBreedingValue.getOpenMonths(fertility, params)
 end
 
 
---- Survival x discount weight at t months for a health gene.
-local function weigher(ctx, health)
-    local z = ((health or 1) - 1) / 0.75
-    local risk = math.clamp(ctx.params.annualExitRisk, 0, 0.99)
-    local hazard = -math.log(1 - risk) * math.exp(-ctx.params.healthExitSlope * z) / 12
+--- Survival x discount weight at t months. Exits are fertilityExitShare failures to get in calf
+--- (or pass as a sire), moved by the fertility gene, and the rest health, moved by the health gene.
+local function getHazard(ctx, genes)
+    local params = ctx.params
+    local zh = ((genes.health or 1) - 1) / 0.75
+    local zf = ((genes.fertility or 1) - 1) / 0.75
+    local risk = math.clamp(params.annualExitRisk, 0, 0.99)
+    local share = math.clamp(params.fertilityExitShare, 0, 1)
+    return -math.log(1 - risk) / 12 * ((1 - share) * math.exp(-params.healthExitSlope * zh)
+        + share * math.exp(-params.fertilityExitSlope * zf))
+end
+
+
+local function weigher(ctx, genes)
+    local hazard = getHazard(ctx, genes)
     local discount = math.log(1 + ctx.params.discountRate) / 12
     return function(t) return math.exp(-(hazard + discount) * t) end
 end
@@ -209,7 +224,7 @@ end
 --- @return number lastEnd Months to the end of the last lactation counted
 function RLBreedingValue.femalePV(ctx, genes, state, horizon)
     local params = ctx.params
-    local w = weigher(ctx, genes.health)
+    local w = weigher(ctx, genes)
     local open = RLBreedingValue.getOpenMonths(genes.fertility, params)
     local share = math.clamp(params.dairyShare, 0, 1)
     local perLiter = ctx.milkPrice * share
@@ -244,11 +259,21 @@ function RLBreedingValue.femalePV(ctx, genes, state, horizon)
         if not existing and state.age + t > params.breedingExitAgeMonth then break end
         parity = parity + 1
         local weight = w(t) * litter
-        pv = pv + weight * ctx.calfValue
+        -- A suckler calf's weaning weight follows its dam's milk (productivity), her beef share only.
+        pv = pv + weight * ctx.calfValue * (1 + (1 - share) * params.maternalMilkEffect * ((genes.productivity or 1) - 1))
         births[#births + 1] = { weight = weight, existing = existing }
         if perLiter ~= 0 then lactation(t, 0, parity) else lastEnd = math.max(lastEnd, t) end
         t = t + params.postpartumWaitMonth + open + ctx.gestation
         litter = 1
+    end
+
+    -- An early exit (an infertile or sick cow culled) costs her replacement's premium over her
+    -- cull value, at the rate she leaves until the end of the valuation.
+    local T = horizon or lastEnd
+    local hazard = getHazard(ctx, genes)
+    local rate = hazard + math.log(1 + params.discountRate) / 12
+    if rate > 0 and (ctx.replacementPremium or 0) > 0 then
+        pv = pv - ctx.replacementPremium * hazard / rate * (1 - math.exp(-rate * T))
     end
 
     return pv, births, lastEnd
@@ -261,14 +286,95 @@ local function newbornState(ctx)
 end
 
 
---- What an offspring with these genes is worth over a standard one, at its birth: a daughter's
---- reference cash flow, a son's (and half of a beef daughter's) meat. x offspringCapture.
---- @param ctx table As femalePV, plus {minAge, meatPerQuality}
---- @param genes table
---- @param gender string|nil nil: an expected calf, half each
+--- Coefficients of the genetic score on each gene (getScore is linear in them).
+local function scoreWeights(params, gender)
+    local wd = params.wDairyProductivity + params.wDairyFertility + params.wDairyHealth
+    local s = math.clamp(params.dairyShare, 0, 1)
+    local q, f, h, wb
+    if gender == "male" then
+        q, f, h = params.wTerminalQuality, params.wTerminalFertility, params.wTerminalHealth
+    else
+        q, f, h = params.wMaternalQuality, params.wMaternalFertility, params.wMaternalHealth
+    end
+    wb = math.max(q + f + h, 1e-9)
+    wd = math.max(wd, 1e-9)
+    return {
+        productivity = s * params.wDairyProductivity / wd,
+        fertility = s * params.wDairyFertility / wd + (1 - s) * f / wb,
+        health = s * params.wDairyHealth / wd + (1 - s) * h / wb,
+        quality = (1 - s) * q / wb,
+    }
+end
+
+
+-- Gauss-Hermite nodes and weights for E[f(Z)], Z standard normal (5 points).
+local GH = { { 0, 0.533333 }, { 1.355626, 0.222076 }, { -1.355626, 0.222076 }, { 2.856970, 0.011257 }, { -2.856970, 0.011257 } }
+
+
+--- The excellence an offspring of these mean genes can be expected to reach: E(score) over the
+--- spread of each gene around its mean (BreedingMath.SD_CONST, genes independent). An animal whose
+--- genes are already drawn (a calf on the way) has no spread.
 --- @return number
-function RLBreedingValue.offspringDelta(ctx, genes, gender)
+function RLBreedingValue.expectedExcellence(genes, params, gender, known)
+    local mean = RLBreedingValue.getScore(genes, params, gender)
+    if known then return RLBreedingValue.excellence(mean, params) end
+    local c, sum = scoreWeights(params, gender), 0
+    for _, weight in pairs(c) do sum = sum + weight * weight end
+    local sd = BreedingMath.SD_CONST * math.sqrt(sum)
+    local total = 0
+    for _, node in ipairs(GH) do
+        local score = math.clamp(mean + sd * node[1], GENE_MIN, GENE_MAX)
+        total = total + node[2] * RLBreedingValue.excellence(score, params)
+    end
+    return total
+end
+
+
+--- Share of a bull's offspring gain his buyer counts on: bought semen of the same merit competes,
+--- in dairy herds (mostly AI) far more than in suckler herds (mostly served by a bull).
+function RLBreedingValue.getSireCapture(params)
+    local s = math.clamp(params.dairyShare, 0, 1)
+    return s * params.sireCaptureDairy + (1 - s) * params.sireCaptureBeef
+end
+
+
+--- A bull's offspring gain over a standard bull's from `age` on: his own herd's calves over his
+--- remaining seasons (survival by his health gene) x the gain per calf x sireCapture x the chance he
+--- proves out as a sire. depth 1 is a son's: his calves get no seedstock channel of their own.
+--- @return number gain
+--- @return number calves
+--- @return number qualification
+function RLBreedingValue.sireGain(ctx, genes, age, depth)
     local params = ctx.params
+    local perCalf = RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(genes), nil, depth)
+    local w = weigher(ctx, genes)
+    local first = math.max(ctx.minAge - age, 0)
+    local calves = 0
+    for season = 0, params.sireSeasons - 1 do
+        local start = first + 12 * season
+        if age + start >= params.sireExitAgeMonth then break end
+        calves = calves + params.sireFemalesPerSeason * params.sireConception * w(start + ctx.gestation)
+    end
+    local grown = ctx.minAge > 0 and math.min(age / ctx.minAge, 1) or 1
+    local qualification = params.sireQualificationAtBirth + (1 - params.sireQualificationAtBirth) * grown
+    return calves * perCalf * RLBreedingValue.getSireCapture(params) * qualification, calves, qualification
+end
+
+
+--- What an offspring with these genes is worth over a standard one, at its birth, x offspringCapture:
+---   daughter  her own reference cash flow over a standard heifer's (and half of a beef heifer's meat)
+---   son       his meat, and (depth 0) what he fetches as a breeding bull at sonSaleAgeMonth: the
+---             sire premium for his genes' expected excellence (the seedstock channel), counted on
+---             his calves' cash flows, never on their sale prices.
+--- @param ctx table As femalePV, plus {minAge, meatPerQuality}
+--- @param genes table Mean genes (or the drawn genes when known)
+--- @param gender string|nil nil: an expected calf, half each
+--- @param depth number|nil 0 (default) or 1
+--- @param known boolean|nil The genes are drawn already (a calf on the way)
+--- @return number
+function RLBreedingValue.offspringDelta(ctx, genes, gender, depth, known)
+    local params = ctx.params
+    depth = depth or 0
     local capture = params.offspringCapture
     local discount = math.log(1 + params.discountRate) / 12
     local meat = (ctx.meatPerQuality or 0) * ((genes.quality or 1) - 1)
@@ -280,23 +386,35 @@ function RLBreedingValue.offspringDelta(ctx, genes, gender)
         return own - base + (1 - math.clamp(params.dairyShare, 0, 1)) * 0.5 * meat
     end
 
+    local function son()
+        if depth > 0 then return meat end
+        local excellence = RLBreedingValue.expectedExcellence(genes, params, "male", known)
+        if excellence <= 0 then return meat end
+        local gain = RLBreedingValue.sireGain(ctx, genes, params.sonSaleAgeMonth, depth + 1)
+        local breeding = params.alphaHered * params.rhoHered * excellence * math.max(gain, 0)
+            * math.exp(-discount * params.sonSaleAgeMonth)
+        -- Sold as a bull or as beef, whichever pays: not both.
+        return math.max(meat, breeding)
+    end
+
     local value
     if gender == "female" then value = daughter()
-    elseif gender == "male" then value = meat
-    else value = 0.5 * daughter() + 0.5 * meat end
+    elseif gender == "male" then value = son()
+    else value = 0.5 * daughter() + 0.5 * son() end
     return capture * value
 end
 
 
---- The mean genes of a calf of this parent and a standard mate.
+--- The mean genes of a calf of this parent and a mate of gene `mate` (default the standard 1).
 --- @param genes table
+--- @param mate number|nil
 --- @return table
-function RLBreedingValue.inheritedGenes(genes)
+function RLBreedingValue.inheritedGenes(genes, mate)
     return {
-        productivity = RLBreedingValue.inheritedMean(genes.productivity or 1),
-        fertility = RLBreedingValue.inheritedMean(genes.fertility or 1),
-        health = RLBreedingValue.inheritedMean(genes.health or 1),
-        quality = RLBreedingValue.inheritedMean(genes.quality or 1),
+        productivity = RLBreedingValue.inheritedMean(genes.productivity or 1, mate),
+        fertility = RLBreedingValue.inheritedMean(genes.fertility or 1, mate),
+        health = RLBreedingValue.inheritedMean(genes.health or 1, mate),
+        quality = RLBreedingValue.inheritedMean(genes.quality or 1, mate),
     }
 end
 
@@ -405,15 +523,45 @@ local function getMeatPerQuality(subType)
 end
 
 
---- Newborn value of the breed: the mean of its heifer and bull calf curve prices.
-local function getCalfValue(subType)
-    local total, count = 0, 0
-    for _, gender in ipairs({ "female", "male" }) do
-        local other = RLBreedingValue.getCounterpart(subType, gender)
-        if other ~= nil then total, count = total + other.sellPrice:get(0), count + 1 end
+--- What a calving yields besides milk: a dairy calf is sold young (the mean newborn curve price of
+--- the breed); a suckler calf is weaned and sold at beefCalfSaleAgeMonth (the mean curve price then,
+--- x beefCalfNetShare for its own and its dam's costs to weaning, discounted to the calving).
+--- Mixed by dairyShare.
+local function getCalfValue(subType, params)
+    local function mean(age)
+        local total, count = 0, 0
+        for _, gender in ipairs({ "female", "male" }) do
+            local other = RLBreedingValue.getCounterpart(subType, gender)
+            if other ~= nil then total, count = total + other.sellPrice:get(age), count + 1 end
+        end
+        if count == 0 then return subType.sellPrice:get(age) * RLLivestockPrices.getMultiplier() end
+        return total / count * RLLivestockPrices.getMultiplier()
     end
-    if count == 0 then return subType.sellPrice:get(0) * RLLivestockPrices.getMultiplier() end
-    return total / count * RLLivestockPrices.getMultiplier()
+    local s = math.clamp(params.dairyShare, 0, 1)
+    local age = params.beefCalfSaleAgeMonth
+    local weaned = mean(age) * params.beefCalfNetShare * math.exp(-math.log(1 + params.discountRate) * age / 12)
+    return s * mean(0) + (1 - s) * weaned
+end
+
+
+--- What replacing a culled cow costs over her cull value: the in-calf premium over cull of the
+--- calibration (exitReplacementDairy / exitReplacementBeef, mixed by dairyShare) x a typical cow's
+--- cull value (typical meat x annual mean price, less the slaughter fees, as RLMeatValue's floor).
+local function getReplacementPremium(subType, params)
+    if AnimalMoveEvent == nil or AnimalMoveEvent.getCarcassConfig == nil or RLMeatValue == nil then return 0 end
+    local typeName = RLBreedTraits.getTypeName(subType)
+    local meatPerHead = typeName ~= nil and AnimalMoveEvent.getMeatPerHead(typeName) or nil
+    local fillType = typeName ~= nil and RLMeatValue.getMeatFillType(typeName) or nil
+    if meatPerHead == nil or fillType == nil then return 0 end
+    local layers = AnimalMoveEvent.getCarcassConfig().layers
+    local kg = meatPerHead * RLBreedTraits.resolve(layers, subType, "carcassFactor", 1)
+    local fee = (RLBreedTraits.resolve(layers, subType, "slaughterFee", 0)
+        + RLBreedTraits.resolve(layers, subType, "processingFeePerKg", 0) * kg) * RLLivestockPrices.getMultiplier()
+    local cull = math.max(kg * RLMeatValue.getAnnualMeanPrice(fillType) - fee, 0)
+        / (1 + RLBreedTraits.resolve(layers, subType, "maxSlaughterMargin", 0))
+        * RLBreedTraits.resolve(layers, subType, "cullFloorFactor", 1)
+    local s = math.clamp(params.dairyShare, 0, 1)
+    return cull * (s * params.exitReplacementDairy + (1 - s) * params.exitReplacementBeef)
 end
 
 
@@ -433,8 +581,9 @@ function RLBreedingValue.buildContext(subType)
         minAge = female.reproductionMinAgeMonth or 12,
         milkPerMonth = milkPerMonth,
         milkPrice = milkPrice,
-        calfValue = getCalfValue(subType),
+        calfValue = getCalfValue(subType, params),
         meatPerQuality = getMeatPerQuality(subType),
+        replacementPremium = getReplacementPremium(subType, params),
     }
 end
 
@@ -445,6 +594,16 @@ end
 function RLBreedingValue.withStandardMeatGene(animal)
     local genetics = setmetatable({ quality = 1 }, { __index = animal.genetics })
     return setmetatable({ genetics = genetics }, { __index = animal })
+end
+
+
+--- The factor on a cow's curve price at `age` months: 1 up to cowCurveScaleFromMonth, cowCurveScale
+--- from cowCurveScaleFullMonth, smoothstep between.
+--- @return number
+function RLBreedingValue.getCowCurveScale(params, age)
+    local from, full = params.cowCurveScaleFromMonth, params.cowCurveScaleFullMonth
+    local t = full > from and math.clamp((age - from) / (full - from), 0, 1) or (age >= full and 1 or 0)
+    return 1 + (params.cowCurveScale - 1) * t * t * (3 - 2 * t)
 end
 
 
@@ -490,7 +649,7 @@ local function fetusValue(animal, ctx, weight)
     local total = 0
     for _, fetus in ipairs(fetuses) do
         if fetus.genetics ~= nil then
-            total = total + RLBreedingValue.offspringDelta(ctx, genesOf(fetus), fetus.gender)
+            total = total + RLBreedingValue.offspringDelta(ctx, genesOf(fetus), fetus.gender, 0, true)
         end
     end
     return total * weight / #fetuses
@@ -508,8 +667,11 @@ local function quoteCow(animal, subType, ctx, curve, meatRoute, body)
     local stateValue = pv0 - refPv
     if births0[1] ~= nil and births0[1].existing then stateValue = stateValue + fetusValue(animal, ctx, births0[1].weight) end
 
-    -- Offspring not yet conceived inherit from her and a standard bull.
-    local perCalf = RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(genes), nil)
+    -- Offspring not yet conceived inherit from her and the bull or semen her buyer uses
+    -- (cowMateGene, the same in every world): over the same mate's calves of a standard cow.
+    local mate = ctx.params.cowMateGene
+    local perCalf = RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(genes, mate), nil)
+        - (mate ~= 1 and RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(STANDARD, mate), nil) or 0)
     local future = 0
     for _, birth in ipairs(births) do
         if not birth.existing then future = future + birth.weight end
@@ -529,24 +691,11 @@ end
 local function quoteSire(animal, subType, ctx, curve, meatRoute)
     local params = ctx.params
     local genes = genesOf(animal)
-    local age = math.max(animal.age or 0, 0)
-    local perCalf = RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(genes), nil)
-    local w = weigher(ctx, genes.health)
-    local first = math.max(ctx.minAge - age, 0)
-    local calves = 0
-    for season = 0, params.sireSeasons - 1 do
-        local start = first + 12 * season
-        if age + start >= params.sireExitAgeMonth then break end
-        calves = calves + params.sireFemalesPerSeason * params.sireConception * w(start + ctx.gestation)
-    end
-    -- What his buyer can count on: bought semen of the same merit competes, and a bull calf may
-    -- not prove out as a sire (sireQualificationAtBirth, rising to 1 at breeding age).
-    local grown = ctx.minAge > 0 and math.min(age / ctx.minAge, 1) or 1
-    local qualification = params.sireQualificationAtBirth + (1 - params.sireQualificationAtBirth) * grown
+    local gain, calves, qualification = RLBreedingValue.sireGain(ctx, genes, math.max(animal.age or 0, 0), 0)
     local score = RLBreedingValue.getScore(genes, params, "male")
     local quote = RLBreedingValue.combine({
         role = "sire", curve = curve, meatRoute = meatRoute, stateValue = 0,
-        deltaOwn = 0, deltaHered = calves * perCalf * params.sireCapture * qualification,
+        deltaOwn = 0, deltaHered = gain,
         excellence = RLBreedingValue.excellence(score, params),
     }, params)
     quote.score, quote.calves, quote.qualification = score, calves, qualification
@@ -604,7 +753,10 @@ function RLBreedingValue.getQuote(animal, subType)
         end
     else
         -- Her meat gene is priced once, by what it adds to her meat (M_actual - M0), not by the curve.
-        curve = animal:getCurvePrice(subType, false, nil, 1)
+        -- A grown cow's curve is scaled to the market (cowCurveScale, eased in from
+        -- cowCurveScaleFromMonth to cowCurveScaleFullMonth); heifers keep theirs.
+        local params = RLBreedingValue.getParams(subType)
+        curve = animal:getCurvePrice(subType, false, nil, 1) * RLBreedingValue.getCowCurveScale(params, animal.age or 0)
         local body = 0
         if meat > 0 and RLMeatValue ~= nil then
             local standardMeat = RLMeatValue.getSlaughterValue(RLBreedingValue.withStandardMeatGene(animal))

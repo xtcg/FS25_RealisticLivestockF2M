@@ -35,11 +35,14 @@ end
 
 TYPES, SUBS, BV_SUB = {}, {}, {}
 local typeIndex = {}
-local xml = loadXMLFileFromDisk(REPO .. "xml/animals.xml")
+for _, path in ipairs(BV_ANIMALS or { REPO .. "xml/animals.xml" }) do
+local xml = loadXMLFileFromDisk(path)
 xml:iterate("animals.animal", function(_, animalKey)
     local typeName = xml:getString(animalKey .. "#type")
-    TYPES[#TYPES + 1] = { name = typeName }
-    typeIndex[typeName] = #TYPES
+    if typeIndex[typeName] == nil then
+        TYPES[#TYPES + 1] = { name = typeName }
+        typeIndex[typeName] = #TYPES
+    end
     xml:iterate(animalKey .. ".subType", function(_, key)
         local sub = { name = xml:getString(key .. "#subType"), typeIndex = typeIndex[typeName],
             breed = xml:getString(key .. "#breed"), gender = xml:getString(key .. "#gender", "female"),
@@ -52,11 +55,14 @@ xml:iterate("animals.animal", function(_, animalKey)
             milk.fillType = FILL[xml:getString(key .. ".output.milk#fillType", "MILK")] or FILL.MILK
             sub.output.milk = milk
         end
-        SUBS[#SUBS + 1] = sub
-        sub.index = #SUBS
-        BV_SUB[sub.name] = sub
+        if BV_SUB[sub.name] == nil then
+            SUBS[#SUBS + 1] = sub
+            sub.index = #SUBS
+            BV_SUB[sub.name] = sub
+        end
     end)
 end)
+end
 
 BV_NOW = { BEEFMEAT = BV_PRICE.BEEFMEAT, MILK = BV_PRICE.MILK }
 STATIONS = {}
