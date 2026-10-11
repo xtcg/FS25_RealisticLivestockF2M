@@ -9,6 +9,7 @@ so it can loadMod() real mod scripts. Exits non-zero when any check fails.
 import glob
 import os
 import sys
+import xml.etree.ElementTree as ET
 
 import lupa
 
@@ -27,6 +28,8 @@ def run(path):
 
 
 def main():
+    # The Lua XML stub is permissive; validate syntax with a standard parser first.
+    ET.parse(os.path.join(REPO, "xml", "breedTraits.xml"))
     failed = 0
     total = 0
     for path in sorted(glob.glob(os.path.join(TESTS, "test_*.lua"))):

@@ -169,6 +169,7 @@
 
     <!-- Example of a single subtype:
     <subType name="BULL_HIGHLAND_CATTLE" growth="0.85"/>
+    -->
 
     <!--
         milkScale: the Cow Breeds pack (FS25_CowBreedsRLRM) ships milk curves calibrated before the milk balance of 2026-10-11 (this
@@ -190,5 +191,4 @@
     <subType name="COW_BRITISHBLUE_PACK" milkScale="1.553"/>
     <subType name="COW_BELTEDGALLOWAY_PACK" milkScale="1.340"/>
     <subType name="COW_SIMMENTAL_PACK" milkScale="1.693"/>
-    -->
 </breedTraits>
