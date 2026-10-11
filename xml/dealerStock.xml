@@ -42,8 +42,13 @@
                          without breedingWeightRatio is not offered for this purpose.
       weaned             true: past the weaning month (the profile's weaningMonth, else the calf
                          rearing weaning month of xml/calfRearing.xml).
+    A suckler breed (breedTraits sucklingMonths: 7) is never offered younger than its suckling
+    period, whatever the purpose: its calves are with their dam until weaned, so a bought beef calf
+    needs no milk. Calves on milk (CALF_MILK, 1-2 months) come from dairy herds only, for a calf
+    rearing pen.
     A mother milks from giving birth until 10 months after it (cows and goats, the game's own
-    rule), so a dealer cow is in milk or dry by her last calving, never by chance.
+    rule; a suckler breed's cow until its sucklingMonths), so a dealer cow is in milk or dry by
+    her last calving, never by chance.
 
     Profile attributes: maxFemaleAgeMonth, maxMaleAgeMonth, slowMaxFemaleAgeMonth,
     slowMaxMaleAgeMonth (absolute caps, exclusive), maxPregnancyProgress (0..1, default 0.75),
@@ -90,10 +95,11 @@
 <dealerStock version="2" maxAttempts="8" femaleShare="0.5">
 
     <!-- Cattle. Bulls and cows from rearing and breeding herds; no cull cows, no cows past 4 years.
-         Unweaned calves need a calf rearing pen and are off until the dealer can check one. -->
+         Calves on milk (CALF_MILK) come from dairy herds only and need a calf rearing pen; the dealer
+         does not check that the buyer has one. -->
     <profile name="CATTLE" maxFemaleAgeMonth="48" maxMaleAgeMonth="36" slowMaxFemaleAgeMonth="48" slowMaxMaleAgeMonth="42"
              maxPregnancyProgress="0.75" minRecoveryMonth="3" minHealth="90">
-        <purpose id="CALF_MILK"          gender="female" minAgeMonth="1"  maxAgeMonth="3"  weight="10" enabled="false"/>
+        <purpose id="CALF_MILK"          gender="female" minAgeMonth="1"  maxAgeMonth="3"  weight="10"/>
         <purpose id="CALF_WEANED"        gender="female" minAgeMonth="3"  maxAgeMonth="8"  weight="15" weaned="true"/>
         <purpose id="HEIFER_REPLACEMENT" gender="female" minAgeMonth="6"  maxAgeMonth="18" weight="35" weaned="true"/>
         <purpose id="HEIFER_READY"       gender="female" minAgeMonth="15" maxAgeMonth="24" slowMinAgeMonth="18" slowMaxAgeMonth="30" weight="20"
@@ -105,7 +111,7 @@
         <purpose id="COW_YOUNG"          gender="female" minAgeMonth="30" maxAgeMonth="48" slowMinAgeMonth="36" slowMaxAgeMonth="48" weight="2"
                  breeding="true" parent="always" maxParity="2" pregnant="optional" pregnancyChance="0.3"/>
 
-        <purpose id="CALF_MILK"          gender="male"   minAgeMonth="1"  maxAgeMonth="3"  weight="15" enabled="false"/>
+        <purpose id="CALF_MILK"          gender="male"   minAgeMonth="1"  maxAgeMonth="3"  weight="15"/>
         <purpose id="CALF_WEANED"        gender="male"   minAgeMonth="3"  maxAgeMonth="8"  weight="20" weaned="true"/>
         <purpose id="FEEDER"             gender="male"   minAgeMonth="6"  maxAgeMonth="18" slowMinAgeMonth="8"  slowMaxAgeMonth="24" weight="55" weaned="true"/>
         <purpose id="BULL_YOUNG"         gender="male"   minAgeMonth="12" maxAgeMonth="30" slowMinAgeMonth="18" slowMaxAgeMonth="36" weight="10" breeding="true"/>

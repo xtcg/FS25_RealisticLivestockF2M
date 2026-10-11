@@ -74,13 +74,31 @@
                 birthSurvivalBase="0.97" birthHealthEffect="0.20"
                 birthLowWeightSD="1.8" birthLowWeightPenalty="0.10"
                 birthHighWeightSD="1.3" birthHighWeightPenalty="0.12">
-        <breed name="HIGHLAND"      feed="0.80" growth="0.90" grass="1.25" hay="1.15" silage="1.00" birthWeightRatio="0.054" milkCollect="0"/>   <!-- 27 / 29 kg -->
-        <breed name="HEREFORD"      feed="0.90" growth="1.02" grass="1.15" hay="1.10" silage="1.00" birthWeightRatio="0.0567" milkCollect="0"/>  <!-- 34 / 36 kg -->
+        <breed name="HIGHLAND"      feed="0.80" growth="0.90" grass="1.25" hay="1.15" silage="1.00" birthWeightRatio="0.054" milkCollect="0" sucklingMonths="7"/>   <!-- 27 / 29 kg -->
+        <breed name="HEREFORD"      feed="0.90" growth="1.02" grass="1.15" hay="1.10" silage="1.00" birthWeightRatio="0.0567" milkCollect="0" sucklingMonths="7"/>  <!-- 34 / 36 kg -->
         <breed name="WATER_BUFFALO" feed="0.90" growth="0.96" grass="1.15" hay="1.05" silage="1.00" birthWeightRatio="0.0618"/>  <!-- 34 / 36 kg -->
-        <breed name="LIMOUSIN"      feed="0.95" growth="1.08" grass="0.95" hay="1.00" silage="1.05" birthWeightRatio="0.0585" milkCollect="0"/>  <!-- 38 / 41 kg -->
-        <breed name="ANGUS"         feed="1.00" growth="1.00" grass="1.00" hay="1.00" silage="1.00" birthWeightRatio="0.0492" milkCollect="0"/>  <!-- 32 / 34 kg, easy calving -->
+        <breed name="LIMOUSIN"      feed="0.95" growth="1.08" grass="0.95" hay="1.00" silage="1.05" birthWeightRatio="0.0585" milkCollect="0" sucklingMonths="7"/>  <!-- 38 / 41 kg -->
+        <breed name="ANGUS"         feed="1.00" growth="1.00" grass="1.00" hay="1.00" silage="1.00" birthWeightRatio="0.0492" milkCollect="0" sucklingMonths="7"/>  <!-- 32 / 34 kg, easy calving -->
         <breed name="SWISS_BROWN"   feed="1.00" growth="1.00" grass="1.05" hay="1.05" silage="1.00" birthWeightRatio="0.0615"/>  <!-- 40 / 43 kg -->
         <breed name="HOLSTEIN"      feed="1.10" growth="0.95" grass="0.90" hay="0.95" silage="1.10" birthWeightRatio="0.0618"/>  <!-- 42 / 45 kg -->
+
+        <!--
+            sucklingMonths: a suckler (beef) breed's suckling period in months after calving. Her calves are weaned from
+            her at this age and she is dried off then: her lactation ends (RLLactation; other cows milk RLLactation.MONTHS,
+            10). The dealer never offers the breed younger than this age, whatever the purpose, so a bought beef calf
+            needs no milk. Unset: not a suckler breed (a dairy breed's calves are taken off early, to calf rearing
+            pens). What a calf at its dam may drink at each age is still its own allowance (calfRearing.xml). Spring-born
+            suckler calves are weaned from about 6 months and sold as weanlings at 5-12 months (AHDB, "Successful calf
+            weaning"); 7 is one default for every suckler breed. Set on the breed, so its bull and heifer calves have it
+            too; at most 10. The same eleven breeds as milkCollect="0".
+        -->
+        <breed name="CHAROLAIS_PACK"      sucklingMonths="7"/>
+        <breed name="REDANGUS_PACK"       sucklingMonths="7"/>
+        <breed name="SHORTHORN_PACK"      sucklingMonths="7"/>
+        <breed name="IRISHMOILED_PACK"    sucklingMonths="7"/>
+        <breed name="BRITISHBLUE_PACK"    sucklingMonths="7"/>
+        <breed name="BELTEDGALLOWAY_PACK" sucklingMonths="7"/>
+        <breed name="SIMMENTAL_PACK"      sucklingMonths="7"/>
     </animalType>
 
     <!-- Gilts grow almost as fast as boars; the mod's 0.6 for females is for breeding stock. -->
