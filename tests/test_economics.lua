@@ -10,10 +10,10 @@ local AGES = {
     { "BULL_HOLSTEIN", "TMR", 17 }, { "BULL_LIMOUSIN", "TMR", 18 }, { "BULL_ANGUS", "TMR", 19.5 },
     { "BULL_HEREFORD", "TMR", 19.5 }, { "BULL_SWISS_BROWN", "TMR", 20 }, { "BULL_WATERBUFFALO", "TMR", 23 },
     { "BULL_HIGHLAND_CATTLE", "TMR", 25 },
-    { "BOAR_LANDRACE", "full", 5.5 }, { "BOAR_BLACK_PIED", "full", 6 }, { "BOAR_BERKSHIRE", "full", 6.5 },
-    { "PIG_LANDRACE", "full", 5.6 }, { "PIG_BLACK_PIED", "full", 6.1 }, { "PIG_BERKSHIRE", "full", 6.6 },
-    { "RAM_LANDRACE", "full", 5 }, { "RAM_STEINSCHAF", "full", 5 }, { "RAM_SWISS_MOUNTAIN", "full", 5.5 },
-    { "RAM_BLACK_WELSH", "full", 5.5 },
+    { "BOAR_LANDRACE", "full", 6 }, { "BOAR_BLACK_PIED", "full", 6 }, { "BOAR_BERKSHIRE", "full", 6.5 },
+    { "PIG_LANDRACE", "full", 6 }, { "PIG_BLACK_PIED", "full", 6 }, { "PIG_BERKSHIRE", "full", 6.5 },
+    { "RAM_LANDRACE", "full", 8 }, { "RAM_STEINSCHAF", "full", 8 }, { "RAM_SWISS_MOUNTAIN", "full", 8 },
+    { "RAM_BLACK_WELSH", "full", 8 }, { "RAM_GOAT", "full", 8 }, { "CHICKEN_ROOSTER", "full", 6 },
 }
 
 -- Feed relative to a reference breed: { reference, { subtype = ratio } }. Per kg gain for pigs and rams;
@@ -50,13 +50,13 @@ check("dairy: Holstein peak 1000, Swiss Brown 833 (1.2 x the real lactation aver
     and near(Economics.curve(swiss.milk, 60), 833))
 
 -- Animals that appear with no weight (the dealer's stock, a new game's herds) are on the same
--- growth line as one raised on full feed: a bull of finishing age weighs about its reference.
+-- growth line as one raised on full feed: a meat animal of finishing age weighs about its reference.
 for _, entry in ipairs(AGES) do
-    if entry[1]:find("^BULL_") then
+    do
         local i, sub = Economics.find(entry[1])
         local reference = Economics.reference(sub)
         local weight = RLBreedTraits.getGrownWeight(sub, sub.gender, sub.targetWeight, entry[3], 1)
-        check(string.format("dealer: %s at %.1f months weighs %.0f kg, reference %.0f", entry[1], entry[3], weight, reference),
+        check(string.format("dealer: %s at %.1f months weighs %.1f kg, reference %.1f", entry[1], entry[3], weight, reference),
             near(weight / reference, 1, 0.04))
     end
 end
