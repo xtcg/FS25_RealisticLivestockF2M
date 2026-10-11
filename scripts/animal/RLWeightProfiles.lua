@@ -27,7 +27,10 @@ RLWeightProfiles.CONFIG_FILE = "weightProfiles.xml"
 RLWeightProfiles.TAG = "RLWEIGHT"
 
 --- Animal type names the report covers, and the ones it lists as not covered unless a binding
---- in the file takes them in.
+--- in the file takes them in. Other animal types join through `<animalType name enabled>` in the
+--- file, with profiles of their own (`<profile type="SHEEP">`, kept apart from cattle breeds of the
+--- same name: a sheep and a pig are both "LANDRACE"); a type the file switches off keeps every
+--- animal of it on the old rules while its curves wait for the type's feed and body condition.
 RLWeightProfiles.COVERED_TYPE = "COW"
 RLWeightProfiles.UNCOVERED_TYPES = { MILKCOW = "MILKCOW is an animal type of its own without individual weights" }
 
@@ -46,6 +49,16 @@ RLWeightProfiles.DEFAULTS = {
     lactationIntakeRate = 0.192, lactationIntakeOffset = 3.67, lactationWeeksPerMonth = 4.29, lactationIntakeStrength = 1,
     lactationCapacityStrength = 0.3, earlyMilkMobilizeShare = 0.45, earlyMilkMobilizeMonths = 3,
 }
+
+
+--- The key a profile is stored under: the breed for cattle, "TYPE:BREED" for any other type.
+--- @param typeName string|nil
+--- @param name string
+--- @return string
+function RLWeightProfiles.profileKey(typeName, name)
+    if typeName == nil or typeName:upper() == RLWeightProfiles.COVERED_TYPE then return name:upper() end
+    return typeName:upper() .. ":" .. name:upper()
+end
 
 
 --- Parse "month:kg month:kg ..." into knots, the birth knot (0, birthKg) first.
@@ -114,7 +127,8 @@ end
 --- @return table config { enabled, settings, profiles = { NAME = { status, birthFemaleKg, knots = { female, male }, invalid } },
 ---                        aliases = { BREED = { profile, source } }, bindings = { TYPE = { profile, sex, status, enabled } } }
 function RLWeightProfiles.parse(xmlFile)
-    local config = { enabled = false, settings = table.clone(RLWeightProfiles.DEFAULTS), profiles = {}, aliases = {}, bindings = {} }
+    local config = { enabled = false, settings = table.clone(RLWeightProfiles.DEFAULTS), profiles = {}, aliases = {}, bindings = {},
+        types = {} }
     if xmlFile == nil then return config end
 
     config.enabled = xmlFile:getBool("weightProfiles#enabled", false)
@@ -122,11 +136,23 @@ function RLWeightProfiles.parse(xmlFile)
         config.settings[key] = xmlFile:getFloat("weightProfiles#" .. key, default)
     end
 
+    xmlFile:iterate("weightProfiles.animalType", function(_, key)
+        local typeName = xmlFile:getString(key .. "#name")
+        if typeName == nil or typeName:upper() == RLWeightProfiles.COVERED_TYPE then return end
+        config.types[typeName:upper()] = { enabled = xmlFile:getBool(key .. "#enabled", false),
+            status = xmlFile:getString(key .. "#status", "UNKNOWN") }
+    end)
+
     xmlFile:iterate("weightProfiles.profile", function(_, key)
         local name = xmlFile:getString(key .. "#name")
         if name == nil then return end
-        name = name:upper()
-        local profile = { status = xmlFile:getString(key .. "#status", "UNKNOWN"), knots = {} }
+        local typeName = xmlFile:getString(key .. "#type", RLWeightProfiles.COVERED_TYPE):upper()
+        if typeName ~= RLWeightProfiles.COVERED_TYPE and config.types[typeName] == nil then
+            Log:warning("RLWeightProfiles: profile %s is of type %s, which no animalType element lists; ignored", name, typeName)
+            return
+        end
+        name = RLWeightProfiles.profileKey(typeName, name)
+        local profile = { status = xmlFile:getString(key .. "#status", "UNKNOWN"), knots = {}, typeName = typeName }
         config.profiles[name] = profile
 
         local birth = xmlFile:getFloat(key .. "#birthFemaleKg")
@@ -204,11 +230,17 @@ end
 
 --- The profile a breed name resolves to.
 --- @param breed string|nil As subtypes carry it
+--- @param typeName string|nil The animal type (cattle when nil): other types use their own profiles, no aliases
 --- @return string|nil profile
 --- @return string resolution "EXACT", "ALIAS" or "UNRESOLVED"
-function RLWeightProfiles.resolveBreed(breed)
+function RLWeightProfiles.resolveBreed(breed, typeName)
     if breed == nil then return nil, "UNRESOLVED" end
     local config = RLWeightProfiles.getConfig()
+    if typeName ~= nil and typeName:upper() ~= RLWeightProfiles.COVERED_TYPE then
+        local key = RLWeightProfiles.profileKey(typeName, breed)
+        if config.profiles[key] ~= nil then return key, "EXACT" end
+        return nil, "UNRESOLVED"
+    end
     breed = breed:upper()
     if config.profiles[breed] ~= nil then return breed, "EXACT" end
     local alias = config.aliases[breed]
@@ -222,7 +254,17 @@ end
 --- @return string|nil profile
 --- @return string resolution "EXACT", "ALIAS" or "UNRESOLVED"
 function RLWeightProfiles.resolveProfile(subType)
-    return RLWeightProfiles.resolveBreed(subType ~= nil and subType.breed or nil)
+    if subType == nil then return nil, "UNRESOLVED" end
+    return RLWeightProfiles.resolveBreed(subType.breed, RLBreedTraits.getTypeName(subType))
+end
+
+
+--- A non-cattle animal type the file lists (`<animalType>`), or nil.
+--- @param typeName string|nil
+--- @return table|nil { enabled, status }
+function RLWeightProfiles.getTypeEntry(typeName)
+    if typeName == nil then return nil end
+    return RLWeightProfiles.getConfig().types[typeName:upper()]
 end
 
 
@@ -240,14 +282,17 @@ end
 --- Which profile and sex curve a subtype grows on, and how it got there.
 --- @param subType table|nil
 --- @return table|nil binding { profile, sex, resolution = "EXACT" / "ALIAS" / "PROXY", typeName }
---- @return string resolution Also "UNRESOLVED", "NOT_COVERED", "NOT_CATTLE" or "INVALID_PROFILE" when there is none
+--- @return string resolution Also "UNRESOLVED", "NOT_COVERED", "NOT_CATTLE", "TYPE_OFF" (a listed type switched
+--- off) or "INVALID_PROFILE" when there is none
 function RLWeightProfiles.getCurveBinding(subType)
     if subType == nil then return nil, "UNRESOLVED" end
     local typeName = RLBreedTraits.getTypeName(subType)
     local config = RLWeightProfiles.getConfig()
+    local typeEntry = RLWeightProfiles.getTypeEntry(typeName)
 
     local profileName, sex, resolution
-    if typeName == RLWeightProfiles.COVERED_TYPE then
+    if typeName == RLWeightProfiles.COVERED_TYPE or typeEntry ~= nil then
+        if typeEntry ~= nil and not typeEntry.enabled then return nil, "TYPE_OFF" end
         profileName, resolution = RLWeightProfiles.resolveProfile(subType)
         sex = subType.gender == "male" and "male" or "female"
     else
@@ -292,7 +337,9 @@ function RLWeightProfiles.describe(subType, counts)
         type = typeName }
     local config = RLWeightProfiles.getConfig()
 
-    if typeName ~= RLWeightProfiles.COVERED_TYPE then
+    local typeEntry = RLWeightProfiles.getTypeEntry(typeName)
+    if typeEntry ~= nil then record.typeEnabled = typeEntry.enabled end
+    if typeName ~= RLWeightProfiles.COVERED_TYPE and typeEntry == nil then
         local binding = RLWeightProfiles.getBinding(typeName)
         if binding == nil then
             record.resolution, record.reason, record.gap = "NOT_COVERED", RLWeightProfiles.UNCOVERED_TYPES[typeName]
@@ -373,7 +420,7 @@ function RLWeightProfiles.enumerate(filter)
     for _, subType in ipairs(animalSystem.subTypes) do
         local typeName = RLBreedTraits.getTypeName(subType)
         if typeName == RLWeightProfiles.COVERED_TYPE or RLWeightProfiles.UNCOVERED_TYPES[typeName] ~= nil
-            or (typeName ~= nil and bindings[typeName:upper()] ~= nil) then
+            or (typeName ~= nil and (bindings[typeName:upper()] ~= nil or RLWeightProfiles.getTypeEntry(typeName) ~= nil)) then
             local name = ((subType.name or "") .. " " .. (subType.breed or "")):lower()
             if filter == nil or name:find(filter, 1, true) ~= nil then table.insert(records, RLWeightProfiles.describe(subType, counts)) end
         end

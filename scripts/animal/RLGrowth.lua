@@ -755,9 +755,11 @@ end
 --- Mean birth weight of a breed's calf of a sex (nil when the breed has no profile).
 --- @param breed string|nil
 --- @param sex string
+--- @param typeName string|nil A type with profiles of its own (sheep); cattle and proxy types read cattle breeds
 --- @return number|nil
-function RLGrowth.getBreedBirthMean(breed, sex)
-    local name = RLWeightProfiles.resolveBreed(breed)
+function RLGrowth.getBreedBirthMean(breed, sex, typeName)
+    if RLWeightProfiles.getTypeEntry(typeName) == nil then typeName = nil end
+    local name = RLWeightProfiles.resolveBreed(breed, typeName)
     local profile = name ~= nil and RLGrowth.getConfig().profiles[name] or nil
     local knots = profile ~= nil and profile.knots[sex == "male" and "male" or "female"] or nil
     return knots ~= nil and knots[1][2] or nil
@@ -780,8 +782,8 @@ function RLGrowth.getBirthMeanFor(childSubType, ctx)
     local damBreed, sireBreed = ctx.damBreed, ctx.sireBreed
     if damBreed ~= nil and sireBreed ~= nil and damBreed ~= sireBreed
         and (damBreed == "WATER_BUFFALO") == (sireBreed == "WATER_BUFFALO") then
-        local damMean = RLGrowth.getBreedBirthMean(damBreed, binding.sex)
-        local sireMean = RLGrowth.getBreedBirthMean(sireBreed, binding.sex)
+        local damMean = RLGrowth.getBreedBirthMean(damBreed, binding.sex, binding.typeName)
+        local sireMean = RLGrowth.getBreedBirthMean(sireBreed, binding.sex, binding.typeName)
         if damMean ~= nil and sireMean ~= nil then mean = (damMean + sireMean) / 2 end
     end
 
