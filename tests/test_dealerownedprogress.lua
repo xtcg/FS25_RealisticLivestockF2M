@@ -83,3 +83,21 @@ for _,mutation in ipairs({"capacity","purchaseLocks"}) do
     check("owned progress: foreign "..mutation.." is preserved rather than overwritten",mutation=="capacity" and originalOwner.capacity==11
         or mutation=="purchaseLocks" and s.purchase.locks[sale].owner=="FOREIGN-REQUEST")
 end
+for _,mutation in ipairs({"sourceOwnership","listings"}) do
+    local s,c,sale=F.new({child=true});local oldOwner=s.sourceOwners.OWNER;local before=T.canonical(encode(s));local writes=0
+    c.persistBarrier=function(payload)
+        writes=writes+1
+        if mutation=="sourceOwnership" then payload.recovery.sourceOwnership.owners.OWNER.capacity=11
+        else payload.listings.records[sale].payload.foreign="MODIFIED-BY-SAVER" end
+        return true
+    end
+    local result,reason=U.advance(s,{{hours=1,daysPerMonth=1}},c)
+    local evidence=s.sourceProgressEvidence
+    check("owned progress: successful barrier mutation of "..mutation.." holds original inventory and frozen evidence",not result
+        and reason=="SOURCE_PROGRESS_BARRIER_PAYLOAD_CHANGED" and s.recoveryRequired and s.farm.clock.months==100
+        and s.sourceOwners.OWNER==oldOwner and T.canonical(encode(s))==before and writes==1
+        and evidence.staged.sourceOwnership.owners.OWNER.capacity==10
+        and evidence.attempted.payload.recovery.sourceOwnership.owners.OWNER.capacity==10
+        and evidence.attempted.payload.listings.records[sale].payload.foreign==nil
+        and not U.advance(s,{{hours=1,daysPerMonth=1}},c) and writes==1)
+end

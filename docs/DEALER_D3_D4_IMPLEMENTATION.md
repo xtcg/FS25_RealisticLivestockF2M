@@ -563,3 +563,58 @@ Final focused checks pass **40/40** for birth continuation, **25/25** for owned 
 The complete regression passes **3464/3464**
 (`/private/tmp/rlrm-dealer-owned-birth-verified-tests.log`). This supersedes the initial
 3447/3447 and intermediate 3454/3454 runs above. Full v2 remains closed.
+
+### Fixed selection materialization and owned admission (after `9fadf74`)
+
+`SourceFactory.materialize(candidate, prepared, ctx)` assembles already evaluated history
+and fixed selection data into real private objects. The strict prepared envelope contains
+request/selection IDs, source owner/capacity, adult herd ID/individual ID/calendar/death
+rule/portable disease metadata, and any already selected true fetal identities, subtypes,
+genes, expected date and pinned sire. Explicit genes, mass and negative-age constructors
+avoid the legacy generator's birthday, weight, pregnancy and hidden genetics redraws.
+Shared handoff installs the exact historical state; live tick sentinels are normalized on
+the detached real object without modifying the immutable source record. Resolver callbacks
+cannot replace the selection supplied at entry. Unknown country codes or subtype bindings
+reject before construction. Fetal fertility zero and inherited genes outside candidate
+screening bounds remain real selected genes.
+
+The factory does not allocate IDs, save, attach to an engine inventory or publish listings.
+Selection provenance is data, not proof that identity allocation was durable. Model-backed
+Disease instances are currently rejected explicitly instead of losing model/metatable state;
+exact portable carrier records are supported. A future generator must provide authoritative
+calendar and identity-allocation context and support actual model disease selection or keep
+that candidate path closed. No legacy `createSalePregnancy` is called here.
+
+`StockService.newOwned` creates an empty typed private inventory without converting an
+existing historical-only stock. `OwnedAdmission.admit(store, sourceId, candidate, prepared,
+ctx)` stages source physiology, real ownership and a listing together. Same-owner admission
+merges encoded objects while preserving previous identities, children, birth journals,
+pinned sires and retired records; private capacity conservatively includes all actual unborn
+offspring. The restored actual staged ownership, rather than a pre-restore approximation,
+is persisted. Required world-identity scanning runs before and after the whole-stock barrier.
+Snapshots include transaction locks, money evidence and source-update fences; unknown saves,
+changed barrier payloads, changed inputs or foreign original-state mutations close recovery
+without publishing partial stock. Before/staged/current evidence remains available.
+
+Listing provenance retains the complete original prepared selection and source record.
+Exact same-request replay returns the original listing, including SOLD/WITHDRAWN records,
+without materialization, identity scans or another write. Matching uses the original admission
+cursor so subsequent source feeding does not turn a valid retry into a different birth origin.
+A changed proof or reused source/request identity rejects rather than assigning another ID.
+This service remains dormant until actual server allocation, source generation, world scanning,
+durable runtime save wiring and existing D4 acceptance/recovery gates are installed.
+
+Fixed-selection verification passes **38/38** for the factory and **56/56** for admission,
+including an actual full path from empty owned stock through fixed pregnant admission,
+normal birth sampling, remaining newborn feeding and exact owned save/restore. The original
+complete admission proof survives withdrawal and an after-birth same-request retry still
+returns its original sale ID. The world scan and storage callbacks in this integration are
+fixtures; birth, growth, handoff and ownership code are the production implementations.
+
+The rearing/birth controllers now also freeze their complete barrier payload and reject a
+callback that changes it while returning success. Original before/staged/attempted evidence
+remains untouched; birth PREPARED-payload changes cannot reach RNG. Focused checks now pass
+**42/42** for birth and **27/27** for rearing. All **41** dealer/loader files in this batch
+parse in standard Lua 5.1. Complete regression: **3562/3562**
+(`/private/tmp/rlrm-dealer-owned-admission-tests.log`).
+The next runtime-provider work is recorded in `DEALER_RUNTIME_CAPABILITIES_PROGRESS.md`.

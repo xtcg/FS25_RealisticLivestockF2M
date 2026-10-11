@@ -184,3 +184,22 @@ for _,mutation in ipairs({"capacity","purchaseLocks"}) do
     check("owned birth: foreign "..mutation.." remains available for reconciliation",mutation=="capacity" and originalOwner.capacity==11
         or mutation=="purchaseLocks" and s.purchase.locks[sale].owner=="FOREIGN-REQUEST")
 end
+for _,mutation in ipairs({"sourceOwnership","listings"}) do
+    local s,c,sale=setup();local oldOwner=s.sourceOwners.OWNER;local before=T.canonical(encode(s));local writes=0
+    c.persistBarrier=function(payload,phase)
+        writes=writes+1
+        if mutation=="sourceOwnership" then payload.recovery.sourceOwnership.owners.OWNER.capacity=11
+        else payload.listings.records[sale].payload.foreign="MODIFIED-BY-SAVER" end
+        return true
+    end
+    local result,reason,count=advance(s,{{hours=24*7,daysPerMonth=1}},c)
+    local evidence=s.sourceBirthEvidence
+    local retry,retryReason,retryCount=advance(s,{{hours=24*7,daysPerMonth=1}},c)
+    check("owned birth: successful PREPARED payload mutation of "..mutation.." cannot publish or authorize redraw",not result
+        and reason=="SOURCE_BIRTH_BARRIER_PAYLOAD_CHANGED" and s.recoveryRequired and count==0 and writes==1
+        and s.farm.clock.months==100 and s.sourceOwners.OWNER==oldOwner and T.canonical(encode(s))==before
+        and evidence.attempted.phase=="PREPARED" and evidence.attempted.snapshot.sourceOwnership.owners.OWNER.capacity==10
+        and evidence.attempted.payload.recovery.sourceOwnership.owners.OWNER.capacity==10
+        and evidence.attempted.payload.listings.records[sale].payload.foreign==nil
+        and not retry and retryReason=="RECOVERY_REQUIRED" and retryCount==0)
+end

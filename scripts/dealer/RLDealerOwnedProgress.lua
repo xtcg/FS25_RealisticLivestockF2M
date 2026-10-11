@@ -89,12 +89,21 @@ function U.advance(store,segments,ctx)
         -- No physical assets or RNG changed before this complete evidence barrier.
         -- An unknown write can leave WAL ahead of the game save, so retain both.
         barrierStarted=true
-        local saved,accepted=pcall(ctx.persistBarrier,{purchase=after.purchase,clock=after.clock,listings=after.listings,
+        local payload=copy({purchase=after.purchase,clock=after.clock,listings=after.listings,
             recovery={version=1,clockMonths=finish,sources=after.sources,sourceOwnership=after.sourceOwnership,
                 money=store.money and RLDealerMoneyAdapter.export(store.money) or nil}})
+        local payloadProof=copy(payload)
+        local attempted={snapshot=copy(after),payload=payloadProof}
+        local saved,accepted=pcall(ctx.persistBarrier,payload)
         if not saved or accepted~=true then
-            store.recoveryRequired=true;store.sourceProgressEvidence={before=before,staged=after}
+            store.recoveryRequired=true;store.sourceProgressEvidence={before=before,staged=after,attempted=attempted}
             return nil,"SOURCE_PROGRESS_BARRIER_UNCERTAIN"
+        end
+        -- The callback owns only its detached payload, never the evidence that
+        -- publication was staged against. A changed successful write is uncertain.
+        if RLTradePersistence.check(payload,RLDealerPersistence.LIMITS) or not equal(payload,payloadProof) then
+            store.recoveryRequired=true;store.sourceProgressEvidence={before=before,staged=after,attempted=attempted}
+            return nil,"SOURCE_PROGRESS_BARRIER_PAYLOAD_CHANGED"
         end
         current=snapshot(store)
         if not current or not equal(current,before) then

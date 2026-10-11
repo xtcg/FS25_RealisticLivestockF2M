@@ -69,10 +69,17 @@ function C.advance(store,segments,ctx)
             if not current or not equal(current,before) then invariantReason="SOURCE_SNAPSHOT_CHANGED";return nil,invariantReason end
             barrierStarted=true
             lastBarrier={phase=phase,event=copy(event),snapshot=copy(evidence)}
-            local saved,accepted=pcall(ctx.persistBarrier,{purchase=evidence.purchase,clock=evidence.clock,listings=evidence.listings,
+            local payload=copy({purchase=evidence.purchase,clock=evidence.clock,listings=evidence.listings,
                 recovery={version=1,clockMonths=evidence.clock.months,sources=evidence.sources,sourceOwnership=evidence.sourceOwnership,
-                    money=store.money and RLDealerMoneyAdapter.export(store.money) or nil}},phase,copy(event))
+                    money=store.money and RLDealerMoneyAdapter.export(store.money) or nil}})
+            local payloadProof=copy(payload)
+            lastBarrier.payload=payloadProof
+            local saved,accepted=pcall(ctx.persistBarrier,payload,phase,copy(event))
             if not saved or accepted~=true then return nil,"SOURCE_BIRTH_BARRIER_UNCERTAIN" end
+            if RLTradePersistence.check(payload,RLDealerPersistence.LIMITS) or not equal(payload,payloadProof) then
+                invariantReason="SOURCE_BIRTH_BARRIER_PAYLOAD_CHANGED"
+                return nil,invariantReason
+            end
             current=snapshot(store)
             if not current or not equal(current,before) then invariantReason="SOURCE_SNAPSHOT_CHANGED_AFTER_BARRIER";return nil,invariantReason end
             return true

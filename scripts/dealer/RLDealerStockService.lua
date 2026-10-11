@@ -17,6 +17,14 @@ function V.new(namespace, months)
     return { version = V.VERSION, farm = farm, listings = listings, purchase = RLDealerPurchase.new(),
         recoveryRequired = false }
 end
+-- Empty private inventory for the owned admission path. Existing historical-only
+-- inventories must be explicitly reconciled; this constructor never converts them.
+function V.newOwned(namespace,months)
+    local store,why=V.new(namespace,months);if not store then return nil,why end
+    store.sourceOwners,store.sourceBindings,store.sourceRecordsByOwner={},{},{}
+    store.observedChildren,store.retiredSources={},{}
+    return store
+end
 -- Only the server evaluator may publish; neither a client animal nor an
 -- unscreened reference replay is a listing. Source IDs cannot be relisted.
 function V.publish(store, sourceId, candidate, lifetimeClass)
