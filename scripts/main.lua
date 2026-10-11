@@ -47,7 +47,11 @@ source(modDirectory .. "scripts/animal/RLBreedTraits.lua")
 source(modDirectory .. "scripts/animal/RLMeatMath.lua")
 -- Delivery rules shared by the delivery code and the trade quote (contract order, fee, butcher recipe), pure
 source(modDirectory .. "scripts/animal/RLFacilityRules.lua")
--- Which weight profile (xml/weightProfiles.xml) each cattle subtype resolves to (report only)
+-- Weight model v2 (xml/weightProfiles.xml): continuous growth curves (pure), the budget step
+-- (pure), and the profile each cattle subtype resolves to. RLGrowth, the game side, is sourced
+-- after the body condition it reads.
+source(modDirectory .. "scripts/animal/RLGrowthCurve.lua")
+source(modDirectory .. "scripts/animal/RLGrowthMath.lua")
 source(modDirectory .. "scripts/animal/RLWeightProfiles.lua")
 -- Livestock prices follow the difficulty multiplier: live prices, semen, contract slaughter fees
 source(modDirectory .. "scripts/animal/RLLivestockPrices.lua")
@@ -57,6 +61,7 @@ source(modDirectory .. "scripts/nutrition/RLNutritionMath.lua")
 source(modDirectory .. "scripts/nutrition/RLBodyConditionConfig.lua")
 source(modDirectory .. "scripts/nutrition/RLBodyCondition.lua")
 source(modDirectory .. "scripts/nutrition/RLCalfRearing.lua")
+source(modDirectory .. "scripts/animal/RLGrowth.lua")
 
 -- SECTION 3: Animal Husbandry - Cluster System
 source(modDirectory .. "scripts/animals/husbandry/cluster/RealisticLivestock_AnimalCluster.lua")

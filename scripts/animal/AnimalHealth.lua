@@ -29,9 +29,11 @@ end
 
 --- Update animal health based on food factor relative to subType threshold.
 --- Food above threshold increases health; below threshold decreases it.
---- Then weight: cattle under the body condition rules take this hour's nutrition budget
---- (RLBodyCondition.step), which moves weight and reserve together; every other animal, and
---- cattle in an hour without a feed ledger, take the old animal:updateWeight().
+--- Then weight: cattle under the weight model v2 take its step (RLGrowth.step: frame, reserve
+--- and development, from birth, every hour) and never an old weight rule; other cattle under the
+--- body condition rules take this hour's nutrition budget (RLBodyCondition.step), which moves
+--- weight and reserve together; every other animal, and those cattle in an hour without a feed
+--- ledger, take the old animal:updateWeight().
 --- @param animal table Animal instance
 --- @param foodFactor number Food factor (0.0-1.0)
 function AnimalHealth.updateHealth(animal, foodFactor)
@@ -39,7 +41,15 @@ function AnimalHealth.updateHealth(animal, foodFactor)
     foodFactor = RLCalfRearing.getFoodFactor(animal, foodFactor)
     AnimalHealth.updateHealthOnly(animal, foodFactor)
 
-    if RLBodyCondition.step(animal) then
+    if RLGrowth.covers(animal) then
+        -- No game hour to count the step in: the old rule for this hour, to its old target (the
+        -- next step takes the weight it leaves as it is).
+        if RLGrowth.step(animal, foodFactor) then
+            animal:applyUnderweightPenalty()
+        else
+            animal:updateWeight(foodFactor, RLGrowth.getLegacyTarget(animal:getSubType(), animal.genetics.metabolism))
+        end
+    elseif RLBodyCondition.step(animal) then
         animal:applyUnderweightPenalty()
     else
         animal:updateWeight(foodFactor)

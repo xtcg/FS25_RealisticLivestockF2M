@@ -5,7 +5,9 @@
     (game.xml: <development><controls>true</controls></development>, then the ~ key).
 
     rlBcReport [animals] [pen]            Per cattle pen: last hour's feed ledger, water, condition
-                                          range; with "animals" one line per animal.
+                                          range; with "animals" one line per animal (and, under the
+                                          weight model v2, its birth and adult weight, development,
+                                          reserve kg and weight against its curve).
     rlBcSet <reserve|bcs|finish> <value> <all|pen:NAME|uniqueId>
                                           Set the condition of animals. Frame weight is kept, so
                                           live weight moves with the reserve as in the game.
@@ -133,6 +135,16 @@ function RLBodyConditionConsole:report(arg1, arg2)
                     nutrition ~= nil and nutrition.milkShare ~= nil and string.format("%.0f%%", nutrition.milkShare * 100) or "-",
                     state ~= nil and string.format("%+.2f", state.balanceEMA or 0) or "-",
                     nutrition ~= nil and nutrition.tick ~= RLBodyCondition.getTickId() and " (stale)" or ""))
+                -- Weight model v2: the animal's growth state against its curve.
+                local growth = animal.rlGrowth
+                if growth ~= nil and RLGrowth.covers(animal) then
+                    local curve = RLGrowth.getCurve(animal)
+                    local onCurve = curve:value(math.max(animal.age or 0, 0))
+                    out(string.format("      v2 born %.1f kg, adult %.0f kg, development %.2f / %d months, reserve %.1f kg, curve at age %.0f kg (%.0f%%), speed %.2f, intake %.2f, %s",
+                        growth.birthWeightKg, growth.frameTargetKg, growth.developmentMonths, animal.age or 0,
+                        growth.reserveMassKg, onCurve, onCurve > 0 and animal.weight / onCurve * 100 or 0,
+                        growth.speedFactor or 1, growth.intakeFactor or 1, tostring(growth.source)))
+                end
             end
         end
 
@@ -187,7 +199,13 @@ function RLBodyConditionConsole:set(kind, value, target)
         for _, animal in ipairs(pen:getClusters()) do
             if RLBodyCondition.isEligible(animal) and (uniqueId == nil or tostring(animal.uniqueId) == uniqueId) then
                 local state = RLBodyCondition.ensureState(animal, "console")
-                animal.weight = math.max(animal.weight + state.capacityKg * (reserve - state.reserve), 1)
+                if RLGrowth.covers(animal) then
+                    -- Weight model v2: the reserve mass moves, the frame stays.
+                    RLGrowth.setReserveIndex(animal, reserve)
+                    state.capacityKg = math.max((animal.weight - animal.rlGrowth.reserveMassKg) * RLGrowth.getKappa(), 1)
+                else
+                    animal.weight = math.max(animal.weight + state.capacityKg * (reserve - state.reserve), 1)
+                end
                 state.reserve = reserve
                 state.balanceEMA, state.lossRateEMA = 0, 0
                 animal:updateInput()

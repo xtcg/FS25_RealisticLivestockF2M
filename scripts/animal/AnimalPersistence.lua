@@ -191,7 +191,9 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
             ["productivity"] = xmlFile:getFloat(key .. ".impregnatedBy#productivity", nil),
             ["quality"] = xmlFile:getFloat(key .. ".impregnatedBy#quality", nil),
             ["health"] = xmlFile:getFloat(key .. ".impregnatedBy#health", nil),
-            ["fertility"] = xmlFile:getFloat(key .. ".impregnatedBy#fertility", nil)
+            ["fertility"] = xmlFile:getFloat(key .. ".impregnatedBy#fertility", nil),
+            -- The sire's breed, for a cross's birth weight (RLGrowth); absent in older saves.
+            ["breed"] = xmlFile:getString(key .. ".impregnatedBy#breed", nil)
         }
 
     end
@@ -223,6 +225,9 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
 
     -- nil when absent: an old savegame's animal starts its body condition on its first step
     local bodyCondition = RLBodyCondition.loadFromXMLFile(xmlFile, key)
+    -- nil when absent: the weight model v2 derives one from the saved weight on its first step
+    -- (with no legacy anchor when the animal was saved with a state it cannot use)
+    local growth, growthSaved = RLGrowth.loadFromXMLFile(xmlFile, key)
 
     local diseases = {}
 
@@ -403,7 +408,8 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
         semenCollectedAge = semenCollectedAge, semenProducedAge = semenProducedAge,
         diseases = diseases, recentlyBoughtByAI = recentlyBoughtByAI,
         marks = marks, insemination = insemination,
-        canBeSold = canBeSold, bodyCondition = bodyCondition
+        canBeSold = canBeSold, bodyCondition = bodyCondition, growth = growth,
+        growthDropped = growthSaved and growth == nil
     })
 
     animal:setBirthday(birthday)
@@ -543,6 +549,7 @@ function AnimalPersistence.saveToXMLFile(animal, xmlFile, key)
         xmlFile:setFloat(key .. ".impregnatedBy#health", animal.impregnatedBy.health)
         xmlFile:setFloat(key .. ".impregnatedBy#fertility", animal.impregnatedBy.fertility)
         if animal.impregnatedBy.productivity ~= nil then xmlFile:setFloat(key .. ".impregnatedBy#productivity", animal.impregnatedBy.productivity) end
+        if animal.impregnatedBy.breed ~= nil then xmlFile:setString(key .. ".impregnatedBy#breed", animal.impregnatedBy.breed) end
     end
 
     if animal.genetics ~= nil then
@@ -591,6 +598,7 @@ function AnimalPersistence.saveToXMLFile(animal, xmlFile, key)
     if animal.canBeSold == false then xmlFile:setBool(key .. "#canBeSold", false) end
     -- Saved whether or not the feature is on, so switching it off loses nothing.
     RLBodyCondition.saveToXMLFile(animal.bodyCondition, xmlFile, key)
+    RLGrowth.saveToXMLFile(animal.rlGrowth, xmlFile, key)
 
     -- INDEXED walk, never `pairs`, and this is the site that MATERIALISES the positional
     -- contract the loader and both stream halves are written against. The element index is

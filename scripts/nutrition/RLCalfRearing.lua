@@ -32,6 +32,7 @@ RLCalfRearing.DEFAULT_MILK = { "CALFMILK" }
 RLCalfRearing.DEFAULT_CURVES = {
     milkMax = { { -3, 1.0 }, { -2, 0.9 }, { -1, 0.7 }, { 0, 0.35 }, { 1, 0 } },
     solidMax = { { -3, 0.1 }, { -2, 0.3 }, { -1, 0.6 }, { 0, 0.9 }, { 1, 1 } },
+    solidEnergy = { { -3, 0.4 }, { -2, 0.55 }, { -1, 0.75 }, { 0, 0.9 }, { 1, 1 } },
 }
 RLCalfRearing.LAYERED = { "weaningMonth" }
 
@@ -73,6 +74,16 @@ function RLCalfRearing.parse(xmlFile)
     end
     for _, name in ipairs(milkNames) do config.milkFillTypes[name] = true end
 
+    -- solidEnergy is read by the weight model v2 only, so a bad one falls back to the default
+    -- curve instead of switching calf rearing off. A weaned animal gets its feed's full worth.
+    local energy = config.curves.solidEnergy
+    local energyOk, energyReason = RLCalfRearing.validateCurve(energy, "solidEnergy")
+    if energyOk and energy[#energy][2] < 1 then energyOk, energyReason = false, "solidEnergy must reach 1 after weaning" end
+    if not energyOk then
+        Log:warning("RLCalfRearing: %s; the default solidEnergy curve is used", energyReason)
+        config.curves.solidEnergy = RLCalfRearing.DEFAULT_CURVES.solidEnergy
+    end
+
     local ok, reason = RLCalfRearing.validate(config)
     if not ok then
         Log:error("RLCalfRearing: %s - calf rearing switched off", reason)
@@ -80,6 +91,20 @@ function RLCalfRearing.parse(xmlFile)
         config.invalidReason = reason
     end
     return config
+end
+
+
+--- A curve has points, numbers, y in 0..1, sorted by x.
+--- @return boolean ok
+--- @return string|nil reason
+function RLCalfRearing.validateCurve(points, name)
+    if points == nil or #points == 0 then return false, "curve " .. name .. " has no points" end
+    for i, point in ipairs(points) do
+        if point[1] ~= point[1] or point[2] ~= point[2] then return false, string.format("curve %s point %d is not a number", name, i) end
+        if point[2] < 0 or point[2] > 1 then return false, string.format("curve %s point %d is outside 0..1", name, i) end
+        if i > 1 and point[1] < points[i - 1][1] then return false, string.format("curve %s is not sorted by x at point %d", name, i) end
+    end
+    return true
 end
 
 
@@ -91,14 +116,9 @@ function RLCalfRearing.validate(config)
         return false, "weaningMonth must be a number > 0"
     end
     if next(config.milkFillTypes) == nil then return false, "milkFillTypes is empty" end
-    for name in pairs(RLCalfRearing.DEFAULT_CURVES) do
-        local points = config.curves[name]
-        if points == nil or #points == 0 then return false, "curve " .. name .. " has no points" end
-        for i, point in ipairs(points) do
-            if point[1] ~= point[1] or point[2] ~= point[2] then return false, string.format("curve %s point %d is not a number", name, i) end
-            if point[2] < 0 or point[2] > 1 then return false, string.format("curve %s point %d is outside 0..1", name, i) end
-            if i > 1 and point[1] < points[i - 1][1] then return false, string.format("curve %s is not sorted by x at point %d", name, i) end
-        end
+    for _, name in ipairs({ "milkMax", "solidMax" }) do
+        local ok, reason = RLCalfRearing.validateCurve(config.curves[name], name)
+        if not ok then return false, reason end
     end
     -- A weaned animal must be able to live on solid feed alone.
     local solid = config.curves.solidMax
@@ -160,13 +180,25 @@ function RLCalfRearing.getWeaningMonthForSubType(subType)
 end
 
 
---- Feeding stage by age: PRE_WEANING, WEANING (the weaning month) or WEANED.
+--- Feeding stage by age: PRE_WEANING, WEANING (the weaning month) or WEANED, on the same age as
+--- the caps (continuous under the weight model v2), so the stage shown matches what it gets.
 function RLCalfRearing.getStage(animal)
-    local x = (animal.age or 0) - RLCalfRearing.getWeaningMonth(animal)
+    local x = RLCalfRearing.getWeaningX(animal)
     if x < 0 then return RLCalfRearing.STAGE_PRE_WEANING end
     if x < 1 then return RLCalfRearing.STAGE_WEANING end
     return RLCalfRearing.STAGE_WEANED
 end
+
+
+--- An animal's age against its weaning month, the x of the curves. Under the weight model v2 the
+--- age runs on within the month (RLGrowth.getContinuousAge), so the caps and the worth of solid
+--- feed change smoothly rather than once a month; otherwise whole months, as before.
+function RLCalfRearing.getWeaningX(animal)
+    local age = animal.age or 0
+    if RLGrowth ~= nil and RLGrowth.covers(animal) then age = RLGrowth.getContinuousAge(animal) end
+    return age - RLCalfRearing.getWeaningMonth(animal)
+end
+local getWeaningX = RLCalfRearing.getWeaningX
 
 
 --- Most of its food request an animal can take from milk and from solid feed.
@@ -174,8 +206,19 @@ end
 --- @return number solidMax 0..1
 function RLCalfRearing.getCaps(animal)
     local config = RLCalfRearing.getConfig()
-    local x = (animal.age or 0) - RLCalfRearing.getWeaningMonth(animal)
+    local x = getWeaningX(animal)
     return curve(config.curves.milkMax, x), curve(config.curves.solidMax, x)
+end
+
+
+--- What a liter of solid feed is worth to a calf against a weaned animal (rumen development):
+--- the solidEnergy curve at its age against weaning. Read by the body condition budget for the
+--- animal's own share in a rearing pen; milk keeps its own energy (bodyCondition.xml feedEnergy).
+--- @param animal table
+--- @return number 0..1
+function RLCalfRearing.getSolidEnergyFactor(animal)
+    if not RLCalfRearing.isEnabled() then return 1 end
+    return math.clamp(curve(RLCalfRearing.getConfig().curves.solidEnergy, getWeaningX(animal)), 0, 1)
 end
 
 

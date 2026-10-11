@@ -996,6 +996,9 @@ function AnimalMoveEvent:run(connection)
 						tostring(sourceCluster.uniqueId), tostring(sourceCluster.farmId),
 						tostring(self.targetObject.getName and self.targetObject:getName()))
 				else
+					-- The payload copy goes into the target: it takes the live animal's weight and
+					-- weight-model state (RLGrowth.takeLiveState), the server's being the authority.
+					RLGrowth.takeLiveState(animal, sourceCluster)
 					table.insert(transferList, { animal = animal, sourceCluster = sourceCluster })
 				end
 			end

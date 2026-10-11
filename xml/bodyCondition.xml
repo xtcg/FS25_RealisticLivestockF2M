@@ -7,7 +7,12 @@
     keep their own meaning.
 
     Covered: cattle (animal type COW) from calfLegacyUntilAgeMonth on, in a pen with a feed trough.
-    Calves, other species and Hof Bergmann's MILKCOW keep the old rules.
+    Calves, other species and Hof Bergmann's MILKCOW keep the old rules. Under the weight model v2
+    (weightProfiles.xml) covered cattle - and MILKCOW where the game holds it as individual animals,
+    on the Holstein female curve - take the same budget from birth with their own frame, reserve
+    mass and development (scripts/animal/RLGrowth.lua); the yield, price and conception factors
+    still start at calfLegacyUntilAgeMonth. The reserve index r is then their reserve mass over
+    reserveCapacityRatio of their frame's live weight at the reference reserve.
 
     Every hour the pen's actual consumption (trough and meadow) is shared between the animals by
     their food request. The ration supports a share of each animal's full-feed demand: liters
@@ -26,8 +31,12 @@
                                its age and state needs, intact and healthy, whatever this one
                                needs now; a disease's lost growth is spent on the disease. Animals
                                behind their line (slow forage routes) get only maintenance-level
-                               feed once the line is grown, so this waits for the new growth
-                               curves; see tests/test_weight.lua.
+                               feed once the line is grown, so this stays off; see
+                               tests/test_weight.lua. Under the weight model v2 the reference is an
+                               average animal on its breed's curve at this one's age; it still
+                               slows hay (an Angus bull 35.8 months to slaughter instead of 24.3)
+                               and stalls a water buffalo bull on grass near 350 kg, so the forage
+                               energies and intakes need calibrating for it first.
 
     Reserve
     initialReserve             Reserve of a cow or heifer whose condition is first set up
