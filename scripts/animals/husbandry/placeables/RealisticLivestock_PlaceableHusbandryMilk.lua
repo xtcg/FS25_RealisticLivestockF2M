@@ -216,7 +216,7 @@ function RealisticLivestock_PlaceableHusbandryMilk:updateOutput(superFunc, foodF
         RLBodyCondition.depositMilk(self, spec.litersPerHour, spec.rlMilkContributions,
             function() superFunc(self, foodFactor, productionFactor, globalProductionFactor) end,
             function(fillType, liters)
-                self:addHusbandryFillLevelFromTool(self:getOwnerFarmId(), liters, fillType, nil, nil, nil)
+                return self:addHusbandryFillLevelFromTool(self:getOwnerFarmId(), liters, fillType, nil, nil, nil)
             end)
     else
         superFunc(self, foodFactor, productionFactor, globalProductionFactor)

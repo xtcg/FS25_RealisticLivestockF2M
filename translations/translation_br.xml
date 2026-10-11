@@ -12,7 +12,7 @@
         <text name="fillType_bull_hereford" text="Hereford Bull"/>
         <text name="fillType_cow_highland_cattle" text="Gado Highland"/>
         <text name="fillType_bull_highland_cattle" text="Touro Highland"/>
-        <text name="animal_descriptionBullFeed" text="Touros gostam de capim, feno e RMT."/>
+        <text name="animal_descriptionBullFeed" text="Bulls eat grass, hay, silage and TMR. In real-equivalent mode, weaned cattle can receive maize or wheat as a supplement to roughage where the pen supports it. Grain limits and feed adaptation apply."/>
         <text name="animal_descriptionBullYoung" text="Este é um bezerro masculino."/>
         <text name="animal_descriptionBullReproduction" text="Touros que são saudáveis ​​e mais velhos que 12 meses podem reproduzir."/>
         <text name="rl_descriptionCowReproduction" text="Vacas que são saudáveis e mais velhas que 12 meses podem reproduzir."/>
@@ -943,5 +943,90 @@
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
+        <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
+        <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>
+        <text name="rl_settings_nutritionMode_texts_2" text="Real-equivalent (feed saving)"/>
+        <text name="rl_feed_grainGroup" text="Grain (supplement)"/>
+
+        <!-- Feed UI: Chinese and English; English fallback for other languages. -->
+        <text name="rl_feed_penMode" text="Feed model"/>
+        <text name="rl_feed_modeReal" text="Real-equivalent"/>
+        <text name="rl_feed_penRation" text="Ration target"/>
+        <text name="rl_feed_penCoverage" text="ME plan covered"/>
+        <text name="rl_feed_penFirstOut" text="First to run out"/>
+        <text name="rl_feed_intake" text="DM / ME cover"/>
+        <text name="rl_feed_intakeFormat" text="%.1f kg/d (%.0f%%)"/>
+        <text name="rl_feed_ration" text="Grain DM / limit"/>
+        <text name="rl_feed_finish" text="Finish estimate"/>
+        <text name="rl_feed_finishReady" text="Ready"/>
+        <text name="rl_feed_finishStalled" text="Gain too low"/>
+        <text name="rl_feed_monthsShort" text="mo"/>
+        <text name="rl_feed_unconfigured" text="No feed data"/>
+        <text name="rl_feed_grainNotEaten" text="Not fed in legacy"/>
+        <text name="rl_feed_grain_AUTO" text="Auto grain"/>
+        <text name="rl_feed_grain_NONE" text="No grain"/>
+        <text name="rl_feed_feedShareFormat" text="%s (%.0f%% DM)"/>
+        <text name="rl_feed_feedPlanFormat" text="%s · plan %.0f L/%s"/>
+        <text name="rl_feed_reason_OK" text="Real-equivalent"/>
+        <text name="rl_feed_reason_MODE_OFF" text="Legacy mode"/>
+        <text name="rl_feed_reason_CONFIG_INVALID" text="Invalid feed data"/>
+        <text name="rl_feed_reason_MODEL_OFF" text="Weight model off"/>
+        <text name="rl_feed_reason_NOT_CATTLE" text="Cattle only"/>
+        <text name="rl_feed_reason_MILKCOW_LEGACY" text="Milk cows: legacy"/>
+        <text name="rl_feed_reason_NO_TROUGH" text="No supported trough"/>
+        <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="Unsupported animal"/>
+        <text name="rl_feed_reason_SUCKLING_CALF" text="Bezerro sem a mãe"/>
+        <text name="rl_feed_reason_UNKNOWN" text="Status unavailable"/>
+        <text name="rl_feed_limit_NONE" text="No limit"/>
+        <text name="rl_feed_limit_FIBRE" text="Fibre limit"/>
+        <text name="rl_feed_limit_STARCH" text="Starch limit"/>
+        <text name="rl_feed_limit_WHEAT" text="Wheat limit"/>
+        <text name="rl_feed_limit_FEED_CAP" text="Limite alim."/>
+        <text name="rl_feed_limit_NO_FORAGE" text="No roughage"/>
+        <text name="rl_feed_limit_TARGET" text="Target share"/>
+        <text name="rl_feed_limit_PROTEIN_OR_DEMAND" text="Protein/need"/>
+        <text name="rl_feed_limit_ADAPTATION" text="Adapting"/>
+        <text name="rl_feed_limit_STOCK" text="Grain short"/>
+        <text name="rl_feed_limit_NO_CONCENTRATE" text="No grain"/>
+        <text name="rl_feed_limit_NO_FEED" text="No feed"/>
+        <text name="rl_feed_limit_APPETITE" text="Intake limit"/>
+        <text name="rl_feed_limit_FILL" text="Rumen full"/>
+        <text name="rl_feed_limit_DEMAND" text="Needs met"/>
+        <text name="rl_feed_limit_PROTEIN" text="Low protein"/>
+        <text name="rl_feed_limit_UNKNOWN" text="Unknown limit"/>
+        <text name="rl_feed_target_AUTO" text="Automatic"/>
+        <text name="rl_feed_target_GROW" text="Growth"/>
+        <text name="rl_feed_target_FINISH" text="Finishing"/>
+        <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
+        <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Ração do curral"/>
+        <text name="rl_feed_rationButton" text="Ração"/>
+        <text name="rl_feed_dialogTitle" text="Configurações de ração"/>
+        <text name="rl_feed_labelTarget" text="Objetivo"/>
+        <text name="rl_feed_labelGrain" text="Concentrado"/>
+        <text name="rl_feed_labelShare" text="Parte de concentrado (MS)"/>
+        <text name="rl_feed_labelSubstitute" text="Substituir se acabar"/>
+        <text name="rl_feed_share_AUTO" text="Auto (máx. permitido)"/>
+        <text name="rl_feed_substitute_on" text="Permitido"/>
+        <text name="rl_feed_substitute_off" text="Não permitido"/>
+        <text name="rl_feed_readOnly" text="Somente leitura: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Sem permissão"/>
+        <text name="rl_feed_statusClient" text="Vale após confirmação do servidor"/>
+        <text name="rl_feed_previewTarget" text="Meta"/>
+        <text name="rl_feed_previewNow" text="Agora"/>
+        <text name="rl_feed_previewAdapted" text="Adaptado"/>
+        <text name="rl_feed_previewIntake" text="%d cabeças · %.1f kg MS/cabeça/dia · plano energia %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Alimento"/>
+        <text name="rl_feed_colMonth" text="L/mês"/>
+        <text name="rl_feed_colShare" text="Parte MS"/>
+        <text name="rl_feed_colStock" text="Estoque"/>
+        <text name="rl_feed_colLasts" text="Dura"/>
+        <text name="rl_feed_previewNote" text="Apenas prévia, nada é retirado. A parte é uma meta: os limites de fibra, amido, trigo e adaptação continuam valendo."/>
+        <text name="rl_feed_previewMore" text="+%d outros alimentos."/>
+        <text name="rl_feed_previewError" text="Prévia indisponível"/>
+        <text name="rl_feed_previewNoAnimals" text="Sem animais neste curral"/>
+        <text name="rl_feed_previewNoFeed" text="Sem alimento utilizável no cocho"/>
+        <text name="rl_feed_apply" text="Aplicar"/>
     </texts>
 </l10n>

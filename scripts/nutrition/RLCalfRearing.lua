@@ -202,11 +202,13 @@ local getWeaningX = RLCalfRearing.getWeaningX
 
 
 --- Most of its food request an animal can take from milk and from solid feed.
+--- @param ageOffsetMonths number|nil Optional age offset for mid-step sampling (legacy: nil).
 --- @return number milkMax 0..1
 --- @return number solidMax 0..1
-function RLCalfRearing.getCaps(animal)
+function RLCalfRearing.getCaps(animal, ageOffsetMonths)
     local config = RLCalfRearing.getConfig()
-    local x = getWeaningX(animal)
+    -- New-mode feeding may sample the middle of its step; legacy callers keep the current age.
+    local x = getWeaningX(animal) + (ageOffsetMonths or 0)
     return curve(config.curves.milkMax, x), curve(config.curves.solidMax, x)
 end
 

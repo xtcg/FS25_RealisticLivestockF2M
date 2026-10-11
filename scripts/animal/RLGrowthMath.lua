@@ -120,6 +120,62 @@ function RLGrowthMath.getPotentialGrowth(curve, u, frameKg, speed, dt, kappa, re
 end
 
 
+--- Maintenance and pregnancy demand (per period) of an animal of weight W: maintenance x W^0.75
+--- x the maintenance gene; a pregnancy adds pregnancyFactor of the maintenance per fetus, rising
+--- from pregnancyRampStart of the pregnancy to term.
+--- @return number maintenance
+--- @return number pregnancy
+--- @return number ramp 0..1
+local function getMaintenanceAndPregnancy(W, input, cfg)
+    local metabolic = math.max(W, 1) ^ 0.75
+    local maintenance = cfg.maintenancePerKgMetabolic * metabolic * (input.maintenanceFactor or 1)
+    local ramp = math.clamp(((input.pregnancyProgress or 0) - cfg.pregnancyRampStart) / (1 - cfg.pregnancyRampStart), 0, 1)
+    local pregnancy = cfg.maintenancePerKgMetabolic * metabolic * cfg.pregnancyFactor * (input.numFetuses or 0) * ramp
+    return maintenance, pregnancy, ramp
+end
+
+
+--- What a step would ask for, before any feed is eaten (RLFeed plans a ration on it): per period,
+--- maintenance, pregnancy and milk at full feed; for the step, the growth at full feed (frame and
+--- the reserve laid with it, development speed and disease applied) and the most reserve it could
+--- lay down on top, up to `reserveCeiling` (the input's) at the monthly gain rate.
+--- @param input table As for step
+--- @param cfg table
+--- @return table { maintenance, pregnancy, milk (per period), growthStep, growthKg, depositRoomKg (this
+---         step), depositHeadroomKg (to the ceiling), depositRatePerMonthKg }
+function RLGrowthMath.getStepDemands(input, cfg)
+    local dt = input.dtMonths
+    local kappa = input.kappa
+    local curve = input.curve
+    local W = input.weight
+    local R = math.min(math.max(input.reserveKg or 0, 0), W)
+    local F = W - R
+    local u = math.min(math.max(input.development or 0, 0), curve.endMonth)
+    local K = F * kappa
+    local r = K > 0 and R / K or 0
+    local disease = math.clamp(input.diseaseFactor or 1, 0, 1)
+    local growF, _, growR = RLGrowthMath.getPotentialGrowth(curve, u, F, (input.speed or 1) * disease, dt, kappa,
+        cfg.referenceReserve, r)
+    local maintenance, pregnancy = getMaintenanceAndPregnancy(W, input, cfg)
+    local capacityAfter = K + growF * kappa
+    local rAfter = capacityAfter > 0 and (R + growR) / capacityAfter or 0
+    local headroom = math.max((input.reserveCeiling or rAfter) - rAfter, 0)
+    local room = math.min(headroom, cfg.gainRatePerMonth * dt) * capacityAfter
+    return {
+        maintenance = maintenance,
+        pregnancy = pregnancy,
+        milk = math.max(input.potentialMilk or 0, 0) * (input.milkCostPerLiter or cfg.milkNUPerLiter),
+        growthStep = growF * (input.growthCostPerKg or cfg.growthNUPerKg) + growR * cfg.depositNUPerKg,
+        growthKg = growF + growR,
+        depositRoomKg = math.max(room, 0),
+        -- As rates, the same at any step length: reserve that fits under the ceiling, and the most
+        -- the monthly gain rate lays down in a month.
+        depositHeadroomKg = headroom * capacityAfter,
+        depositRatePerMonthKg = cfg.gainRatePerMonth * capacityAfter,
+    }
+end
+
+
 --- One step.
 --- @param input table See the field list at the top of the function
 --- @param cfg table RLBodyConditionConfig values
@@ -140,6 +196,11 @@ function RLGrowthMath.step(input, cfg)
     --   referenceWeight, referenceGrowthNU
     --   reserveCeiling        highest reserve index a surplus fills to
     --   balanceEMA, lossRateEMA
+    --   supplyPerPeriod       optional: the energy eaten (per period) as it is, replacing the
+    --                         liters valued at the anchor above (RLFeed, real-equivalent mode)
+    --   growthCostPerKg       optional: energy per kg of frame grown (default growthNUPerKg)
+    --   milkCostPerLiter      optional: energy per liter of milk (default milkNUPerLiter)
+    --   milkMobilizeShare     optional: share of the milk the reserve may fund (default the cfg's)
     local dt = input.dtMonths
     local kappa = input.kappa
     local rRef = cfg.referenceReserve
@@ -161,27 +222,31 @@ function RLGrowthMath.step(input, cfg)
     local diseaseKg = fixedPrice and math.max(healthyF - growF, 0) or 0
 
     -- Demands (NU per period).
-    local metabolic = math.max(W, 1) ^ 0.75
-    local maintenance = cfg.maintenancePerKgMetabolic * metabolic * (input.maintenanceFactor or 1)
-    local ramp = math.clamp(((input.pregnancyProgress or 0) - cfg.pregnancyRampStart) / (1 - cfg.pregnancyRampStart), 0, 1)
-    local pregnancy = cfg.maintenancePerKgMetabolic * metabolic * cfg.pregnancyFactor * (input.numFetuses or 0) * ramp
-    local growthNeedStep = (growF + diseaseKg) * cfg.growthNUPerKg + growR * cfg.depositNUPerKg
+    local maintenance, pregnancy, ramp = getMaintenanceAndPregnancy(W, input, cfg)
+    local growthNeedStep = (growF + diseaseKg) * (input.growthCostPerKg or cfg.growthNUPerKg) + growR * cfg.depositNUPerKg
     local growthNeed = dt > 0 and growthNeedStep / dt or 0
-    local milkNeed = math.max(input.potentialMilk or 0, 0) * cfg.milkNUPerLiter
+    local milkNeed = math.max(input.potentialMilk or 0, 0) * (input.milkCostPerLiter or cfg.milkNUPerLiter)
 
-    -- Supply (NU per period): the liters eaten, valued at what the anchor's full feed pays for.
-    local anchor
-    if fixedPrice then
-        local referenceMetabolic = math.max(input.referenceWeight or W, 1) ^ 0.75
-        anchor = cfg.maintenancePerKgMetabolic * referenceMetabolic * (1 + cfg.pregnancyFactor * (input.numFetuses or 0) * ramp)
-            + math.max(input.referenceGrowthNU or 0, 0)
+    -- Supply (NU per period). Given (supplyPerPeriod): the energy the feed eaten carries, fixed by
+    -- the feed alone (RLFeed). Otherwise the liters eaten, valued at what the anchor's full feed
+    -- pays for.
+    local supply
+    if input.supplyPerPeriod ~= nil then
+        supply = math.max(input.supplyPerPeriod, 0)
     else
-        anchor = maintenance + pregnancy + growthNeed
+        local anchor
+        if fixedPrice then
+            local referenceMetabolic = math.max(input.referenceWeight or W, 1) ^ 0.75
+            anchor = cfg.maintenancePerKgMetabolic * referenceMetabolic * (1 + cfg.pregnancyFactor * (input.numFetuses or 0) * ramp)
+                + math.max(input.referenceGrowthNU or 0, 0)
+        else
+            anchor = maintenance + pregnancy + growthNeed
+        end
+        anchor = anchor + math.max(input.anchorMilk or 0, 0) * cfg.milkNUPerLiter
+        local nuPerLiter = 0
+        if (input.referenceLiters or 0) > 0 then nuPerLiter = (input.intakeCapacity or 1) * anchor / input.referenceLiters end
+        supply = math.max(input.intakeLiters or 0, 0) * nuPerLiter
     end
-    anchor = anchor + math.max(input.anchorMilk or 0, 0) * cfg.milkNUPerLiter
-    local nuPerLiter = 0
-    if (input.referenceLiters or 0) > 0 then nuPerLiter = (input.intakeCapacity or 1) * anchor / input.referenceLiters end
-    local supply = math.max(input.intakeLiters or 0, 0) * nuPerLiter
 
     -- Step amounts.
     local avail = supply * dt
@@ -219,7 +284,7 @@ function RLGrowthMath.step(input, cfg)
     -- A thin cow stops giving her reserve to milk: below milkMobilizeFloor she gives less milk.
     if input.isLactating and needL > paidL then
         local milkEase = math.clamp((r - cfg.milkMobilizeFloor) / cfg.mobilizeEaseRange, 0, 1)
-        cover = math.min(mobilizableNU - mobilizedNU, needL - paidL, cfg.milkMobilizeShare * needL * milkEase)
+        cover = math.min(mobilizableNU - mobilizedNU, needL - paidL, (input.milkMobilizeShare or cfg.milkMobilizeShare) * needL * milkEase)
         cover = math.max(cover, 0)
         paidL = paidL + cover; mobilizedNU = mobilizedNU + cover
     end
@@ -302,6 +367,9 @@ function RLGrowthMath.step(input, cfg)
         lostNU = lostNU,
         unmetNU = deficitM + deficitP + (needG - paidG) + (needL - paidL),
         maintenanceDeficitNU = deficitM,
+        pregnancyDeficitNU = deficitP,
+        maintenanceNU = needM,
+        pregnancyNU = needP,
         demandNU = demand * dt,
     }
 end

@@ -204,6 +204,9 @@ Codice sorgente e tracciamento issue: https://github.com/rittermod/FS25_Realisti
         <actionBinding action="RL_SELL_SEMEN">
             <binding device="KB_MOUSE_DEFAULT" input="KEY_k" index="1"/>
         </actionBinding>
+        <actionBinding action="RL_FEED_RATION">
+            <binding device="KB_MOUSE_DEFAULT" input="KEY_g" index="1"/>
+        </actionBinding>
     </inputBinding>
     <actions>
         <action name="RL_OPEN_ANIMAL_SCREEN"/>
@@ -216,6 +219,7 @@ Codice sorgente e tracciamento issue: https://github.com/rittermod/FS25_Realisti
         <action name="RL_MENU"/>
         <action name="RL_SELECT_SECTION"/>
         <action name="RL_SELL_SEMEN"/>
+        <action name="RL_FEED_RATION"/>
     </actions>
     <helpLines>
 

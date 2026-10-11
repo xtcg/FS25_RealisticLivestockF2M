@@ -554,6 +554,8 @@ function RLBodyCondition.coversThisHour(animal, tick)
     if tick == nil then return false end
     local state = animal.bodyCondition
     if state ~= nil and state.lastTick == tick then return true end
+    -- Real-equivalent nutrition: the hour is the budget's whatever the animal ate.
+    if RLFeed ~= nil and RLFeed.runsFor(animal, tick) then return true end
     return RLBodyCondition.getLedger(animal, tick) ~= nil and (animal:getInput("food") or 0) > 0
 end
 
@@ -714,7 +716,7 @@ end
 --- @param litersPerHour table fillType -> liters per hour (the spec's)
 --- @param contributions table|nil array of {animal, fillType, liters}
 --- @param superFunc function The rest of the updateOutput chain
---- @param deposit function(fillType, liters) Puts liters into the store
+--- @param deposit function(fillType, liters) Puts liters into the store; returns what it took
 function RLBodyCondition.depositMilk(placeable, litersPerHour, contributions, superFunc, deposit)
     local tick = RLBodyCondition.getTickId()
     if contributions == nil or #contributions == 0 or tick == nil then
@@ -759,9 +761,16 @@ function RLBodyCondition.depositMilk(placeable, litersPerHour, contributions, su
     end
 
     local timeAdjustment = g_currentMission.environment.timeAdjustment
+    local deposits = RLFeed ~= nil and RLFeed.hasObservers() and {} or nil
     for fillType, liters in pairs(paid) do
-        if saved[fillType] ~= nil and liters > 0 and nonFeed > 0 then deposit(fillType, liters * nonFeed * timeAdjustment) end
+        if saved[fillType] ~= nil and liters > 0 and nonFeed > 0 then
+            local requested = liters * nonFeed * timeAdjustment
+            local added = deposit(fillType, requested)
+            if deposits ~= nil then deposits[fillType] = { paid = liters * timeAdjustment, requested = requested, added = added } end
+        end
     end
+    -- Observers (TestDiagnostics): what each store was paid, asked and took this hour.
+    if deposits ~= nil then RLFeed.notify("MILK", { placeable = placeable, tick = tick, nonFeed = nonFeed, deposits = deposits }) end
 end
 
 
@@ -915,6 +924,17 @@ function RLBodyCondition.addInfos(animal, infos)
     row.ratio = math.clamp(ratio or 0, 0, 1)
     row.valueText = text
     table.insert(infos, row)
+
+    -- Real-equivalent nutrition (calves too): real intake against plan, ration share and its
+    -- limit, a bull's finishing forecast.
+    if RLFeedInfoService ~= nil then
+        for _, feedRow in ipairs(RLFeedInfoService.getAnimalRows(animal)) do
+            row = infoRow(animal, feedRow.key, feedRow.titleKey)
+            row.ratio = feedRow.ratio
+            row.valueText = feedRow.valueText
+            table.insert(infos, row)
+        end
+    end
 
     if not RLBodyCondition.isEligible(animal) then return end
 

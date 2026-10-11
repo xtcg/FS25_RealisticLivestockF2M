@@ -12,7 +12,7 @@
         <text name="fillType_bull_hereford" text="Hereford Bullen"/>
         <text name="fillType_cow_highland_cattle" text="Hochlandrind"/>
         <text name="fillType_bull_highland_cattle" text="Hochlandrind Bullen"/>
-        <text name="animal_descriptionBullFeed" text="Bullen fressen Gras, Heu und TMR."/>
+        <text name="animal_descriptionBullFeed" text="Bullen mögen Gras, Heu und TMR. Mit dem real-äquivalenten Ernährungsmodell nehmen abgesetzte Rinder auch Getreide (Mais, Weizen, Gerste, Hafer) als Zufutter, in Grenzen."/>
         <text name="animal_descriptionBullYoung" text="Das ist ein männliches Kalb."/>
         <text name="animal_descriptionBullReproduction" text="Bullen, die gesund und älter als 12 Monate sind, können sich fortpflanzen."/>
         <text name="rl_descriptionCowReproduction" text="Kühe, die gesund und älter als 12 Monate sind, können sich fortpflanzen."/>
@@ -944,5 +944,90 @@
         <text name="rl_semen_sellConfirm" text="Diesen Behälter mit %d Pailletten für %s verkaufen?"/>
         <text name="rl_semen_saleValue" text="Verkaufswert"/>
         <text name="rl_semen_sale" text="Spermaverkauf"/>
+        <text name="rl_settings_nutritionMode_label" text="Ernährungsmodell"/>
+        <text name="rl_settings_nutritionMode_tooltip" text="Rinder: Alt behält die alten Futterregeln. Real-äquivalent rechnet Aufnahme und Ration in echter Trockenmasse und Energie Der Standardverbrauch beträgt 1/8 des realen Äquivalentvolumens, nicht des alten Verbrauchs."/>
+        <text name="rl_settings_nutritionMode_texts_1" text="Alt"/>
+        <text name="rl_settings_nutritionMode_texts_2" text="Real-äquivalent (futtersparend)"/>
+        <text name="rl_feed_grainGroup" text="Getreide (Zufutter)"/>
+
+        <!-- Feed UI: Chinese and English; English fallback for other languages. -->
+        <text name="rl_feed_penMode" text="Feed model"/>
+        <text name="rl_feed_modeReal" text="Real-equivalent"/>
+        <text name="rl_feed_penRation" text="Ration target"/>
+        <text name="rl_feed_penCoverage" text="ME plan covered"/>
+        <text name="rl_feed_penFirstOut" text="First to run out"/>
+        <text name="rl_feed_intake" text="DM / ME cover"/>
+        <text name="rl_feed_intakeFormat" text="%.1f kg/d (%.0f%%)"/>
+        <text name="rl_feed_ration" text="Grain DM / limit"/>
+        <text name="rl_feed_finish" text="Finish estimate"/>
+        <text name="rl_feed_finishReady" text="Ready"/>
+        <text name="rl_feed_finishStalled" text="Gain too low"/>
+        <text name="rl_feed_monthsShort" text="mo"/>
+        <text name="rl_feed_unconfigured" text="No feed data"/>
+        <text name="rl_feed_grainNotEaten" text="Not fed in legacy"/>
+        <text name="rl_feed_grain_AUTO" text="Auto grain"/>
+        <text name="rl_feed_grain_NONE" text="No grain"/>
+        <text name="rl_feed_feedShareFormat" text="%s (%.0f%% DM)"/>
+        <text name="rl_feed_feedPlanFormat" text="%s · plan %.0f L/%s"/>
+        <text name="rl_feed_reason_OK" text="Real-equivalent"/>
+        <text name="rl_feed_reason_MODE_OFF" text="Legacy mode"/>
+        <text name="rl_feed_reason_CONFIG_INVALID" text="Invalid feed data"/>
+        <text name="rl_feed_reason_MODEL_OFF" text="Weight model off"/>
+        <text name="rl_feed_reason_NOT_CATTLE" text="Cattle only"/>
+        <text name="rl_feed_reason_MILKCOW_LEGACY" text="Milk cows: legacy"/>
+        <text name="rl_feed_reason_NO_TROUGH" text="No supported trough"/>
+        <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="Unsupported animal"/>
+        <text name="rl_feed_reason_SUCKLING_CALF" text="Saugkalb ohne Mutter"/>
+        <text name="rl_feed_reason_UNKNOWN" text="Status unavailable"/>
+        <text name="rl_feed_limit_NONE" text="No limit"/>
+        <text name="rl_feed_limit_FIBRE" text="Fibre limit"/>
+        <text name="rl_feed_limit_STARCH" text="Starch limit"/>
+        <text name="rl_feed_limit_WHEAT" text="Wheat limit"/>
+        <text name="rl_feed_limit_FEED_CAP" text="Futterlimit"/>
+        <text name="rl_feed_limit_NO_FORAGE" text="No roughage"/>
+        <text name="rl_feed_limit_TARGET" text="Target share"/>
+        <text name="rl_feed_limit_PROTEIN_OR_DEMAND" text="Protein/need"/>
+        <text name="rl_feed_limit_ADAPTATION" text="Adapting"/>
+        <text name="rl_feed_limit_STOCK" text="Grain short"/>
+        <text name="rl_feed_limit_NO_CONCENTRATE" text="No grain"/>
+        <text name="rl_feed_limit_NO_FEED" text="No feed"/>
+        <text name="rl_feed_limit_APPETITE" text="Intake limit"/>
+        <text name="rl_feed_limit_FILL" text="Rumen full"/>
+        <text name="rl_feed_limit_DEMAND" text="Needs met"/>
+        <text name="rl_feed_limit_PROTEIN" text="Low protein"/>
+        <text name="rl_feed_limit_UNKNOWN" text="Unknown limit"/>
+        <text name="rl_feed_target_AUTO" text="Automatic"/>
+        <text name="rl_feed_target_GROW" text="Growth"/>
+        <text name="rl_feed_target_FINISH" text="Finishing"/>
+        <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
+        <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Stall-Ration"/>
+        <text name="rl_feed_rationButton" text="Ration"/>
+        <text name="rl_feed_dialogTitle" text="Rationseinstellungen"/>
+        <text name="rl_feed_labelTarget" text="Fütterungsziel"/>
+        <text name="rl_feed_labelGrain" text="Kraftfutter"/>
+        <text name="rl_feed_labelShare" text="Kraftfutteranteil (TM)"/>
+        <text name="rl_feed_labelSubstitute" text="Ersatz bei Mangel"/>
+        <text name="rl_feed_share_AUTO" text="Auto (Höchstwert)"/>
+        <text name="rl_feed_substitute_on" text="Erlaubt"/>
+        <text name="rl_feed_substitute_off" text="Nicht erlaubt"/>
+        <text name="rl_feed_readOnly" text="Nur lesen: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Keine Berechtigung"/>
+        <text name="rl_feed_statusClient" text="Gilt nach Bestätigung durch den Server"/>
+        <text name="rl_feed_previewTarget" text="Ziel"/>
+        <text name="rl_feed_previewNow" text="Jetzt"/>
+        <text name="rl_feed_previewAdapted" text="Angepasst"/>
+        <text name="rl_feed_previewIntake" text="%d Tiere · %.1f kg TM/Tier/Tag · Energieplan %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Futter"/>
+        <text name="rl_feed_colMonth" text="L/Monat"/>
+        <text name="rl_feed_colShare" text="TM-Anteil"/>
+        <text name="rl_feed_colStock" text="Vorrat"/>
+        <text name="rl_feed_colLasts" text="Reicht"/>
+        <text name="rl_feed_previewNote" text="Nur Vorschau, nichts wird entnommen. Der Anteil ist ein Ziel: Faser-, Stärke-, Weizen- und Anpassungsgrenzen gelten weiter."/>
+        <text name="rl_feed_previewMore" text="+%d weitere Futter."/>
+        <text name="rl_feed_previewError" text="Vorschau nicht verfügbar"/>
+        <text name="rl_feed_previewNoAnimals" text="Keine Tiere in diesem Stall"/>
+        <text name="rl_feed_previewNoFeed" text="Kein nutzbares Futter im Trog"/>
+        <text name="rl_feed_apply" text="Übernehmen"/>
     </texts>
 </l10n>

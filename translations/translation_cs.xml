@@ -12,7 +12,7 @@
         <text name="fillType_bull_hereford" text="海佛特公牛"/>
         <text name="fillType_cow_highland_cattle" text="高地牛"/>
         <text name="fillType_bull_highland_cattle" text="高地公牛"/>
-        <text name="animal_descriptionBullFeed" text="公牛喜食牧草、干草和全混合日粮。"/>
+        <text name="animal_descriptionBullFeed" text="公牛喜食牧草、干草和全混合日粮。现实等效营养模式下，断奶后的牛还可按限额补喂谷物（玉米、小麦、大麦、燕麦）。"/>
         <text name="animal_descriptionBullYoung" text="这是雄性小牛。"/>
         <text name="animal_descriptionBullReproduction" text="健康且月龄超过12个月的公牛可以繁殖。"/>
         <text name="rl_descriptionCowReproduction" text="健康且月龄超过12个月的母牛可以繁殖。"/>
@@ -954,5 +954,90 @@
         <text name="rl_semen_sellConfirm" text="出售这个装有 %d 支细管的精液罐，售价 %s？"/>
         <text name="rl_semen_saleValue" text="出售价值"/>
         <text name="rl_semen_sale" text="精液销售"/>
+        <text name="rl_settings_nutritionMode_label" text="营养模型"/>
+        <text name="rl_settings_nutritionMode_tooltip" text="牛：旧版沿用原饲料规则。现实等效按现实干物质与能量计算采食和日粮，默认扣料为现实等效体积的1/8，不是旧版用量的1/8。"/>
+        <text name="rl_settings_nutritionMode_texts_1" text="旧版"/>
+        <text name="rl_settings_nutritionMode_texts_2" text="现实等效（省料）"/>
+        <text name="rl_feed_grainGroup" text="谷物补料"/>
+
+        <!-- Feed UI: Chinese and English; English fallback for other languages. -->
+        <text name="rl_feed_penMode" text="饲料模式"/>
+        <text name="rl_feed_modeReal" text="现实等效"/>
+        <text name="rl_feed_penRation" text="日粮目标"/>
+        <text name="rl_feed_penCoverage" text="计划供能覆盖"/>
+        <text name="rl_feed_penFirstOut" text="最先耗尽"/>
+        <text name="rl_feed_intake" text="干物质/供能"/>
+        <text name="rl_feed_intakeFormat" text="%.1f千克/日（%.0f%%）"/>
+        <text name="rl_feed_ration" text="谷物干物质/限制"/>
+        <text name="rl_feed_finish" text="预计出栏"/>
+        <text name="rl_feed_finishReady" text="已达出栏参考"/>
+        <text name="rl_feed_finishStalled" text="增重过慢"/>
+        <text name="rl_feed_monthsShort" text="月"/>
+        <text name="rl_feed_unconfigured" text="营养未配置"/>
+        <text name="rl_feed_grainNotEaten" text="旧模式不采食"/>
+        <text name="rl_feed_grain_AUTO" text="自动选谷物"/>
+        <text name="rl_feed_grain_NONE" text="不加谷物"/>
+        <text name="rl_feed_feedShareFormat" text="%s（干物质%.0f%%）"/>
+        <text name="rl_feed_feedPlanFormat" text="%s · 计划%.0f升/%s"/>
+        <text name="rl_feed_reason_OK" text="现实等效"/>
+        <text name="rl_feed_reason_MODE_OFF" text="旧营养模式"/>
+        <text name="rl_feed_reason_CONFIG_INVALID" text="饲料配置无效"/>
+        <text name="rl_feed_reason_MODEL_OFF" text="体重模型未启用"/>
+        <text name="rl_feed_reason_NOT_CATTLE" text="仅适用于牛"/>
+        <text name="rl_feed_reason_MILKCOW_LEGACY" text="特殊奶牛沿用旧模式"/>
+        <text name="rl_feed_reason_NO_TROUGH" text="食槽不支持"/>
+        <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="栏内有未覆盖动物"/>
+        <text name="rl_feed_reason_SUCKLING_CALF" text="吃奶小牛缺母牛"/>
+        <text name="rl_feed_reason_UNKNOWN" text="状态未知"/>
+        <text name="rl_feed_limit_NONE" text="无限制"/>
+        <text name="rl_feed_limit_FIBRE" text="粗料限制"/>
+        <text name="rl_feed_limit_STARCH" text="糖类限制"/>
+        <text name="rl_feed_limit_WHEAT" text="小麦限额"/>
+        <text name="rl_feed_limit_FEED_CAP" text="单料上限"/>
+        <text name="rl_feed_limit_NO_FORAGE" text="缺少粗料"/>
+        <text name="rl_feed_limit_TARGET" text="目标配比"/>
+        <text name="rl_feed_limit_PROTEIN_OR_DEMAND" text="蛋白或需求"/>
+        <text name="rl_feed_limit_ADAPTATION" text="换料适应"/>
+        <text name="rl_feed_limit_STOCK" text="谷物不足"/>
+        <text name="rl_feed_limit_NO_CONCENTRATE" text="缺少谷物"/>
+        <text name="rl_feed_limit_NO_FEED" text="没有饲料"/>
+        <text name="rl_feed_limit_APPETITE" text="采食上限"/>
+        <text name="rl_feed_limit_FILL" text="容量上限"/>
+        <text name="rl_feed_limit_DEMAND" text="需求已满足"/>
+        <text name="rl_feed_limit_PROTEIN" text="蛋白不足"/>
+        <text name="rl_feed_limit_UNKNOWN" text="限制未知"/>
+        <text name="rl_feed_target_AUTO" text="自动"/>
+        <text name="rl_feed_target_GROW" text="生长"/>
+        <text name="rl_feed_target_FINISH" text="育肥"/>
+        <text name="rl_feed_target_MAINTAIN" text="维持"/>
+        <text name="rl_feed_target_UNKNOWN" text="目标未知"/>
+        <text name="input_RL_FEED_RATION" text="栏日粮设置"/>
+        <text name="rl_feed_rationButton" text="日粮"/>
+        <text name="rl_feed_dialogTitle" text="日粮设置"/>
+        <text name="rl_feed_labelTarget" text="饲喂目标"/>
+        <text name="rl_feed_labelGrain" text="精料"/>
+        <text name="rl_feed_labelShare" text="精料比例（干物质）"/>
+        <text name="rl_feed_labelSubstitute" text="缺料时替代"/>
+        <text name="rl_feed_share_AUTO" text="自动（允许上限）"/>
+        <text name="rl_feed_substitute_on" text="允许"/>
+        <text name="rl_feed_substitute_off" text="不允许"/>
+        <text name="rl_feed_readOnly" text="只读：%s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="没有权限"/>
+        <text name="rl_feed_statusClient" text="服务器确认后生效"/>
+        <text name="rl_feed_previewTarget" text="目标"/>
+        <text name="rl_feed_previewNow" text="当前"/>
+        <text name="rl_feed_previewAdapted" text="适应后"/>
+        <text name="rl_feed_previewIntake" text="%d头 · 每头%.1f千克干物质/日 · 计划供能%.0f%%"/>
+        <text name="rl_feed_colFeed" text="饲料"/>
+        <text name="rl_feed_colMonth" text="升/月"/>
+        <text name="rl_feed_colShare" text="干物质占比"/>
+        <text name="rl_feed_colStock" text="库存"/>
+        <text name="rl_feed_colLasts" text="可用"/>
+        <text name="rl_feed_previewNote" text="仅为预览，不扣料。比例是目标，仍受粗料、糖类、小麦和换料适应限制。"/>
+        <text name="rl_feed_previewMore" text="另有%d种饲料未列出。"/>
+        <text name="rl_feed_previewError" text="无法预览"/>
+        <text name="rl_feed_previewNoAnimals" text="本栏没有动物"/>
+        <text name="rl_feed_previewNoFeed" text="食槽内没有可用饲料"/>
+        <text name="rl_feed_apply" text="应用"/>
     </texts>
 </l10n>

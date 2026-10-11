@@ -83,11 +83,11 @@
 				<milk fillType="MILK">
 					<key ageMonth="0" value="0"/>
 					<key ageMonth="12" value="0"/>
-					<key ageMonth="12" value="226"/>
-					<key ageMonth="36" value="226"/>
-					<key ageMonth="36" value="320"/>
-					<key ageMonth="72" value="320"/>
-					<key ageMonth="120" value="138"/>
+					<key ageMonth="12" value="589"/>
+					<key ageMonth="36" value="589"/>
+					<key ageMonth="36" value="833"/>
+					<key ageMonth="72" value="833"/>
+					<key ageMonth="120" value="359"/>
 				</milk>
 				<manure>
 					<key ageMonth="0" value="20"/>
@@ -238,11 +238,11 @@
 				<milk fillType="MILK">
 					<key ageMonth="0" value="0"/>
 					<key ageMonth="12" value="0"/>
-					<key ageMonth="12" value="223"/>
-					<key ageMonth="36" value="223"/>
-					<key ageMonth="36" value="378"/>
-					<key ageMonth="72" value="378"/>
-					<key ageMonth="120" value="206"/>
+					<key ageMonth="12" value="590"/>
+					<key ageMonth="36" value="590"/>
+					<key ageMonth="36" value="1000"/>
+					<key ageMonth="72" value="1000"/>
+					<key ageMonth="120" value="545"/>
 				</milk>
 				<manure>
 					<key ageMonth="0" value="20"/>
@@ -394,11 +394,11 @@
 				<milk fillType="MILK">
 					<key ageMonth="0" value="0"/>
 					<key ageMonth="12" value="0"/>
-					<key ageMonth="12" value="44"/>
-					<key ageMonth="36" value="44"/>
-					<key ageMonth="36" value="70"/>
-					<key ageMonth="72" value="70"/>
-					<key ageMonth="120" value="31"/>
+					<key ageMonth="12" value="168"/>
+					<key ageMonth="36" value="168"/>
+					<key ageMonth="36" value="267"/>
+					<key ageMonth="72" value="267"/>
+					<key ageMonth="120" value="118"/>
 				</milk>
 				<manure>
 					<key ageMonth="0" value="25"/>
@@ -549,11 +549,11 @@
 				<milk fillType="MILK">
 					<key ageMonth="0" value="0"/>
 					<key ageMonth="12" value="0"/>
-					<key ageMonth="12" value="39"/>
-					<key ageMonth="36" value="39"/>
-					<key ageMonth="36" value="60"/>
-					<key ageMonth="72" value="60"/>
-					<key ageMonth="120" value="21"/>
+					<key ageMonth="12" value="152"/>
+					<key ageMonth="36" value="152"/>
+					<key ageMonth="36" value="233"/>
+					<key ageMonth="72" value="233"/>
+					<key ageMonth="120" value="82"/>
 				</milk>
 				<manure>
 					<key ageMonth="0" value="25"/>
@@ -704,11 +704,11 @@
 				<milk fillType="MILK">
 					<key ageMonth="0" value="0"/>
 					<key ageMonth="12" value="0"/>
-					<key ageMonth="12" value="57"/>
-					<key ageMonth="36" value="57"/>
-					<key ageMonth="36" value="80"/>
-					<key ageMonth="72" value="80"/>
-					<key ageMonth="120" value="38"/>
+					<key ageMonth="12" value="166"/>
+					<key ageMonth="36" value="166"/>
+					<key ageMonth="36" value="233"/>
+					<key ageMonth="72" value="233"/>
+					<key ageMonth="120" value="111"/>
 				</milk>
 				<manure>
 					<key ageMonth="0" value="20"/>
@@ -858,11 +858,11 @@
 				<milk fillType="MILK">
 					<key ageMonth="0" value="0"/>
 					<key ageMonth="12" value="0"/>
-					<key ageMonth="12" value="31"/>
-					<key ageMonth="36" value="31"/>
-					<key ageMonth="36" value="50"/>
-					<key ageMonth="72" value="50"/>
-					<key ageMonth="120" value="22"/>
+					<key ageMonth="12" value="124"/>
+					<key ageMonth="36" value="124"/>
+					<key ageMonth="36" value="200"/>
+					<key ageMonth="72" value="200"/>
+					<key ageMonth="120" value="88"/>
 				</milk>
 				<manure>
 					<key ageMonth="0" value="25"/>
