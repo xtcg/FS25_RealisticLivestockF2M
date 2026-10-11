@@ -883,6 +883,10 @@ function AnimalMoveEvent:run(connection)
 		local farmId = g_farmManager:getFarmForUniqueUserId(userId).farmId
 		Log:trace("AnimalMoveEvent:run: userId=%s farmId=%d", tostring(userId), farmId)
 
+		-- T02 test diagnostics (RLCT records) for a contract slaughterhouse while rlTradeTxMode is
+		-- SHADOW or TEST; they only read and log. nil (nothing recorded) otherwise.
+		local diag = RLContractDiag ~= nil and RLContractDiag.open(self, farmId) or nil
+
 		local validatedCount = 0
 
 		for i, animal in pairs(self.animals) do
@@ -896,6 +900,7 @@ function AnimalMoveEvent:run(connection)
 					RLHusbandryProfiles.logDecision("MOVE_CHECK", self.targetObject, animal,
 						{ farmId = farmId, source = RLPenLog.pen(self.sourceObject), ok = false, errorCode = errorCode })
 				end
+				if diag ~= nil then RLContractDiag.refused(diag, "MOVE_VALIDATE", errorCode) end
 				connection:sendEvent(AnimalMoveEvent.newServerToClient(errorCode))
 				return
 			end
@@ -913,6 +918,7 @@ function AnimalMoveEvent:run(connection)
 				{ farmId = farmId, source = RLPenLog.pen(self.sourceObject), ok = penOk, errorCode = penErrorCode })
 			if not penOk then
 				Log:debug("AnimalMoveEvent:run: animal %d refused by the pen rules (%s %s)", i, tostring(penReason), tostring(penDetail))
+				if diag ~= nil then RLContractDiag.refused(diag, "PEN_RULES", penErrorCode, penReason) end
 				connection:sendEvent(AnimalMoveEvent.newServerToClient(penErrorCode))
 				return
 			end
@@ -923,6 +929,7 @@ function AnimalMoveEvent:run(connection)
 			local slotsNeeded = AnimalMoveEvent._isWeighedTarget(self.targetObject, farmId, animal.subTypeIndex) and 1 or validatedCount
 			if AnimalMoveEvent._getTargetFreeSlots(self.targetObject, farmId, animal.subTypeIndex) < slotsNeeded then
 				Log:debug("AnimalMoveEvent:run: not enough space at target (need=%d)", slotsNeeded)
+				if diag ~= nil then RLContractDiag.refused(diag, "FREE_SLOTS", AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE) end
 				connection:sendEvent(AnimalMoveEvent.newServerToClient(AnimalMoveEvent.MOVE_ERROR_NOT_ENOUGH_SPACE))
 				return
 			end
@@ -941,11 +948,13 @@ function AnimalMoveEvent:run(connection)
 			if RLContractTrade.getMode() == RLContractTrade.MODE_TEST then
 				local record, reason = RLContractTrade.execute(request)
 				local errorCode = RLContractTrade.toMoveErrorCode(record, reason)
+				if diag ~= nil then RLContractDiag.finish(diag, record, reason, errorCode) end
 				connection:sendEvent(AnimalMoveEvent.newServerToClient(errorCode))
 				if errorCode == AnimalMoveEvent.MOVE_SUCCESS then self:addMovedMessage() end
 				return
 			end
-			RLContractTrade.shadow(request)
+			local context, reason = RLContractTrade.shadow(request)
+			if diag ~= nil then RLContractDiag.shadow(diag, context, reason) end
 		end
 
 		local clusterSystemSource = self.sourceObject:getClusterSystem()
