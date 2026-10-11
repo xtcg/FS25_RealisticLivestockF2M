@@ -74,6 +74,8 @@ function Animal.new(config)
     self.age = cfg.age or 0
     self.health = cfg.health or 0
     self.monthsSinceLastBirth = cfg.monthsSinceLastBirth or 0
+    -- Calvings so far; nil = not on record (resolveBirthCount fills it).
+    self.birthCount = cfg.birthCount
     self.gender = cfg.gender or "female"
     local subType
     if config and not cfg.subTypeIndex then
@@ -405,6 +407,7 @@ function Animal:clone()
         age = self.age,
         health = self.health,
         monthsSinceLastBirth = self.monthsSinceLastBirth,
+        birthCount = self.birthCount,
         gender = self.gender,
         subTypeIndex = self.subTypeIndex,
         reproduction = self.reproduction,
@@ -1835,6 +1838,43 @@ function Animal:getLactationFactor()
     return RLLactation.getYieldFactor(self.monthsSinceLastBirth or 12)
 end
 
+--- Cattle's milk level by lactation number (RLMilkParity): 1 for other animals and for any output
+--- that is not milk. The milk curve is read at the mature age at the earliest for cattle's milk.
+---@param fillType string
+---@param output table
+---@return boolean
+function Animal:isCattleMilkOutput(fillType, output)
+    if AnimalType == nil or self.animalTypeIndex ~= AnimalType.COW then return false end
+    if fillType == "milk" then return not Animal.isSemenFillType(output.fillType) end
+    return fillType == "pallets" and Animal.isCowMilkPalletFillType(output.fillType)
+end
+
+
+--- The animal's calvings so far. Its own count (birthCount, saved and streamed with it, +1 at every
+--- birth); an animal with none on record (dealer stock, a cow that came in, an old savegame's
+--- animal) is taken from what its record says: 0 for one that has never calved, its calves on
+--- record (animal.children) if it has any, else what its age implies (RLMilkParity.getImpliedBirths).
+--- The server keeps what it works out; a client counts the same without keeping it.
+---@return number
+function Animal:resolveBirthCount()
+    if self.birthCount ~= nil then return self.birthCount end
+    local count = 0
+    if self.isParent then
+        count = self.children ~= nil and #self.children or 0
+        if count == 0 then count = RLMilkParity.getImpliedBirths(self.age) end
+    end
+    if g_server ~= nil then self.birthCount = count end
+    return count
+end
+
+
+---@return number
+function Animal:getParityFactor()
+    if not self.isParent then return 1 end
+    return RLMilkParity.getFactor(RLMilkParity.getParity(self:resolveBirthCount()))
+end
+
+
 function Animal:updateOutput(temp)
     local subType = self:getSubType()
 
@@ -1859,10 +1899,15 @@ function Animal:updateOutput(temp)
         local litersPerDay = 0
         local palletMilkCurve
 
+        -- Cattle's milk is read at its mature age: the lactation number sets the level, not a step of the curve.
+        local cattleMilk = self:isCattleMilkOutput(fillType, output)
+        local curveAge = cattleMilk and RLMilkParity.getCurveAge(self.age) or self.age
+        local parityFactor = cattleMilk and self:getParityFactor() or 1
+
         if output.curve ~= nil then
-            litersPerDay = output.curve:get(self.age)
+            litersPerDay = output.curve:get(curveAge)
         else
-            litersPerDay = output:get(self.age)
+            litersPerDay = output:get(curveAge)
         end
 
         if litersPerDay == nil then
@@ -1884,8 +1929,8 @@ function Animal:updateOutput(temp)
                 -- Milk sold in cans or pallets: goat milk, and cow and buffalo milk in Hof
                 -- Bergmann's pallet-spawner cattle buildings. Gated like the tank milk below, so a
                 -- dry or never-calved animal fills none.
-                local factor = self:getLactationFactor()
-                palletMilkCurve = litersPerDay
+                local factor = self:getLactationFactor() * parityFactor
+                palletMilkCurve = litersPerDay * parityFactor
 
                 litersPerDay = litersPerDay * factor
 
@@ -1925,9 +1970,9 @@ function Animal:updateOutput(temp)
 
             isMilk = false
         elseif isMilk then
-            local factor = self:getLactationFactor()
+            local factor = self:getLactationFactor() * parityFactor
             local productivity = self.genetics.productivity or 1
-            local curveLitersPerDay = litersPerDay
+            local curveLitersPerDay = litersPerDay * parityFactor
 
             litersPerDay = litersPerDay * factor * productivity
 
