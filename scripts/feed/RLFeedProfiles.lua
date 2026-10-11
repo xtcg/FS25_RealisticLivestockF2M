@@ -43,7 +43,7 @@ RLFeedProfiles.INTAKE = {
 
 RLFeedProfiles.PROTEIN = {
     maintenance = 0.065, calf = 0.18, young = 0.14, growing = 0.12, finishing = 0.105, lactating = 0.16, dry = 0.10,
-    youngUntilMonth = 8, growingUntilMonth = 14, lactatingAtKg = 30,
+    youngUntilMonth = 8, growingUntilMonth = 14, lactatingAtKg = 30, milkResponse = 2,
 }
 
 RLFeedProfiles.HEALTH = { extremeUnderweightRatio = 0.45, shortageBufferDays = 3 }
@@ -191,6 +191,7 @@ function RLFeedProfiles.validate(config)
         if not finite(value) or value < 0 then return false, "protein " .. key .. " must be a number >= 0" end
     end
     local p = config.protein
+    if p.milkResponse < 1 or p.milkResponse > 4 then return false, "protein milkResponse must be in 1..4" end
     for _, key in ipairs({ "calf", "young", "growing", "finishing", "lactating", "dry" }) do
         if not (p[key] > p.maintenance and p[key] < 1) then return false, "protein " .. key .. " must lie between maintenance and 1" end
     end
@@ -214,6 +215,9 @@ function RLFeedProfiles.validate(config)
     for name, breed in pairs(milk.breeds) do
         if not finite(breed.realKgPerDay) or breed.realKgPerDay <= 0 or not finite(breed.meMJPerKg) or breed.meMJPerKg <= 0 then
             return false, "milk breed " .. name .. " needs realKgPerDay and meMJPerKg > 0"
+        end
+        if not finite(breed.intakeFactor) or breed.intakeFactor < 0.5 or breed.intakeFactor > 2 then
+            return false, "milk breed " .. name .. " intakeFactor must be in 0.5..2"
         end
     end
     local usable = 0
@@ -267,6 +271,7 @@ function RLFeedProfiles.parse(xmlFile)
         config.milk.breeds[name] = {
             realKgPerDay = xmlFile:getFloat(key .. "#realKgPerDay", config.milk.realKgPerDay),
             meMJPerKg = xmlFile:getFloat(key .. "#meMJPerKg", config.milk.meMJPerKg),
+            intakeFactor = xmlFile:getFloat(key .. "#intakeFactor", 1),
         }
     end)
 
@@ -402,4 +407,14 @@ function RLFeedProfiles.getMilkBridge(profileName)
     local breed = profileName ~= nil and milk.breeds[profileName:upper()] or nil
     if breed ~= nil then return breed.realKgPerDay, breed.meMJPerKg end
     return milk.realKgPerDay, milk.meMJPerKg
+end
+
+
+--- A breed's intake capacity for its cows (lactating and dry) against the Holstein-based
+--- equations: appetite and rumen fill both x this (Jerseys eat more per kg of live weight).
+--- @param profileName string|nil
+--- @return number factor (1 without an entry)
+function RLFeedProfiles.getCowIntakeFactor(profileName)
+    local breed = profileName ~= nil and RLFeedProfiles.getConfig().milk.breeds[profileName:upper()] or nil
+    return breed ~= nil and breed.intakeFactor or 1
 end
