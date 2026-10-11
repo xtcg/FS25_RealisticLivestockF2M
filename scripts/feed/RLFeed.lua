@@ -512,7 +512,8 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
 
     return {
         animal = animal, class = class, target = target, stage = getFeedStage(animal, milkMax), milkKgPerDay = milkKg,
-        appetite = RLFeedMath.getAppetite(weight, class, config.intake, { milkKgPerDay = milkKg, weaningX = weaningX, gene = gene }),
+        appetite = RLFeedMath.getAppetite(weight, class, config.intake, { milkKgPerDay = milkKg, weaningX = weaningX, gene = gene,
+            lactationFactor = RLGrowth.getLactationFactor(animal, state) }),
         -- A calf on milk: what its rumen takes of solids, at its solidMax.
         solidCap = class == "CALF" and solidMax * RLFeedMath.getCalfSolidCapacity(weight, config.intake, weaningX, gene) or nil,
         fill = RLFeedMath.getFillCapacity(weight, class, config.intake, gene),

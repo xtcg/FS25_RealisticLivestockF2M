@@ -85,6 +85,8 @@ function AnimalBirthEvent:run(connection)
         local parent = RLAnimalUtil.find(animals, identifiers.farmId, identifiers.uniqueId, country)
 
         if parent ~= nil then
+            -- The birth count (the server counted its own in reproduce; this runs on clients).
+            if g_server == nil and parent.resolveBirthCount ~= nil then parent.birthCount = parent:resolveBirthCount() + 1 end
             parent.isParent = true
             parent.monthsSinceLastBirth = 0
             parent.pregnancy = nil
@@ -125,6 +127,7 @@ function AnimalBirthEvent:run(connection)
         local parent = RLAnimalUtil.find(clusterSystem.animals, identifiers.farmId, identifiers.uniqueId, country)
 
         if parent ~= nil then
+            if g_server == nil and parent.resolveBirthCount ~= nil then parent.birthCount = parent:resolveBirthCount() + 1 end
             parent.isParent = true
             parent.monthsSinceLastBirth = 0
             parent.pregnancy = nil

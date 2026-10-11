@@ -37,6 +37,8 @@ function AnimalSerialization.writeStream(animal, streamId, connection)
     streamWriteFloat32(streamId, animal.health)
     streamWriteFloat32(streamId, animal.reproduction)
     streamWriteUInt16(streamId, animal.monthsSinceLastBirth)
+    -- Calvings so far; 255 = not on record.
+    streamWriteUInt8(streamId, math.min(animal.birthCount or 255, 255))
     streamWriteString(streamId, animal.gender)
 
     streamWriteBool(streamId, animal.isParent)
@@ -201,6 +203,8 @@ function AnimalSerialization.readStream(animal, streamId, connection)
     animal.health = streamReadFloat32(streamId)
     animal.reproduction = streamReadFloat32(streamId)
     animal.monthsSinceLastBirth = streamReadUInt16(streamId)
+    local birthCount = streamReadUInt8(streamId)
+    animal.birthCount = birthCount < 255 and birthCount or nil
     animal.gender = streamReadString(streamId)
 
     animal.isParent = streamReadBool(streamId)
