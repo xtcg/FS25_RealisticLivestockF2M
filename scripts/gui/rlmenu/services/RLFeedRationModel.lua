@@ -237,6 +237,7 @@ function RLFeedRationModel:getPreviewTexts()
     end
     out.intake = string.format(getText("rl_feed_previewIntake"), preview.animals, preview.kgPerHeadDay,
         math.clamp(preview.coverage or 0, 0, 9.99) * 100)
+    if (preview.calvesWithoutMilk or 0) > 0 then out.warning = string.format(getText("rl_feed_calfMilkNone"), preview.calvesWithoutMilk) end
 
     local function volume(liters)
         return g_i18n ~= nil and g_i18n.formatVolume ~= nil and g_i18n:formatVolume(liters, 0) or string.format("%.0f l", liters)

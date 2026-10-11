@@ -123,6 +123,7 @@ function RLFeedRationDialog:refresh()
     self.emptyText:setVisible(texts.empty ~= nil)
     local note = g_i18n:getText("rl_feed_previewNote")
     if texts.more > 0 then note = string.format("%s %s", string.format(g_i18n:getText("rl_feed_previewMore"), texts.more), note) end
+    if texts.warning ~= nil then note = string.format("%s · %s", texts.warning, note) end
     self.noteText:setText(note)
 end
 

@@ -869,10 +869,17 @@ function RLFeed.runStep(placeable, window, stepDays)
         if a.damMilk ~= nil then RLFeed.settleDamMilk(a, hour, config.damMilk, observed) end
         RLFeedRationPlanner.sumAnimal(a)
         local animal = a.animal
+        -- A calf's milk this step: what it planned to drink and what it got (trough and dam).
+        local milkDrunk = a.damMilk ~= nil and a.damMilk.kg or 0
+        for name, fill in pairs(a.byFill) do
+            local profile = RLFeedProfiles.getUsableFeed(name)
+            if profile ~= nil and profile.role == "MILK" then milkDrunk = milkDrunk + fill.kg end
+        end
         local feed = { tick = tick, owner = placeable, kg = a.kg, me = a.me, cp = a.cp, byFill = a.byFill, plannedKg = a.plannedKg,
             plannedMe = a.plannedMe, class = a.class, target = a.target, concShare = a.cEaten, concLimit = a.concLimit,
             intakeLimit = a.intakeLimit, proteinFactor = RLFeedMath.getProteinFactor(a.cp, a.proteinNeed, protein.maintenance),
-            proteinNeed = a.proteinNeed, dtDays = stepDays, water = waterCoverage, damMilk = a.damMilk }
+            proteinNeed = a.proteinNeed, dtDays = stepDays, water = waterCoverage, damMilk = a.damMilk,
+            milkPlanKg = a.milkPlanKg or 0, milkDrunkKg = milkDrunk }
         local before = observed ~= nil and { weight = animal.weight, health = animal.health, healthCarry = animal.rlHealthCarry or 0 } or nil
         local paidBefore = a.nursing ~= nil and hour.animals[animal] ~= nil and hour.animals[animal].milkPaidLiters or 0
         RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
@@ -949,7 +956,7 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
     local record = hour.animals[animal]
     if record == nil then
         record = { tick = tick, owner = placeable, kg = 0, me = 0, cpKg = 0, byFill = {}, plannedKg = 0, plannedMe = 0, dtDays = 0,
-            milkLiters = 0, milkPaidLiters = 0, damMilkKg = 0, steps = 0 }
+            milkLiters = 0, milkPaidLiters = 0, damMilkKg = 0, milkPlanKg = 0, milkDrunkKg = 0, steps = 0 }
         hour.animals[animal] = record
         table.insert(hour.order, animal)
     end
@@ -957,6 +964,7 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
     record.kg, record.me, record.cpKg = record.kg + feed.kg, record.me + feed.me, record.cpKg + feed.cp * feed.kg
     record.plannedKg, record.plannedMe, record.dtDays = record.plannedKg + feed.plannedKg, record.plannedMe + feed.plannedMe, record.dtDays + feed.dtDays
     if feed.damMilk ~= nil then record.damMilkKg = record.damMilkKg + feed.damMilk.kg end
+    record.milkPlanKg, record.milkDrunkKg = record.milkPlanKg + (feed.milkPlanKg or 0), record.milkDrunkKg + (feed.milkDrunkKg or 0)
     for name, fill in pairs(feed.byFill) do
         local total = record.byFill[name] or { liters = 0, kg = 0, me = 0, cpKg = 0 }
         total.liters, total.kg, total.me, total.cpKg = total.liters + fill.liters, total.kg + fill.kg, total.me + fill.me, total.cpKg + fill.cpKg
@@ -986,6 +994,60 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
 end
 
 
+--- A calf drank under half the milk it planned this hour (milk it was due: its allowance within its
+--- appetite, from its dam and the trough).
+RLFeed.MILK_SHORT_SHARE = 0.5
+function RLFeed.isMilkShort(planKg, drunkKg)
+    return (planKg or 0) > 0 and (drunkKg or 0) < RLFeed.MILK_SHORT_SHARE * planKg
+end
+
+--- Calf milk running low: less than this many months left at the plan.
+RLFeed.CALF_MILK_LOW_MONTHS = 0.25
+
+--- A rearing pen's calves on milk this hour: { state, calves, short, monthsLeft }. state "NONE" when
+--- a calf drank under half its milk and the trough has too little milk for its plan, "LOW" when
+--- the milk lasts under CALF_MILK_LOW_MONTHS at the plan, else "OK"; nil without a calf on milk.
+--- Pure on its inputs: records { milkPlanKg, milkDrunkKg }, the milk stock and the planned milk
+--- liters a month.
+function RLFeed.getCalfMilkAlert(records, stockLiters, plannedPerMonth)
+    local calves, short = 0, 0
+    for _, record in ipairs(records) do
+        if (record.milkPlanKg or 0) > 0 then
+            calves = calves + 1
+            if RLFeed.isMilkShort(record.milkPlanKg, record.milkDrunkKg) then short = short + 1 end
+        end
+    end
+    if calves == 0 then return nil end
+    local monthsLeft = plannedPerMonth > 0 and math.max(stockLiters, 0) / plannedPerMonth or nil
+    local state = "OK"
+    if short > 0 and (monthsLeft == nil or monthsLeft < RLFeed.CALF_MILK_LOW_MONTHS) then
+        state = "NONE"
+    elseif monthsLeft ~= nil and monthsLeft < RLFeed.CALF_MILK_LOW_MONTHS then
+        state = "LOW"
+    end
+    return { state = state, calves = calves, short = short, monthsLeft = monthsLeft }
+end
+
+--- The alert for a pen's hour (server): its calves' records, the trough's milk and the plan's.
+function RLFeed.getPenCalfMilkAlert(placeable, hour)
+    local records = {}
+    for _, animal in ipairs(hour.order or {}) do
+        local record = hour.animals[animal]
+        if record ~= nil and record.class == "CALF" then records[#records + 1] = record end
+    end
+    local stock, planned = 0, 0
+    for name, liters in pairs(hour.plannedPerMonth or {}) do
+        local profile = RLFeedProfiles.getUsableFeed(name)
+        if profile ~= nil and profile.role == "MILK" then
+            planned = planned + liters
+            local index = g_fillTypeManager:getFillTypeIndexByName(name)
+            if index ~= nil then stock = stock + math.max(placeable:getAvailableFood(index) or 0, 0) end
+        end
+    end
+    return RLFeed.getCalfMilkAlert(records, stock, planned)
+end
+
+
 --- Close a pen's feeding (server): each animal's record of the hour (what it ate over the hour's
 --- steps, the milk its budget paid for the store), the pen's hour and month.
 --- @param placeable table
@@ -1002,6 +1064,7 @@ function RLFeed.endFeeding(placeable)
     for _, animal in ipairs(hour.order) do
         local record = hour.animals[animal]
         record.cp = record.kg > 0 and record.cpKg / record.kg or 0
+        record.milkShort = RLFeed.isMilkShort(record.milkPlanKg, record.milkDrunkKg)
         animal.rlFeedIntake = record
         -- The store deposits liters per hour x the hour's time adjustment.
         animal.rlMilkPaid = { tick = tick, litersPerHour = timeAdjustment > 0 and record.milkLiters / timeAdjustment or 0, deposited = false }
@@ -1012,6 +1075,7 @@ function RLFeed.endFeeding(placeable)
             growthFraction = record.growthFraction, intakeSource = "feed" }
     end
     if hour.steps > 0 then placeable.rlBodyConditionStepped = tick end
+    hour.calfMilk = hour.steps > 0 and isRearingPen(placeable) and RLFeed.getPenCalfMilkAlert(placeable, hour) or nil
 
     local water = spec.rlWaterCoverage
     hour.tick = tick
@@ -1025,6 +1089,10 @@ function RLFeed.endFeeding(placeable)
     local supply = spec.rlNutritionSupply
     if supply ~= nil and supply.tick == tick and hour.steps > 0 then supply.energyShare = { ME = math.clamp(hour.coverage, 0, 1) } end
     if hour.steps > 0 then spec.rlFeedLast = hour end
+    if hour.calfMilk ~= nil and RLFeedInfoService ~= nil and g_currentMission ~= nil and g_currentMission.getIsClient ~= nil
+        and g_currentMission:getIsClient() then
+        RLFeedInfoService.notifyCalfMilk(placeable, hour.calfMilk)
+    end
     RLFeed.addToMonth(placeable, hour)
     if #observers > 0 then RLFeed.notify("HOUR", { placeable = placeable, tick = tick, hour = hour }) end
 end
@@ -1476,6 +1544,13 @@ function RLFeed.writePenStream(placeable, streamId)
         streamWriteFloat32(streamId, planned)
     end
     streamWriteUInt16(streamId, month ~= nil and math.min(month.hours, 65535) or 0)
+    local calfMilk = last ~= nil and last.calfMilk or nil
+    streamWriteString(streamId, calfMilk ~= nil and calfMilk.state or "")
+    if calfMilk ~= nil then
+        streamWriteUInt8(streamId, math.min(calfMilk.calves, 255))
+        streamWriteUInt8(streamId, math.min(calfMilk.short, 255))
+        streamWriteFloat32(streamId, calfMilk.monthsLeft or -1)
+    end
 end
 
 
@@ -1491,6 +1566,12 @@ function RLFeed.readPenStream(streamId)
         data.plannedPerMonth[name] = streamReadFloat32(streamId)
     end
     data.hours = streamReadUInt16(streamId)
+    local state = streamReadString(streamId)
+    if state ~= "" then
+        data.calfMilk = { state = state, calves = streamReadUInt8(streamId), short = streamReadUInt8(streamId) }
+        local months = streamReadFloat32(streamId)
+        data.calfMilk.monthsLeft = months >= 0 and months or nil
+    end
     return data
 end
 
@@ -1502,6 +1583,8 @@ function RLFeed.applyPenStream(placeable, data)
     spec.rlFeedPen = { tick = RLBodyCondition.getTickId(), active = data.active, reason = data.reason, client = true }
     spec.rlFeedRation = RLFeed.sanitizeRation(data.ration)
     spec.rlFeedClient = data
+    -- A client's own notice (the server's host has it from RLFeed.endFeeding).
+    if data.calfMilk ~= nil and RLFeedInfoService ~= nil and (g_server == nil) then RLFeedInfoService.notifyCalfMilk(placeable, data.calfMilk) end
 end
 
 
@@ -1546,6 +1629,7 @@ function RLFeed.writeAnimalStream(animal, streamId, tick)
     streamWriteString(streamId, record.intakeLimit or "")
     streamWriteString(streamId, record.healthReason or "")
     streamWriteFloat32(streamId, record.gainPerMonth or 0)
+    streamWriteBool(streamId, record.milkShort == true)
 end
 
 
@@ -1558,7 +1642,7 @@ function RLFeed.readAnimalStream(streamId)
         concShare = streamReadFloat32(streamId), proteinFactor = streamReadFloat32(streamId),
         class = text(streamReadString(streamId)), target = text(streamReadString(streamId)),
         concLimit = text(streamReadString(streamId)), intakeLimit = text(streamReadString(streamId)),
-        healthReason = text(streamReadString(streamId)), gainPerMonth = streamReadFloat32(streamId), client = true,
+        healthReason = text(streamReadString(streamId)), gainPerMonth = streamReadFloat32(streamId), milkShort = streamReadBool(streamId), client = true,
         tick = RLBodyCondition.getTickId(),
     }
 end

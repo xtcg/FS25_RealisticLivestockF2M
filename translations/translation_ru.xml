@@ -996,6 +996,12 @@
         <text name="rl_feed_limit_DEMAND" text="Needs met"/>
         <text name="rl_feed_limit_PROTEIN" text="Low protein"/>
         <text name="rl_feed_limit_UNKNOWN" text="Unknown limit"/>
+        <text name="rl_feed_limit_NO_CALF_MILK" text="No calf milk"/>
+        <text name="rl_feed_penCalfMilk" text="Calves on milk"/>
+        <text name="rl_feed_calfMilkNone" text="%d without calf milk"/>
+        <text name="rl_feed_calfMilkLow" text="Calf milk for %s"/>
+        <text name="rl_feed_calfMilkAlert" text="%s: %d calves on milk have no calf milk - they will lose health and may die"/>
+        <text name="rl_feed_calfMilkLowAlert" text="%s: calf milk runs out in %s"/>
         <text name="rl_feed_target_AUTO" text="Automatic"/>
         <text name="rl_feed_target_GROW" text="Growth"/>
         <text name="rl_feed_target_FINISH" text="Finishing"/>
