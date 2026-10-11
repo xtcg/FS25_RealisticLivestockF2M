@@ -95,7 +95,8 @@
 <dealerStock version="2" maxAttempts="8" femaleShare="0.5">
 
     <!-- Cattle. Bulls and cows from rearing and breeding herds; no cull cows, no cows past 4 years.
-         Unweaned calves need a calf rearing pen and are off until the dealer can check one. -->
+         Calves on milk (CALF_MILK) come from dairy herds only and need a calf rearing pen; the dealer
+         does not check that the buyer has one. -->
     <profile name="CATTLE" maxFemaleAgeMonth="48" maxMaleAgeMonth="36" slowMaxFemaleAgeMonth="48" slowMaxMaleAgeMonth="42"
              maxPregnancyProgress="0.75" minRecoveryMonth="3" minHealth="90">
         <purpose id="CALF_MILK"          gender="female" minAgeMonth="1"  maxAgeMonth="3"  weight="10"/>
