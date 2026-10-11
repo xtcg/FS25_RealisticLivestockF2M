@@ -825,24 +825,26 @@ function RLGrowth.drawBirthWeight(childSubType, ctx, random)
 end
 
 
---- Set a newborn up: its weight is its birth weight, development 0, the neutral reserve, its
---- adult weight from its own genes.
---- @param child table
---- @param weight number kg
-function RLGrowth.initBirth(child, weight)
-    local subType = child:getSubType()
-    local binding = RLGrowth.getBinding(subType)
-    if binding == nil then return end
+--- Construct a state from the ONE weight selected by the normal birth draw. Pure: no draw,
+--- no identity allocation and no writes to the animal. Never derives from its current weight
+--- or carries an old-save anchor. Both real births and historical births use this factory.
+--- @return table|nil state
+--- @return string|nil reason
+function RLGrowth.createBirthState(child, weight)
+    if child == nil or child.getSubType == nil or child.genetics == nil then return nil, "BIRTH_CONTEXT" end
+    if type(weight) ~= "number" or weight ~= weight or weight <= 0 or weight == math.huge then
+        return nil, "BIRTH_WEIGHT"
+    end
+    local binding = RLGrowth.getBinding(child:getSubType())
+    if binding == nil then return nil, "MODEL_COVERAGE" end
     local bc = RLBodyCondition.getConfig()
     local kappa = RLGrowth.getKappa()
     local frame, reserveKg = RLGrowthMath.split(weight, bc.initialReserve, kappa)
-    child.weight = weight
-    child.rlGrowth = nil
-    local frameTarget = RLGrowth.getFrameTarget(child, binding)
-    -- Development where its own curve has that frame: 0 when the initial reserve is the reference
-    -- one (the default), a little on either side otherwise, so frame and development agree.
+    -- Do not read a previous individual's state through getFrameTarget.
+    local size = RLGrowth.getGeneFactors(child.genetics.metabolism)
+    local frameTarget = RLGrowth.getAdultReference(binding) * size
     local curve = RLGrowth.buildCurve(binding, frameTarget, weight)
-    child.rlGrowth = RLGrowth.newState({
+    return RLGrowth.newState({
         birthWeightKg = weight,
         frameTargetKg = frameTarget,
         developmentMonths = RLGrowthMath.getDevelopment(curve, frame, kappa, bc.referenceReserve),
@@ -853,8 +855,19 @@ function RLGrowth.initBirth(child, weight)
         ageMonths = 0,
         source = "birth",
     })
+end
+
+
+--- Apply the shared birth factory to a real newborn. Sampling and survival stay in the normal
+--- reproduction path; the factory consumes their selected weight without drawing again.
+function RLGrowth.initBirth(child, weight)
+    local state, reason = RLGrowth.createBirthState(child, weight)
+    if state == nil then return false, reason end
+    child.weight = weight
+    child.rlGrowth = state
     child.targetWeight = RLGrowth.getAnimalTargetWeight(child)
-    child.rlGrowthCurve = nil
+    child.rlGrowthCurve, child.rlGrowthPeek = nil, nil
+    return true
 end
 
 
@@ -1116,6 +1129,24 @@ function RLGrowth.buildStepInput(animal, state, intakeLiters, milkShare, dtMonth
 end
 
 
+--- Shared physiological input rules. Supply describes only the feeding environment:
+--- intakeLiters is energy-adjusted liters PER MONTH in the legacy nutrition mode; feed is the
+--- actual RLFeed ration eaten over dtMonths in real-equivalent mode. Feed energy is never
+--- inferred from an energy deficit. The caller supplies water/milk coverage as milkShare.
+--- @return table input
+--- @return table config
+--- @return number ownReference
+function RLGrowth.buildBudgetInput(animal, state, supply, dtMonths)
+    local feed = supply.feed
+    local milkShare = feed ~= nil and (feed.water or 1) or (supply.milkShare or 1)
+    local input, ownReference = RLGrowth.buildStepInput(animal, state,
+        supply.intakeLiters or 0, milkShare, dtMonths, feed ~= nil)
+    local config = RLBodyCondition.getConfig()
+    if feed ~= nil then input, config = RLFeed.applyStepInput(animal, input, feed, dtMonths) end
+    return input, config, ownReference
+end
+
+
 --- Liters of full ration the animal ate this hour: its share of its pen's feed ledger, or with
 --- no ledger, the pen's food factor (forage digestion applied) of its request.
 --- @return number litersThisStep
@@ -1198,6 +1229,29 @@ local function applyStepResult(animal, state, result, tick)
 end
 
 
+--- Integrate one explicit model-time interval using the same input builder and state update
+--- for player and historical animals. The caller owns event boundaries, whole-month age,
+--- pregnancy and milk refresh, and duplicate-time protection; this never advances those events.
+--- Historical callers MUST initialise with createBirthState, never ensureState's migration.
+--- @return table|nil result
+--- @return table input
+--- @return number weightBefore
+--- @return number ownReference
+function RLGrowth.advanceBudget(animal, supply, dtMonths, tick)
+    if type(dtMonths) ~= "number" or dtMonths ~= dtMonths or dtMonths <= 0 or dtMonths == math.huge then
+        return nil, nil, animal.weight, nil, "HISTORY_INTERVAL"
+    end
+    local state = RLGrowth.ensureState(animal)
+    RLGrowth.resync(animal, state)
+    prepareStep(animal, state, dtMonths)
+    local input, config, ownReference = RLGrowth.buildBudgetInput(animal, state, supply, dtMonths)
+    local weightBefore = animal.weight
+    local result = RLGrowthMath.step(input, config)
+    if not applyStepResult(animal, state, result, tick) then return nil, input, weightBefore, ownReference end
+    return result, input, weightBefore, ownReference
+end
+
+
 --- Run this hour's step for a covered animal. Called by the server from AnimalHealth.updateHealth
 --- in place of every old weight rule. With its pen's feed ledger the animal eats its share of
 --- what the pen ate and its milk is the budget's; without one (a pen with no trough, the first
@@ -1217,6 +1271,7 @@ function RLGrowth.step(animal, foodFactor)
 
     local state = RLGrowth.ensureState(animal)
     if state.lastTick == tick then return true end
+    -- Preserve resync before gathering supply: intake helpers may read the state's curve.
     RLGrowth.resync(animal, state)
 
     local environment = g_currentMission.environment
@@ -1239,10 +1294,9 @@ function RLGrowth.step(animal, foodFactor)
     -- pen's food factor) before this step; the budget pays for that milk, not for more.
     local milkShare = fromLedger and waterCoverage or math.clamp(foodFactor or 0, 0, 1)
 
-    prepareStep(animal, state, dtMonths)
-    local input, ownReference = RLGrowth.buildStepInput(animal, state, intakeStep / dtMonths, milkShare, dtMonths)
-    local result = RLGrowthMath.step(input, RLBodyCondition.getConfig())
-    if not applyStepResult(animal, state, result, tick) then
+    local result, _, _, ownReference = RLGrowth.advanceBudget(animal,
+        { intakeLiters = intakeStep / dtMonths, milkShare = milkShare }, dtMonths, tick)
+    if result == nil then
         animal.rlMilkPaid = { tick = tick, litersPerHour = 0, deposited = false }
         return true
     end
@@ -1269,15 +1323,8 @@ end
 --- @return table input The budget's input (its milk potential after protein and water)
 --- @return number weightBefore
 function RLGrowth.stepFeed(animal, feed, dtMonths, tick)
-    local state = RLGrowth.ensureState(animal)
-    RLGrowth.resync(animal, state)
-    prepareStep(animal, state, dtMonths)
-    local input = RLGrowth.buildStepInput(animal, state, 0, feed.water or 1, dtMonths, true)
-    local cfg
-    input, cfg = RLFeed.applyStepInput(animal, input, feed, dtMonths)
-    local result = RLGrowthMath.step(input, cfg)
-    local weightBefore = animal.weight
-    if not applyStepResult(animal, state, result, tick) then return nil, input, weightBefore end
+    local result, input, weightBefore = RLGrowth.advanceBudget(animal, { feed = feed }, dtMonths, tick)
+    if result == nil then return nil, input, weightBefore end
     animal.bodyCondition.lastTick = tick
     return result, input, weightBefore
 end
