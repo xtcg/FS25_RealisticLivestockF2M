@@ -20,8 +20,8 @@ local inputDm = 1 * wheat.density * wheat.dm + 1 * barley.density * barley.dm
 local outputDm = 2 * grist.density * grist.dm
 check(string.format("grist: the mill's 1:1 liters keep the DM (in %.4f kg, out %.4f kg per 2 L)", inputDm, outputDm),
     near(grist.density, mean("density")) and math.abs(outputDm / inputDm - 1) < 0.001)
-check("grist: capped as wheat (30% of the ration), for weaned animals only", grist.maxShare == 0.30 and grist.stages.WEANED
-    and not grist.stages.PRE_WEANING and not grist.stages.WEANING)
+check("grist: capped as wheat (30% of the ration), for every stage like the grains it is made of", grist.maxShare == 0.30 and grist.stages.WEANED
+    and grist.stages.PRE_WEANING and grist.stages.WEANING)
 check("bale: ROUNDBALE stays unconfigured (never eaten)", F.getFeed("ROUNDBALE") ~= nil and F.getUsableFeed("ROUNDBALE") == nil)
 
 FeedSim.setMode(true)
