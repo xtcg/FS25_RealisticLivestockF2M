@@ -40,7 +40,14 @@
     The body condition state (animal.bodyCondition) mirrors the reserve as its index r = R / K
     after every step, so BCS, finish score and their factors read it as before.
 
-    No event changes the weight: weaning, castration, calving, drying off, a move, a sale, a save
+    Pregnancy and calving. A pregnant cow's live weight carries the calf, membranes and fluids
+    (gravidKg, from her pregnancy's progress, settings gravid*): it is no part of her frame or
+    reserve, the budget works on the weight without it, and when the pregnancy ends - a birth or a
+    lost calf - the next step takes it off in one go. Calving is a drop of that mass, never of
+    tissue. After it appetite lags behind milk (lactationMonths, getLactationFactor): she draws
+    her reserve through early lactation and rebuilds it as intake catches up and milk declines.
+
+    No other event changes the weight: weaning, castration, drying off, a move, a sale, a save
     and a load only change what later steps integrate. A weight changed by anything else (the old
     rules while the model was off, the console, another mod) is taken as it is: the next step
     splits it again at the animal's reserve index (RLGrowth.resync).
@@ -461,6 +468,8 @@ function RLGrowth.newState(fields)
         anchorElapsedMonths = fields.anchorElapsedMonths,
         feedAdapted = fields.feedAdapted,
         feedShortDays = fields.feedShortDays,
+        gravidKg = fields.gravidKg,
+        lactationMonths = fields.lactationMonths,
         source = fields.source or "derived",
         lastTick = fields.lastTick or -1,
     }
@@ -470,6 +479,67 @@ end
 --- A copy of a state (clone, move): two animals never share one table.
 function RLGrowth.copyState(state)
     return RLBodyCondition.copyState(state)
+end
+
+
+--- Mass of the calf or calves, membranes and fluids a pregnant animal carries now: the expected
+--- birth weight of her calves (a litter's, a first calving's) x gravidTermRatio x the share of
+--- her pregnancy ^ gravidExponent. 0 when not pregnant.
+--- @param animal table
+--- @return number kg
+function RLGrowth.getGravidTarget(animal)
+    local s = RLGrowth.getSettings()
+    if s.gravidTermRatio <= 0 then return 0 end
+    local progress, fetuses = RLBodyCondition.getPregnancy(animal)
+    if progress <= 0 or fetuses <= 0 then return 0 end
+    local child = animal.pregnancy.pregnancies[1]
+    local childSubType = (child ~= nil and child.getSubType ~= nil) and child:getSubType() or animal:getSubType()
+    local mean = RLGrowth.getBirthMeanFor(childSubType, { damBreed = animal.breed, litterSize = fetuses,
+        firstBirth = not animal.isParent, dam = animal, metabolism = 1 })
+    if mean == nil then return 0 end
+    return mean * fetuses * s.gravidTermRatio * math.clamp(progress, 0, 1) ^ s.gravidExponent
+end
+
+
+--- The gravid mass inside the animal's live weight now: what its state last carried; for a state
+--- that has none on record (an old savegame's pregnant cow) what her pregnancy has built, as her
+--- weight is taken as it is.
+--- @param animal table
+--- @param state table|nil
+--- @return number kg
+function RLGrowth.getCarriedGravid(animal, state)
+    if state ~= nil and state.gravidKg ~= nil then return math.min(state.gravidKg, animal.weight or 0) end
+    return math.min(RLGrowth.getGravidTarget(animal), animal.weight or 0)
+end
+
+
+--- Months since the animal's last calving: its clock, else the game's whole months (and half
+--- of one) when the clock is not running yet.
+--- @param animal table
+--- @param state table|nil
+--- @return number
+function RLGrowth.getLactationMonths(animal, state)
+    if state ~= nil and state.lactationMonths ~= nil then return state.lactationMonths end
+    return (animal.monthsSinceLastBirth or 12) + 0.5
+end
+
+
+--- Dry matter intake of a cow in early lactation against her full appetite: NRC 2001
+--- 1 - exp(-rate x (weeks in milk + offset)), at a strength (lactationIntakeStrength for the
+--- real-equivalent mode's appetite, lactationCapacityStrength for the old mode's credit per
+--- liter eaten). 1 for an animal that is not lactating or whose milk is long established.
+--- @param animal table
+--- @param state table|nil
+--- @param legacy boolean|nil The old nutrition mode's milder strength
+--- @return number 0..1
+function RLGrowth.getLactationFactor(animal, state, legacy)
+    if not animal.isLactating then return 1 end
+    local s = RLGrowth.getSettings()
+    local strength = legacy and s.lactationCapacityStrength or s.lactationIntakeStrength
+    if strength <= 0 then return 1 end
+    local weeks = RLGrowth.getLactationMonths(animal, state) * s.lactationWeeksPerMonth
+    local nrc = 1 - math.exp(-s.lactationIntakeRate * (weeks + s.lactationIntakeOffset))
+    return 1 - strength * (1 - math.min(nrc, 1))
 end
 
 
@@ -490,7 +560,8 @@ function RLGrowth.deriveState(animal, source)
     local frameTarget = RLGrowth.getFrameTarget(animal, binding)
     local birth = RLGrowth.getBirthWeight(animal, binding)
     local curve = RLGrowth.getCurve(animal)
-    local frame, reserveKg = RLGrowthMath.split(math.max(animal.weight or 0, 0), reserve, kappa)
+    local gravid = math.min(RLGrowth.getGravidTarget(animal), animal.weight or 0)
+    local frame, reserveKg = RLGrowthMath.split(math.max((animal.weight or 0) - gravid, 0), reserve, kappa)
     source = source or "derived"
 
     return RLGrowth.newState({
@@ -501,6 +572,8 @@ function RLGrowth.deriveState(animal, source)
         speedFactor = RLGrowth.getStageSpeed(animal),
         intakeFactor = RLBodyCondition.getIntakeCapacity(animal),
         weightKg = animal.weight,
+        gravidKg = gravid,
+        lactationMonths = animal.isLactating and RLGrowth.getLactationMonths(animal, nil) or nil,
         legacyAnchor = source == "derived" and RLGrowth.getLegacyAnchor(animal, curve) or nil,
         anchorElapsedMonths = source == "derived" and 0 or nil,
         source = source,
@@ -526,12 +599,13 @@ function RLGrowth.resync(animal, state)
     if math.abs(weight - state.weightKg) <= RLGrowth.RESYNC_TOLERANCE_KG then return false end
     local bc = RLBodyCondition.getConfig()
     local kappa = RLGrowth.getKappa()
+    local gravid = RLGrowth.getCarriedGravid(animal, state)
     local reserve = animal.bodyCondition ~= nil and animal.bodyCondition.reserve or nil
     if reserve == nil then
-        local frame = (state.weightKg or weight) - state.reserveMassKg
+        local frame = (state.weightKg or weight) - gravid - state.reserveMassKg
         reserve = frame > 0 and state.reserveMassKg / (frame * kappa) or bc.initialReserve
     end
-    local frame, reserveKg = RLGrowthMath.split(math.max(weight, 0), reserve, kappa)
+    local frame, reserveKg = RLGrowthMath.split(math.max(weight - gravid, 0), reserve, kappa)
     local curve = RLGrowth.getCurve(animal)
     state.reserveMassKg = reserveKg
     state.developmentMonths = RLGrowthMath.getDevelopment(curve, frame, kappa, bc.referenceReserve)
@@ -596,12 +670,14 @@ end
 function RLGrowth.getFrameAndReserve(animal)
     local state = animal.rlGrowth
     if state ~= nil then
-        local reserve = math.min(math.max(state.reserveMassKg or 0, 0), animal.weight or 0)
-        return (animal.weight or 0) - reserve, reserve
+        local body = (animal.weight or 0) - RLGrowth.getCarriedGravid(animal, state)
+        local reserve = math.min(math.max(state.reserveMassKg or 0, 0), body)
+        return body - reserve, reserve
     end
     local bc = RLBodyCondition.getConfig()
     local index = animal.bodyCondition ~= nil and animal.bodyCondition.reserve or bc.initialReserve
-    return RLGrowthMath.split(math.max(animal.weight or 0, 0), index, RLGrowth.getKappa())
+    local body = (animal.weight or 0) - math.min(RLGrowth.getGravidTarget(animal), animal.weight or 0)
+    return RLGrowthMath.split(math.max(body, 0), index, RLGrowth.getKappa())
 end
 
 
@@ -967,6 +1043,20 @@ function RLGrowth.getMigrationCatchUp(animal, state)
 end
 
 
+--- Share of her milk a cow may fund from her reserve: earlyMilkMobilizeShare at calving, falling
+--- linearly to the body condition setting over earlyMilkMobilizeMonths; that setting afterwards.
+--- @param animal table
+--- @param state table|nil
+--- @return number
+function RLGrowth.getMilkMobilizeShare(animal, state)
+    local base = RLBodyCondition.getConfig().milkMobilizeShare
+    if not animal.isLactating then return base end
+    local s = RLGrowth.getSettings()
+    local early = math.max(1 - RLGrowth.getLactationMonths(animal, state) / s.earlyMilkMobilizeMonths, 0)
+    return base + math.max(s.earlyMilkMobilizeShare - base, 0) * early
+end
+
+
 --- Build the step input (no state change).
 --- @param animal table
 --- @param state table
@@ -991,7 +1081,8 @@ function RLGrowth.buildStepInput(animal, state, intakeLiters, milkShare, dtMonth
 
     local input = {
         dtMonths = dtMonths,
-        weight = animal.weight,
+        -- The budget works on the animal without the calf, membranes and fluids it carries.
+        weight = animal.weight - RLGrowth.getCarriedGravid(animal, state),
         reserveKg = state.reserveMassKg,
         development = state.developmentMonths,
         curve = RLGrowth.getCurve(animal),
@@ -1005,11 +1096,12 @@ function RLGrowth.buildStepInput(animal, state, intakeLiters, milkShare, dtMonth
         pregnancyProgress = progress,
         numFetuses = fetuses,
         intakeLiters = intakeLiters,
-        intakeCapacity = state.intakeFactor,
+        intakeCapacity = state.intakeFactor * RLGrowth.getLactationFactor(animal, state, true),
         reserveCeiling = RLBodyCondition.getReserveCeiling(animal),
         balanceEMA = condition ~= nil and condition.balanceEMA or 0,
         lossRateEMA = condition ~= nil and condition.lossRateEMA or 0,
         fixedPrice = bc.fixedFeedPrice == true,
+        milkMobilizeShare = RLGrowth.getMilkMobilizeShare(animal, state),
     }
 
     if input.fixedPrice then
@@ -1054,6 +1146,20 @@ end
 local lastNoLedger = setmetatable({}, { __mode = "k" })
 
 
+--- The months-since-calving clock: it starts at a birth (the pregnancy that carried gravid mass
+--- is over and the game has just reset monthsSinceLastBirth), else runs on from what the game
+--- counts, and moves by the step's months.
+function RLGrowth.advanceLactation(animal, state, dtMonths)
+    local birth = (state.gravidKg or 0) > 0 and not animal.isPregnant and (animal.monthsSinceLastBirth or 1) == 0
+    if birth then
+        state.lactationMonths = 0
+    elseif state.lactationMonths == nil then
+        state.lactationMonths = RLGrowth.getLactationMonths(animal, nil)
+    end
+    state.lactationMonths = state.lactationMonths + dtMonths
+end
+
+
 --- What every step does before its budget: the stage factors move toward their targets, the age
 --- clock and an old savegame's take-over fade move on by the step's months, the target weight
 --- follows.
@@ -1061,6 +1167,7 @@ local function prepareStep(animal, state, dtMonths)
     state.speedFactor = relax(state.speedFactor, RLGrowth.getStageSpeed(animal), dtMonths)
     state.intakeFactor = relax(state.intakeFactor, RLBodyCondition.getIntakeCapacity(animal), dtMonths)
     RLGrowth.advanceClock(state, animal.age or 0, dtMonths)
+    RLGrowth.advanceLactation(animal, state, dtMonths)
     if state.legacyAnchor ~= nil then state.anchorElapsedMonths = (state.anchorElapsedMonths or 0) + dtMonths end
     animal.targetWeight = RLGrowth.getAnimalTargetWeight(animal)
 end
@@ -1074,8 +1181,11 @@ local function applyStepResult(animal, state, result, tick)
         state.lastTick = tick
         return false
     end
-    animal.weight = result.weight
-    state.weightKg = result.weight
+    -- Back on the live weight: the gravid mass of her pregnancy now (0 once it has ended).
+    local gravid = RLGrowth.getGravidTarget(animal)
+    animal.weight = result.weight + gravid
+    state.weightKg = animal.weight
+    state.gravidKg = gravid
     state.reserveMassKg = result.reserveKg
     state.developmentMonths = result.development
     state.lastTick = tick
@@ -1180,9 +1290,10 @@ end
 function RLGrowth.setReserveIndex(animal, reserve)
     local state = RLGrowth.ensureState(animal)
     RLGrowth.resync(animal, state)
-    local frame = math.max(animal.weight - state.reserveMassKg, 0)
+    local gravid = RLGrowth.getCarriedGravid(animal, state)
+    local frame = math.max(animal.weight - gravid - state.reserveMassKg, 0)
     state.reserveMassKg = math.max(reserve, 0) * frame * RLGrowth.getKappa()
-    animal.weight = frame + state.reserveMassKg
+    animal.weight = frame + state.reserveMassKg + gravid
     state.weightKg = animal.weight
 end
 
@@ -1225,6 +1336,8 @@ function RLGrowth.loadFromXMLFile(xmlFile, key)
         anchorElapsedMonths = xmlFile:getFloat(base .. "#anchorElapsedMonths"),
         feedAdapted = xmlFile:getFloat(base .. "#feedAdapted"),
         feedShortDays = xmlFile:getFloat(base .. "#feedShortDays"),
+        gravidKg = xmlFile:getFloat(base .. "#gravidKg"),
+        lactationMonths = xmlFile:getFloat(base .. "#lactationMonths"),
         source = xmlFile:getString(base .. "#source", "derived"),
         lastTick = xmlFile:getInt(base .. "#lastTick", -1),
     })
@@ -1307,7 +1420,7 @@ function RLGrowth.isUsable(state)
         and state.intakeFactor > 0 and optional(state.weightKg) and optional(state.ageMonths) and optional(state.anchorElapsedMonths)
         and (state.legacyAnchor == nil or (finite(state.legacyAnchor) and state.legacyAnchor > 0))
         and (state.feedAdapted == nil or (finite(state.feedAdapted) and state.feedAdapted >= 0 and state.feedAdapted <= 1))
-        and optional(state.feedShortDays)
+        and optional(state.feedShortDays) and optional(state.gravidKg) and optional(state.lactationMonths)
 end
 
 
@@ -1329,6 +1442,8 @@ function RLGrowth.saveToXMLFile(state, xmlFile, key)
     end
     if state.feedAdapted ~= nil then xmlFile:setFloat(base .. "#feedAdapted", state.feedAdapted) end
     if state.feedShortDays ~= nil then xmlFile:setFloat(base .. "#feedShortDays", state.feedShortDays) end
+    if state.gravidKg ~= nil then xmlFile:setFloat(base .. "#gravidKg", state.gravidKg) end
+    if state.lactationMonths ~= nil then xmlFile:setFloat(base .. "#lactationMonths", state.lactationMonths) end
     xmlFile:setString(base .. "#source", state.source or "derived")
     xmlFile:setInt(base .. "#lastTick", state.lastTick or -1)
 end
@@ -1350,6 +1465,8 @@ function RLGrowth.writeStream(state, streamId)
     streamWriteFloat32(streamId, state.anchorElapsedMonths or -1)
     streamWriteFloat32(streamId, state.feedAdapted or -1)
     streamWriteFloat32(streamId, state.feedShortDays or -1)
+    streamWriteFloat32(streamId, state.gravidKg or -1)
+    streamWriteFloat32(streamId, state.lactationMonths or -1)
 end
 
 
@@ -1372,6 +1489,8 @@ function RLGrowth.readStream(streamId)
         anchorElapsedMonths = optional(streamReadFloat32(streamId)),
         feedAdapted = optional(streamReadFloat32(streamId)),
         feedShortDays = optional(streamReadFloat32(streamId)),
+        gravidKg = optional(streamReadFloat32(streamId)),
+        lactationMonths = optional(streamReadFloat32(streamId)),
         source = "stream",
     })
     if not RLGrowth.isUsable(state) then return nil end

@@ -42,6 +42,9 @@ RLWeightProfiles.DEFAULTS = {
     geneSpan = 0.75, sizeGeneEffect = 0.12, speedGeneEffect = 0.10, maintenanceGeneEffect = 0.15,
     birthFadeMonths = 6, castratedSpeed = 0.90, transitionMonths = 0.5, underweightRatio = 0.60,
     frameFloorRatio = 0.5, migrationBlendMonths = 12,
+    gravidTermRatio = 1.8, gravidExponent = 3,
+    lactationIntakeRate = 0.192, lactationIntakeOffset = 3.67, lactationWeeksPerMonth = 4.29, lactationIntakeStrength = 1,
+    lactationCapacityStrength = 0.3, earlyMilkMobilizeShare = 0.45, earlyMilkMobilizeMonths = 3,
 }
 
 
@@ -95,6 +98,13 @@ function RLWeightProfiles.validateSettings(settings)
     if s.frameFloorRatio <= 0 or s.frameFloorRatio > 1 then return false, "frameFloorRatio must be > 0 and <= 1" end
     if s.birthFadeMonths <= 0 then return false, "birthFadeMonths must be > 0" end
     if s.migrationBlendMonths <= 0 then return false, "migrationBlendMonths must be > 0" end
+    if s.gravidExponent < 1 then return false, "gravidExponent must be >= 1" end
+    if s.lactationWeeksPerMonth <= 0 then return false, "lactationWeeksPerMonth must be > 0" end
+    if s.earlyMilkMobilizeShare > 1 then return false, "earlyMilkMobilizeShare must be <= 1" end
+    if s.earlyMilkMobilizeMonths <= 0 then return false, "earlyMilkMobilizeMonths must be > 0" end
+    if s.lactationIntakeStrength > 1 or s.lactationCapacityStrength > 1 then
+        return false, "lactationIntakeStrength and lactationCapacityStrength must be <= 1"
+    end
     return true
 end
 

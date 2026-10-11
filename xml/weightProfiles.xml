@@ -56,6 +56,23 @@
     speedGeneEffect   Development speed x (1 + this x z).
     maintenanceGeneEffect  Maintenance and the feed it asks for x (1 + this x z).
     birthFadeMonths   The animal's own birth weight fades into the reference curve by this age.
+    gravidTermRatio   Calf, membranes and fluids a pregnant cow carries at term, as a multiple of the
+                      calves' birth weight (calf 1 + placenta 0.1 + fluids about 0.7).
+    gravidExponent    That mass grows with (share of the pregnancy) ^ this: most of it in the last
+                      third. It is part of her live weight, not of her frame or reserve; calving
+                      takes it off in one step (no tissue is lost), as does losing the pregnancy.
+    lactationIntake*  Early lactation: appetite lags behind milk. NRC 2001 dry matter intake x
+                      (1 - exp(-rate x (weeks in milk + offset))), weeks = months x
+                      lactationWeeksPerMonth; strength 1 is the equation, 0 none. The cow then eats
+                      less than her milk asks for and draws her reserve (BCS falls), recovering as
+                      intake catches up and milk declines; dry, she eats for the next calf.
+                      lactationIntakeStrength acts on the appetite of the real-equivalent nutrition
+                      mode (kg DM), lactationCapacityStrength on the old mode's energy credit per
+                      liter eaten (milder: its energies are calibrated on the old milk yield).
+    earlyMilkMobilize*  A fresh cow gives milk before her appetite catches up and pays for it from
+                      her body: the share of her milk the reserve may fund is earlyMilkMobilizeShare
+                      at calving, falling to bodyCondition.xml's milkMobilizeShare over
+                      earlyMilkMobilizeMonths (a thin cow still gives less milk instead).
     castratedSpeed    A steer develops at this speed of a bull's (no step: the change takes
     transitionMonths  about this long, as does a change of intake capacity at calving or drying).
     underweightRatio  Below this share of its curve at its age an animal loses health. Growth that
@@ -83,7 +100,10 @@
     damReserveEffect="0.25" damFactorMin="0.90" damFactorMax="1.03"
     geneSpan="0.75" sizeGeneEffect="0.12" speedGeneEffect="0.10" maintenanceGeneEffect="0.15"
     birthFadeMonths="6" castratedSpeed="0.90" transitionMonths="0.5" underweightRatio="0.60"
-    frameFloorRatio="0.5" migrationBlendMonths="12">
+    frameFloorRatio="0.5" migrationBlendMonths="12"
+    gravidTermRatio="1.8" gravidExponent="3"
+    lactationIntakeRate="0.192" lactationIntakeOffset="3.67" lactationWeeksPerMonth="4.29" lactationIntakeStrength="1"
+    lactationCapacityStrength="0.3" earlyMilkMobilizeShare="0.45" earlyMilkMobilizeMonths="3">
 
     <!-- This mod's breeds. Birth weight = birth ratio x the cow's targetWeight (Holstein 0.0618,
          Swiss Brown 0.0615, Angus 0.0492, Limousin 0.0585, Hereford 0.0567, Highland 0.054,

@@ -172,14 +172,15 @@ end
 --- @param weight number kg
 --- @param class string CALF, GROWING, LACTATING, DRY
 --- @param intake table feedProfiles intake values
---- @param ctx table { milkKgPerDay, weaningX (age - weaning month), gene }
+--- @param ctx table { milkKgPerDay, weaningX (age - weaning month), gene, lactationFactor (a cow in
+---        early lactation eats this share of her appetite, RLGrowth.getLactationFactor) }
 --- @return number kg DM a day
 function RLFeedMath.getAppetite(weight, class, intake, ctx)
     local metabolic = math.max(weight, 1) ^ 0.75
     local perKg
     if class == "LACTATING" then
         return (intake.lactatingPerKgMetabolic * metabolic + intake.lactatingPerKgMilk * math.max(ctx.milkKgPerDay or 0, 0))
-            * (ctx.gene or 1)
+            * (ctx.gene or 1) * (ctx.lactationFactor or 1)
     elseif class == "DRY" then
         perKg = intake.dryPerKgMetabolic
     else
