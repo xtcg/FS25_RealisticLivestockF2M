@@ -169,5 +169,26 @@
 
     <!-- Example of a single subtype:
     <subType name="BULL_HIGHLAND_CATTLE" growth="0.85"/>
+
+    <!--
+        milkScale: the Cow Breeds pack (FS25_CowBreedsRLRM) ships milk curves calibrated before the milk balance of 2026-10-11 (this
+        mod's are 1.2 x the real lactation average, mature value = 1.2 x real kg/day x 30 / 1.08). The scale takes each pack curve
+        to that level (the factor between the two curves): the pack's file stays as its author made it. The feed bridge divides by the
+        scaled curve, so feed cost does not move. (Jersey: 667 game liters a month at maturity,
+        Holstein-type Red Holstein about 820, the beef breeds 230-430.)
+    -->
+    <subType name="COW_REDHOLSTEIN_PACK" milkScale="3.487"/>
+    <subType name="COW_AYRSHIRE_PACK" milkScale="2.609"/>
+    <subType name="COW_KERRY_PACK" milkScale="1.816"/>
+    <subType name="COW_SHORTHORNMILKERS_PACK" milkScale="2.267"/>
+    <subType name="COW_JERSEY_PACK" milkScale="2.578"/>
+    <subType name="COW_GUERNSEY_PACK" milkScale="2.507"/>
+    <subType name="COW_CHAROLAIS_PACK" milkScale="1.667"/>
+    <subType name="COW_REDANGUS_PACK" milkScale="1.786"/>
+    <subType name="COW_SHORTHORN_PACK" milkScale="1.506"/>
+    <subType name="COW_IRISHMOILED_PACK" milkScale="1.296"/>
+    <subType name="COW_BRITISHBLUE_PACK" milkScale="1.553"/>
+    <subType name="COW_BELTEDGALLOWAY_PACK" milkScale="1.340"/>
+    <subType name="COW_SIMMENTAL_PACK" milkScale="1.693"/>
     -->
 </breedTraits>

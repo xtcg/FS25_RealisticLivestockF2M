@@ -4,6 +4,7 @@
 local FILL = { [1] = "MILK", [2] = "BUFFALOMILK", [3] = "GOATMILK", [4] = "EGG", [5] = "WOOL" }
 g_fillTypeManager = { getFillTypeNameByIndex = function(_, i) return FILL[i] end }
 FillType = { WOOL = 5 }
+RLBreedTraits = { get = function() return 1 end }  -- no breed scales the milk here (tests/test_milk_parity.lua covers milkScale)
 
 loadAnimalSection("Animal.SEMEN_FILL_TYPE_NAMES", "\nfunction Animal:getInput")
 
