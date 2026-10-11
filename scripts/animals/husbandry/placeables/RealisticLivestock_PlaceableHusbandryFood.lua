@@ -77,6 +77,8 @@ function RealisticLivestock_PlaceableHusbandryFood:updateInfo(superFunc, infoTab
             spec.rlInfoRows[index] = info
         end
         info.text = row.text
+        -- A warning row (calves without milk) is shown in the info box's accent colour.
+        info.accentuate = row.warning == true or nil
         table.insert(infoTable, info)
     end
 end

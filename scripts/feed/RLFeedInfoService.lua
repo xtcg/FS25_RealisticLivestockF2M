@@ -244,6 +244,11 @@ function RLFeedInfoService.previewRation(placeable, ration)
         return a.name < b.name
     end)
     preview.firstOut = RLFeedInfoService.getFirstOut(preview.rows)
+    -- Calves on milk the plan cannot give half their milk (no or too little milk in the trough).
+    preview.calvesWithoutMilk = 0
+    for _, a in ipairs(plan.animals) do
+        if RLFeed.isMilkShort(a.milkPlanKg, a.milkKg) then preview.calvesWithoutMilk = preview.calvesWithoutMilk + 1 end
+    end
 
     -- The same animals once their rumens are used to the ration (the plan above set no state).
     for _, a in ipairs(animals) do a.adapted = 1 end
@@ -312,7 +317,7 @@ function RLFeedInfoService.getAnimalInfo(animal)
             plannedMePerDay = (record.plannedMe or 0) / days, coverage = (record.plannedMe or 0) > 0 and record.me / record.plannedMe or 0,
             concShare = record.concShare or 0, concLimit = record.concLimit, intakeLimit = record.intakeLimit,
             proteinFactor = record.proteinFactor or 0, target = record.target, class = record.class, healthReason = record.healthReason,
-            gainPerMonth = record.gainPerMonth }
+            gainPerMonth = record.gainPerMonth, milkShort = record.milkShort == true }
     end
     local remote = animal.rlFeedClient
     if remote ~= nil and fresh(remote.tick) then
@@ -325,10 +330,11 @@ function RLFeedInfoService.getAnimalInfo(animal)
 end
 
 
---- What holds an animal's ration: the concentrate limit when it wanted more, the protein when it
---- holds growth or milk, else what held its intake.
+--- What holds an animal's ration: a calf short of its milk first, then the concentrate limit when
+--- it wanted more, the protein when it holds growth or milk, else what held its intake.
 function RLFeedInfoService.getMainLimit(info)
     if info == nil then return nil end
+    if info.milkShort then return "NO_CALF_MILK" end
     if info.proteinFactor ~= nil and info.proteinFactor < 0.95 then return "PROTEIN" end
     if info.concLimit ~= nil and info.concLimit ~= "PROTEIN_OR_DEMAND" then return info.concLimit end
     return info.intakeLimit
@@ -375,11 +381,66 @@ function RLFeedInfoService.getPenInfoRows(placeable)
     if coverage ~= nil then
         table.insert(rows, { titleKey = "rl_feed_penCoverage", text = string.format("%.0f %%", math.clamp(coverage, 0, 9.99) * 100) })
     end
+    local calfMilk = RLFeedInfoService.getCalfMilkAlert(placeable)
+    if calfMilk ~= nil and calfMilk.state ~= "OK" then
+        table.insert(rows, { titleKey = "rl_feed_penCalfMilk", text = RLFeedInfoService.getCalfMilkText(calfMilk), warning = true })
+    end
     local _, first = RLFeedInfoService.getMonthsLeft(placeable)
     if first ~= nil then
         table.insert(rows, { titleKey = "rl_feed_penFirstOut", text = string.format("%s %s", first.title, formatMonths(first.monthsLeft)) })
     end
     return rows
+end
+
+
+-- =============================================================================
+-- Calves on milk without milk (a rearing pen)
+-- =============================================================================
+
+--- A rearing pen's calf milk alert of its last hour (server: its hour; client: what was sent), or nil.
+--- @return table|nil { state "OK"|"LOW"|"NONE", calves, short, monthsLeft }
+function RLFeedInfoService.getCalfMilkAlert(placeable)
+    local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
+    if spec == nil then return nil end
+    if spec.rlFeedLast ~= nil then return spec.rlFeedLast.calfMilk end
+    return spec.rlFeedClient ~= nil and spec.rlFeedClient.calfMilk or nil
+end
+
+
+--- The pen row's text: how many calves go without milk, or how long the milk lasts.
+function RLFeedInfoService.getCalfMilkText(alert)
+    if alert.state == "NONE" then return string.format(getText("rl_feed_calfMilkNone"), alert.short) end
+    if alert.state == "LOW" then return string.format(getText("rl_feed_calfMilkLow"), formatMonths(alert.monthsLeft or 0)) end
+    return ""
+end
+
+
+--- Tell the player once when a rearing pen's calves go without milk (critical) or its milk runs
+--- low (info), only for the player's own farm. Again only after the pen was back to OK (a refill):
+--- the state is kept per pen, so an hour that stays short does not repeat it.
+--- @param placeable table
+--- @param alert table getCalfMilkAlert
+function RLFeedInfoService.notifyCalfMilk(placeable, alert)
+    local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
+    if spec == nil or alert == nil then return end
+    if alert.state == "OK" then
+        spec.rlCalfMilkNotified = "OK"
+        return
+    end
+    -- Keep the highest severity notified until recovery, even if NONE briefly becomes LOW.
+    local last = spec.rlCalfMilkNotified
+    if alert.state == last or last == "NONE" then return end
+    local mission = g_currentMission
+    if mission == nil or mission.addIngameNotification == nil then return end
+    if placeable.getOwnerFarmId ~= nil and mission.getFarmId ~= nil and placeable:getOwnerFarmId() ~= mission:getFarmId() then return end
+    spec.rlCalfMilkNotified = alert.state
+    local name = placeable.getName ~= nil and placeable:getName() or ""
+    if alert.state == "NONE" then
+        mission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_CRITICAL, string.format(getText("rl_feed_calfMilkAlert"), name, alert.short))
+    else
+        mission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_INFO,
+            string.format(getText("rl_feed_calfMilkLowAlert"), name, formatMonths(alert.monthsLeft or 0)))
+    end
 end
 
 
