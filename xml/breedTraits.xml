@@ -85,8 +85,8 @@
         <!--
             sucklingMonths: a suckler (beef) breed's suckling period in months after calving. Her calves are weaned from
             her at this age and she is dried off then: her lactation ends (RLLactation; other cows milk RLLactation.MONTHS,
-            10). The dealer sells the breed's calves only once weaned - its weaned purposes start at this age - so a bought
-            beef calf needs no milk. Unset: not a suckler breed (a dairy breed's calves are taken off early, to calf rearing
+            10). The dealer never offers the breed younger than this age, whatever the purpose, so a bought beef calf
+            needs no milk. Unset: not a suckler breed (a dairy breed's calves are taken off early, to calf rearing
             pens). What a calf at its dam may drink at each age is still its own allowance (calfRearing.xml). Spring-born
             suckler calves are weaned from about 6 months and sold as weanlings at 5-12 months (AHDB, "Successful calf
             weaning"); 7 is one default for every suckler breed. Set on the breed, so its bull and heifer calves have it

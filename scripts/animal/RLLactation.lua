@@ -5,10 +5,10 @@
     and the yield curve over those months.
     Births (AnimalReproduction.reproduce, AnimalBirthEvent), the monthly tick
     (Animal:advanceRecoveryPeriod), the milk yield (Animal:getLactationFactor), the pen feed forecast
-    and the dealer (RLDealerStockPolicy.isInMilk, the weaned age) all read it.
+    and the dealer (RLDealerStockPolicy.isInMilk, a suckler breed's youngest age) all read it.
 
-    Pure but for getSucklingMonths / getMonths / getWeaningMonth, which read the breed traits
-    config (RLBreedTraits); AnimalType is read at call time only.
+    Pure but for getSucklingMonths / getMonths, which read the breed traits config (RLBreedTraits);
+    AnimalType is read at call time only.
 ]]
 
 RLLactation = {}
@@ -45,19 +45,6 @@ end
 --- @return number
 function RLLactation.getMonths(subType)
     return RLLactation.getSucklingMonths(subType) or RLLactation.MONTHS
-end
-
-
---- The month in which a subtype's young are weaned (weaned from the next), for the dealer: a
---- suckler breed's calves at their dam until its suckling period ends (weaned in the month before
---- it), never earlier than the calf rearing month; any other subtype the calf rearing month.
---- @param subType table|nil
---- @param rearingMonth number|nil The calf rearing weaning month (RLCalfRearing)
---- @return number|nil
-function RLLactation.getWeaningMonth(subType, rearingMonth)
-    local suckling = RLLactation.getSucklingMonths(subType)
-    if suckling == nil then return rearingMonth end
-    return math.max(rearingMonth or 0, suckling - 1)
 end
 
 

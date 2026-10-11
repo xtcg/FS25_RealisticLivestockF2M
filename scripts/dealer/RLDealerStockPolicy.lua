@@ -633,8 +633,9 @@ end
 
 
 --- A purpose's age window for a subtype, after the absolute cap, maxBuyAge, breeding and weaning
---- ages (not yet the buyable visuals).
---- @param ctx table {maxBuyAge, weaningMonth|nil (calf rearing)}
+--- ages, and a suckler breed's suckling period: its calves are with their dam until then, so none
+--- is offered younger, whatever the purpose (not yet the buyable visuals).
+--- @param ctx table {maxBuyAge, weaningMonth|nil (calf rearing), sucklingMonths|nil (RLLactation)}
 --- @return number lo
 --- @return number hi exclusive; hi <= lo means empty
 function RLDealerStockPolicy.getAgeWindow(purpose, entry, subType, ctx)
@@ -644,6 +645,7 @@ function RLDealerStockPolicy.getAgeWindow(purpose, entry, subType, ctx)
     if purpose.breeding then lo = math.max(lo, math.ceil(RLDealerStockPolicy.getBreedingAge(entry, subType))) end
     local weaningMonth = RLDealerStockPolicy.getWeaningMonth(entry, ctx)
     if purpose.weaned and weaningMonth ~= nil then lo = math.max(lo, math.ceil(weaningMonth + 1)) end
+    if ctx.sucklingMonths ~= nil then lo = math.max(lo, math.ceil(ctx.sucklingMonths)) end
     return lo, hi
 end
 
