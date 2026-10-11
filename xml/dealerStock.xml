@@ -41,9 +41,12 @@
       breedingWeight     true: also at least breedingWeightRatio x its own target weight. A breed
                          without breedingWeightRatio is not offered for this purpose.
       weaned             true: past the weaning month (the profile's weaningMonth, else the calf
-                         rearing weaning month of xml/calfRearing.xml).
+                         rearing weaning month of xml/calfRearing.xml; a suckler breed's calves,
+                         breedTraits sucklingMonths, only from that age, as they are weaned at
+                         their dam: 7 months, so a bought beef calf needs no milk).
     A mother milks from giving birth until 10 months after it (cows and goats, the game's own
-    rule), so a dealer cow is in milk or dry by her last calving, never by chance.
+    rule; a suckler breed's cow until its sucklingMonths), so a dealer cow is in milk or dry by
+    her last calving, never by chance.
 
     Profile attributes: maxFemaleAgeMonth, maxMaleAgeMonth, slowMaxFemaleAgeMonth,
     slowMaxMaleAgeMonth (absolute caps, exclusive), maxPregnancyProgress (0..1, default 0.75),

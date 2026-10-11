@@ -1275,10 +1275,12 @@ end
 
 --- Advance post-birth recovery by one period: bump monthsSinceLastBirth and,
 --- once it reaches the lactation cutoff, stop lactating. Pure and deterministic
---- -- reads/writes only these two fields, touches no game state and sets no
---- dirty flag -- so MP clients can run it locally in lockstep with the server,
---- the same property that lets aging run client-side. The isLactating flip is
---- one-directional at RLLactation.MONTHS; re-enabling lactation is AnimalBirthEvent's job.
+--- -- reads/writes only these two fields (and reads the breed's lactation length,
+--- RLLactation.getMonths), touches no game state and sets no dirty flag -- so MP
+--- clients can run it locally in lockstep with the server, the same property that
+--- lets aging run client-side. The isLactating flip is one-directional at the end of
+--- the lactation (RLLactation.MONTHS, a suckler breed's suckling period); re-enabling
+--- lactation is AnimalBirthEvent's job.
 --- @see RealisticLivestock_PlaceableHusbandryAnimals.onPeriodChanged (client branch)
 function Animal:advanceRecoveryPeriod()
     -- A legacy/corrupt savegame may carry a nil counter (Animal.new coerces it to
@@ -1287,7 +1289,7 @@ function Animal:advanceRecoveryPeriod()
 
     self.monthsSinceLastBirth = self.monthsSinceLastBirth + 1
 
-    if self.isLactating and not RLLactation.isWithin(self.monthsSinceLastBirth) then
+    if self.isLactating and not RLLactation.isWithin(self.monthsSinceLastBirth, RLLactation.getMonths(self:getSubType())) then
         self.isLactating = false
     end
 
@@ -1835,7 +1837,7 @@ end
 ---@return number
 function Animal:getLactationFactor()
     if not self.isLactating or not self.isParent then return 0 end
-    return RLLactation.getYieldFactor(self.monthsSinceLastBirth or 12)
+    return RLLactation.getYieldFactor(self.monthsSinceLastBirth or 12, RLLactation.getMonths(self:getSubType()))
 end
 
 --- Cattle's milk level by lactation number (RLMilkParity): 1 for other animals and for any output

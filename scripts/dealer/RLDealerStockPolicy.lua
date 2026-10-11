@@ -811,14 +811,14 @@ function RLDealerStockPolicy.planReproduction(purpose, entry, subType, age, rand
 end
 
 
---- Whether a mother milks now: a female, since her last birth, within RLLactation.MONTHS
---- (ctx.lactates: the species milks at all). The game's own rule (RLLactation), so a listing stays in step
---- as it ages on the shelf.
---- @param ctx table {lactates}
+--- Whether a mother milks now: a female, since her last birth, within her lactation (ctx.lactates:
+--- the species milks at all; ctx.lactationMonths: RLLactation.getMonths, nil = RLLactation.MONTHS).
+--- The game's own rule (RLLactation), so a listing stays in step as it ages on the shelf.
+--- @param ctx table {lactates, lactationMonths|nil}
 --- @return boolean
 function RLDealerStockPolicy.isInMilk(gender, isParent, monthsSinceLastBirth, ctx)
     return ctx.lactates == true and gender == "female" and isParent == true
-        and RLLactation.isWithin(monthsSinceLastBirth)
+        and RLLactation.isWithin(monthsSinceLastBirth, ctx.lactationMonths)
 end
 
 
