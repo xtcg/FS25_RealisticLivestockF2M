@@ -1508,11 +1508,12 @@ end
 
 
 --- What RLDealerStockPolicy needs to know of a subtype from the game: the type's maxBuyAge, the
---- ages whose visual can be bought, the calf rearing weaning month, and whether and how long its
---- mothers milk (RLLactation, the game's rule).
+--- ages whose visual can be bought, the calf rearing weaning month, a suckler breed's suckling
+--- period (its calves are with their dam until then), and whether and how long its mothers milk
+--- (RLLactation, the game's rule).
 ---@param animalType table
 ---@param subType table
----@return table ctx {maxBuyAge, weaningMonth, union, lactates}
+---@return table ctx {maxBuyAge, weaningMonth, union, lactates, lactationMonths, sucklingMonths}
 function AnimalSystem:getSaleAgeContext(animalType, subType)
     local maxBuyAge = animalType.maxBuyAge or 60
     return {
@@ -1520,6 +1521,8 @@ function AnimalSystem:getSaleAgeContext(animalType, subType)
         weaningMonth = RLCalfRearing.getWeaningMonthForSubType(subType),
         union = RLDealerStockPolicy.getBuyableAgeUnion(subType, maxBuyAge),
         lactates = RLLactation.startsAtBirth(animalType.typeIndex, subType.name),
+        lactationMonths = RLLactation.getMonths(subType),
+        sucklingMonths = RLLactation.getSucklingMonths(subType),
     }
 end
 

@@ -262,15 +262,58 @@ local function isRearingPen(placeable)
 end
 
 
---- A calf's milk and solid caps (RLCalfRearing), with the calf still on milk when milkMax > 0.
+local function getOwner(animal)
+    return animal ~= nil and animal.clusterSystem ~= nil and animal.clusterSystem.owner or nil
+end
+
+
+--- The cows in a pen that can nurse a calf (RLFeed.getNursingDams of its animals), kept for the
+--- hour; `fresh` works them out again (a pen's evaluation and step do, so the hour's own changes
+--- count there).
+local function getPenDams(owner, fresh)
+    local tick = RLBodyCondition ~= nil and RLBodyCondition.getTickId() or nil
+    local cache = owner.rlFeedNursingDams
+    if fresh or cache == nil or tick == nil or cache.tick ~= tick then
+        cache = { tick = tick, dams = RLFeed.getNursingDams(owner.getClusters ~= nil and owner:getClusters() or {}) }
+        owner.rlFeedNursingDams = cache
+    end
+    return cache.dams
+end
+
+
+--- Whether a calf still of an age for milk is weaned early: outside a calf rearing pen, with no
+--- dam there that can nurse it (sold, dead, in another pen, dry), and at least calfMilk
+--- earlyWeaningMonth old (3: a calf takes to solid feed from about 2-3 months, so an orphan is
+--- weaned early rather than kept on milk). It then lives on solid feed as any weaned animal. A
+--- younger one without its dam still needs milk: its pen keeps the old rules (SUCKLING_CALF) until
+--- it is in a calf rearing pen, back with its dam, or old enough.
+--- @param animal table
+--- @return boolean
+function RLFeed.isEarlyWeaned(animal)
+    local owner = getOwner(animal)
+    if owner == nil or isRearingPen(owner) then return false end
+    local age = (RLGrowth ~= nil and RLGrowth.covers(animal)) and RLGrowth.getContinuousAge(animal) or (animal.age or 0)
+    if age < RLFeed.getConfig().calfMilk.earlyWeaningMonth then return false end
+    return animal.motherId == nil or getPenDams(owner)[animal.motherId] == nil
+end
+
+
+--- A calf's milk and solid caps (RLCalfRearing), with the calf still on milk when milkMax > 0;
+--- a calf weaned early (RLFeed.isEarlyWeaned) is weaned: 0, 1.
 --- With calf rearing switched off a young calf still suckles: the default weaning curves say how
 --- long, so a pen holding one is never taken for a pen of weaned cattle.
 local function getCalfCaps(animal, ageOffsetMonths)
     if RLCalfRearing == nil then return 0, 1 end
-    if RLCalfRearing.isEnabled() then return RLCalfRearing.getCaps(animal, ageOffsetMonths) end
-    local x = (animal.age or 0) + (ageOffsetMonths or 0) - RLCalfRearing.DEFAULTS.weaningMonth
-    local curves = RLCalfRearing.DEFAULT_CURVES
-    return RLNutritionMath.interpolate(curves.milkMax, x), RLNutritionMath.interpolate(curves.solidMax, x)
+    local milkMax, solidMax
+    if RLCalfRearing.isEnabled() then
+        milkMax, solidMax = RLCalfRearing.getCaps(animal, ageOffsetMonths)
+    else
+        local x = (animal.age or 0) + (ageOffsetMonths or 0) - RLCalfRearing.DEFAULTS.weaningMonth
+        local curves = RLCalfRearing.DEFAULT_CURVES
+        milkMax, solidMax = RLNutritionMath.interpolate(curves.milkMax, x), RLNutritionMath.interpolate(curves.solidMax, x)
+    end
+    if milkMax > 0 and RLFeed.isEarlyWeaned(animal) then return 0, 1 end
+    return milkMax, solidMax
 end
 
 
@@ -304,17 +347,16 @@ function RLFeed.evaluatePen(placeable)
     if placeable.spec_husbandryFood == nil then return false, "NO_TROUGH" end
     local rearing = isRearingPen(placeable)
     local clusters = placeable:getClusters() or {}
-    local dams
+    -- Who can nurse is worked out afresh for the evaluation (and kept for the hour's calf caps).
+    local dams = not rearing and getPenDams(placeable, true) or nil
     for _, animal in ipairs(clusters) do
         if not animal.isDead and (animal.numAnimals or 1) > 0 then
             if not RLGrowth.covers(animal) then return false, "UNCOVERED_ANIMAL" end
             if not rearing then
-                -- A calf on milk drinks from its dam: she must be here, alive and in milk.
+                -- A calf on milk drinks from its dam: she must be here, alive and in milk; an
+                -- older one without her is weaned early (getCalfCaps).
                 local milkMax = getCalfCaps(animal)
-                if milkMax > 0 then
-                    dams = dams or RLFeed.getNursingDams(clusters)
-                    if animal.motherId == nil or dams[animal.motherId] == nil then return false, "SUCKLING_CALF" end
-                end
+                if milkMax > 0 and (animal.motherId == nil or dams[animal.motherId] == nil) then return false, "SUCKLING_CALF" end
             end
         end
     end
@@ -350,11 +392,6 @@ function RLFeed.getPenState(placeable, tick)
     if state ~= nil and (tick == nil or state.tick == tick) then return state end
     local active, reason = RLFeed.evaluatePen(placeable)
     return { tick = tick, active = active, reason = reason, evaluated = true }
-end
-
-
-local function getOwner(animal)
-    return animal ~= nil and animal.clusterSystem ~= nil and animal.clusterSystem.owner or nil
 end
 
 
