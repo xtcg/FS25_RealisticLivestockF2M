@@ -7,15 +7,13 @@
     after), which put the first calving at 59% for a Holstein and the second at once at 100%; the
     curve is now read at 36 months at the earliest and the parity sets the level instead.
 
-    Parity is the number of calves on the animal's record (animal.children): the record is the one
-    anchor, age does not decide a lactation's level. An animal with no record at all (dealer stock,
-    a mature cow that came in, an old savegame's animal) gets its record filled once, from its age
-    (under 30 months one calf, under 43 two, then three): empty entries, kept, saved and streamed
-    like any child, so its count is what the lactation numbers from then on. A record is never
-    topped up against age: a heifer that calves late stays in her first lactation. Twins count as
-    two calves and a calf born dead leaves no entry, so a heifer with twins gives her
-    second-lactation level in her first and a cow whose first calf died one level less later: rare,
-    small errors.
+    Parity is the animal's own count of calvings (animal.birthCount: saved and streamed with it, +1
+    at every birth, one per birth whatever the litter, a calf that died or one with no room). An
+    animal with none on record (dealer stock, a mature cow that came in, an old savegame's animal)
+    takes it from its record once: its calves on record (animal.children) if it has any, else what
+    its age implies (under 30 months one, under 43 two, then three); a child record is a count of
+    calves, so an old save's twins can read one birth high. From then on the count is its own and age
+    never decides a lactation's level: a heifer that calves late stays in her first.
     No engine globals: the arguments are the animal's.
 ]]
 
@@ -28,10 +26,10 @@ RLMilkParity.FIRST_UNTIL_AGE = 30
 RLMilkParity.SECOND_UNTIL_AGE = 43
 
 
---- The calves an animal of this age with no record is taken to have had (its record is filled to this).
+--- The calvings an animal of this age with no record of any is taken to have had.
 --- @param ageMonths number
 --- @return number 1, 2 or 3
-function RLMilkParity.getImpliedCalves(ageMonths)
+function RLMilkParity.getImpliedBirths(ageMonths)
     local age = ageMonths or 0
     if age < RLMilkParity.FIRST_UNTIL_AGE then return 1 end
     if age < RLMilkParity.SECOND_UNTIL_AGE then return 2 end
@@ -40,10 +38,10 @@ end
 
 
 --- The lactation number of an animal that is lactating now (1, 2 or 3 for the third and later).
---- @param childCount number|nil Calves on its record
+--- @param birthCount number|nil Calvings so far
 --- @return number
-function RLMilkParity.getParity(childCount)
-    return math.min(math.max(childCount or 0, 1), 3)
+function RLMilkParity.getParity(birthCount)
+    return math.min(math.max(birthCount or 0, 1), 3)
 end
 
 

@@ -82,6 +82,7 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
     local age = xmlFile:getInt(key .. "#age")
     local health = xmlFile:getFloat(key .. "#health")
     local monthsSinceLastBirth = xmlFile:getInt(key .. "#monthsSinceLastBirth")
+    local birthCount = xmlFile:getInt(key .. "#birthCount")
     local gender = xmlFile:getString(key .. "#gender")
     local reproduction = xmlFile:getFloat(key .. "#reproduction", 0)
     local isParent = xmlFile:getBool(key .. "#isParent")
@@ -397,7 +398,7 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
 
 
     local animal = Animal.new({
-        age = age, health = health, monthsSinceLastBirth = monthsSinceLastBirth,
+        age = age, health = health, monthsSinceLastBirth = monthsSinceLastBirth, birthCount = birthCount,
         gender = gender, subTypeIndex = subTypeIndex, reproduction = reproduction,
         isParent = isParent, isPregnant = isPregnant, isLactating = isLactating,
         clusterSystem = clusterSystem, uniqueId = id, motherId = motherId,
@@ -464,6 +465,7 @@ function AnimalPersistence.saveToXMLFile(animal, xmlFile, key)
     xmlFile:setInt(key .. "#age", animal.age)
     xmlFile:setFloat(key .. "#health", animal.health)
     xmlFile:setInt(key .. "#monthsSinceLastBirth", animal.monthsSinceLastBirth)
+    if animal.birthCount ~= nil then xmlFile:setInt(key .. "#birthCount", animal.birthCount) end
     xmlFile:setInt(key .. "#numAnimals", 1)
     xmlFile:setString(key .. "#gender", animal.gender)
     xmlFile:setString(key .. "#subType", animal.subType)

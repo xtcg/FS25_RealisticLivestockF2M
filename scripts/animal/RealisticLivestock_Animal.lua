@@ -74,6 +74,8 @@ function Animal.new(config)
     self.age = cfg.age or 0
     self.health = cfg.health or 0
     self.monthsSinceLastBirth = cfg.monthsSinceLastBirth or 0
+    -- Calvings so far; nil = not on record (resolveBirthCount fills it).
+    self.birthCount = cfg.birthCount
     self.gender = cfg.gender or "female"
     local subType
     if config and not cfg.subTypeIndex then
@@ -405,6 +407,7 @@ function Animal:clone()
         age = self.age,
         health = self.health,
         monthsSinceLastBirth = self.monthsSinceLastBirth,
+        birthCount = self.birthCount,
         gender = self.gender,
         subTypeIndex = self.subTypeIndex,
         reproduction = self.reproduction,
@@ -1850,27 +1853,28 @@ function Animal:isCattleMilkOutput(fillType, output)
 end
 
 
---- Fill the record of calves of an animal that has none (RLMilkParity.getImpliedCalves): empty
---- entries, so the record is what counts from then on. Only the server writes it (it is saved and
---- streamed with the animal); a client counts the same without keeping it.
----@return number calves The record's count
-function Animal:anchorChildren()
-    local implied = RLMilkParity.getImpliedCalves(self.age)
-    if g_server == nil then return implied end
-    self.children = self.children or {}
-    for _ = #self.children + 1, implied do
-        table.insert(self.children, { uniqueId = "", farmId = "" })
+--- The animal's calvings so far. Its own count (birthCount, saved and streamed with it, +1 at every
+--- birth); an animal with none on record (dealer stock, a cow that came in, an old savegame's
+--- animal) is taken from what its record says: 0 for one that has never calved, its calves on
+--- record (animal.children) if it has any, else what its age implies (RLMilkParity.getImpliedBirths).
+--- The server keeps what it works out; a client counts the same without keeping it.
+---@return number
+function Animal:resolveBirthCount()
+    if self.birthCount ~= nil then return self.birthCount end
+    local count = 0
+    if self.isParent then
+        count = self.children ~= nil and #self.children or 0
+        if count == 0 then count = RLMilkParity.getImpliedBirths(self.age) end
     end
-    return #self.children
+    if g_server ~= nil then self.birthCount = count end
+    return count
 end
 
 
 ---@return number
 function Animal:getParityFactor()
     if not self.isParent then return 1 end
-    local calves = self.children ~= nil and #self.children or 0
-    if calves == 0 then calves = self:anchorChildren() end
-    return RLMilkParity.getFactor(RLMilkParity.getParity(calves))
+    return RLMilkParity.getFactor(RLMilkParity.getParity(self:resolveBirthCount()))
 end
 
 

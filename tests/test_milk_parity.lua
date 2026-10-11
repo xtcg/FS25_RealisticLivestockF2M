@@ -1,6 +1,7 @@
 -- Cattle milk by lactation number (RLMilkParity, Animal:updateOutput): the mature cow's milk (the
 -- curve at 36 months and over) is the third lactation and later; a first lactation gives 80% of it,
--- a second 92%, whatever the curve's step at 36 months says.
+-- a second 92%, whatever the curve's step at 36 months says. The number is the animal's own count
+-- of calvings (birthCount); an animal with none on record takes it once from its calf record or age.
 
 local FILL = { [1] = "MILK", [2] = "BUFFALOMILK", [3] = "GOATMILK" }
 g_fillTypeManager = { getFillTypeNameByIndex = function(_, i) return FILL[i] end }
@@ -17,21 +18,21 @@ RLBodyCondition.applyMilk = function(_, potential, curvePerPeriod) lastCurve = c
 -- The game's step: 590 from 12 to 36 months, 1000 from 36.
 local stepCurve = { get = function(_, age) if age < 12 then return 0 end if age < 36 then return 590 end if age < 120 then return 1000 end return 545 end }
 
-local function cow(age, children, typeIndex, path)
+local function cow(age, births, typeIndex, path, children)
     path = path or "milk"
     local output = path == "pallets" and { fillType = 1, curve = stepCurve } or { fillType = 1, get = stepCurve.get }
     local subType = { name = "COW_HOLSTEIN", output = { [path] = output } }
     local kids = {}
-    for i = 1, children do kids[i] = { uniqueId = tostring(i) } end
+    for i = 1, children or 0 do kids[i] = { uniqueId = tostring(i) } end
     local a = setmetatable({ age = age, farmId = 1, uniqueId = "1", genetics = { productivity = 1 }, diseases = {},
-        output = {}, isParent = true, isLactating = true, monthsSinceLastBirth = 3, children = kids,
+        output = {}, isParent = true, isLactating = true, monthsSinceLastBirth = 3, children = kids, birthCount = births,
         animalTypeIndex = typeIndex or AnimalType.COW }, { __index = Animal })
     a.getSubType = function() return subType end
     a.getDiseaseMultipliers = function() return nil, 0 end
     return a
 end
-local function perDay(age, children, typeIndex, path)
-    local a = cow(age, children, typeIndex, path)
+local function perDay(age, births, typeIndex, path, children)
+    local a = cow(age, births, typeIndex, path, children)
     a:updateOutput(20)
     return a.output[path or "milk"] * 24
 end
@@ -46,34 +47,35 @@ check("parity: the curve's step at 36 months no longer shows - a 35-month-old se
     near(perDay(35, 2), perDay(40, 2), 1e-9) and near(perDay(35, 2), perDay(49, 2), 1e-9))
 check("parity: the cans give the same as the tank", near(perDay(24, 1, nil, "pallets"), first, 1e-9))
 do
-    -- No record: filled once from its age (empty entries), then the record is what counts.
-    local cases = { { 24, 1, 0.80 }, { 36, 2, 0.92 }, { 48, 3, 1 } }
+    -- No count on record: taken once from the calf record, else from age, and kept (server).
     local ok = true
-    for _, c in ipairs(cases) do
-        local a = cow(c[1], 0); a:updateOutput(20)
-        if #a.children ~= c[2] or not near(a.output.milk * 24 / mature, c[3], 1e-9) then ok = false end
+    for _, c in ipairs({ { 24, 1, 0.80 }, { 36, 2, 0.92 }, { 48, 3, 1 } }) do
+        local a = cow(c[1], nil); a:updateOutput(20)
+        if a.birthCount ~= c[2] or not near(a.output.milk * 24 / mature, c[3], 1e-9) then ok = false end
     end
-    check("parity: an animal with no record gets its record filled once from its age (24 months one calf, 36 two, 48 three) and gives that level", ok)
+    check("parity: with no count on record it is taken from age (24 months one birth, 36 two, 48 three), kept, and gives that level", ok)
 
-    local a = cow(29, 0); a:updateOutput(20)
+    local a = cow(29, nil); a:updateOutput(20)
     a.age = 33; a:updateOutput(20)
-    check("parity: after the fill age no longer decides - the 29-month-old stays in her first lactation at 33 (no jump inside it)",
-        #a.children == 1 and near(a.output.milk * 24 / mature, 0.80, 1e-9))
+    check("parity: once kept, age no longer decides - the 29-month-old stays in her first lactation at 33",
+        a.birthCount == 1 and near(a.output.milk * 24 / mature, 0.80, 1e-9))
 
-    local b = cow(31, 1); b:updateOutput(20)
-    check("parity: a record is never topped up against age - a heifer that calves late (31 months, one calf) is in her first", near(b.output.milk * 24 / mature, 0.80, 1e-9) and #b.children == 1)
+    local r = cow(40, nil, nil, nil, 1); r:updateOutput(20)
+    check("parity: with no count but one calf on record the record decides, not age", r.birthCount == 1 and near(r.output.milk * 24 / mature, 0.80, 1e-9))
 
-    local entries = cow(40, 0); entries:updateOutput(20)
-    check("parity: filled entries are strings, so the animal still saves and streams", (function()
-        for _, child in ipairs(entries.children) do
-            if type(child.uniqueId) ~= "string" or type(child.farmId) ~= "string" then return false end
-        end
-        return #entries.children == 2
-    end)())
+    local late = cow(31, 1); late:updateOutput(20)
+    check("parity: a count on record is never topped up against age - a heifer that calves late (31 months, one birth) is in her first",
+        late.birthCount == 1 and near(late.output.milk * 24 / mature, 0.80, 1e-9))
+
+    local twins = cow(24, 1, nil, nil, 2); twins:updateOutput(20)
+    check("parity: twins are one birth - her own count of 1 beats the two calves on record", near(twins.output.milk * 24 / mature, 0.80, 1e-9))
+
+    local never = cow(40, nil); never.isParent = false
+    check("parity: an animal that never calved has nothing to resolve and no level to carry", never:resolveBirthCount() == 0 and never:getParityFactor() == 1)
 
     g_server = nil
-    local client = cow(40, 0); client:updateOutput(20)
-    check("parity: a client counts the same but keeps nothing", #client.children == 0 and near(client.output.milk * 24 / mature, 0.92, 1e-9))
+    local client = cow(40, nil); client:updateOutput(20)
+    check("parity: a client counts the same but keeps nothing", client.birthCount == nil and near(client.output.milk * 24 / mature, 0.92, 1e-9))
     g_server = {}
 end
 check("parity: later than the third nothing grows (old age still follows the curve)",
@@ -84,8 +86,8 @@ do
     check("parity: the budget's anchor curve carries the level too (a first-lactation cow's demand is 80% of a mature one's)",
         near(lastCurve, 1000 * 0.80, 1e-9))
 end
-check("parity: the pure functions", RLMilkParity.getParity(0) == 1 and RLMilkParity.getParity(7) == 3 and RLMilkParity.getImpliedCalves(29) == 1
-    and RLMilkParity.getImpliedCalves(30) == 2 and RLMilkParity.getImpliedCalves(43) == 3 and RLMilkParity.getFactor(1) == 0.80 and RLMilkParity.getFactor(2) == 0.92 and RLMilkParity.getFactor(3) == 1
+check("parity: the pure functions", RLMilkParity.getParity(0) == 1 and RLMilkParity.getParity(7) == 3 and RLMilkParity.getImpliedBirths(29) == 1
+    and RLMilkParity.getImpliedBirths(30) == 2 and RLMilkParity.getImpliedBirths(43) == 3 and RLMilkParity.getFactor(1) == 0.80 and RLMilkParity.getFactor(2) == 0.92 and RLMilkParity.getFactor(3) == 1
     and RLMilkParity.getCurveAge(11) == 11 and RLMilkParity.getCurveAge(12) == 60 and RLMilkParity.getCurveAge(40) == 60 and RLMilkParity.getCurveAge(60) == 60 and RLMilkParity.getCurveAge(80) == 80)
 
 for _, line in ipairs(LOG) do

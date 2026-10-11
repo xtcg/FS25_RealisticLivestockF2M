@@ -789,6 +789,8 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
     animal.monthsSinceLastBirth = 0
 
     if childNum > 0 then
+        -- One birth, whatever the litter, a calf that died or one that had no room (the lactation number).
+        animal.birthCount = animal:resolveBirthCount() + 1
         animal.isParent = true
         if animalType == AnimalType.COW or animal.subType == "GOAT" then animal.isLactating = true end
     end
