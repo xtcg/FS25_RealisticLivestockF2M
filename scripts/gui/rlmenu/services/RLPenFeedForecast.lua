@@ -112,7 +112,7 @@ local function tickStateAdvance(scratch, daysPerPeriod)
         s.age = s.age + 1
         s.monthsSinceLastBirth = s.monthsSinceLastBirth + 1
         -- The game's milk rule (RLLactation), as Animal:advanceRecoveryPeriod applies it.
-        if s.isLactating and not RLLactation.isWithin(s.monthsSinceLastBirth) then
+        if s.isLactating and not RLLactation.isWithin(s.monthsSinceLastBirth, RLLactation.getMonths(s.subTypeRef)) then
             s.isLactating = false
         end
 

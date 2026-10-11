@@ -61,9 +61,11 @@ local highlandCow = cattle("COW_HIGHLAND_CATTLE", "HIGHLAND", "female")
 -- As AnimalSystem:getSaleAgeContext builds it.
 local function ctxFor(subType, maxBuyAge)
     maxBuyAge = maxBuyAge or 72
-    return { maxBuyAge = maxBuyAge, weaningMonth = RLCalfRearing.getWeaningMonthForSubType(subType),
+    return { maxBuyAge = maxBuyAge,
+        weaningMonth = RLCalfRearing.getWeaningMonthForSubType(subType),
         union = P.getBuyableAgeUnion(subType, maxBuyAge),
-        lactates = RLLactation.startsAtBirth(subType.typeIndex, subType.name) }
+        lactates = RLLactation.startsAtBirth(subType.typeIndex, subType.name),
+        lactationMonths = RLLactation.getMonths(subType), sucklingMonths = RLLactation.getSucklingMonths(subType) }
 end
 
 local function describe(candidates)
@@ -139,27 +141,28 @@ check("shared layer lookup keeps a false root value", RLBreedTraits.resolveNamed
 
 local candidates, gaps = P.getCandidates(entry, holstein, ctxFor(holstein))
 check("Holstein cows: " .. describe(candidates), describe(candidates)
-    == "CALF_WEANED[4-7] HEIFER_REPLACEMENT[6-17] HEIFER_READY[15-23] HEIFER_IN_CALF[18-29] COW_FIRST[24-35] COW_YOUNG[30-47]")
-check("Holstein cows: unweaned calves off (" .. gapsOf(gaps) .. ")", gapsOf(gaps) == "CALF_MILK:DISABLED")
+    == "CALF_MILK[1-2] CALF_WEANED[4-7] HEIFER_REPLACEMENT[6-17] HEIFER_READY[15-23] HEIFER_IN_CALF[18-29] COW_FIRST[24-35] COW_YOUNG[30-47]")
+check("Holstein cows: calves on milk offered too (for a calf rearing pen), nothing left out (" .. gapsOf(gaps) .. ")", gapsOf(gaps) == "")
 
 candidates, gaps = P.getCandidates(P.getEntry(config, angusCow, "COW"), angusCow, ctxFor(angusCow))
 check("Angus cows: not offered ready to breed without a breeding weight (" .. gapsOf(gaps) .. ")",
-    gapsOf(gaps) == "CALF_MILK:DISABLED HEIFER_READY:NO_BREEDING_WEIGHT")
+    gapsOf(gaps) == "CALF_MILK:NO_SOURCE HEIFER_READY:NO_BREEDING_WEIGHT")
 
 candidates = P.getCandidates(P.getEntry(config, angusBull, "COW"), angusBull, ctxFor(angusBull))
-check("Angus bulls: " .. describe(candidates), describe(candidates) == "CALF_WEANED[4-7] FEEDER[6-17] BULL_YOUNG[12-29]")
+check("Angus bulls (suckler breed, weaned at their dam at 7): " .. describe(candidates),
+    describe(candidates) == "CALF_WEANED[7-7] FEEDER[7-17] BULL_YOUNG[12-29]")
 candidates = P.getCandidates(P.getEntry(config, highlandBull, "COW"), highlandBull, ctxFor(highlandBull))
-check("Highland bulls (slow): " .. describe(candidates), describe(candidates) == "CALF_WEANED[4-7] FEEDER[8-23] BULL_YOUNG[18-35]")
+check("Highland bulls (slow, suckler): " .. describe(candidates), describe(candidates) == "CALF_WEANED[7-7] FEEDER[8-23] BULL_YOUNG[18-35]")
 candidates = P.getCandidates(P.getEntry(config, highlandCow, "COW"), highlandCow, ctxFor(highlandCow))
-check("Highland cows (slow): " .. describe(candidates), describe(candidates)
-    == "CALF_WEANED[4-7] HEIFER_REPLACEMENT[6-17] HEIFER_IN_CALF[24-35] COW_FIRST[30-41] COW_YOUNG[36-47]")
+check("Highland cows (slow, suckler): " .. describe(candidates), describe(candidates)
+    == "CALF_WEANED[7-7] HEIFER_REPLACEMENT[7-17] HEIFER_IN_CALF[24-35] COW_FIRST[30-41] COW_YOUNG[36-47]")
 
 -- A visual stage that cannot be bought leaves a hole; none buyable leaves nothing.
 local holed = cattle("COW_HOLSTEIN", "HOLSTEIN", "female")
 holed.visuals = visuals({ 0, true }, { 6, false }, { 12, true }, { 18, true })
 candidates = P.getCandidates(entry, holed, ctxFor(holed))
 check("hole at 6-11 months: " .. describe(candidates), describe(candidates)
-    == "CALF_WEANED[4-5] HEIFER_REPLACEMENT[12-17] HEIFER_READY[15-23] HEIFER_IN_CALF[18-29] COW_FIRST[24-35] COW_YOUNG[30-47]")
+    == "CALF_MILK[1-2] CALF_WEANED[4-5] HEIFER_REPLACEMENT[12-17] HEIFER_READY[15-23] HEIFER_IN_CALF[18-29] COW_FIRST[24-35] COW_YOUNG[30-47]")
 local none = cattle("COW_HOLSTEIN", "HOLSTEIN", "female")
 none.visuals = visuals({ 0, false }, { 6, false })
 candidates, gaps = P.getCandidates(entry, none, ctxFor(none))
@@ -168,7 +171,7 @@ check("nothing buyable: no candidate, every purpose NOT_BUYABLE or off", #candid
 -- maxBuyAge below a purpose: cut, never widened.
 candidates = P.getCandidates(entry, holstein, ctxFor(holstein, 30))
 check("maxBuyAge 30 cuts the windows: " .. describe(candidates), describe(candidates)
-    == "CALF_WEANED[4-7] HEIFER_REPLACEMENT[6-17] HEIFER_READY[15-23] HEIFER_IN_CALF[18-29] COW_FIRST[24-30] COW_YOUNG[30-30]")
+    == "CALF_MILK[1-2] CALF_WEANED[4-7] HEIFER_REPLACEMENT[6-17] HEIFER_READY[15-23] HEIFER_IN_CALF[18-29] COW_FIRST[24-30] COW_YOUNG[30-30]")
 
 -- Other species.
 local function species(typeName, name, breed, gender, minAge, duration, vis)
@@ -222,10 +225,10 @@ local oddEntry = P.getEntry(config, oddCow, "COW")
 candidates, gaps = P.getCandidates(oddEntry, oddCow, ctxFor(oddCow))
 check("breed without a use, cows: " .. describe(candidates) .. " / " .. gapsOf(gaps), oddEntry.use == nil
     and describe(candidates) == "CALF_WEANED[4-7] HEIFER_REPLACEMENT[6-17]"
-    and gapsOf(gaps) == "CALF_MILK:DISABLED HEIFER_READY:NO_BREEDING_WEIGHT HEIFER_IN_CALF:NO_SOURCE COW_FIRST:NO_SOURCE COW_YOUNG:NO_SOURCE")
+    and gapsOf(gaps) == "CALF_MILK:NO_SOURCE HEIFER_READY:NO_BREEDING_WEIGHT HEIFER_IN_CALF:NO_SOURCE COW_FIRST:NO_SOURCE COW_YOUNG:NO_SOURCE")
 candidates, gaps = P.getCandidates(P.getEntry(config, oddBull, "COW"), oddBull, ctxFor(oddBull))
 check("breed without a use, bulls: " .. describe(candidates), describe(candidates) == "CALF_WEANED[4-7] FEEDER[6-17]"
-    and gapsOf(gaps) == "CALF_MILK:DISABLED BULL_YOUNG:NO_SOURCE")
+    and gapsOf(gaps) == "CALF_MILK:NO_SOURCE BULL_YOUNG:NO_SOURCE")
 
 -- Source shares follow their weights (1:1 here) and one source takes no draw.
 local calfPurpose = P.findPurpose(entry, "female", "CALF_WEANED")
@@ -263,7 +266,7 @@ end
 
 math.randomseed(11)
 
--- Purpose shares follow the weights among the purposes left (Holstein cows: 15+35+20+10+8+2 = 90).
+-- Purpose shares follow the weights among the purposes left (Holstein cows: 10+15+35+20+10+8+2 = 100).
 local counts, n = {}, 20000
 local holsteinCandidates = P.getCandidates(entry, holstein, ctxFor(holstein))
 for _ = 1, n do
@@ -271,13 +274,17 @@ for _ = 1, n do
     counts[c.purpose.id] = (counts[c.purpose.id] or 0) + 1
 end
 local worst = 0
-for id, weight in pairs({ CALF_WEANED = 15, HEIFER_REPLACEMENT = 35, HEIFER_READY = 20, HEIFER_IN_CALF = 10, COW_FIRST = 8, COW_YOUNG = 2 }) do
-    worst = math.max(worst, math.abs((counts[id] or 0) / n - weight / 90))
+for id, weight in pairs({ CALF_MILK = 10, CALF_WEANED = 15, HEIFER_REPLACEMENT = 35, HEIFER_READY = 20, HEIFER_IN_CALF = 10, COW_FIRST = 8, COW_YOUNG = 2 }) do
+    worst = math.max(worst, math.abs((counts[id] or 0) / n - weight / 100))
 end
 check(string.format("purpose shares within 1%% of the weights (worst %.2f%%)", worst * 100), worst < 0.01)
 
--- Ages lean to the middle of the window and stay inside the segments.
-local feeder = P.getCandidates(P.getEntry(config, angusBull, "COW"), angusBull, ctxFor(angusBull))[2]
+-- Ages lean to the middle of the window and stay inside the segments (Holstein stores: from 6;
+-- a suckler breed's start at 7, weaned at their dam).
+local feeder
+for _, candidate in ipairs(P.getCandidates(holsteinBullEntry, holsteinBull, ctxFor(holsteinBull))) do
+    if candidate.purpose.id == "FEEDER" then feeder = candidate end
+end
 local ageCounts, inside = {}, true
 for _ = 1, n do
     local age = P.pickAge(feeder, math.random)
@@ -473,6 +480,44 @@ check("goat that kidded 2 months ago and is dry: LACTATION; in milk: ok",
         sale = { parity = 1 } }, goatBreeder, goatEntry, goatSub, goatCtx) == R.LACTATION
     and reasonsOf({ age = 20, gender = "female", isParent = true, monthsSinceLastBirth = 2, isLactating = true,
         sale = { parity = 1 } }, goatBreeder, goatEntry, goatSub, goatCtx) == "ok")
+-- Suckler breeds (breedTraits sucklingMonths 7): the cow is dried off when her calf is weaned at 7
+-- months, and the dealer sells the breed's calves only once weaned.
+local angusEntry, angusCtx = P.getEntry(config, angusCow, "COW"), ctxFor(angusCow)
+local packBull = cattle("BULL_CHAROLAIS_PACK", "CHAROLAIS_PACK", "male")
+check("suckling period: Angus cows and bulls and the pack's Charolais 7 months, Holstein none (10-month lactation)",
+    RLLactation.getSucklingMonths(angusCow) == 7 and RLLactation.getSucklingMonths(angusBull) == 7
+    and RLLactation.getSucklingMonths(packBull) == 7 and RLLactation.getSucklingMonths(holstein) == nil
+    and RLLactation.getMonths(angusCow) == 7 and RLLactation.getMonths(holstein) == 10 and RLLactation.getMonths(nil) == 10)
+check("sale context: Angus suckling 7 (none offered younger), lactation 7; Holstein no suckling period, lactation 10",
+    angusCtx.sucklingMonths == 7 and angusCtx.lactationMonths == 7
+    and ctxFor(holstein).sucklingMonths == nil and ctxFor(holstein).lactationMonths == 10)
+local beefCurve = {}
+for m = 5, 8 do table.insert(beefCurve, string.format("%.3f", RLLactation.getYieldFactor(m, 7))) end
+check("a suckler cow's yield: the same shape, ending at 7: " .. table.concat(beefCurve, " "),
+    table.concat(beefCurve, " ") == "1.200 1.133 0.000 0.000" and RLLactation.isWithin(6, 7) and not RLLactation.isWithin(7, 7))
+local angusFirst = P.findPurpose(angusEntry, "female", "COW_FIRST")
+check("Angus cow 8 months after calving: dry is ok, still in milk is LACTATION; 6 months: in milk",
+    reasonsOf({ age = 34, gender = "female", isParent = true, monthsSinceLastBirth = 8, isLactating = false,
+        sale = { parity = 1 } }, angusFirst, angusEntry, angusCow, angusCtx) == "ok"
+    and reasonsOf({ age = 34, gender = "female", isParent = true, monthsSinceLastBirth = 8, isLactating = true,
+        sale = { parity = 1 } }, angusFirst, angusEntry, angusCow, angusCtx) == R.LACTATION
+    and P.isInMilk("female", true, 6, angusCtx) and not P.isInMilk("female", true, 7, angusCtx)
+    and P.isInMilk("female", true, 8, ctx))
+local angusCalf = P.findPurpose(P.getEntry(config, angusBull, "COW"), "male", "CALF_WEANED")
+check("an old listing of a 5-month Angus calf (offered at 4 before): AGE; at 7: ok",
+    reasonsOf({ age = 5, gender = "male", weight = 180, targetWeight = 1000 }, angusCalf, P.getEntry(config, angusBull, "COW"),
+        angusBull, ctxFor(angusBull)) == R.AGE
+    and reasonsOf({ age = 7, gender = "male", weight = 250, targetWeight = 1000 }, angusCalf, P.getEntry(config, angusBull, "COW"),
+        angusBull, ctxFor(angusBull)) == "ok")
+local simmentalCalf = cattle("BULL_SIMMENTAL_PACK", "SIMMENTAL_PACK", "male")
+local simmentalCandidates, simmentalGaps = P.getCandidates(P.getEntry(config, simmentalCalf, "COW"), simmentalCalf, ctxFor(simmentalCalf))
+local holsteinBullCandidates = P.getCandidates(P.getEntry(config, holsteinBull, "COW"), holsteinBull, ctxFor(holsteinBull))
+check("calves on milk: Holstein bull calves 1-2 months from the dairy herd; the pack's Simmental (dual, but a suckler breed) none: "
+    .. describe(simmentalCandidates) .. " / " .. gapsOf(simmentalGaps),
+    describe(holsteinBullCandidates):find("^CALF_MILK%[1%-2%]") ~= nil
+    and sourcesOf(P.getEntry(config, holsteinBull, "COW"), "male", "CALF_MILK") == "DAIRY_HERD"
+    and gapsOf(simmentalGaps):find("CALF_MILK:NO_AGE", 1, true) ~= nil
+    and describe(simmentalCandidates):find("CALF_WEANED[7-7]", 1, true) ~= nil)
 check("health 89: HEALTH; 90: ok", reasonsOf({ age = 12, gender = "female", weight = 300, targetWeight = 670,
     health = 89 }, replacement) == R.HEALTH and reasonsOf({ age = 12, gender = "female", weight = 300,
     targetWeight = 670, health = 90 }, replacement) == "ok")
@@ -638,7 +683,7 @@ for _, animal in ipairs(generated) do
     local e = P.getEntry(config, subType, "COW")
     if not (animal.health >= 90 and animal.health <= 100) then healthRange = false end
     if animal.genetics.health < 0.8 then lowGenetics = lowGenetics + 1 end
-    if animal.isLactating ~= (animal.isParent and animal.monthsSinceLastBirth < 10) then milkBad = milkBad + 1 end
+    if animal.isLactating ~= (animal.isParent and animal.monthsSinceLastBirth < RLLactation.getMonths(subType)) then milkBad = milkBad + 1 end
     local source = P.findSource(e, animal.sale.source)
     if source == nil or not P.supplies(source, e, P.findPurpose(e, animal.gender, animal.sale.purpose), animal.gender) then
         sourceBad = sourceBad + 1
@@ -649,7 +694,7 @@ for _, animal in ipairs(generated) do
 end
 check(string.format("health 90-100 for every animal, %d of them with health genetics under 0.8", lowGenetics),
     healthRange and lowGenetics > 0)
-check("in milk exactly from calving to 10 months after", milkBad == 0)
+check("in milk exactly from calving to the end of the breed's lactation (10 months; Angus and Highland 7)", milkBad == 0)
 check("each from a source that supplies its breed, purpose and sex", sourceBad == 0)
 check("every bull intact", intact)
 check(string.format("births recorded: none %d, one %d, two %d", parityCount["0"] or 0, parityCount["1"] or 0, parityCount["2"] or 0),

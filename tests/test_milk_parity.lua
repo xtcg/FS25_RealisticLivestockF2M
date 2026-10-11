@@ -107,3 +107,26 @@ end
 check("suckler: a Cow Breeds pack beef cow (milkCollect 0) puts nothing in the tank or the cans; her budget still sees her milk",
     perDay(60, 5, nil, nil, nil, "COW_CHAROLAIS_PACK") == 0 and perDay(60, 5, nil, "pallets", nil, "COW_CHAROLAIS_PACK") == 0
     and lastCurve ~= nil and lastCurve > 0)
+
+-- breedTraits sucklingMonths: a suckler cow is dried off when her calf is weaned at 7 months.
+loadAnimalSection("function Animal:advanceRecoveryPeriod", "\nfunction Animal:onPeriodChanged")
+local function mother(subType, monthsSinceLastBirth)
+    local a = setmetatable({ isParent = true, isLactating = true, monthsSinceLastBirth = monthsSinceLastBirth, uniqueId = "1" },
+        { __index = Animal })
+    a.getSubType = function() return subType end
+    return a
+end
+local angusSub, packSub = { name = "COW_ANGUS", breed = "ANGUS" }, { name = "COW_CHAROLAIS_PACK", breed = "CHAROLAIS_PACK" }
+local holsteinSub = { name = "COW_HOLSTEIN", breed = "HOLSTEIN" }
+local function after(subType, monthsSinceLastBirth)
+    local a = mother(subType, monthsSinceLastBirth)
+    a:advanceRecoveryPeriod()
+    return a.isLactating, a.monthsSinceLastBirth
+end
+local angusAt6, angusAt7, packAt7 = after(angusSub, 5), after(angusSub, 6), after(packSub, 6)
+local holsteinAt7, holsteinAt10 = after(holsteinSub, 6), after(holsteinSub, 9)
+check("suckler cows dry at 7 months after calving (Angus, the pack's Charolais); a Holstein milks to 10",
+    angusAt6 and not angusAt7 and not packAt7 and holsteinAt7 and not holsteinAt10)
+check("suckler yield: Angus 6 months after calving as before, 0 from 7; Holstein unchanged at 7",
+    near(mother(angusSub, 6):getLactationFactor(), 0.8 + 5 / 15, 1e-9) and mother(angusSub, 7):getLactationFactor() == 0
+    and near(mother(holsteinSub, 7):getLactationFactor(), 0.8 + 4 / 15, 1e-9))
