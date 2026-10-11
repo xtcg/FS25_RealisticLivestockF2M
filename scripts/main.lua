@@ -104,6 +104,7 @@ source(modDirectory .. "scripts/animal/RLLiveSale.lua")
 source(modDirectory .. "scripts/animal/RLTradePersistence.lua")
 source(modDirectory .. "scripts/animal/RLTradeRecovery.lua")
 source(modDirectory .. "scripts/animal/RLTradeCheckpoint.lua")
+source(modDirectory .. "scripts/animal/RLContractDiag.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalSellEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/SemenBuyEvent.lua")
 
