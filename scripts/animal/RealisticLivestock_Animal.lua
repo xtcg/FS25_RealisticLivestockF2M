@@ -1850,10 +1850,27 @@ function Animal:isCattleMilkOutput(fillType, output)
 end
 
 
+--- Fill the record of calves of an animal that has none (RLMilkParity.getImpliedCalves): empty
+--- entries, so the record is what counts from then on. Only the server writes it (it is saved and
+--- streamed with the animal); a client counts the same without keeping it.
+---@return number calves The record's count
+function Animal:anchorChildren()
+    local implied = RLMilkParity.getImpliedCalves(self.age)
+    if g_server == nil then return implied end
+    self.children = self.children or {}
+    for _ = #self.children + 1, implied do
+        table.insert(self.children, { uniqueId = "", farmId = "" })
+    end
+    return #self.children
+end
+
+
 ---@return number
 function Animal:getParityFactor()
     if not self.isParent then return 1 end
-    return RLMilkParity.getFactor(RLMilkParity.getParity(self.children ~= nil and #self.children or 0, self.age or 0))
+    local calves = self.children ~= nil and #self.children or 0
+    if calves == 0 then calves = self:anchorChildren() end
+    return RLMilkParity.getFactor(RLMilkParity.getParity(calves))
 end
 
 
