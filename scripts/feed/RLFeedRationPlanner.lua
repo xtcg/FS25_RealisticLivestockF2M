@@ -152,7 +152,8 @@ local function evaluate(a, c, forageMix, concMix, request)
     local needs = a.needs or {}
     local maintenance = (needs.maintenance or 0) + (needs.pregnancy or 0)
     local production = (needs.growth or 0) + (needs.milk or 0)
-    local protein = RLFeedMath.getProteinFactor(mix.cp, a.proteinNeed or 0, request.proteinMaintenance or 0)
+    local protein = RLFeedMath.getProductionProteinFactor(RLFeedMath.getProteinFactor(mix.cp, a.proteinNeed or 0,
+        request.proteinMaintenance or 0), needs.growth, needs.milk, request.proteinMilkResponse)
 
     local demandStep
     if a.target == "GROW" then
@@ -165,7 +166,8 @@ local function evaluate(a, c, forageMix, concMix, request)
     if demandStep == nil and (a.milkKg or 0) > 0 and kg + a.milkKg > 0 then
         -- A calf eating freely: the protein of all it takes, milk and solids together (as settled).
         local cp = (kg * mix.cp + a.milkKg * (a.milkCP or 0)) / (kg + a.milkKg)
-        protein = RLFeedMath.getProteinFactor(cp, a.proteinNeed or 0, request.proteinMaintenance or 0)
+        protein = RLFeedMath.getProductionProteinFactor(RLFeedMath.getProteinFactor(cp, a.proteinNeed or 0,
+            request.proteinMaintenance or 0), needs.growth, needs.milk, request.proteinMilkResponse)
     end
 
     local energy = dt > 0 and (kg * me + a.milkKg * (a.milkME or 0)) / dt - maintenance or 0
