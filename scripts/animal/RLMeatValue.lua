@@ -139,13 +139,14 @@ end
 --- @param subType table|nil
 --- @return number
 function RLMeatValue.getMeatKg(animal, subType)
+    if subType == nil then return 0 end
     local config = AnimalMoveEvent.getCarcassConfig()
     local minAge = RLBreedTraits.resolve(config.layers, subType, "slaughterMinAgeMonth", 0)
     if (animal.age or 0) < minAge then return 0 end
 
-    local meatPerHead = AnimalMoveEvent.getMeatPerHead(RLBreedTraits.getTypeName(subType))
-    if meatPerHead == nil then return 0 end
-    return AnimalMoveEvent.getCarcassYieldFactor(animal, nil, animal.subTypeIndex) * meatPerHead
+    -- Model meat = yield factor x meatPerHead (RLMeatMath), with no facility.
+    local result = AnimalMoveEvent.getCarcassYield(animal, nil, animal.subTypeIndex)
+    return result ~= nil and result.modelMeat or 0
 end
 
 

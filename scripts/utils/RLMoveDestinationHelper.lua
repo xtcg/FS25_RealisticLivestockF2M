@@ -17,7 +17,7 @@ RLMoveDestinationHelper = {}
 ---@param animalSubTypeIndex number Animal subtype the destination must support
 ---@param animals table|nil The animals being moved or bought. When given, a husbandry whose pen
 ---  rules or age window (RLHusbandryProfiles.checkAnimal) take none of them is left out, so a
----  calf igloo is not offered for grown cattle. A husbandry that is not built yet
+---  calf igloo is not offered for grown cattle. A husbandry or EPP that is not built yet
 ---  (RLPenConstruction) is left out with or without animals.
 ---@return table Array of entries {placeable, name, currentCount, maxCount, freeSlots, isEPP, minAge?, maxAge?}
 function RLMoveDestinationHelper.getValidDestinations(sourceHusbandry, farmId, animalSubTypeIndex, animals)
@@ -65,8 +65,12 @@ function RLMoveDestinationHelper.getValidDestinations(sourceHusbandry, farmId, a
 
             if pp ~= nil and pp.animalsTypeData ~= nil then
                 local eppTypeData = pp.animalsTypeData[animalTypeIndex]
+                local admit, construction = RLPenConstruction.canAdmit(placeable)
 
-                if eppTypeData ~= nil and pp:getSupportsAnimalSubType(animalSubTypeIndex) then
+                if eppTypeData ~= nil and not admit then
+                    Log:debug("getValidDestinations: EPP '%s' left out, not built yet (%s)",
+                        tostring(placeable:getName()), RLPenConstruction.detail(construction))
+                elseif eppTypeData ~= nil and pp:getSupportsAnimalSubType(animalSubTypeIndex) then
                     local freeSlots = pp:getNumOfFreeAnimalSlots(animalSubTypeIndex)
                     local maxCount = eppTypeData.maxNumAnimals or 0
                     local currentCount = maxCount - freeSlots
