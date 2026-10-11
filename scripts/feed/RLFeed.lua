@@ -499,6 +499,12 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
     -- Appetite and rumen fill at the weight halfway through the hour (its weight plus half the
     -- growth it could make), so a long hour does not size a growing animal's intake late.
     local weight = math.max(animal.weight or 0, 0) + 0.5 * (demands.growthKg or 0)
+    -- Cows of a breed that eats more per kg than the Holstein-based equations (Jersey).
+    local cowIntake = 1
+    if class == "LACTATING" or class == "DRY" then
+        local binding = RLGrowth.getBinding(animal:getSubType())
+        cowIntake = RLFeedProfiles.getCowIntakeFactor(binding ~= nil and binding.profile or nil)
+    end
     local milkLimit, nursingLimit = 0, 0
     if class == "CALF" then
         local binding = RLGrowth.getBinding(animal:getSubType())
@@ -522,11 +528,11 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
 
     return {
         animal = animal, class = class, target = target, stage = getFeedStage(animal, milkMax), milkKgPerDay = milkKg,
-        milkCollect = milkCollect, appetitePerMilkKg = appetitePerMilkKg,
-        appetite = appetite,
+        milkCollect = milkCollect, appetitePerMilkKg = appetitePerMilkKg ~= nil and appetitePerMilkKg * cowIntake or nil,
+        appetite = appetite * cowIntake,
         -- A calf on milk: what its rumen takes of solids, at its solidMax.
         solidCap = class == "CALF" and solidMax * RLFeedMath.getCalfSolidCapacity(weight, config.intake, weaningX, gene) or nil,
-        fill = RLFeedMath.getFillCapacity(weight, class, config.intake, gene),
+        fill = RLFeedMath.getFillCapacity(weight, class, config.intake, gene) * cowIntake,
         -- Every animal may eat concentrate its feeding stage allows (a calf: a starter feed).
         concEligible = true,
         adapted = state.feedAdapted or 0,
@@ -850,7 +856,7 @@ function RLFeed.planPen(placeable, ration, animals, stepDays)
         animals = animals, forage = forage, concentrate = concentrate, milk = milk,
         scale = config.resourceScale, realDaysPerPeriod = config.realDaysPerPeriod, dtDays = stepDays,
         share = ration.share, ration = config.ration, classes = config.classes,
-        proteinMaintenance = config.protein.maintenance, concentrateWanted = ration.grain ~= "NONE" and ration.share ~= 0,
+        proteinMaintenance = config.protein.maintenance, proteinMilkResponse = config.protein.milkResponse, concentrateWanted = ration.grain ~= "NONE" and ration.share ~= 0,
     })
     return plan, forage, concentrate, milk, unconfigured
 end
@@ -1214,7 +1220,7 @@ function RLFeed.applyStepInput(animal, input, feed, dtMonths)
     input.milkCostPerLiter = mePerLiter
     local protein = feed.proteinFactor or 0
     input.speed = (input.speed or 1) * protein
-    input.potentialMilk = (input.potentialMilk or 0) * protein * (feed.milkDemandFactor or 1)
+    input.potentialMilk = (input.potentialMilk or 0) * RLFeedMath.getMilkProteinFactor(protein, config.protein.milkResponse) * (feed.milkDemandFactor or 1)
     if feed.target == "MAINTAIN" then input.milkMobilizeShare = 0 end
     return input, RLFeed.getEnergyConfig()
 end
