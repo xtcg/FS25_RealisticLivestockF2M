@@ -372,3 +372,24 @@ listeners, nested real money calls, farm/stats/global/method replacement, same-t
 same-farm reentrancy, counter wrap, refund non-inverse statistics, repeated restore and corrupt
 witnesses. These are executable call-path evidence, not current installed-game, cross-asset
 atomicity or multiplayer recovery certification.
+
+Coordinator continuation after `7083006`: `RLDealerPurchaseAdapter` now composes these
+money calls with actual private-source detachment, negative-age ownership-codec clones,
+shared handoff, real target queue observation and WAL payload validation. Twenty-five
+composed-path checks include full batch success and replay, independent pregnant-dam
+fetuses with unchanged selected genes, pre-debit compensation, proven no-effect throws,
+unknown post-debit effects and callback changes at every major authority fence. The
+ordinary refund remains non-inverse and is never labelled a complete whole-batch rollback.
+
+Money cancellation is now explicit: a known NOT_APPLIED token can persist CANCELLED and
+release its farm money lock, while all later apply calls under that token remain unable
+to debit. Cancellation does not erase the token or its witnesses, and repeated restore
+keeps it UNKNOWN until same-generation asset proof is supplied. Purchase evidence uses
+dealer-specific depth/node limits so real nested fetal/ownership compensation records
+survive validation; this does not change the independent T02 codec's limits.
+
+Runtime service installation is still absent. Required complete owner enumeration,
+capacity and current eligibility callbacks are mandatory constructor capabilities, not
+proof that game adapters have been wired. Restart reconciliation, purchased-pregnancy
+identity persistence and subsequent ordinary player births still require implementation
+and actual game acceptance. The v2 channel remains closed.

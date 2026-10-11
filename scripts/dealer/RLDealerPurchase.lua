@@ -11,6 +11,7 @@ local P = RLDealerPurchase
 P.VERSION = 1
 P.MAX_BATCH = 1000
 P.LOCK_MS = 5000
+P.LIMITS = {maxNodes=400000,maxString=262144,maxDepth=32}
 local terminal = { COMMITTED = true, ROLLED_BACK = true }
 local stages = { PREPARED = true, APPLYING = true, COMMITTED = true, ROLLED_BACK = true, RECOVERY_REQUIRED = true }
 local function finite(v) return type(v) == "number" and v == v and math.abs(v) < math.huge end
@@ -34,7 +35,7 @@ local function dense(t, max)
     return n == #t
 end
 local function normalize(request, principal)
-    if type(request) ~= "table" or RLTradePersistence.check(request) then return nil, "BAD_REQUEST" end
+    if type(request) ~= "table" or RLTradePersistence.check(request, P.LIMITS) then return nil, "BAD_REQUEST" end
     if not str(principal) or not str(request.requestId) or not str(request.destination)
         or not str(request.quoteCredential) or not dense(request.items, P.MAX_BATCH) then return nil, "BAD_REQUEST" end
     local out = { requestId = request.requestId, principal = principal, destination = request.destination,
@@ -84,7 +85,7 @@ local function adapterOK(a)
     return true
 end
 local function receiptStatus(record, receipt)
-    if type(receipt) ~= "table" or RLTradePersistence.check(receipt) then return nil end
+    if type(receipt) ~= "table" or RLTradePersistence.check(receipt, P.LIMITS) then return nil end
     if not terminal[receipt.status] or receipt.token ~= record.context.token or receipt.amount ~= record.plan.amount
         or receipt.sourceComplete ~= true or receipt.targetComplete ~= true or receipt.moneyComplete ~= true
         or type(receipt.transferIds) ~= "table"
@@ -138,7 +139,7 @@ function P.execute(store, request, principal, adapter)
     local listings = {}
     for _, item in ipairs(r.items) do
         local listing = call(adapter, "readListing", item.saleId)
-        if type(listing) ~= "table" or RLTradePersistence.check(listing) then return reject("SALE_NOT_FOUND") end
+        if type(listing) ~= "table" or RLTradePersistence.check(listing, P.LIMITS) then return reject("SALE_NOT_FOUND") end
         if listing.saleId ~= item.saleId or listing.recordRevision ~= item.revision then return reject("STALE_REVISION") end
         if listing.state ~= "LISTED" then return reject("SALE_NOT_LISTED") end
         local valid, reason = call(adapter, "validateListing", copy(listing), copy(context))
@@ -150,7 +151,7 @@ function P.execute(store, request, principal, adapter)
         if valid ~= true then return reject(reason or method) end
     end
     local plan, reason = call(adapter, "prepare", copy(listings), copy(context))
-    if type(plan) ~= "table" or RLTradePersistence.check(plan) or not finite(plan.amount) or plan.amount < 0
+    if type(plan) ~= "table" or RLTradePersistence.check(plan, P.LIMITS) or not finite(plan.amount) or plan.amount < 0
         or type(plan.compensation) ~= "table" or not dense(plan.transferIds, #r.items)
         or #plan.transferIds ~= #r.items then return reject(reason or "BAD_PREPARED_TRANSFER") end
     local ids = {}
@@ -188,7 +189,7 @@ function P.execute(store, request, principal, adapter)
     local latest = {}
     for _, item in ipairs(r.items) do
         local listing = call(adapter, "readListing", item.saleId)
-        if type(listing) ~= "table" or RLTradePersistence.check(listing) or listing.saleId ~= item.saleId
+        if type(listing) ~= "table" or RLTradePersistence.check(listing, P.LIMITS) or listing.saleId ~= item.saleId
             or listing.recordRevision ~= item.revision or listing.state ~= "LISTED" then return abortPrepared("STALE_REVISION") end
         local valid, reason = call(adapter, "validateListing", copy(listing), copy(context))
         if valid ~= true then return abortPrepared(reason or "INELIGIBLE") end
@@ -210,7 +211,7 @@ end
 -- Plain journal import validates identity, request fingerprint and finished results.
 -- Every interrupted stage closes the gate; locks are reconstructed only as recovery ownership.
 function P.import(data, options)
-    if type(data) ~= "table" or RLTradePersistence.check(data) or data.version ~= P.VERSION
+    if type(data) ~= "table" or RLTradePersistence.check(data, P.LIMITS) or data.version ~= P.VERSION
         or type(data.records) ~= "table" or type(data.recoveryRequired) ~= "boolean" then return nil, "BAD_JOURNAL" end
     if options ~= nil and (type(options) ~= "table" or (options.forceReconciliation ~= nil
         and type(options.forceReconciliation) ~= "boolean")) then return nil, "BAD_IMPORT_OPTIONS" end

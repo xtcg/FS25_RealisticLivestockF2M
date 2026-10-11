@@ -120,6 +120,7 @@ function M.apply(store,token)
     local binding=store.bindings[token]
     if not binding or binding.restored then return unknown(store,record,"RESTORED_OWNERSHIP_UNPROVEN") end
     if binding.busy then local result=copy(record); result.status,result.reason="UNKNOWN","MONEY_CALL_IN_PROGRESS"; return result end
+    if record.cancelled then return M.observe(store,token) end
     if record.debitAttempted or record.phase~="BOUND" then return M.observe(store,token) end
     local before,why=current(store,record)
     if not before or not sameWitness(before,record.before) then return unknown(store,record,why or "FOREIGN_MONEY_CHANGE") end
@@ -151,6 +152,23 @@ function M.apply(store,token)
         persist(store,"persistCommitted",record)
     end
     if record.status=="UNKNOWN" then store.recoveryRequired=true else store.locks[record.farmId]=nil end
+    return copy(record)
+end
+-- Release an unused/proven no-effect token without forgetting its durable identity.
+-- A cancelled token can never subsequently debit through apply.
+function M.cancel(store,token)
+    local record=store.records[token];if not record then return nil,"UNKNOWN_MONEY_TOKEN" end
+    local binding=store.bindings[token]
+    if not binding or binding.restored or binding.busy then return nil,"MONEY_CANCEL_UNPROVEN" end
+    local observed=M.observe(store,token)
+    if not observed or observed.status~="NOT_APPLIED" or record.refundAttempted or store.recoveryRequired then return nil,"MONEY_CANCEL_UNPROVEN" end
+    if record.cancelled then return observed end
+    binding.busy=true;record.cancelled,record.phase=true,"CANCELLED"
+    local durable,why=persist(store,"persistCommitted",record);binding.busy=false
+    if not durable then return unknown(store,record,why) end
+    local settled=M.observe(store,token)
+    if not settled or settled.status~="NOT_APPLIED" then return unknown(store,record,"MONEY_CANCEL_CHANGED") end
+    if store.locks[record.farmId]==token then store.locks[record.farmId]=nil end
     return copy(record)
 end
 function M.rollback(store,token)
@@ -203,7 +221,7 @@ local function witnessOK(w,record)
         and type(w.heroActive)=="boolean" and (w.change==nil or finite(w.change))
         and w.moneyTypeId==record.moneyTypeId and w.moneyStatistic==record.moneyStatistic
 end
-local phases={BOUND=true,DEBIT_PREPARED=true,DEBIT_CALLED=true,DEBIT_FINISHED=true,REFUND_PREPARED=true,REFUND_CALLED=true,REFUND_FINISHED=true}
+local phases={BOUND=true,CANCELLED=true,DEBIT_PREPARED=true,DEBIT_CALLED=true,DEBIT_FINISHED=true,REFUND_PREPARED=true,REFUND_CALLED=true,REFUND_FINISHED=true}
 function M.validate(data)
     if type(data)~="table" or RLTradePersistence.check(data) or data.version~=M.VERSION or not text(data.epoch)
         or type(data.records)~="table" then return nil,"BAD_MONEY_DOCUMENT" end
@@ -216,6 +234,8 @@ function M.validate(data)
             or (saved.refundAfter~=nil and not witnessOK(saved.refundAfter,saved))
             or (saved.status~="APPLIED" and saved.status~="NOT_APPLIED" and saved.status~="UNKNOWN")
             or type(saved.debitAttempted)~="boolean" or type(saved.refundAttempted)~="boolean" then return nil,"BAD_MONEY_RECEIPT" end
+        if (saved.cancelled~=nil and saved.cancelled~=true) or ((saved.phase=="CANCELLED")~=(saved.cancelled==true))
+            or (saved.cancelled and (saved.status=="APPLIED" or saved.refundAttempted)) then return nil,"BAD_MONEY_RECEIPT" end
     end
     return true
 end

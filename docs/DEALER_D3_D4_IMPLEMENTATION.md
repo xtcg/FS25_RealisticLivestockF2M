@@ -387,3 +387,57 @@ and durable stage evidence; authoritative listing-view/UI route; same-generation
 reconciliation and proven compensation; installed-map and multiplayer/save interruption
 validation. Pure StockService publication/progression now explicitly refuse stores with
 real owners so no path silently updates only detached physiology. Complete v2 stays closed.
+
+### D4 composed purchase adapter (after `7083006`)
+
+`RLDealerPurchaseAdapter` now composes the actual private source, real Animal handoff,
+target queue and mission money adapters under `RLDealerPurchase.execute`. Construction
+requires authoritative connection/destination permissions, a complete pen/trailer owner
+inventory, server quotes, capacity and eligibility callbacks, current subtype/disease
+resolution and a synchronous whole-evidence persistence barrier. It registers no endpoint
+and cannot replace previously loaded money evidence with a fresh payment epoch.
+
+Preparation serializes and restores only the selected real source animals through the
+ownership codec and then installs the shared physiological handoff. It never calls the
+ordinary `Animal:clone` (which shares pregnancy) or a nonnegative-age/random-birthday
+constructor. Actual unborn identities, genes and pregnancy objects transfer without a
+new draw; prepared target pregnancies are independent copies. Full source inventory,
+target snapshots, destination save identity, exact money witnesses and pre-reservation
+listings are retained as plain compensation evidence.
+
+The apply path requires the coordinator's durable APPLYING record, revalidates authority,
+identity, quote, price, clock, source records, eligibility, capacity, real-time locks and
+full-world ownership, and persists own listing reservations before asset effects. It
+detaches exact original sources, observes actual target attachment, then debits once.
+Callbacks at reservation, target flush and money boundaries cannot silently invalidate
+that evidence: fences run again before debit and final commit. SOLD and source-record
+removal occur only after complete source/target/money observations. Reentrant effects are
+refused. Terminal PREPARED/APPLYING/receipt storage uncertainty closes both stock and
+purchase recovery ownership instead of replaying an uncertain effect.
+
+Before a debit, exact target/source compensation can produce ROLLED_BACK. A proven
+no-effect money throw can also compensate. `RLDealerMoneyAdapter.cancel` durably marks
+unused/no-effect tokens CANCELLED and releases their money lock without permitting a
+later debit under the same token. After a real/ambiguous debit, this adapter does not
+fabricate a complete refund: it retains actual paid assets under RECOVERY_REQUIRED.
+
+Focused composed-path checks pass **25/25**, including same-request replay, pregnant
+batch transfer with fertility-zero/outlier fetal genes, partial/silent target writes,
+money throw-before/after, failed initial/post-debit/terminal barriers, callback permission,
+capacity, clock, price and funds changes, recycled network references, reentrancy and
+cancelled receipt restoration. The fixture uses actual Animal construction/handoff,
+source and target adapters, the checked-in FS25 mission/farm money path, and the full
+WAL codec/write/readback barrier; target queue, world enumeration and storage filesystem
+remain stand-ins. All **37** dealer/loader files parse in standard Lua 5.1.
+The complete regression passes **3382/3382**
+(`/private/tmp/rlrm-dealer-purchase-adapter-tests.log`).
+
+This is a dormant server composition, not a release: authoritative engine capacity/world
+enumeration and eligible listing-view/UI wiring still need runtime installation. A
+coordinated checkpoint does not yet rehydrate the money adapter's proof of completed
+payments, so restart with purchase WAL evidence remains a reconciliation gate. Ordinary
+player pregnancy XML and later births have different unborn identity semantics; purchased
+pregnant-dam save/load and normal subsequent offspring need explicit acceptance evidence.
+Owned source calendar/birth/newborn progression, complete cross-save ownership recovery,
+installed-map aliases and multiplayer/save interruptions remain required. No release flag
+or unused server capability declaration bypasses these gates.
