@@ -59,3 +59,27 @@ assert(U.advance(stock,{{hours=24,daysPerMonth=1},{hours=24,daysPerMonth=3},{hou
 assert(U.advance(split,{{hours=24,daysPerMonth=1}},splitCtx))
 assert(U.advance(split,{{hours=24,daysPerMonth=3},{hours=24,daysPerMonth=7}},splitCtx))
 check("owned progress: mixed month lengths match split persisted source and child continuation",T.canonical(encode(stock))==T.canonical(encode(split)))
+stock,ctx,id=F.new({child=true})
+stock.purchase.locks[id]={owner="TRANSIENT-REQUEST",deadline=1000}
+local lockedOwner=stock.sourceOwners.OWNER;local lockedBefore=T.canonical(encode(stock));local lockWrites=0
+ctx.persistBarrier=function() lockWrites=lockWrites+1;return true end
+local lockedResult,lockedReason=U.advance(stock,{{hours=1,daysPerMonth=1}},ctx)
+check("owned progress: transient purchase lock without journal refuses source progression upfront",not lockedResult
+    and lockedReason=="TRANSACTION_IN_PROGRESS" and next(stock.purchase.records)==nil and lockWrites==0
+    and stock.sourceOwners.OWNER==lockedOwner and T.canonical(encode(stock))==lockedBefore and not stock.recoveryRequired)
+for _,mutation in ipairs({"capacity","purchaseLocks"}) do
+    local s,c,sale=F.new({child=true});local originalOwner=s.sourceOwners.OWNER;local writes=0
+    c.persistBarrier=function() writes=writes+1;return true end
+    c.eligible=function()
+        if mutation=="capacity" then originalOwner.capacity=11
+        else s.purchase.locks[sale]={owner="FOREIGN-REQUEST",deadline=2000} end
+        return true
+    end
+    local random=math.random;math.random=function() error("foreign progress RNG") end
+    local ok,value,reason=pcall(U.advance,s,{{hours=1,daysPerMonth=1}},c);math.random=random;assert(ok,value)
+    check("owned progress: eligible foreign "..mutation.." mutation before barrier holds with evidence",not value and reason=="SOURCE_SNAPSHOT_CHANGED"
+        and s.recoveryRequired and s.sourceProgressEvidence~=nil and s.sourceProgressEvidence.before~=nil
+        and s.sourceProgressEvidence.staged~=nil and writes==0 and s.sourceOwners.OWNER==originalOwner and s.farm.clock.months==100)
+    check("owned progress: foreign "..mutation.." is preserved rather than overwritten",mutation=="capacity" and originalOwner.capacity==11
+        or mutation=="purchaseLocks" and s.purchase.locks[sale].owner=="FOREIGN-REQUEST")
+end

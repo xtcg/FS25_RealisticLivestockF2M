@@ -192,3 +192,20 @@ until the complete calendar/birth controller is installed. The real source adapt
 supports exact batch detachment and conservative original-object compensation; reload of
 an already removed batch remains a reconciliation gate. No source object is regenerated
 from a receipt and no incomplete money compensation is accepted as a complete rollback.
+
+Continuation after `5aa6fc0`: the owned calving controller now stages feeding to real
+gestation terms, persists each PREPARED before normal birth RNG, refreshes maternal
+observations and enrolls actual surviving children before COMMITTED, then feeds the
+remaining calendar interval. Same-cursor dams are processed deterministically; intermediate
+old cursors force recovery isolation. Unknown barriers preserve before/actual-stage/attempted
+plain evidence and cannot redraw on retry. Explicit retired-source records keep dead maternal
+identity and committed proof while active calves continue feeding. Whole checkpoint and
+verified restore now retain retired ownership. The first full regression passes 3447/3447;
+the implementation baseline records subsequent hour-segment boundary checks. No runtime
+generation/calendar hook or full v2 release is enabled by this dormant composition.
+
+Final 2026-10-12 verification: exact-term arrays of individual hourly segments on 1/3/7-day
+calendars, early-by-one-hour refusal, zero elapsed no-op, transient purchase locks and
+foreign callback mutations are covered. Birth continuation 40/40, owned rearing 25/25,
+retirement 13/13; complete regression 3464/3464. All 39 dealer/loader files parse Lua 5.1.
+Log: `/private/tmp/rlrm-dealer-owned-birth-verified-tests.log`.

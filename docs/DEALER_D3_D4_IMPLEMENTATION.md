@@ -491,3 +491,75 @@ while retaining the dead real mother would make the strict owned inventory unbou
 retaining her as an active fed source would block subsequent feeding. Retain actual dead
 identity and committed mortality evidence; withdraw offers and remove her from active
 feeding explicitly. Never discard a dead mother or fabricate a newborn assumed history.
+
+### Actual owned calving continuation (after `5aa6fc0`)
+
+`RLDealerOwnedBirth.advance` now consumes real calendar segments across known pregnancy
+terms. It restores the complete private inventory without RNG, checks the aggregate full
+litters against owner capacity, and requires server-supplied actual birth dates and stable
+event IDs. At each exact due cursor it feeds other mothers and existing calves, then
+processes simultaneous dams in sorted source-ID order. Other due dams retain their prior
+recorded bodies until their own PREPARED transition; a whole-inventory evidence barrier
+precedes each call to the normal reproduction sampler. COMMITTED updates maternal observed
+SourceState and enrolls every actual surviving calf before persisting the entire inventory.
+The remaining calendar interval feeds both generations through shared growth code.
+
+Any attempted barrier followed by an uncertain write, callback mutation or subsequent
+failure closes the original stock. Before state, actual staged objects/journals and the
+last attempted plain snapshot are retained in `sourceBirthEvidence`; no retry re-rolls a
+birth. Same-cursor partial commits retain the first calf when the second mother fails.
+Lagging physiological cursors now mark the owned envelope as recovery-required even if
+the preceding individual birth journal is COMMITTED. A verified interrupted envelope can
+retain its exact real objects in a closed store, rather than dropping evidence through
+ordinary SourceFarm's stricter equal-cursor admission gate.
+
+`retiredSources` preserves maternal mortality records, exact owned dead identity and the
+matching COMMITTED birth proof. `OwnedStock.stageRetirement` stages only metadata and
+withdraws offers; it never discards actual objects or mutates the input stock. Dead mothers
+leave active source feeding, while actual living calves continue from the shared cursor.
+Historical state, death cursor, selected newborn/draw evidence and maternal physiology must
+all agree. Retirement survives owned rearing, coordinated checkpoints, verified restoration,
+purchase evidence and runtime WAL comparison. Existing envelopes without this optional
+field remain byte-compatible. Retained dead objects still count toward conservative private
+owner capacity; disposal/reuse is not inferred from a mortality result.
+
+The first complete regression passes **3447/3447**
+(`/private/tmp/rlrm-dealer-owned-birth-tests.log`), including **28** new controller checks and
+**13** retirement checks. Subsequent boundary review identified accumulated hour-segment
+roundoff near exact term; final boundary verification is recorded below. Tests load the
+complete normal reproduction function and actual birth-weight sampler; engine world,
+storage and calendar callbacks remain fixtures. The test-only GIANTS `continue` translation
+is equivalent on the exercised one-child mortality or dead-last-twin paths.
+
+The new controller is loaded but remains dormant: runtime source generation/calendar hooks,
+authoritative listing UI, cross-save actual asset/payment reconciliation and installed-game
+pregnant-purchase/multiplayer acceptance are still required. `CHANNEL_ENABLED` stays false.
+
+Next admission checkpoint: the legacy `_tryCreateSaleAnimal` must not be reused as a v2
+entity factory. It constructs the mother at a positive age (generated physiology/random
+birthday), and `createSalePregnancy` selects offspring again, including implicit genetics
+RNG inside its unborn constructor. It does not allocate stable unborn IDs or pin a full
+sire context. The next owned admission service must instead accept an already evaluated
+historical candidate, fixed adult identity/calendar/disease metadata, fixed real fetal
+IDs/subtypes/genes and sire, plus durable request/identity-allocation evidence. All actual
+objects use explicit genes/weight and negative-age constructors before shared handoff.
+The full owned snapshot and listing publication must pass one persistence barrier; no
+failed admission may allocate new IDs or reconstruct a differently sampled pregnancy.
+
+Final boundary/concurrency verification, 2026-10-12: the controller uses the request's
+starting cursor plus accumulated calendar deltas, aligning only sub-1e-10 roundoff to a
+known term already reached by the complete requested interval. It does not feed to
+term-minus-epsilon or fabricate a birth before the supplied interval reaches term.
+Arrays of 165/495/1155 individual one-hour segments on 1/3/7-day calendars now calve once
+with newborn age exactly zero; removing the final hour leaves pregnancy intact with no
+birth draws. Zero elapsed updates preserve real object references and perform no writes.
+Transient purchase locks are fenced even before a durable purchase record exists. Both
+owned rearing and birth continuation include transient locks in their original-state
+fingerprint and hold foreign callback mutations before the first attempted write, retaining
+the changed original state for reconciliation.
+
+Final focused checks pass **40/40** for birth continuation, **25/25** for owned rearing and
+**13/13** for retirement. All **39** dealer/loader files parse in standard Lua 5.1.
+The complete regression passes **3464/3464**
+(`/private/tmp/rlrm-dealer-owned-birth-verified-tests.log`). This supersedes the initial
+3447/3447 and intermediate 3454/3454 runs above. Full v2 remains closed.

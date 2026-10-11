@@ -114,6 +114,15 @@ end
 
 -- PREPARED must durably precede RNG. An interrupted/failed birth is quarantined, never
 -- retried with new draws. Persistence callbacks are supplied by the authoritative journal.
+function B.check(owner,dam,date,context)
+    -- Controller preflight never changes a prior journal or replays a birth.
+    if type(owner)=="table" and type(owner.birthJournal)=="table" and type(date)=="table"
+        and owner.birthJournal[date.eventId]~=nil then return fail("SOURCE_BIRTH_REQUEST") end
+    local ok,prepared,failure=pcall(preflight,owner,dam,date,context)
+    if not ok then return fail("SOURCE_BIRTH_PREPARE_ERROR") end
+    if not prepared then return nil,failure end
+    return true
+end
 function B.execute(owner, dam, date, context)
     local ok, prepared, failure = pcall(preflight, owner, dam, date, context)
     if not ok then return fail("SOURCE_BIRTH_PREPARE_ERROR") end

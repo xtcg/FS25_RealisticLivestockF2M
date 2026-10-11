@@ -88,7 +88,7 @@ function V.buildSnapshot(store, meta, markers)
     if store.sourceOwners ~= nil then
         local why
         ownership, why = RLDealerOwnedStock.export(store.sourceOwners, store.sourceBindings,
-            store.sourceRecordsByOwner, store.observedChildren, store.farm.sources, store.farm.clock.months)
+            store.sourceRecordsByOwner, store.observedChildren, store.farm.sources, store.farm.clock.months, store.retiredSources)
         if not ownership then return nil, why end
     end
     return RLDealerPersistence.capture(meta, RLDealerClock.export(store.farm.clock),
@@ -106,11 +106,17 @@ function V.fromVerifiedDocument(document)
     end
     local farm, why = RLDealerSourceFarm.restore({ version = RLDealerSourceFarm.VERSION,
         namespace = data.listings.namespace, clock = data.clock, sources = data.sources })
+    if not farm and why=="SOURCE_CLOCK" and data.ownedStock and data.ownedStock.recoveryRequired==true then
+        -- A verified interrupted whole-owner birth may contain older active dam
+        -- records at the shared boundary. Preserve all evidence in a closed store;
+        -- it cannot enter ordinary SourceFarm feeding or purchasing.
+        farm={version=RLDealerSourceFarm.VERSION,namespace=data.listings.namespace,clock=copy(data.clock),sources=copy(data.sources)}
+    end
     if not farm then return nil, why end
     local store = { version = V.VERSION, farm = farm, listings = copy(data.listings), purchase = copy(data.purchase),
-        recoveryRequired = data.recoveryRequired == true }
+        recoveryRequired = data.recoveryRequired == true or (data.ownedStock and data.ownedStock.recoveryRequired==true) or false }
     if data.ownedStock then
-        for _, key in ipairs({"sourceOwners", "sourceBindings", "sourceRecordsByOwner", "observedChildren"}) do
+        for _, key in ipairs({"sourceOwners", "sourceBindings", "sourceRecordsByOwner", "observedChildren", "retiredSources"}) do
             store[key] = data.ownedStock[key]
         end
     end

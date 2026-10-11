@@ -54,7 +54,7 @@ function A.new(ctx)
             if owner==nil or owner.byId[b.animalId]==nil then sources[sourceId],bindings[sourceId]=nil,nil end
         end
         local owned,why=RLDealerOwnedStock.export(stock.sourceOwners,bindings,stock.sourceRecordsByOwner,
-            stock.observedChildren,sources,stock.farm.clock.months)
+            stock.observedChildren,sources,stock.farm.clock.months,stock.retiredSources)
         if not owned then return nil,why end
         return {version=1,clockMonths=stock.farm.clock.months,sources=sources,sourceOwnership=owned,
             money=RLDealerMoneyAdapter.export(a.money)}
@@ -118,7 +118,7 @@ function A.new(ctx)
         local q;q,reason=quote(context);if not q then return nil,reason end
         local preview;preview,reason=previewMoney(context);if not preview then return nil,reason end
         local owned;owned,reason=RLDealerOwnedStock.export(stock.sourceOwners,stock.sourceBindings,
-            stock.sourceRecordsByOwner,stock.observedChildren,stock.farm.sources,context.currentClock)
+            stock.sourceRecordsByOwner,stock.observedChildren,stock.farm.sources,context.currentClock,stock.retiredSources)
         if not owned then return nil,reason end
         local groups,ownerIds={},{}
         for _,listing in ipairs(listings) do

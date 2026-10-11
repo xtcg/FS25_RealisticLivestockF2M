@@ -16,15 +16,16 @@ local function install(animal,record)
 end
 local function snapshot(store)
     local owned,why=RLDealerOwnedStock.export(store.sourceOwners,store.sourceBindings,store.sourceRecordsByOwner,
-        store.observedChildren,store.farm.sources,store.farm.clock.months)
+        store.observedChildren,store.farm.sources,store.farm.clock.months,store.retiredSources)
     if not owned then return nil,why end
     return {version=U.VERSION,clock=RLDealerClock.export(store.farm.clock),listings=RLDealerListingRegistry.export(store.listings),
-        purchase=RLDealerPurchase.export(store.purchase),sources=copy(store.farm.sources),sourceOwnership=owned}
+        purchase=RLDealerPurchase.export(store.purchase),purchaseLocks=copy(store.purchase.locks),sources=copy(store.farm.sources),sourceOwnership=owned}
 end
 function U.advance(store,segments,ctx)
     if type(store)~="table" or type(ctx)~="table" or ctx.isServer~=true or type(store.sourceOwners)~="table" then return nil,"OWNED_PROGRESS_SERVER_REQUIRED" end
     if store.recoveryRequired or store.purchase.recoveryRequired then return nil,"RECOVERY_REQUIRED" end
     if store.sourceUpdateInProgress then return nil,"SOURCE_UPDATE_IN_PROGRESS" end
+    if next(store.purchase.locks)~=nil then return nil,"TRANSACTION_IN_PROGRESS" end
     for _,key in ipairs({"resolveSubType","resolveEntry","eligible","persistBarrier"}) do
         if type(ctx[key])~="function" then return nil,"OWNED_PROGRESS_CAPABILITY:"..key end
     end
@@ -70,7 +71,7 @@ function U.advance(store,segments,ctx)
         end
         local staged={farm=farm,listings=copy(before.listings),purchase=store.purchase,
             sourceOwners=owned.sourceOwners,sourceBindings=owned.sourceBindings,sourceRecordsByOwner=owned.sourceRecordsByOwner,
-            observedChildren=owned.observedChildren}
+            observedChildren=owned.observedChildren,retiredSources=owned.retiredSources}
         for _,row in ipairs(RLDealerListingRegistry.listRecords(staged.listings,"LISTED")) do
             local source=staged.farm.sources[row.payload.sourceId]
             if not source then return nil,"LISTING_SOURCE_MISSING" end
@@ -81,7 +82,10 @@ function U.advance(store,segments,ctx)
         local checkpoint,skipped=RLDealerClock.checkpoint(farm.clock)
         local after;after,failure=snapshot(staged);if not after then return nil,failure end
         local current=snapshot(store)
-        if not current or not equal(current,before) then return nil,"SOURCE_SNAPSHOT_CHANGED" end
+        if not current or not equal(current,before) then
+            store.recoveryRequired=true;store.sourceProgressEvidence={before=before,staged=after,current=current}
+            return nil,"SOURCE_SNAPSHOT_CHANGED"
+        end
         -- No physical assets or RNG changed before this complete evidence barrier.
         -- An unknown write can leave WAL ahead of the game save, so retain both.
         barrierStarted=true
@@ -97,7 +101,7 @@ function U.advance(store,segments,ctx)
             store.recoveryRequired=true;store.sourceProgressEvidence={before=before,staged=after,current=current}
             return nil,"SOURCE_SNAPSHOT_CHANGED_AFTER_BARRIER"
         end
-        for _,key in ipairs({"farm","listings","sourceOwners","sourceBindings","sourceRecordsByOwner","observedChildren"}) do store[key]=staged[key] end
+        for _,key in ipairs({"farm","listings","sourceOwners","sourceBindings","sourceRecordsByOwner","observedChildren","retiredSources"}) do store[key]=staged[key] end
         return {months=finish,replenishAtMonths=checkpoint,skippedCheckpoints=skipped}
     end)
     store.sourceUpdateInProgress=nil

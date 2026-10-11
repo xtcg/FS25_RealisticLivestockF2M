@@ -82,7 +82,10 @@ function D.validateSnapshot(s, actualParticipants, resolver, ownershipContext)
     for id, listing in pairs(s.listings.records) do
         if listing.lastUpdatedAtMonths > clock.months + 1e-8 then return nil, "LISTING_FUTURE_CURSOR:" .. id end
         local sourceId = listing.payload.sourceId
-        if sourceId ~= nil and (not str(sourceId) or (s.sources[sourceId] == nil and listing.state ~= "SOLD")) then return nil, "LISTING_SOURCE_MISSING:" .. id end
+        local retired=type(s.sourceOwnership)=="table" and type(s.sourceOwnership.retiredSources)=="table"
+            and s.sourceOwnership.retiredSources[sourceId] or nil
+        if sourceId ~= nil and (not str(sourceId) or (s.sources[sourceId] == nil and listing.state ~= "SOLD"
+            and not (type(retired)=="table" and (listing.state=="WITHDRAWN" or listing.state=="QUARANTINED")))) then return nil, "LISTING_SOURCE_MISSING:" .. id end
         if sourceId ~= nil and s.sources[sourceId] ~= nil then
             local sourceCursor = s.sources[sourceId].cursorMonths
             if listing.lastProgressedAtMonths > sourceCursor or

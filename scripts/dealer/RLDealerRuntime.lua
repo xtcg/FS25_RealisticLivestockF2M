@@ -67,7 +67,7 @@ function R.compareJournal(document, generation, lineage)
     local currentRecovery
     if R.store.sourceOwners ~= nil then
         local ownership, failure = RLDealerOwnedStock.export(R.store.sourceOwners, R.store.sourceBindings,
-            R.store.sourceRecordsByOwner, R.store.observedChildren, R.store.farm.sources, R.store.farm.clock.months)
+            R.store.sourceRecordsByOwner, R.store.observedChildren, R.store.farm.sources, R.store.farm.clock.months, R.store.retiredSources)
         if not ownership then return nil, failure end
         currentRecovery = {version=1,clockMonths=R.store.farm.clock.months,sources=copy(R.store.farm.sources),sourceOwnership=ownership}
         if R.store.money then currentRecovery.money=RLDealerMoneyAdapter.export(R.store.money) end
