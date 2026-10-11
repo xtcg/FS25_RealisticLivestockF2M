@@ -423,13 +423,17 @@ end
 function RLFeedInfoService.notifyCalfMilk(placeable, alert)
     local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
     if spec == nil or alert == nil then return end
+    if alert.state == "OK" then
+        spec.rlCalfMilkNotified = "OK"
+        return
+    end
+    -- Keep the highest severity notified until recovery, even if NONE briefly becomes LOW.
     local last = spec.rlCalfMilkNotified
-    spec.rlCalfMilkNotified = alert.state
-    if alert.state == last or alert.state == "OK" then return end
-    if alert.state == "LOW" and last == "NONE" then return end
+    if alert.state == last or last == "NONE" then return end
     local mission = g_currentMission
     if mission == nil or mission.addIngameNotification == nil then return end
     if placeable.getOwnerFarmId ~= nil and mission.getFarmId ~= nil and placeable:getOwnerFarmId() ~= mission:getFarmId() then return end
+    spec.rlCalfMilkNotified = alert.state
     local name = placeable.getName ~= nil and placeable:getName() or ""
     if alert.state == "NONE" then
         mission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_CRITICAL, string.format(getText("rl_feed_calfMilkAlert"), name, alert.short))

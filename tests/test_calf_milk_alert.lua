@@ -84,6 +84,35 @@ end
 
 do
     notices = {}
+    local pen = rearingPen({})
+    local function notify(state) Info.notifyCalfMilk(pen, { state = state, short = 1, monthsLeft = 0.1 }) end
+    notify("NONE")
+    notify("LOW")
+    notify("NONE")
+    check("notice: NONE-LOW-NONE stays one critical notice until OK",
+        #notices == 1 and notices[1].kind == FSBaseMission.INGAME_NOTIFICATION_CRITICAL)
+    notify("OK")
+    notify("LOW")
+    notify("NONE")
+    check("notice: recovery re-arms LOW and permits escalation to NONE",
+        #notices == 3 and notices[2].kind == FSBaseMission.INGAME_NOTIFICATION_INFO
+        and notices[3].kind == FSBaseMission.INGAME_NOTIFICATION_CRITICAL)
+    notify("LOW")
+    notify("NONE")
+    check("notice: escalation stays latched through further LOW-NONE transitions", #notices == 3)
+
+    notify("OK")
+    pen.getOwnerFarmId = function() return 2 end
+    notify("NONE")
+    check("notice: another farm's alert does not consume this player's notification",
+        #notices == 3 and pen.spec_husbandryFood.rlCalfMilkNotified == "OK")
+    pen.getOwnerFarmId = function() return 1 end
+    notify("NONE")
+    check("notice: the eligible player receives the previously suppressed alert", #notices == 4)
+end
+
+do
+    notices = {}
     local pen = rearingPen({ FORAGE = 1e5, CALFMILK = 1e4 })
     FeedSim.hour(pen)
     check("plenty: OK, no notice", Info.getCalfMilkAlert(pen).state == "OK" and #notices == 0)
