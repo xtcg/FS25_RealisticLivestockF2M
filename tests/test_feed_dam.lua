@@ -84,6 +84,24 @@ do
 end
 
 
+-- Grain for calves on milk (creep feeding): a calf at its dam eats the pen's grain within its solid
+-- capacity; sugar beet is not a calf feed.
+
+do
+    local cow = dam("COW_ANGUS", "D80")
+    local c = identify((GrowthSim.makeAnimal("BULL_ANGUS", { age = 2, motherId = "D80" })), "C80")
+    local pen = FeedSim.makePen({ cow, c }, { FORAGE = 1e5, BARLEY = 1e5, SUGARBEET_CUT = 1e5 })
+    for _ = 1, 6 do FeedSim.hour(pen) end
+    local byFill = c.rlFeedIntake ~= nil and c.rlFeedIntake.byFill or {}
+    local barley = byFill.BARLEY ~= nil and byFill.BARLEY.kg or 0
+    check(string.format("creep: a 2-month calf at its dam eats barley (%.3f kg DM the last hour), no sugar beet, still on milk (%s)",
+        barley, tostring(RLFeed.getRationClass(c))),
+        barley > 0 and byFill.SUGARBEET_CUT == nil and RLFeed.getRationClass(c) == "CALF"
+        and RLFeedProfiles.getUsableFeed("BARLEY").stages.PRE_WEANING == true
+        and RLFeedProfiles.getUsableFeed("SUGARBEET_CUT").stages.PRE_WEANING == nil)
+end
+
+
 -- A dairy dam and her calf ------------------------------------------------------------------------
 
 do
