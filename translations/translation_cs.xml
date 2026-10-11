@@ -989,7 +989,7 @@
         <text name="rl_feed_reason_MILKCOW_LEGACY" text="特殊奶牛沿用旧模式"/>
         <text name="rl_feed_reason_NO_TROUGH" text="食槽不支持"/>
         <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="栏内有未覆盖动物"/>
-        <text name="rl_feed_reason_SUCKLING_CALF" text="吃奶小牛缺母牛"/>
+        <text name="rl_feed_reason_SUCKLING_CALF" text="吃奶小牛需母牛或小牛栏"/>
         <text name="rl_feed_reason_UNKNOWN" text="状态未知"/>
         <text name="rl_feed_limit_NONE" text="无限制"/>
         <text name="rl_feed_limit_FIBRE" text="粗料限制"/>

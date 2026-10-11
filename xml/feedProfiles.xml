@@ -126,6 +126,12 @@
     DM ceiling is 2 x the old 10 L at 12.5% and the 6-month weights reach the curves again (FEED_CALF_MILK_CALIBRATION.md).
     nursingLitersPerDay: a calf that drinks from its dam keeps the real reference, 10 L/day of her
     whole milk (damMilk dm); only the trough's calf milk is at game volume and strength.
+    earlyWeaningMonth: a calf of an age for milk outside a calf rearing pen with no dam there that
+    can nurse it (sold, dead, in another pen, dry) is weaned early from this age (continuous
+    months; 3 - calves take to solid feed from about 2-3 months, and early weaning at 60-90 days
+    is a real practice): it eats as any weaned animal. A younger one still needs milk: its pen
+    stays on the old rules (SUCKLING_CALF) until it is in a calf rearing pen, back with its dam,
+    or old enough.
     Scale its DM allowance by breed/sex mean birth weight relative to a Holstein of the
     same sex to sizeExponent (0.75: feeding guides give a Jersey about three quarters of a
     Holstein's milk, more than her weight share) and by calfRearing milkMax, once. Total
@@ -191,7 +197,7 @@
 
     <health extremeUnderweightRatio="0.45" shortageBufferDays="3"/>
 
-    <calfMilk realLitersPerDay="5" density="1.03" dm="0.50" sizeExponent="0.75" nursingLitersPerDay="10"/>
+    <calfMilk realLitersPerDay="5" density="1.03" dm="0.50" sizeExponent="0.75" nursingLitersPerDay="10" earlyWeaningMonth="3"/>
 
     <damMilk dm="0.125" me="22.5" cp="0.25"/>
 
