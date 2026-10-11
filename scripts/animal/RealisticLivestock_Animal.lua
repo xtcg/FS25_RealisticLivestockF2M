@@ -1156,73 +1156,60 @@ function Animal:getCanReproduce() return AnimalReproduction.getCanReproduce(self
 
 function Animal:updateHealth(foodFactor) AnimalHealth.updateHealth(self, foodFactor) end
 
--- The disease multiplier scales positive growth only: an age-driven loss and the decrease terms
--- stay exactly as a healthy animal's.
---- Advance this animal's weight by one hour of growth, overweight regression and starvation.
+--- Advance this animal's weight by one hour of growth, overweight regression and starvation. All
+--- three are rates per period integrated over the hour (RLWeightMath), so a month gives the same
+--- weight at any days per period; at 1 day per period every hour is as it always was. Growth is the
+--- full-feed gain (getFullFeedGain) x nutrition, x 0.75 for a cow being milked. A disease scales
+--- the growth only: the decrease terms stay exactly as a healthy animal's.
 ---@param foodFactor number The pen's 0..1 food factor
 ---@return nil
 function Animal:updateWeight(foodFactor)
-    local subType = self:getSubType()
-    local minWeight = subType.minWeight
-    local targetWeight = self.targetWeight
-    local weight = self.weight
-    local metabolism = self.genetics.metabolism
-    local adultMonth = RLBreedTraits.getMatureAge(subType)
+    local dtMonths = RLWeightMath.getHourMonths(g_currentMission.environment.daysPerPeriod)
 
-    local baseIncrease = ((targetWeight - minWeight) / adultMonth) / (24 * g_currentMission.environment.daysPerPeriod)
-    local increase = baseIncrease * (self.gender == "female" and RLBreedTraits.getFemaleGrowth(subType) or 1.0) *
-    (1 + ((adultMonth - self.age) / 75)) *
-    self:getGrowthNutrition(foodFactor)
-
-    if increase < 0 then
-        metabolism = 1 + (1 - metabolism)
-
-        Log:trace("updateWeight: animal=%s/%s age-driven loss (age=%s adultMonth=%s), metabolism inverted to %s",
-            tostring(self.farmId), tostring(self.uniqueId), tostring(self.age), tostring(adultMonth),
-            tostring(metabolism))
-    end
-
-    increase = increase * metabolism
-
-    if self.isCastrated then increase = increase * 1.15 end
-
-    if increase > 0 then increase = increase * RLBreedTraits.get(subType, "growth") end
+    local increase = self:getFullFeedGain() * self:getGrowthNutrition(foodFactor) * dtMonths
 
     if self.clusterSystem ~= nil and self.clusterSystem.owner ~= nil and self.clusterSystem.owner.spec_husbandryMilk ~= nil and self.isLactating then increase =
         increase * 0.75 end
 
-    if increase > 0 then
+    if foodFactor == 0 then
+        Log:trace("updateWeight: animal=%s/%s starving, weight=%s targetWeight=%s",
+            tostring(self.farmId), tostring(self.uniqueId), tostring(self.weight), tostring(self.targetWeight))
+    end
+
+    self.weight = RLWeightMath.stepLegacy(self.weight, self.targetWeight, increase, self.genetics.metabolism,
+        foodFactor == 0, dtMonths)
+
+    self:applyUnderweightPenalty()
+end
+
+--- What this animal gains in a period on full feed: its full-feed line's gain at its age
+--- (RLBreedTraits.getLineGain: base gain x sex x age x metabolism x breed growth, never negative)
+--- x 1.15 for a steer x the disease weight gain. The old weight rule and the body condition budget
+--- both start from it.
+---@return number gainKg per period (>= 0)
+---@return number healthyGainKg the same without the disease (>= 0)
+function Animal:getFullFeedGain()
+    local gain = RLBreedTraits.getLineGain(self:getSubType(), self.gender, self.targetWeight, self.age,
+        self.genetics.metabolism)
+
+    if self.isCastrated then gain = gain * 1.15 end
+
+    local healthy = gain
+    if gain > 0 then
         local multipliers, contributors = self:getDiseaseMultipliers("updateWeight")
 
         if multipliers ~= nil then
-            local healthyIncrease = increase
-            increase = increase * multipliers.weightGain
+            gain = gain * multipliers.weightGain
 
             if contributors > 0 then
-                Log:trace("updateWeight: animal=%s/%s disease weightGain=%s increase %s -> %s (contributors=%s)",
+                Log:trace("getFullFeedGain: animal=%s/%s disease weightGain=%s gain %s -> %s (contributors=%s)",
                     tostring(self.farmId), tostring(self.uniqueId), tostring(multipliers.weightGain),
-                    tostring(healthyIncrease), tostring(increase), tostring(contributors))
+                    tostring(healthy), tostring(gain), tostring(contributors))
             end
         end
     end
 
-    local decrease = 0
-    if weight > targetWeight then decrease = (weight - targetWeight) / (metabolism * 25) end
-
-    if foodFactor == 0 then
-        Log:trace("updateWeight: animal=%s/%s starving, weight=%s targetWeight=%s",
-            tostring(self.farmId), tostring(self.uniqueId), tostring(weight), tostring(targetWeight))
-
-        if weight < targetWeight then
-            decrease = (targetWeight - weight) / ((1 - (metabolism - 1)) * 150)
-        elseif weight > targetWeight then
-            decrease = decrease + ((weight - targetWeight) / ((1 - (metabolism - 1)) * 150))
-        end
-    end
-
-    self.weight = math.max(self.weight + increase - decrease, 0.001)
-
-    self:applyUnderweightPenalty()
+    return gain, healthy
 end
 
 --- An animal far below the weight for its age loses health. Run after every weight change, the
@@ -1889,7 +1876,7 @@ function Animal:updateOutput(temp)
             milkCurve, milkFactor, milkProductivity, milkPreDisease = curveLitersPerDay, factor, productivity, litersPerDay
         end
 
-        local diseaseFactor = 1
+        local diseaseFactor, healthyLitersPerDay = 1, litersPerDay
         if multipliers ~= nil then
             -- Cow and buffalo milk cans are the same milk as a tank, so a disease scales them the
             -- same. Goat milk keeps the pallets modifier: sheep diseases set only that one.
@@ -1903,9 +1890,9 @@ function Animal:updateOutput(temp)
         -- It is recorded for her budget; in an hour the budget covers, the store deposits what
         -- the budget paid for instead (RLBodyCondition.depositMilk), otherwise this as before.
         if isMilk then
-            litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, milkCurve, diseaseFactor)
+            litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, milkCurve, diseaseFactor, healthyLitersPerDay)
         elseif palletMilkCurve ~= nil and Animal.isCowMilkPalletFillType(output.fillType) then
-            litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, palletMilkCurve, diseaseFactor)
+            litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, palletMilkCurve, diseaseFactor, healthyLitersPerDay)
         end
 
         if isMilk then

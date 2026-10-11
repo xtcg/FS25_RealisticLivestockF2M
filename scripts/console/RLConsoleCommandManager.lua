@@ -56,6 +56,7 @@ function RLConsoleCommandManager.new()
         RLTradeReportConsole, "<facility> <uniqueId|pen:NAME> [farmId]")
     addConsoleCommand("rlPenReport", "Log each profiled pen's rule, map filter, feed and animals (RLPEN PEN_REPORT)", "report", RLPenConsole, "[pen]")
     addConsoleCommand("rlDealerCatalog", "Log what the dealer can sell per subtype (dealerStock.xml purposes, ages, gaps) and its pool (RLDEALER)", "catalog", RLDealerConsole, "[animalType]")
+    addConsoleCommand("rlWeightProfiles", "Log each cattle subtype's weight profile and where its weight settings come from (RLWEIGHT)", "consoleReport", RLWeightProfiles, "[filter]")
 
 	return self
 

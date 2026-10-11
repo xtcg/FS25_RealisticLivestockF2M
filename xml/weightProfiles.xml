@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    Weight profiles of cattle: the physical breeds the all-cattle weight design (v2) gives one
+    female and one male reference curve each, and the breed names maps use for them. Read by
+    RLWeightProfiles: the console command rlWeightProfiles lists every cattle subtype the game has
+    loaded (base, Cow Breeds pack, map), the profile its breed resolves to, and which of its weight
+    settings come from a config file and which fall back to a default. Nothing here changes how an
+    animal grows yet; the curves and birth weights follow in a later step.
+
+    profile name     A breed name as subtypes carry it (animals.xml breed="..."). A subtype whose
+                     breed is a profile resolves to it.
+            status   Where the profile's numbers stand in the design:
+                     BASE_XML_UNREVALIDATED  this mod's own breeds, current animals.xml values
+                     PACK_REVIEW_ONLY        Cow Breeds pack, design candidates under review
+                     MAP_REVIEW_ONLY         breeds only a map brings, design candidates
+    alias breed      A breed name a map uses for a profile's breed (its subtypes resolve to that
+            profile  profile and keep their own name and identity).
+            source   The mod the name comes from (for the report only).
+
+    A breed that is neither a profile nor an alias is reported UNRESOLVED: it never falls into
+    another breed's profile silently.
+
+    To change these without editing the mod, copy this file to
+    modSettings/FS25_RealisticLivestockRM/weightProfiles.xml; that copy then replaces this file
+    entirely.
+-->
+<weightProfiles>
+    <profile name="HOLSTEIN"              status="BASE_XML_UNREVALIDATED"/>
+    <profile name="SWISS_BROWN"           status="BASE_XML_UNREVALIDATED"/>
+    <profile name="ANGUS"                 status="BASE_XML_UNREVALIDATED"/>
+    <profile name="LIMOUSIN"              status="BASE_XML_UNREVALIDATED"/>
+    <profile name="HEREFORD"              status="BASE_XML_UNREVALIDATED"/>
+    <profile name="HIGHLAND"              status="BASE_XML_UNREVALIDATED"/>
+    <profile name="WATER_BUFFALO"         status="BASE_XML_UNREVALIDATED"/>
+
+    <profile name="REDHOLSTEIN_PACK"      status="PACK_REVIEW_ONLY"/>
+    <profile name="AYRSHIRE_PACK"         status="PACK_REVIEW_ONLY"/>
+    <profile name="JERSEY_PACK"           status="PACK_REVIEW_ONLY"/>
+    <profile name="GUERNSEY_PACK"         status="PACK_REVIEW_ONLY"/>
+    <profile name="KERRY_PACK"            status="PACK_REVIEW_ONLY"/>
+    <profile name="SHORTHORNMILKERS_PACK" status="PACK_REVIEW_ONLY"/>
+    <profile name="REDANGUS_PACK"         status="PACK_REVIEW_ONLY"/>
+    <profile name="CHAROLAIS_PACK"        status="PACK_REVIEW_ONLY"/>
+    <profile name="SHORTHORN_PACK"        status="PACK_REVIEW_ONLY"/>
+    <profile name="IRISHMOILED_PACK"      status="PACK_REVIEW_ONLY"/>
+    <profile name="BRITISHBLUE_PACK"      status="PACK_REVIEW_ONLY"/>
+    <profile name="BELTEDGALLOWAY_PACK"   status="PACK_REVIEW_ONLY"/>
+    <profile name="SIMMENTAL_PACK"        status="PACK_REVIEW_ONLY"/>
+
+    <profile name="MONTBELIARDE"          status="MAP_REVIEW_ONLY"/>
+    <profile name="VOSGIENNE"             status="MAP_REVIEW_ONLY"/>
+
+    <alias breed="CHAROLAISE" profile="CHAROLAIS_PACK" source="FS25_The_Mechet"/>
+    <alias breed="SIMMENTAL"  profile="SIMMENTAL_PACK" source="FS25_The_Mechet"/>
+    <alias breed="JERSEY"     profile="JERSEY_PACK"    source="FS25_Witcombe"/>
+</weightProfiles>
