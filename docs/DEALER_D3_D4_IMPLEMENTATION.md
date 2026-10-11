@@ -90,12 +90,45 @@ another fetus mass. Milk must continue through the existing lactation rule. Dist
 
 ## Next reviewable batches and acceptance contract
 
-D3-2: pure monthly-age event history from D2 reproduction plans. Store source, versioned
-feeding template and traceability independently. Include selected birth/context, actual
-weaning rules, conception/calving and continuous sale age. UNSPECIFIED is model-assumed
-history. Validate each historical conception against age, curve-frame target (not legacy
-price target), development and reserve. Genetics screening precedes expensive replay;
-create unborn offspring only after major candidate screening.
+### D3-2 delivered: assumed history and historical mating gates
+
+`RLDealerHistory` is loaded after the D2 policy, with no live generation call yet.
+`build(plan, entry, subType, source, purpose, ctx)` consumes a selected D2 plan,
+selected birth weight/context, explicit template id, resolved weaning month and continuous
+sale age. It expands prior conceptions/calvings backwards using the configured gestation
+and recovery cycle, checks sex/reproduction/purpose/source consistency, and rejects invalid
+timelines. It draws no RNG and creates no unborn offspring. Selected values and contexts
+are copied, never redrawn. This schedule is one feasible model assumption, not evidence
+of actual source-farm events; even RECORDED source labels retain `MODEL_ASSUMED` evidence.
+UNSPECIFIED retains its separate UNKNOWN traceability.
+
+History schema version and feeding-template version are independently recorded. The three
+template identities are NORMAL_REARING, MODERATE_SLOW_REARING and NORMAL_PRODUCTION.
+`feedingAt` exposes continuous PRE_WEANING / WEANING / WEANED stages, the same
+`age - weaningMonth` transition coordinate as calf rearing, parity, time since calving and
+pregnancy age. These are **uncalibrated feeding descriptors**, not executable rations or
+validated energy budgets. D3-3 must resolve their healthy feeding recipes through the real
+feed/shared budget and calibrate normal/slow supply; no weight or gene multipliers are
+introduced here. `boundaries` includes whole-month birthdays, weaning transitions,
+conceptions, calvings and fractional sale time for replay splitting.
+
+`validateConception` requires an exact pre-conception snapshot and explicit breed rules:
+minimum age, minimum W / frameTargetKg, minimum development months and reserve mass fraction
+bounds. It never reads the legacy price target; gravid mass must be zero. Missing/invalid
+rules or snapshots fail closed. `validateMatings` checks every historical conception, with
+the failing event index; sale-time qualification cannot replace a failed past mating.
+There are no default universal breeding thresholds. D3-3 must combine breed/engine minimum
+ages with calibrated breed-specific rules, record snapshots while replaying from the
+shared birth factory, and screen genetics before replay or unborn-offspring creation.
+
+Verification: 21 focused checks cover D2 minimum/maximum plans (19 feasible cases over
+23–47 months), two previous births plus current pregnancy, recovery conflicts, source and
+template separation, copied birth context, male slow rearing without RNG, weaning boundaries,
+and separate historical weight/development/reserve failures. Final full suite passes
+2710/2710 checks (log: `/private/tmp/rlrm-dealer-d3-2-tests.log`). Lua 5.1 parsing passes
+for the module, loader and test file; `git diff --check` passes.
+The v2 generation channel remains closed; D3-3 replay, breeding-rule/feeding calibration,
+D3-4 progression and D4 purchase/recovery are still required.
 
 D3-3: hourly reference replay through the shared budget; reject failures. Replace old
 random-weight generation only for verified cattle. No ±15%, duplicate sex/gene factors,

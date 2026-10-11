@@ -241,6 +241,7 @@ source(modDirectory .. "scripts/dealer/RLDealerQualityResolver.lua")
 -- SECTION 11n: Dealer stock purposes (xml/dealerStock.xml): what ages and breeding states the
 -- dealer sells. Loads its file through RLBreedTraits.loadConfig on first use.
 source(modDirectory .. "scripts/dealer/RLDealerStockPolicy.lua")
+source(modDirectory .. "scripts/dealer/RLDealerHistory.lua")
 
 -- SECTION 12: GUI Elements
 source(modDirectory .. "scripts/gui/elements/DoubleOptionSliderElement.lua")
