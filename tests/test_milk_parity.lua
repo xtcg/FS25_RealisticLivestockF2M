@@ -7,6 +7,12 @@ local FILL = { [1] = "MILK", [2] = "BUFFALOMILK", [3] = "GOATMILK" }
 g_fillTypeManager = { getFillTypeNameByIndex = function(_, i) return FILL[i] end }
 FillType = { WOOL = 5 }
 AnimalType = { COW = 1, GOAT = 2 }
+-- The shipped breedTraits.xml (milkScale of the pack breeds).
+g_currentMission = { animalSystem = { getTypeByIndex = function() return { name = "COW" } end } }
+XMLFile = { loadIfExists = function(_, path) return loadXMLFileFromDisk(path) end }
+fileExists = function() return false end
+g_currentModDirectory = REPO
+loadMod("scripts/animal/RLBreedTraits.lua")
 g_server = {}
 
 loadAnimalSection("Animal.SEMEN_FILL_TYPE_NAMES", "\nfunction Animal:getInput")
@@ -18,10 +24,10 @@ RLBodyCondition.applyMilk = function(_, potential, curvePerPeriod) lastCurve = c
 -- The game's step: 590 from 12 to 36 months, 1000 from 36.
 local stepCurve = { get = function(_, age) if age < 12 then return 0 end if age < 36 then return 590 end if age < 120 then return 1000 end return 545 end }
 
-local function cow(age, births, typeIndex, path, children)
+local function cow(age, births, typeIndex, path, children, subTypeName)
     path = path or "milk"
     local output = path == "pallets" and { fillType = 1, curve = stepCurve } or { fillType = 1, get = stepCurve.get }
-    local subType = { name = "COW_HOLSTEIN", output = { [path] = output } }
+    local subType = { name = subTypeName or "COW_HOLSTEIN", output = { [path] = output } }
     local kids = {}
     for i = 1, children or 0 do kids[i] = { uniqueId = tostring(i) } end
     local a = setmetatable({ age = age, farmId = 1, uniqueId = "1", genetics = { productivity = 1 }, diseases = {},
@@ -31,8 +37,8 @@ local function cow(age, births, typeIndex, path, children)
     a.getDiseaseMultipliers = function() return nil, 0 end
     return a
 end
-local function perDay(age, births, typeIndex, path, children)
-    local a = cow(age, births, typeIndex, path, children)
+local function perDay(age, births, typeIndex, path, children, subTypeName)
+    local a = cow(age, births, typeIndex, path, children, subTypeName)
     a:updateOutput(20)
     return a.output[path or "milk"] * 24
 end
@@ -86,6 +92,9 @@ do
     check("parity: the budget's anchor curve carries the level too (a first-lactation cow's demand is 80% of a mature one's)",
         near(lastCurve, 1000 * 0.80, 1e-9))
 end
+check("milkScale: a pack breed's curve is taken to this mod's scale (Jersey pack x2.58), the mod's own breeds are not touched",
+    near(RLBreedTraits.get({ name = "COW_JERSEY_PACK" }, "milkScale"), 652 / 253, 1e-3) and RLBreedTraits.get({ name = "COW_HOLSTEIN" }, "milkScale") == 1
+    and near(perDay(60, 3, nil, nil, nil, "COW_JERSEY_PACK") / mature, 652 / 253, 1e-3) and near(perDay(24, 1, nil, nil, nil, "COW_JERSEY_PACK") / mature, 0.8 * 652 / 253, 1e-3))
 check("parity: the pure functions", RLMilkParity.getParity(0) == 1 and RLMilkParity.getParity(7) == 3 and RLMilkParity.getImpliedBirths(29) == 1
     and RLMilkParity.getImpliedBirths(30) == 2 and RLMilkParity.getImpliedBirths(43) == 3 and RLMilkParity.getFactor(1) == 0.80 and RLMilkParity.getFactor(2) == 0.92 and RLMilkParity.getFactor(3) == 1
     and RLMilkParity.getCurveAge(11) == 11 and RLMilkParity.getCurveAge(12) == 60 and RLMilkParity.getCurveAge(40) == 60 and RLMilkParity.getCurveAge(60) == 60 and RLMilkParity.getCurveAge(80) == 80)

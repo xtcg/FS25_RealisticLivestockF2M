@@ -407,7 +407,7 @@ function RLFeed.getMilkRealPerGameLiter(animal)
     local binding = RLGrowth.getBinding(subType)
     local realKg, mePerKg = RLFeedProfiles.getMilkBridge(binding ~= nil and binding.profile or nil)
     local milkCurve = subType ~= nil and subType.output ~= nil and subType.output.milk or nil
-    local mature = milkCurve ~= nil and milkCurve.get ~= nil and milkCurve:get(60) or 0
+    local mature = milkCurve ~= nil and milkCurve.get ~= nil and milkCurve:get(60) * RLBreedTraits.get(subType, "milkScale") or 0
     local mean = mature * RLBodyCondition.getConfig().lactationMeanFactor
     if mean <= 0 then return 0, mePerKg end
     return realKg * RLFeed.getConfig().realDaysPerPeriod / mean, mePerKg

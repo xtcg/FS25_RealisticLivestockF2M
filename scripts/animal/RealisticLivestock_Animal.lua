@@ -1903,6 +1903,8 @@ function Animal:updateOutput(temp)
         local cattleMilk = self:isCattleMilkOutput(fillType, output)
         local curveAge = cattleMilk and RLMilkParity.getCurveAge(self.age) or self.age
         local parityFactor = cattleMilk and self:getParityFactor() or 1
+        -- A breed whose milk curve is not on this mod's scale (a pack's own animals.xml) is scaled to it (breedTraits milkScale).
+        local milkScale = cattleMilk and RLBreedTraits.get(subType, "milkScale") or 1
 
         if output.curve ~= nil then
             litersPerDay = output.curve:get(curveAge)
@@ -1915,6 +1917,7 @@ function Animal:updateOutput(temp)
                 tostring(self.uniqueId), fillType, self.age, tostring(output.curve ~= nil), tostring(subType.name))
             litersPerDay = 0
         end
+        litersPerDay = litersPerDay * milkScale
 
         if fillType == "pallets" then
             local fillTypeIndex = output.fillType

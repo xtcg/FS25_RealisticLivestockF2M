@@ -20,7 +20,7 @@ RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrow
     "birthWeightRatio", "maleBirthFactor", "birthWeightCV", "firstBirthFactor",
     "litter2", "litter3", "litter4", "litterBase", "litterStep", "litterMin", "litterMax",
     "birthSurvivalBase", "birthHealthEffect", "birthLowWeightSD", "birthLowWeightPenalty",
-    "birthHighWeightSD", "birthHighWeightPenalty" }
+    "birthHighWeightSD", "birthHighWeightPenalty", "milkScale" }
 
 --- Female growth relative to male, where the file sets none (the mod's original rule).
 RLBreedTraits.DEFAULT_FEMALE_GROWTH = 0.6
