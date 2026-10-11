@@ -91,8 +91,12 @@
     moves from the dry value to the lactating one with her real milk against lactatingAtKg (kg a
     day, NRC 2001: about 16% CP for 30 kg); a calf moves
     from the young value to the calf value with the share of milk it may still drink. Below it, growth
-    and milk potential fall linearly to nothing at the maintenance level. A simplified limit, not a
-    metabolisable protein model; energy it leaves unused is laid down or lost in the budget.
+    potential falls linearly to nothing at the maintenance level (share f). Milk falls with a
+    diminishing return, 1 - (1 - f)^milkResponse (1: linear): dairy trials find a ration a few points
+    short of protein costs little milk (Olmos Colmenero & Broderick 2006: 13.5% against 16.5% CP about
+    -5%), one far short a lot. 2 gives a forage-only 11% CP silage ration about 72% of the milk
+    potential (linear: 47%). A simplified limit, not a metabolisable protein model; energy it leaves
+    unused is laid down or lost in the budget.
 
     ration
     wheatMaxShare         Most wheat in a ration's DM (OSU 2025: about a third, with enough roughage).
@@ -109,7 +113,11 @@
     per game liter; meMJPerKg the ME a real kg needs (NRC 2001: NEL 3.1 MJ/kg at 4% fat / kl 0.62).
     The animal files' milk curves are set so that a cow's mature game milk x the lactation mean
     = 1.2 x this real average x realDaysPerPeriod: the game pays 1.2 times the real litres for the
-    feed of the real litres. Breed names are weightProfiles.xml profiles.
+    feed of the real litres. Breed names are weightProfiles.xml profiles. intakeFactor (default 1)
+    scales a breed's cows' (lactating and dry) appetite and rumen fill against the Holstein-based
+    equations: Jerseys eat about 15% more DM per kg of live weight than Holsteins (about 4% against
+    3.5% of live weight in comparison trials); Guernsey 1.10 an interpolation, not a measurement.
+    Calves, heifers and bulls are not scaled.
 
     calfMilk: separate intake ceiling, in prepared calf milk (not powder). realLitersPerDay
     is 5 L/day for a reference Holstein (half the 10 L/day of a real calf: the game's calf milk is
@@ -188,7 +196,8 @@
     <damMilk dm="0.125" me="22.5" cp="0.25"/>
 
     <protein maintenance="0.065" calf="0.18" young="0.14" growing="0.12" finishing="0.105"
-        lactating="0.16" dry="0.10" youngUntilMonth="8" growingUntilMonth="14" lactatingAtKg="30"/>
+        lactating="0.16" dry="0.10" youngUntilMonth="8" growingUntilMonth="14" lactatingAtKg="30"
+        milkResponse="2"/>
 
     <ration wheatMaxShare="0.30" adaptationDays="30" adaptationMaxShare="0.80" stepAllowance="0.20"
         unadaptedUtilisation="0.85">
@@ -205,8 +214,8 @@
         <breed name="MONTBELIARDE" realKgPerDay="24"/>
         <breed name="AYRSHIRE_PACK" realKgPerDay="22"/>
         <breed name="SHORTHORNMILKERS_PACK" realKgPerDay="21"/>
-        <breed name="JERSEY_PACK" realKgPerDay="20" meMJPerKg="6.0"/>
-        <breed name="GUERNSEY_PACK" realKgPerDay="19" meMJPerKg="5.7"/>
+        <breed name="JERSEY_PACK" realKgPerDay="20" meMJPerKg="6.0" intakeFactor="1.15"/>
+        <breed name="GUERNSEY_PACK" realKgPerDay="19" meMJPerKg="5.7" intakeFactor="1.10"/>
         <breed name="VOSGIENNE" realKgPerDay="15"/>
         <breed name="KERRY_PACK" realKgPerDay="13"/>
         <breed name="WATER_BUFFALO" realKgPerDay="7" meMJPerKg="7.5"/>

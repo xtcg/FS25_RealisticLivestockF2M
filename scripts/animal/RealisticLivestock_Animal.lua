@@ -2000,6 +2000,11 @@ function Animal:updateOutput(temp)
         elseif palletMilkCurve ~= nil and Animal.isCowMilkPalletFillType(output.fillType) then
             litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, palletMilkCurve, diseaseFactor, healthyLitersPerDay)
         end
+        -- A suckler (beef) breed's milk is for her calf, not the store (breedTraits milkCollect 0):
+        -- the store takes only that share. The budget above still has her full milk (her calf's).
+        if cattleMilk then
+            litersPerDay = litersPerDay * RLBreedTraits.getMilkCollect(subType)
+        end
 
         if isMilk then
             -- litersPerDay is now the FINAL value (post lactation gate AND disease).

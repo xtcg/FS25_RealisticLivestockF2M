@@ -102,3 +102,8 @@ check("parity: the pure functions", RLMilkParity.getParity(0) == 1 and RLMilkPar
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end
 end
+
+-- breedTraits milkCollect: a suckler (beef) breed's milk is her calf's, not the store's.
+check("suckler: a Cow Breeds pack beef cow (milkCollect 0) puts nothing in the tank or the cans; her budget still sees her milk",
+    perDay(60, 5, nil, nil, nil, "COW_CHAROLAIS_PACK") == 0 and perDay(60, 5, nil, "pallets", nil, "COW_CHAROLAIS_PACK") == 0
+    and lastCurve ~= nil and lastCurve > 0)
