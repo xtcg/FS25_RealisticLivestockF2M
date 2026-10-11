@@ -130,6 +130,7 @@ function RealisticLivestock.loadMap()
     RLLiveSale.reset()
     -- T02 ledger: a new checkpoint instance; T02 stays closed until onStartMission checked the save.
     RLTradeCheckpoint.reset(g_currentMission:getIsServer())
+    if RLDealerRuntime ~= nil then RLDealerRuntime.reset(g_currentMission:getIsServer()) end
     g_rlConsoleCommandManager = RLConsoleCommandManager.new()
     g_diseaseManager = DiseaseManager.new()
     -- g_rlFilterService is constructed at source-time so save-side

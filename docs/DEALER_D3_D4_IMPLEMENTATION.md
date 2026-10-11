@@ -297,3 +297,36 @@ asynchronously and cannot satisfy a synchronous transaction checkpoint by assert
 Independent journal stages plus coordinated stock/placeables/vehicles/farms/career evidence
 must reconcile ownership; a journal ahead of saved assets requires rechecking even terminal
 records. Full v2 remains closed, non-cattle retain D2 and the price model remains unchanged.
+
+### D4 integrated dormant server core
+
+The source/lifecycle baseline is committed as `e91246c`. The next integrated core includes:
+
+- `RLDealerStockService`: verified candidate publication and fixed-purpose lifetimes;
+  source feeding before current eligibility; withdrawn sources keep growing; transactions
+  block source mutation; reads do not progress or regenerate anything.
+- `RLDealerPurchase`: sorted batch locks, idempotent requests, durable PREPARED/APPLYING
+  boundaries, pre-effect authority revalidation and bound terminal receipts. A receipt
+  must match token, amount, transfer IDs and complete source/target/money evidence.
+- Independent purchase and quote protocols/events, volatile server quotes and a client
+  QUOTE→CONFIRM→PURCHASE helper. Only stable IDs/revisions/destination/credential cross
+  the purchase request. Server amounts are confirmed after quote; late responses and
+  confirmation callbacks cannot settle a different request. These endpoints remain disabled.
+- `RLDealerPersistence`, `RLDealerCheckpoint` and `RLDealerJournal`: independent stock
+  document, synchronous WAL readback barrier and actual engine save hooks. Participant
+  markers and byte digests come from placeables/vehicles/farms; career commit binds the
+  dealer snapshot and that external set. READY requires final disk readback after engine
+  completion, not merely the synchronous XML construction pass. Identity repair, mixed
+  generations, corrupt files, failed hooks and overlapping saves close the gate.
+- `RLDealerRuntime`: reset and load hooks wired into map lifecycle; no automatic arming,
+  generation, source progression, asset mutation or money recovery. Existing saved evidence
+  is resolved by subtype name and checked; a WAL differing from the coordinated asset
+  snapshot forces ownership reconciliation even for terminal records.
+
+The full suite with the integrated loader/map hooks passed **3188/3188** checks
+(`/private/tmp/rlrm-dealer-d4-core-tests.log`). This includes mock faults and checked-in
+FS25 save-pass excerpts; it is not an installed-game multiplayer/save-recovery run.
+The actual target cluster and money adapters, real source identity persistence, newborn
+feeding, full ownership coordination and UI listing route remain work in progress.
+Ordinary `addMoney` refund also changes positive-income statistics; a balance-only refund
+cannot be accepted as complete business compensation. No release flag bypasses that gate.

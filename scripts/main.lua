@@ -246,9 +246,22 @@ source(modDirectory .. "scripts/dealer/RLDealerReplay.lua")
 -- Strict source ledgers and monthly listing lifecycle; dormant until the complete
 -- server purchase/checkpoint adapter is installed. No map callbacks or RNG here.
 source(modDirectory .. "scripts/dealer/RLDealerSourceState.lua")
+source(modDirectory .. "scripts/dealer/RLDealerHandoff.lua")
 source(modDirectory .. "scripts/dealer/RLDealerClock.lua")
 source(modDirectory .. "scripts/dealer/RLDealerSourceFarm.lua")
 source(modDirectory .. "scripts/dealer/RLDealerListingRegistry.lua")
+source(modDirectory .. "scripts/dealer/RLDealerPurchase.lua")
+source(modDirectory .. "scripts/dealer/RLDealerPurchaseProtocol.lua")
+source(modDirectory .. "scripts/events/RLDealerPurchaseEvent.lua")
+source(modDirectory .. "scripts/dealer/RLDealerQuote.lua")
+source(modDirectory .. "scripts/dealer/RLDealerQuoteProtocol.lua")
+source(modDirectory .. "scripts/events/RLDealerQuoteEvent.lua")
+source(modDirectory .. "scripts/dealer/RLDealerClientRequest.lua")
+source(modDirectory .. "scripts/dealer/RLDealerPersistence.lua")
+source(modDirectory .. "scripts/dealer/RLDealerStockService.lua")
+source(modDirectory .. "scripts/dealer/RLDealerJournal.lua")
+source(modDirectory .. "scripts/dealer/RLDealerCheckpoint.lua")
+source(modDirectory .. "scripts/dealer/RLDealerRuntime.lua")
 
 -- SECTION 12: GUI Elements
 source(modDirectory .. "scripts/gui/elements/DoubleOptionSliderElement.lua")
@@ -415,6 +428,7 @@ source(modDirectory .. "scripts/events/RLDiseaseOverrideSetEvent.lua")
 source(modDirectory .. "scripts/core/FSCareerMissionInfo.lua")
 -- T02 ledger save hooks; after RLRM's own careerSavegame append, so the ledger is written last.
 RLTradeCheckpoint.install()
+RLDealerCheckpoint.install()
 source(modDirectory .. "scripts/core/I18N.lua")
 source(modDirectory .. "scripts/core/RealisticLivestock.lua")
 

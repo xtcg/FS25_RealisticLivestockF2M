@@ -320,6 +320,15 @@ function RealisticLivestock_FSBaseMission:onStartMission()
             Log:error("onStartMission: T02 ledger check failed: %s - T02 transactions stay closed", tostring(checkErr))
             RLTradeCheckpoint.state, RLTradeCheckpoint.reason = RLTradeCheckpoint.RECOVERY_REQUIRED, "CHECK_THREW"
         end
+        if RLDealerRuntime ~= nil then
+            local dealerChecked, dealerError = pcall(RLDealerRuntime.onMissionStarted, self,
+                { identityRepairs = fallbackRepairCount })
+            if not dealerChecked then
+                Log:error("onStartMission: dealer checkpoint check failed: %s - v2 purchases stay closed", tostring(dealerError))
+                RLDealerRuntime.state, RLDealerRuntime.reason = "RECOVERY_REQUIRED", "CHECK_THREW"
+                RLDealerCheckpoint.state, RLDealerCheckpoint.reason = RLDealerCheckpoint.RECOVERY_REQUIRED, "CHECK_THREW"
+            end
+        end
     end
 
     local guiOk, guiErr = pcall(function()
