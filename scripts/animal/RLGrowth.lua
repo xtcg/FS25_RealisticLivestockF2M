@@ -319,6 +319,8 @@ function RLGrowth.getContinuousAge(animal)
     local age = animal.age or 0
     local state = animal.rlGrowth
     if state == nil or state.ageMonths == nil then return age end
+    -- Detached historical replay owns an exact continuous clock, including birthdays.
+    if animal.rlHistoryReplay == true then return state.ageMonths end
     return math.min(math.max(state.ageMonths, age), age + RLGrowth.AGE_CLOCK_CAP)
 end
 
@@ -1194,10 +1196,11 @@ end
 --- What every step does before its budget: the stage factors move toward their targets, the age
 --- clock and an old savegame's take-over fade move on by the step's months, the target weight
 --- follows.
-local function prepareStep(animal, state, dtMonths)
+local function prepareStep(animal, state, dtMonths, historical)
     state.speedFactor = relax(state.speedFactor, RLGrowth.getStageSpeed(animal), dtMonths)
     state.intakeFactor = relax(state.intakeFactor, RLBodyCondition.getIntakeCapacity(animal), dtMonths)
-    RLGrowth.advanceClock(state, animal.age or 0, dtMonths)
+    if historical then state.ageMonths = state.ageMonths + dtMonths
+    else RLGrowth.advanceClock(state, animal.age or 0, dtMonths) end
     RLGrowth.advanceLactation(animal, state, dtMonths)
     if state.legacyAnchor ~= nil then state.anchorElapsedMonths = (state.anchorElapsedMonths or 0) + dtMonths end
     animal.targetWeight = RLGrowth.getAnimalTargetWeight(animal)
@@ -1249,6 +1252,28 @@ function RLGrowth.advanceBudget(animal, supply, dtMonths, tick)
     local result = RLGrowthMath.step(input, config)
     if not applyStepResult(animal, state, result, tick) then return nil, input, weightBefore, ownReference end
     return result, input, weightBefore, ownReference
+end
+
+
+--- Strict shared-budget entry for detached birth-origin historical replay. Never migrates,
+--- resynchronises, derives or repairs state. No live-hour tick is attached to its result.
+function RLGrowth.advanceHistoricalBudget(animal, supply, dtMonths)
+    local state = animal ~= nil and animal.rlGrowth or nil
+    if animal == nil or animal.rlHistoryReplay ~= true or not RLGrowth.covers(animal)
+        or state == nil or not RLGrowth.isUsable(state) or state.source ~= "birth"
+        or state.version ~= RLGrowth.STATE_VERSION or state.lastTick ~= nil
+        or state.legacyAnchor ~= nil or state.weightKg ~= animal.weight then return nil, "HISTORY_STATE" end
+    if type(dtMonths) ~= "number" or dtMonths ~= dtMonths or dtMonths <= 0 or dtMonths == math.huge then
+        return nil, "HISTORY_INTERVAL"
+    end
+    if state.ageMonths == nil or state.ageMonths < animal.age - 1e-9
+        or state.ageMonths + dtMonths > animal.age + 1 + 1e-9 then return nil, "HISTORY_BOUNDARY" end
+    prepareStep(animal, state, dtMonths, true)
+    local input, config = RLGrowth.buildBudgetInput(animal, state, supply, dtMonths)
+    local before = animal.weight
+    local result = RLGrowthMath.step(input, config)
+    if not applyStepResult(animal, state, result, nil) then return nil, "HISTORY_RESULT" end
+    return result, input, before
 end
 
 

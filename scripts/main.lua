@@ -242,6 +242,7 @@ source(modDirectory .. "scripts/dealer/RLDealerQualityResolver.lua")
 -- dealer sells. Loads its file through RLBreedTraits.loadConfig on first use.
 source(modDirectory .. "scripts/dealer/RLDealerStockPolicy.lua")
 source(modDirectory .. "scripts/dealer/RLDealerHistory.lua")
+source(modDirectory .. "scripts/dealer/RLDealerReplay.lua")
 
 -- SECTION 12: GUI Elements
 source(modDirectory .. "scripts/gui/elements/DoubleOptionSliderElement.lua")

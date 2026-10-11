@@ -31,7 +31,7 @@ or ancestry alone, are the dependency evidence.
 | Normal player budgets | `RLGrowth.step`, `stepFeed`, `RLFeed.applyStepInput` | `test_growth`, `test_feed`, feed regressions |
 | Copy/save/load/stream | `RLGrowth.copyState`, XML and stream adapters, `takeLiveState` | `test_growth`, persistence tests |
 | Pregnancy offspring become real v2 newborns | `AnimalReproduction.reproduce` draws once, uses the same z for survival and weight for `initBirth` | `test_birth_growth_path`, `test_birth_path` |
-| Historical generation | **Missing**; `createGeneratedState` derives from current weight | D3-2/3 required |
+| Historical generation | D3-2 history and D3-3 detached hourly replay/evaluator delivered; **not wired to live generation** | `test_dealerhistory`, `test_dealerreplay`; D3-4/D4 gates remain |
 | Dealer feeding and authoritative cursor | **Missing** | D3-4 and D4 clock required |
 | Authoritative purchase handoff | **Missing**; purchase event still receives animals | D4-3 required |
 
@@ -130,11 +130,78 @@ for the module, loader and test file; `git diff --check` passes.
 The v2 generation channel remains closed; D3-3 replay, breeding-rule/feeding calibration,
 D3-4 progression and D4 purchase/recovery are still required.
 
-D3-3: hourly reference replay through the shared budget; reject failures. Replace old
-random-weight generation only for verified cattle. No ±15%, duplicate sex/gene factors,
-legacy anchors or post-hoc derived histories. Screen reserve mass fraction at the specified
-5–11% with a separately calibrated calf rule. Validate optimizations against the hourly
-reference to ≤0.1 kg; cache only pure profile data.
+### D3-3 delivered: hourly reference replay and dormant candidate evaluation
+
+`RLDealerReplay.run(seed, history, options)` constructs a detached animal from a physical
+cattle subtype, screened genetics and the selected birth value via `createBirthState`.
+It allocates no identities or real unborn offspring, consumes no RNG, and changes no live
+pen, source stock, global clock, money, configuration or listing. Each replay is independent.
+Unknown cattle, non-COW stand-ins (including HB MILKCOW), missing health/milk rules,
+incompatible weaning rules and unscreened/affected genetics reject explicitly.
+
+`RLGrowth.advanceHistoricalBudget` shares the player preparation, budget input builder,
+integrator and result application, but requires a detached birth-origin state with matching
+weight, current version and no live tick/legacy anchor. It never calls growth migration,
+resync, derivation or sanitisation. Historical continuous age is exact; live age still uses
+its existing 0.999 cap. Steps split on the actual month's hourly grid, birthdays, weaning,
+conceptions, calvings, lactation transitions and fractional sale time. Each interval uses
+the supplied month length, including changes between months. Failed steps/health or
+mass/energy ledger errors reject the whole detached candidate; no repair or weight clamp.
+
+Feed is planned with `RLFeed.describeAnimal` and the unchanged pure ration planner, using
+existing feed profiles. The same real-feed budget, protein limitation, appetite, calf
+allowances, rumen adaptation and health/underweight rules apply. Milk uses the existing
+parity and lactation rules. Conception is validated before pregnancy starts. Caller-selected
+physical fetal subtypes (at most three) supply the live model's existing pregnancy-mass rule;
+cattle/buffalo crossings reject. These are physiological proxies, not unborn animals.
+Calving removes carried gravid mass once, preserves tissue/reserve, resets lactation and
+increments parity. Chosen fetal contexts are retained separately for traceability.
+
+`getBreedingRules` requires an explicit breed `breedingWeightRatio`: W / **frameTargetKg**,
+minimum engine/breed age, and development at the individual reference curve's phase for
+that ratio. Reserve fraction bounds are 5–11%. The development gate prevents reserve alone
+from qualifying a heifer. Only HOLSTEIN and SWISS_BROWN currently have an explicit ratio in
+D2 config. Other breeds' breeding products stay gaps, including historically pregnant/parent
+plans; no dairy threshold is silently supplied for beef or buffalo. Experimental rule
+overrides on `run` are ignored by `evaluate`.
+
+`evaluate` combines replay, reserve screening and D2 purpose/source/age/clinical eligibility,
+replacing only the D2 legacy-price-target weight check with the v2 readiness gate. Its result
+is `VERIFIED_CANDIDATE`, not a live sale animal or a purchase payload. Milk-fed/weaning cattle
+remain closed (`CALF_RESERVE_UNCALIBRATED`). Existing dealer generation still uses D2 and
+LEGACY_WEIGHT until progression, transport and purchase/recovery gates are implemented.
+The detached `rlHistoryReplay` marker must never be installed on a live player animal.
+
+Recipe version 1: NORMAL_REARING / NORMAL_PRODUCTION use a GROW ration of FORAGE,
+PEA/MAIZE and CALFMILK through the planner's physical limits. MODERATE_SLOW_REARING uses
+the same feeds with a 95% physical DM offer ceiling; feed energy/protein values are unchanged,
+and supply is never manufactured from a budget deficit. The first hay/15% peas candidate
+was rejected: health and reserve passed but development lagged normal by 3.08–7.23 months
+at 12.5 months. The final slow candidate's lag is -0.00065–0.29837 months (a few cases are
+numerically 0.0125 kg heavier); it need not make every animal grow more slowly when its
+physical allowance already covers its needs.
+
+Numerical evidence is retained in `DEALER_D3_3_PROBE_SUMMARY.json`, reproducible with
+`python tests/dealer_replay_report.py /private/tmp/dealer-d3-3-calibration.json`:
+
+- Two recipes × 22 physical profiles × two sexes × genes 0.25/1/1.75 × 1/3/7-day months:
+  792/792 complete at 12.5 months and pass reserve screening; minimum health 100.
+- Reserve mass fractions 0.09–0.107844. Maximum energy error 2.85e-14 and mass error 1.55e-13.
+- 26 focused checks include a 132-case birth replay matrix, changing month lengths,
+  fractional conception/calving, past-mating failure, missing physiology/fetal contexts,
+  invalid supply/state rejection, candidate readiness and template tampering.
+- Live-growth A/B against immutable D3-2 `fec8ce1` over 396 scenarios (22 profiles ×
+  two sexes × three genes × 1/3/7-day months, two months each): weight, reserve,
+  development and age differences are exactly zero.
+
+The probes borrow base engine food/milk curves for synthetic pack/map subtypes. They establish
+physical-model behavior, **not** installed-map, offspring selection or transaction coverage.
+Templates remain marked uncalibrated for release; the numeric candidate recipes are not farm
+measurements or a blanket breeding approval. No replay optimisation or cross-candidate state
+cache is introduced. Future optimisations must match this hourly reference to ≤0.1 kg.
+Final full suite passes **2736/2736** checks
+(`/private/tmp/rlrm-dealer-d3-3-tests.log`). All five new/changed Lua files parse as Lua 5.1;
+`git diff --check` passes. Live integration and release gates remain D3-4/5 and D4 below.
 
 D3-4/5: source-farm feeding, cursor persistence, state handoff, rejection diagnostics and
 configuration gates. Verify 22 breeds, both sexes, gene extremes and applicable purposes;
