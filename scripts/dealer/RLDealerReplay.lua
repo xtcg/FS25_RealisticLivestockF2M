@@ -81,7 +81,8 @@ end
 
 local function validState(animal, time)
     local s = animal.rlGrowth
-    return (s ~= nil and RLGrowth.isUsable(s)) and s.source == "birth" and s.legacyAnchor == nil
+    return finite(time) and (s ~= nil and RLGrowth.isUsable(s)) and finite(s.ageMonths)
+        and s.version == RLGrowth.STATE_VERSION and s.source == "birth" and s.legacyAnchor == nil
         and s.lastTick == nil and s.weightKg == animal.weight and finite(s.gravidKg or 0)
         and (s.gravidKg or 0) >= 0 and s.reserveMassKg < s.weightKg - (s.gravidKg or 0)
         and math.abs(s.ageMonths - time) < 1e-8 and finite(animal.health)
@@ -126,6 +127,8 @@ local function validateHistory(h)
         and (active == nil or (finite(h.durationMonths) and h.saleAgeMonths - active.atMonths < h.durationMonths))
 end
 
+function R.validateHistory(history) return validateHistory(history) end
+
 local function refreshMilk(animal, lastBirth, time)
     animal.monthsSinceLastBirth = lastBirth ~= nil and time - lastBirth or 12
     animal.isLactating = lastBirth ~= nil and RLLactation.isWithin(animal.monthsSinceLastBirth)
@@ -137,14 +140,36 @@ local function refreshMilk(animal, lastBirth, time)
         and milk * RLLactation.getYieldFactor(animal.monthsSinceLastBirth) * animal.genetics.productivity or 0, milk, 1)
 end
 
+local function cloneReplayAnimal(original)
+    local animal = setmetatable({}, { __index = Animal })
+    for _, key in ipairs({ "age", "subType", "subTypeIndex", "animalTypeIndex", "breed", "gender",
+        "isIndividual", "isCastrated", "health", "isParent", "birthCount", "isPregnant",
+        "reproduction", "monthsSinceLastBirth", "isLactating", "weight", "targetWeight",
+        "rlHistoryReplay", "rlFeedGain", "rlHealthCarry" }) do animal[key] = original[key] end
+    for _, key in ipairs({ "genetics", "diseases", "input", "output", "rlGrowth", "bodyCondition", "rlMilk", "sale" }) do
+        animal[key] = copy(original[key])
+    end
+    animal.getSubType = original.getSubType
+    if original.pregnancy ~= nil then
+        animal.pregnancy = { duration = original.pregnancy.duration, pregnancies = {} }
+        for index, child in ipairs(original.pregnancy.pregnancies) do
+            local sub = child:getSubType()
+            animal.pregnancy.pregnancies[index] = { getSubType = function() return sub end }
+        end
+    end
+    return animal
+end
+
 -- options: daysPerMonth (number or month-indexed array), breedingRules (explicit breed rules),
 -- pregnancySubTypes[eventIndex] (selected physical fetal subtypes, no unborn animal identities),
 -- minHealth (default 90). Input seed carries subtype + genes, never an existing animal state.
 -- Result retains detached replay animal for review; it is NOT a listing/purchase payload.
-function R.run(seed, history, options)
+local function replay(seed, history, options, previous, targetAge)
     options = options or {}
     local function reject(reason, at, detail) return nil, { reason = reason, atMonths = at, detail = detail } end
     if not validateHistory(history) then return reject("INVALID_HISTORY") end
+    targetAge = targetAge or history.saleAgeMonths
+    if not finite(targetAge) or targetAge < history.saleAgeMonths or targetAge > 120 then return reject("SOURCE_INTERVAL") end
     local sub = seed ~= nil and seed.subType or nil
     if sub == nil or AnimalType == nil or sub.typeIndex ~= AnimalType.COW or not RLGrowth.coversSubType(sub) then
         return reject("MODEL_COVERAGE")
@@ -166,7 +191,7 @@ function R.run(seed, history, options)
     if not RLCalfRearing.isEnabled() or history.weaningMonth ~= RLCalfRearing.getWeaningMonthForSubType(sub) then
         return reject("WEANING_RULES")
     end
-    local animal = setmetatable({ age = 0, subType = sub.name, subTypeIndex = seed.subTypeIndex,
+    local animal = previous ~= nil and cloneReplayAnimal(previous.animal) or setmetatable({ age = 0, subType = sub.name, subTypeIndex = seed.subTypeIndex,
         animalTypeIndex = sub.typeIndex, breed = sub.breed, gender = sub.gender, isIndividual = true,
         isCastrated = seed.isCastrated == true, genetics = copy(genes), health = seed.health or 100,
         isParent = false, birthCount = 0, isPregnant = false, reproduction = 0,
@@ -175,16 +200,25 @@ function R.run(seed, history, options)
     local minHealth = options.minHealth or 90
     if not finite(minHealth) or minHealth < 0 or minHealth > 100 or not finite(animal.health)
         or animal.health < minHealth or animal.health > 100 then return reject("HEALTH") end
-    local state, birthReason = RLGrowth.createBirthState(animal, history.events[1].weightKg)
-    if state == nil then return reject(birthReason) end
-    state.lastTick = nil
-    animal.rlGrowth, animal.weight = state, state.weightKg
+    local state, birthReason
+    if previous ~= nil then
+        state = animal.rlGrowth
+        if not validState(animal, state.ageMonths) or state.birthWeightKg ~= history.events[1].weightKg
+            or state.ageMonths < history.saleAgeMonths or targetAge < state.ageMonths then return reject("SOURCE_STATE") end
+    else
+        state, birthReason = RLGrowth.createBirthState(animal, history.events[1].weightKg)
+        if state == nil then return reject(birthReason) end
+        state.lastTick = nil
+        animal.rlGrowth, animal.weight = state, state.weightKg
+    end
     local breedingRules = options.breedingRules or R.getBreedingRules(animal, options.entry)
     local boundaries = RLDealerHistory.boundaries(history)
+    for month = math.floor(history.saleAgeMonths) + 1, math.floor(targetAge) do boundaries[#boundaries + 1] = month end
+    boundaries[#boundaries + 1] = targetAge
     for _, e in ipairs(history.events) do
         if e.kind == "CALVING" then
             for _, offset in ipairs({ 3, RLLactation.MONTHS }) do
-                if e.atMonths + offset < history.saleAgeMonths then boundaries[#boundaries + 1] = e.atMonths + offset end
+                if e.atMonths + offset < targetAge then boundaries[#boundaries + 1] = e.atMonths + offset end
             end
         end
     end
@@ -192,6 +226,24 @@ function R.run(seed, history, options)
     local time, eventIndex, boundaryIndex, steps, lastBirth, conception = 0, 1, 1, 0, nil, nil
     local snapshots, fetalSelections, ledger = {}, {}, { maxEnergyError = 0, maxMassError = 0, feedMe = 0, milkLiters = 0 }
     local recipe = R.getRecipe(history.template.id)
+    local initialSteps = previous ~= nil and previous.steps or 0
+    if previous ~= nil then
+        time, steps = state.ageMonths, previous.steps
+        snapshots, fetalSelections, ledger = copy(previous.conceptionSnapshots), copy(previous.fetalSelections), copy(previous.ledger)
+        for index, e in ipairs(history.events) do
+            if e.atMonths <= time + 1e-10 then
+                eventIndex = index + 1
+                if e.kind == "CONCEPTION" then conception = e.atMonths end
+                if e.kind == "CALVING" then lastBirth, conception = e.atMonths, nil end
+            end
+        end
+        if (conception ~= nil) ~= animal.isPregnant or animal.birthCount ~= (previous.state.birthCount or 0) then
+            return reject("SOURCE_STATE", time)
+        end
+        if conception ~= nil and targetAge >= conception + history.durationMonths - 1e-10 then
+            return reject("SOURCE_CALVING_REQUIRED", conception + history.durationMonths)
+        end
+    end
     while true do
         animal.age = math.floor(time + 1e-10)
         while history.events[eventIndex] ~= nil and history.events[eventIndex].atMonths <= time + 1e-10 do
@@ -236,12 +288,12 @@ function R.run(seed, history, options)
         state.weightKg, state.gravidKg = animal.weight, gravid
         refreshMilk(animal, lastBirth, time)
         if not validState(animal, time) then return reject("HISTORY_STATE", time) end
-        if time >= history.saleAgeMonths - 1e-10 then break end
+        if time >= targetAge - 1e-10 then break end
         local days = type(options.daysPerMonth) == "table" and options.daysPerMonth[animal.age + 1] or options.daysPerMonth
         if not finite(days) or days < 1 or days > 31 or days ~= math.floor(days) then return reject("MONTH_LENGTH", time) end
         while boundaries[boundaryIndex] ~= nil and boundaries[boundaryIndex] <= time + 1e-10 do boundaryIndex = boundaryIndex + 1 end
         local hour = math.floor((time - animal.age) * 24 * days + 1e-8) + 1
-        local finish = math.min(animal.age + hour / (24 * days), boundaries[boundaryIndex] or history.saleAgeMonths, history.saleAgeMonths)
+        local finish = math.min(animal.age + hour / (24 * days), boundaries[boundaryIndex] or targetAge, targetAge)
         local dt = finish - time
         local feed, feedReason = R.planFeed(animal, recipe, dt)
         if feed == nil then return reject(feedReason, time) end
@@ -273,13 +325,42 @@ function R.run(seed, history, options)
     return { version = R.VERSION, recipe = recipe, animal = animal, state = snapshot(animal),
         conceptionSnapshots = snapshots, steps = steps, ledger = ledger, history = copy(history),
         fetalSelections = fetalSelections,
+        session = { version = 1, timeMonths = time, lastBirthMonths = lastBirth,
+            conceptionMonths = conception, nextEventIndex = eventIndex },
+        advancedSteps = steps - initialSteps,
         eligibility = "UNSCREENED" }
+end
+
+function R.run(seed, history, options)
+    return replay(seed, history, options)
+end
+
+-- Copy-on-success progression from the existing birth ledger. A failed update cannot
+-- overwrite the source record, and a resume never replays birth or earlier feeding.
+function R.resume(previous, targetAge, options)
+    if type(previous) ~= "table" or previous.version ~= R.VERSION or type(previous.animal) ~= "table"
+        or type(previous.state) ~= "table" or not validState(previous.animal, previous.state.ageMonths)
+        or previous.state.weightKg ~= previous.animal.weight or not validateHistory(previous.history)
+        or type(previous.conceptionSnapshots) ~= "table" or type(previous.fetalSelections) ~= "table"
+        or type(previous.ledger) ~= "table" or not finite(previous.ledger.feedMe)
+        or not finite(previous.ledger.milkLiters) or not finite(previous.ledger.maxMassError)
+        or not finite(previous.ledger.maxEnergyError) or type(previous.recipe) ~= "table"
+        or previous.recipe.version ~= R.RECIPE_VERSION or previous.recipe.id ~= previous.history.template.id
+        or not finite(previous.steps) or previous.steps < 0 or previous.steps % 1 ~= 0
+        or type(previous.animal.getSubType) ~= "function" or previous.animal.rlHistoryReplay ~= true then
+        return nil, { reason = "SOURCE_STATE" }
+    end
+    local animal = previous.animal
+    return replay({ subType = animal:getSubType(), subTypeIndex = animal.subTypeIndex,
+        genetics = animal.genetics, geneticsScreened = true, diseases = animal.diseases,
+        health = animal.health, isCastrated = animal.isCastrated }, previous.history, options, previous, targetAge)
 end
 
 -- Unweaned cattle remain closed until a separate calf reserve rule is calibrated.
 function R.screen(result)
-    if type(result) ~= "table" or type(result.history) ~= "table" or result.animal == nil
-        or not validState(result.animal, result.history.saleAgeMonths) then
+    if type(result) ~= "table" or type(result.history) ~= "table" or type(result.animal) ~= "table"
+        or type(result.state) ~= "table"
+        or not validState(result.animal, result.state.ageMonths) then
         return false, "HISTORY_STATE"
     end
     local state = result.animal.rlGrowth

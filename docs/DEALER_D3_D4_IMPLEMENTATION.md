@@ -32,7 +32,7 @@ or ancestry alone, are the dependency evidence.
 | Copy/save/load/stream | `RLGrowth.copyState`, XML and stream adapters, `takeLiveState` | `test_growth`, persistence tests |
 | Pregnancy offspring become real v2 newborns | `AnimalReproduction.reproduce` draws once, uses the same z for survival and weight for `initBirth` | `test_birth_growth_path`, `test_birth_path` |
 | Historical generation | D3-2 history and D3-3 detached hourly replay/evaluator delivered; **not wired to live generation** | `test_dealerhistory`, `test_dealerreplay`; D3-4/D4 gates remain |
-| Dealer feeding and authoritative cursor | **Missing** | D3-4 and D4 clock required |
+| Dealer feeding and authoritative cursor | Detached source inventory, strict incremental resume and monthly clock delivered; live calendar hook pending | `test_dealerresume`, `test_dealersourcestate`, `test_dealersourcefarm` |
 | Authoritative purchase handoff | **Missing**; purchase event still receives animals | D4-3 required |
 
 The inherited regression suite passed 2677/2677 checks after the initial extraction.
@@ -250,3 +250,50 @@ Full-v2 dealer generation remains closed until history, listing progression, com
 state transport and authoritative purchase/recovery are all ready. This batch retains
 D2's LEGACY_WEIGHT declaration and existing configuration/protocol versions. No new price
 model; long-term growth/economics balance remains D5.
+
+## Continuation checkpoint: D3-4/5 and D4 core integration
+
+The user explicitly authorized uninterrupted implementation and parallel development.
+The primary agent owns integration, main/core hooks and this baseline; source-state,
+listing/checkpoint and purchase/protocol agents own their named modules and progress files.
+Further work continues after this checkpoint; these are internal interfaces, not a release.
+
+`RLDealerReplay.resume` clones the existing physiological ledger and integrates only the
+new interval. It never invokes the birth factory, repeats old feeding or changes the assumed
+history. It carries cumulative feed/milk/error ledgers, pre-conception snapshots and selected
+fetal contexts. Ordinary resume rejects a source birth before any integration with
+`SOURCE_CALVING_REQUIRED`; actual source reproduction is a separate required owner.
+
+`RLDealerSourceState` validates portable snapshots, exact model/birth/genetics provenance,
+continuous source cursor and immutable birth origin. Restore resolves installed subtypes
+without repair/remap/redraw. `RLDealerSourceFarm` stages all sources and actual-calendar
+segments together; a failed source, missing subtype, bad calendar or due birth leaves all
+sources and the authoritative clock unchanged. It does not delete a source when its listing
+is withdrawn. `RLDealerHandoff` installs into a prepared real Animal while preserving its
+identity, birthday, cluster and real unborn identities, explicitly clearing historical and
+hour caches. Its rollback receipt is in-memory preparation compensation, not durable proof.
+An explicitly settled live hour requires both growth and real-feed/milk deduplication;
+historical time never supplies that evidence.
+
+`RLDealerClock` accumulates each segment's actual month length and requests at most the latest
+quarter-month replenishment. `RLDealerListingRegistry` owns stable identities, fixed-purpose
+lifetimes, revisions, separate physiological and lock timestamps, monotonic real-time leases,
+withdrawal/quarantine and stock-only idempotent migration. Restored reservations retain
+recovery ownership rather than trusting a previous process's monotonic clock.
+
+Evidence: 30 source-state checks include a 396-case save→restore→incremental growth→handoff
+matrix (22 profiles × sexes × gene extremes × 1/3/7-day months), maximum weight difference
+exactly 0 kg. Handoff tests exercise real Animal and player feed update paths; first live-hour
+growth advances exactly once. Incremental pregnancy, no-op, rollback, mixed-calendar source
+inventory, lifecycle/clock and corruption checks pass. The intermediate full suite passed
+**2978/2978** (`/private/tmp/rlrm-dealer-d3-4-tests.log`); new work remains subject to another
+integration run. Lua 5.1 parsing passes for integrated source/lifecycle modules.
+
+Next integration work is recorded in `DEALER_SOURCE_STATE_PROGRESS.md`,
+`DEALER_LISTING_PROGRESS.md` and `DEALER_PURCHASE_PROGRESS.md`: source-owned real births,
+checkpoint game hooks, dealer ownership adapter, protocol/quote/UI wiring and game validation.
+The purchase journal is separate from T02 CONTRACT/SALE. Normal career saves complete
+asynchronously and cannot satisfy a synchronous transaction checkpoint by assertion.
+Independent journal stages plus coordinated stock/placeables/vehicles/farms/career evidence
+must reconcile ownership; a journal ahead of saved assets requires rechecking even terminal
+records. Full v2 remains closed, non-cattle retain D2 and the price model remains unchanged.

@@ -243,6 +243,12 @@ source(modDirectory .. "scripts/dealer/RLDealerQualityResolver.lua")
 source(modDirectory .. "scripts/dealer/RLDealerStockPolicy.lua")
 source(modDirectory .. "scripts/dealer/RLDealerHistory.lua")
 source(modDirectory .. "scripts/dealer/RLDealerReplay.lua")
+-- Strict source ledgers and monthly listing lifecycle; dormant until the complete
+-- server purchase/checkpoint adapter is installed. No map callbacks or RNG here.
+source(modDirectory .. "scripts/dealer/RLDealerSourceState.lua")
+source(modDirectory .. "scripts/dealer/RLDealerClock.lua")
+source(modDirectory .. "scripts/dealer/RLDealerSourceFarm.lua")
+source(modDirectory .. "scripts/dealer/RLDealerListingRegistry.lua")
 
 -- SECTION 12: GUI Elements
 source(modDirectory .. "scripts/gui/elements/DoubleOptionSliderElement.lua")
