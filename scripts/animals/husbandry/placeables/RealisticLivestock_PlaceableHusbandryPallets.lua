@@ -106,7 +106,9 @@ function RealisticLivestock_PlaceableHusbandryPallets:updateOutput(superFunc, fo
             if spec.pendingLiters[fillType] ~= nil then
                 spec.pendingLiters[fillType] = spec.pendingLiters[fillType] + liters
                 queued = true
+                return liters
             end
+            return 0
         end)
     if queued then self:updatePallets() end
 end

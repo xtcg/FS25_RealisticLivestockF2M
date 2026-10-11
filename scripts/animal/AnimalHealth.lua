@@ -27,19 +27,34 @@ function AnimalHealth.getHealthFactor(animal)
 end
 
 
---- Update animal health based on food factor relative to subType threshold.
+--- Update animal health based on food factor relative to subType threshold (in a pen running
+--- the real-equivalent nutrition mode, on the hour's budget instead: RLFeed).
 --- Food above threshold increases health; below threshold decreases it.
---- Then weight: cattle under the body condition rules take this hour's nutrition budget
---- (RLBodyCondition.step), which moves weight and reserve together; every other animal, and
---- cattle in an hour without a feed ledger, take the old animal:updateWeight().
+--- Then weight: cattle under the weight model v2 take its step (RLGrowth.step: frame, reserve
+--- and development, from birth, every hour) and never an old weight rule; other cattle under the
+--- body condition rules take this hour's nutrition budget (RLBodyCondition.step), which moves
+--- weight and reserve together; every other animal, and those cattle in an hour without a feed
+--- ledger, take the old animal:updateWeight().
 --- @param animal table Animal instance
 --- @param foodFactor number Food factor (0.0-1.0)
 function AnimalHealth.updateHealth(animal, foodFactor)
+    -- Real-equivalent nutrition (RLFeed): its pen's model-time steps already settled its budget and
+    -- its health from what the budget paid for (RLFeed.runStep) - nothing more this hour.
+    if RLFeed ~= nil and RLFeed.runsFor(animal) then return end
+
     -- In a calf rearing pen each animal has its own factor from what it could eat at its age.
     foodFactor = RLCalfRearing.getFoodFactor(animal, foodFactor)
     AnimalHealth.updateHealthOnly(animal, foodFactor)
 
-    if RLBodyCondition.step(animal) then
+    if RLGrowth.covers(animal) then
+        -- No game hour to count the step in: the old rule for this hour, to its old target (the
+        -- next step takes the weight it leaves as it is).
+        if RLGrowth.step(animal, foodFactor) then
+            animal:applyUnderweightPenalty()
+        else
+            animal:updateWeight(foodFactor, RLGrowth.getLegacyTarget(animal:getSubType(), animal.genetics.metabolism))
+        end
+    elseif RLBodyCondition.step(animal) then
         animal:applyUnderweightPenalty()
     else
         animal:updateWeight(foodFactor)

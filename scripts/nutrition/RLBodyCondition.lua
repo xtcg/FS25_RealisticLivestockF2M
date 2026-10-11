@@ -382,12 +382,16 @@ function RLBodyCondition.getAllocatedIntake(animal, supply)
 
     local share = request / supply.requested
     local subType = animal:getSubType()
-    -- In a calf rearing pen the animal ate its own share (RLCalfRearing.settle), not the pen's mix.
+    -- In a calf rearing pen the animal ate its own share (RLCalfRearing.settle), not the pen's mix;
+    -- under the weight model v2 a young calf gets less from solid feed than a weaned one
+    -- (RLCalfRearing.getSolidEnergyFactor).
     local own = RLCalfRearing ~= nil and RLCalfRearing.getAllocation(animal, supply.tick) or nil
+    local solidFactor = (own ~= nil and RLGrowth ~= nil and RLGrowth.covers(animal)) and RLCalfRearing.getSolidEnergyFactor(animal) or 1
     local intake, allocated = 0, 0
     for _, item in ipairs(supply.items) do
         local liters = own ~= nil and (own[item.fillType] or 0) or share * item.liters
         local digest = item.category == RLBodyCondition.OTHER_CATEGORY and 1 or RLBreedTraits.get(subType, item.category)
+        if solidFactor ~= 1 and not RLCalfRearing.isMilkFillType(item.fillType) then digest = digest * solidFactor end
         allocated = allocated + liters
         intake = intake + liters * item.energy * digest
     end
@@ -395,30 +399,46 @@ function RLBodyCondition.getAllocatedIntake(animal, supply)
 end
 
 
---- What an average animal of this one's kind, age and state requests on full feed in a period:
---- the food curve with lactation, pregnancy, metabolism, the breed's feed trait and the size of
---- its frame (its weight without the reserve above the reference), but without what a high-yield
---- cow eats extra. The budget's full-feed demand is what this ration pays for.
+--- Liters per period an animal of this one's kind, age and state with frame weight `frame`
+--- requests on full feed (getReferenceIntake): its food curve, lactation, pregnancy, the gene the
+--- request is scaled by, the breed's feed trait and the body factor of that weight.
 --- @param animal table
+--- @param frame number kg
+--- @param intakeGene number|nil Default the metabolism gene (the weight model v2 passes its own)
+--- @param bodyFactor number|nil Default RLBreedTraits.getBodyFeedFactor at `frame`
 --- @return number liters per period
-function RLBodyCondition.getReferenceIntake(animal)
+function RLBodyCondition.getRequestAt(animal, frame, intakeGene, bodyFactor)
     local subType = animal:getSubType()
     local food = subType.input ~= nil and subType.input.food or nil
     if food == nil then return 0 end
 
-    local config = RLBodyCondition.getConfig()
-    local state = animal.bodyCondition
-    local frame = animal.weight
-    if state ~= nil then
-        frame = frame - RLNutritionMath.getReserveWeightOffset(state.reserve, state.capacityKg, config.referenceReserve)
-    end
-
     local numPregnancies = (animal.pregnancy ~= nil and animal.pregnancy.pregnancies ~= nil) and #animal.pregnancy.pregnancies or 0
-    local modifier = RLBreedTraits.get(subType, "feed") * RLBreedTraits.getBodyFeedFactor(subType, frame, animal.targetWeight, animal.age)
+    local modifier = RLBreedTraits.get(subType, "feed")
+        * (bodyFactor or RLBreedTraits.getBodyFeedFactor(subType, frame, animal.targetWeight, animal.age))
     local foodScale = RealisticLivestock_PlaceableHusbandryFood ~= nil and RealisticLivestock_PlaceableHusbandryFood.foodScale or 1
 
     return Animal._computeDailyFood(animal.age, animal.isLactating, animal.reproduction, numPregnancies,
-        animal.genetics.metabolism, food:get(animal.age), foodScale, modifier)
+        intakeGene or animal.genetics.metabolism, food:get(animal.age), foodScale, modifier)
+end
+local getRequestAt = RLBodyCondition.getRequestAt
+
+
+--- What an average animal of this one's kind, age and state requests on full feed in a period:
+--- the food curve with lactation, pregnancy, metabolism, the breed's feed trait and the size of
+--- its frame (its weight without the reserve above the reference), but without what a high-yield
+--- cow eats extra.
+--- @param animal table
+--- @return number liters per period
+function RLBodyCondition.getReferenceIntake(animal)
+    -- Weight model v2: the request at its frame with the reference reserve (RLGrowth).
+    if RLGrowth ~= nil and RLGrowth.covers(animal) then return RLGrowth.getReferenceIntake(animal) end
+    local state = animal.bodyCondition
+    local frame = animal.weight
+    if state ~= nil then
+        frame = frame - RLNutritionMath.getReserveWeightOffset(state.reserve, state.capacityKg,
+            RLBodyCondition.getConfig().referenceReserve)
+    end
+    return getRequestAt(animal, frame)
 end
 
 
@@ -426,57 +446,54 @@ end
 -- Hourly step
 -- =============================================================================
 
---- The old growth line at full feed for one period: base gain x sex x age x metabolism x
---- castration x breed growth x disease weight gain (Animal:updateWeight's increase with
---- nutrition 1, and without the lactating x 0.75 the budget now replaces). An age-driven loss is
---- returned apart.
+--- What prices the liters an animal eats under the fixed price (fixedFeedPrice): an animal of its
+--- own genes on its full-feed line at its age (RLBreedTraits.getGrownLine), intact and healthy, in
+--- its state (lactating, pregnant). Its weight on the line, the liters it requests at that weight,
+--- and what the line gains this month. None of it moves with the animal's own weight, reserve,
+--- castration, disease or what it needs now, so the same liters always carry the same energy:
+--- needing more never makes feed richer.
 --- @param animal table
---- @return number growthKg per period (>= 0)
---- @return number ageLossKg per period (>= 0)
-function RLBodyCondition.getPotentialGrowth(animal)
-    local subType = animal:getSubType()
-    local adultMonth = RLBreedTraits.getMatureAge(subType)
-    if adultMonth <= 0 then return 0, 0 end
-
-    local metabolism = animal.genetics.metabolism or 1
-    local base = (animal.targetWeight - subType.minWeight) / adultMonth
-    local increase = base * (animal.gender == "female" and RLBreedTraits.getFemaleGrowth(subType) or 1)
-        * (1 + ((adultMonth - animal.age) / 75))
-
-    if increase < 0 then return 0, -increase * (2 - metabolism) end
-
-    increase = increase * metabolism
-    if animal.isCastrated then increase = increase * 1.15 end
-    increase = increase * RLBreedTraits.get(subType, "growth")
-
-    local multipliers = animal:getDiseaseMultipliers("updateWeight")
-    if multipliers ~= nil then increase = increase * multipliers.weightGain end
-
-    return increase, 0
+--- @return number referenceLiters liters per period
+--- @return number referenceWeight kg
+--- @return number referenceGrowthKg kg per period
+function RLBodyCondition.getSupplyReference(animal)
+    local weight, growth = RLBreedTraits.getGrownLine(animal:getSubType(), animal.gender, animal.targetWeight,
+        animal.age, animal.genetics.metabolism)
+    return getRequestAt(animal, weight), weight, growth
 end
 
 
---- Fetuses and progress of a pregnancy.
-local function getPregnancy(animal)
+--- Progress (0..1) and fetuses of a pregnancy; 0, 0 when not pregnant.
+--- @param animal table
+--- @return number progress
+--- @return number fetuses
+function RLBodyCondition.getPregnancy(animal)
     if not animal.isPregnant or animal.pregnancy == nil or animal.pregnancy.pregnancies == nil then return 0, 0 end
     return (animal.reproduction or 0) / 100, #animal.pregnancy.pregnancies
 end
+local getPregnancy = RLBodyCondition.getPregnancy
 
 
 --- Build the step input for an animal (no state change).
+--- Feed price. By default a liter is priced by what this animal needs on full feed (its own frame's
+--- request, its own weight, growth and milk; RLNutritionMath.step). With fixedFeedPrice it is
+--- priced by its line (getSupplyReference) and a disease's lost growth is spent on the disease
+--- (diseaseLossKg), so a sick animal neither gets poorer feed nor banks the growth it lost.
 --- @param animal table
 --- @param state table
 --- @param intakeLiters number Liters of TMR ration eaten per period (energy and digestion applied)
 --- @param waterCoverage number
 --- @param dtMonths number
---- @return table
+--- @return table input
+--- @return number ownReferenceLiters What the animal itself requests on full feed (for the report)
 function RLBodyCondition.buildStepInput(animal, state, intakeLiters, waterCoverage, dtMonths)
-    local growthKg, ageLossKg = RLBodyCondition.getPotentialGrowth(animal)
+    local growthKg, healthyGrowthKg = animal:getFullFeedGain()
     local progress, fetuses = getPregnancy(animal)
     local milk = animal.rlMilk
     local subType = animal:getSubType()
+    local ownReference = RLBodyCondition.getReferenceIntake(animal)
 
-    return {
+    local input = {
         dtMonths = dtMonths,
         weight = animal.weight,
         minWeight = subType.minWeight or 0,
@@ -484,25 +501,39 @@ function RLBodyCondition.buildStepInput(animal, state, intakeLiters, waterCovera
         capacityKg = state.capacityKg,
         targetWeight = animal.targetWeight,
         potentialGrowthKg = growthKg,
-        ageLossKg = ageLossKg,
         potentialMilk = milk ~= nil and milk.potential * waterCoverage or 0,
-        anchorMilk = milk ~= nil and milk.anchor or 0,
         isLactating = animal.isLactating and milk ~= nil and milk.potential > 0,
         pregnancyProgress = progress,
         numFetuses = fetuses,
         intakeLiters = intakeLiters,
-        referenceLiters = RLBodyCondition.getReferenceIntake(animal),
         intakeCapacity = RLBodyCondition.getIntakeCapacity(animal),
         reserveTarget = RLBodyCondition.getReserveTarget(animal),
         reserveCeiling = RLBodyCondition.getReserveCeiling(animal),
         balanceEMA = state.balanceEMA,
         lossRateEMA = state.lossRateEMA,
+        fixedPrice = RLBodyCondition.getConfig().fixedFeedPrice == true,
     }
+
+    if input.fixedPrice then
+        input.referenceLiters, input.referenceWeight, input.referenceGrowthKg = RLBodyCondition.getSupplyReference(animal)
+        input.anchorMilk = milk ~= nil and milk.lineAnchor or 0
+        input.diseaseLossKg = healthyGrowthKg - growthKg
+    else
+        input.referenceLiters = ownReference
+        input.anchorMilk = milk ~= nil and milk.anchor or 0
+    end
+
+    return input, ownReference
 end
 
 
 --- The pen's feed ledger for this hour, or nil when there is none.
-local function getLedger(animal, tick)
+--- @param animal table
+--- @param tick number|nil
+--- @return table|nil supply spec.rlNutritionSupply of this hour
+--- @return table|nil owner The pen
+--- @return table|nil foodSpec
+function RLBodyCondition.getLedger(animal, tick)
     local owner = animal.clusterSystem ~= nil and animal.clusterSystem.owner or nil
     local foodSpec = owner ~= nil and owner.spec_husbandryFood or nil
     local supply = foodSpec ~= nil and foodSpec.rlNutritionSupply or nil
@@ -523,7 +554,9 @@ function RLBodyCondition.coversThisHour(animal, tick)
     if tick == nil then return false end
     local state = animal.bodyCondition
     if state ~= nil and state.lastTick == tick then return true end
-    return getLedger(animal, tick) ~= nil and (animal:getInput("food") or 0) > 0
+    -- Real-equivalent nutrition: the hour is the budget's whatever the animal ate.
+    if RLFeed ~= nil and RLFeed.runsFor(animal, tick) then return true end
+    return RLBodyCondition.getLedger(animal, tick) ~= nil and (animal:getInput("food") or 0) > 0
 end
 
 
@@ -538,6 +571,9 @@ local lastInvalidWarning = {}
 --- @return boolean handled False: the caller runs the old weight update instead
 function RLBodyCondition.step(animal)
     if not RLBodyCondition.isEligible(animal) then return false end
+    -- The weight model v2 runs its own step (RLGrowth.step, from AnimalHealth.updateHealth): the
+    -- animal is handled there, never by this budget or the old weight rule.
+    if RLGrowth ~= nil and RLGrowth.covers(animal) then return true end
 
     local tick = RLBodyCondition.getTickId()
     if tick == nil then return false end
@@ -545,7 +581,7 @@ function RLBodyCondition.step(animal)
     local state = animal.bodyCondition
     if state ~= nil and state.lastTick == tick then return true end
 
-    local supply, owner, foodSpec = getLedger(animal, tick)
+    local supply, owner, foodSpec = RLBodyCondition.getLedger(animal, tick)
     if supply == nil or (animal:getInput("food") or 0) <= 0 then
         local key = owner ~= nil and tostring(owner) or "?"
         if lastInvalidWarning[key] ~= tick then
@@ -558,13 +594,12 @@ function RLBodyCondition.step(animal)
 
     state = RLBodyCondition.ensureState(animal, "legacy")
 
-    local environment = g_currentMission.environment
-    local dtMonths = 1 / (24 * math.max(environment.daysPerPeriod or 1, 1))
+    local dtMonths = RLWeightMath.getHourMonths(g_currentMission.environment.daysPerPeriod)
     local water = foodSpec.rlWaterCoverage
     local waterCoverage = (water ~= nil and water.tick == tick) and water.coverage or 1
 
     local intakeStep, allocated = RLBodyCondition.getAllocatedIntake(animal, supply)
-    local input = RLBodyCondition.buildStepInput(animal, state, intakeStep / dtMonths, waterCoverage, dtMonths)
+    local input, ownReference = RLBodyCondition.buildStepInput(animal, state, intakeStep / dtMonths, waterCoverage, dtMonths)
     local result = RLNutritionMath.step(input, RLBodyCondition.getConfig())
 
     if result.weight ~= result.weight or result.reserve ~= result.reserve then
@@ -581,24 +616,43 @@ function RLBodyCondition.step(animal)
     state.lossRateEMA = result.lossRateEMA
     state.lastTick = tick
 
-    -- The milk this hour's budget paid for, in output liters per hour; the pen's milk deposit
-    -- for this hour takes exactly this (RLBodyCondition.depositMilk).
+    RLBodyCondition.recordHour(animal, owner, tick, { allocated = allocated, intakeStep = intakeStep, dtMonths = dtMonths,
+        ownReference = ownReference, result = result, waterCoverage = waterCoverage })
+
+    return true
+end
+
+
+--- What an hour's budget step leaves on the animal for the rest of the hour and the clients (the
+--- body condition's and the weight model v2's alike): the milk it paid for, in output liters per
+--- hour, which the pen's milk deposit takes this hour (RLBodyCondition.depositMilk); what it ate
+--- against its full-feed request, its coverage and milk share (rlNutrition, the info box and the
+--- state event); and the pen's mark that it stepped this hour.
+--- @param animal table
+--- @param owner table|nil The pen
+--- @param tick number
+--- @param record table { allocated, intakeStep (liters this step), dtMonths, ownReference (liters per
+---        period), result (the step's), waterCoverage, paysMilk (false: this hour's milk is the old
+---        rule's deposit, not the budget's), intakeSource }
+function RLBodyCondition.recordHour(animal, owner, tick, record)
+    local result = record.result
+    local paysMilk = record.paysMilk ~= false
     local potentialPerHour = animal.rlMilk ~= nil and animal.rlMilk.potential / 24 or 0
-    local milkShare = result.milkFraction * waterCoverage
-    animal.rlMilkPaid = { tick = tick, litersPerHour = potentialPerHour * milkShare, deposited = false }
+    local milkShare = result.milkFraction * record.waterCoverage
+    animal.rlMilkPaid = { tick = tick, litersPerHour = paysMilk and potentialPerHour * milkShare or 0, deposited = not paysMilk }
 
     animal.rlNutrition = {
         tick = tick,
-        allocatedLiters = allocated,
-        intakeRatio = input.referenceLiters > 0 and (intakeStep / dtMonths) / input.referenceLiters or 0,
+        allocatedLiters = record.allocated,
+        -- What it ate against what it asks for on full feed (under the fixed price not its reference).
+        intakeRatio = record.ownReference > 0 and (record.intakeStep / record.dtMonths) / record.ownReference or 0,
         coverage = result.coverage,
-        milkShare = potentialPerHour > 0 and milkShare or nil,
+        milkShare = (paysMilk and potentialPerHour > 0) and milkShare or nil,
         growthFraction = result.growthFraction,
+        intakeSource = record.intakeSource,
     }
 
     if owner ~= nil then owner.rlBodyConditionStepped = tick end
-
-    return true
 end
 
 
@@ -609,23 +663,28 @@ end
 --- Record a cow's milk at full feed (Animal:updateOutput); her output stays that potential, which
 --- the old rules deposit for an hour the budget does not cover. Records nothing for an animal the
 --- rules do not cover.
+--- Two anchors - the milk her feed is priced for, the lactation-average milk at average
+--- productivity. anchor (need-based price): with her disease, while she gives milk at all.
+--- lineAnchor (fixedFeedPrice): a healthy cow's, while she would give milk without the disease, so a
+--- disease lowers her milk, not her feed's energy.
 --- @param animal table
 --- @param potentialPerPeriod number Milk after lactation, productivity and disease
 --- @param curvePerPeriod number The age curve alone
 --- @param diseaseFactor number Disease milk multiplier (1 = none)
+--- @param healthyPerPeriod number|nil The potential without the disease (default potentialPerPeriod)
 --- @return number litersPerPeriod The potential, unchanged
-function RLBodyCondition.applyMilk(animal, potentialPerPeriod, curvePerPeriod, diseaseFactor)
+function RLBodyCondition.applyMilk(animal, potentialPerPeriod, curvePerPeriod, diseaseFactor, healthyPerPeriod)
     if not RLBodyCondition.isEligible(animal) then
         animal.rlMilk = nil
         return potentialPerPeriod
     end
 
-    local anchor = 0
-    if potentialPerPeriod > 0 then
-        anchor = curvePerPeriod * RLBodyCondition.getConfig().lactationMeanFactor * (diseaseFactor or 1)
-    end
-
-    animal.rlMilk = { potential = potentialPerPeriod, anchor = anchor }
+    local average = math.max((curvePerPeriod or 0) * RLBodyCondition.getConfig().lactationMeanFactor, 0)
+    animal.rlMilk = {
+        potential = potentialPerPeriod,
+        anchor = potentialPerPeriod > 0 and average * (diseaseFactor or 1) or 0,
+        lineAnchor = (healthyPerPeriod or potentialPerPeriod) > 0 and average or 0,
+    }
 
     return potentialPerPeriod
 end
@@ -657,7 +716,7 @@ end
 --- @param litersPerHour table fillType -> liters per hour (the spec's)
 --- @param contributions table|nil array of {animal, fillType, liters}
 --- @param superFunc function The rest of the updateOutput chain
---- @param deposit function(fillType, liters) Puts liters into the store
+--- @param deposit function(fillType, liters) Puts liters into the store; returns what it took
 function RLBodyCondition.depositMilk(placeable, litersPerHour, contributions, superFunc, deposit)
     local tick = RLBodyCondition.getTickId()
     if contributions == nil or #contributions == 0 or tick == nil then
@@ -702,9 +761,16 @@ function RLBodyCondition.depositMilk(placeable, litersPerHour, contributions, su
     end
 
     local timeAdjustment = g_currentMission.environment.timeAdjustment
+    local deposits = RLFeed ~= nil and RLFeed.hasObservers() and {} or nil
     for fillType, liters in pairs(paid) do
-        if saved[fillType] ~= nil and liters > 0 and nonFeed > 0 then deposit(fillType, liters * nonFeed * timeAdjustment) end
+        if saved[fillType] ~= nil and liters > 0 and nonFeed > 0 then
+            local requested = liters * nonFeed * timeAdjustment
+            local added = deposit(fillType, requested)
+            if deposits ~= nil then deposits[fillType] = { paid = liters * timeAdjustment, requested = requested, added = added } end
+        end
     end
+    -- Observers (TestDiagnostics): what each store was paid, asked and took this hour.
+    if deposits ~= nil then RLFeed.notify("MILK", { placeable = placeable, tick = tick, nonFeed = nonFeed, deposits = deposits }) end
 end
 
 
@@ -858,6 +924,17 @@ function RLBodyCondition.addInfos(animal, infos)
     row.ratio = math.clamp(ratio or 0, 0, 1)
     row.valueText = text
     table.insert(infos, row)
+
+    -- Real-equivalent nutrition (calves too): real intake against plan, ration share and its
+    -- limit, a bull's finishing forecast.
+    if RLFeedInfoService ~= nil then
+        for _, feedRow in ipairs(RLFeedInfoService.getAnimalRows(animal)) do
+            row = infoRow(animal, feedRow.key, feedRow.titleKey)
+            row.ratio = feedRow.ratio
+            row.valueText = feedRow.valueText
+            table.insert(infos, row)
+        end
+    end
 
     if not RLBodyCondition.isEligible(animal) then return end
 

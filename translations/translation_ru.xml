@@ -12,7 +12,7 @@
         <text name="fillType_bull_hereford" text="Hereford Bull"/>
         <text name="fillType_cow_highland_cattle" text="Хайленд"/>
         <text name="fillType_bull_highland_cattle" text="Бык Хайленд"/>
-        <text name="animal_descriptionBullFeed" text="Быки любят траву, сено и TMR."/>
+        <text name="animal_descriptionBullFeed" text="Bulls eat grass, hay, silage and TMR. In real-equivalent mode, weaned cattle can receive maize or wheat as a supplement to roughage where the pen supports it. Grain limits and feed adaptation apply."/>
         <text name="animal_descriptionBullYoung" text="Это теленок-самец."/>
         <text name="animal_descriptionBullReproduction" text="Быки, которые здоровы и старше 12 месяцев, могут размножаться."/>
         <text name="rl_descriptionCowReproduction" text="Коровы, которые здоровы и старше 12 месяцев, могут размножаться."/>
@@ -942,5 +942,90 @@
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
+        <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
+        <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>
+        <text name="rl_settings_nutritionMode_texts_2" text="Real-equivalent (feed saving)"/>
+        <text name="rl_feed_grainGroup" text="Grain (supplement)"/>
+
+        <!-- Feed UI: Chinese and English; English fallback for other languages. -->
+        <text name="rl_feed_penMode" text="Feed model"/>
+        <text name="rl_feed_modeReal" text="Real-equivalent"/>
+        <text name="rl_feed_penRation" text="Ration target"/>
+        <text name="rl_feed_penCoverage" text="ME plan covered"/>
+        <text name="rl_feed_penFirstOut" text="First to run out"/>
+        <text name="rl_feed_intake" text="DM / ME cover"/>
+        <text name="rl_feed_intakeFormat" text="%.1f kg/d (%.0f%%)"/>
+        <text name="rl_feed_ration" text="Grain DM / limit"/>
+        <text name="rl_feed_finish" text="Finish estimate"/>
+        <text name="rl_feed_finishReady" text="Ready"/>
+        <text name="rl_feed_finishStalled" text="Gain too low"/>
+        <text name="rl_feed_monthsShort" text="mo"/>
+        <text name="rl_feed_unconfigured" text="No feed data"/>
+        <text name="rl_feed_grainNotEaten" text="Not fed in legacy"/>
+        <text name="rl_feed_grain_AUTO" text="Auto grain"/>
+        <text name="rl_feed_grain_NONE" text="No grain"/>
+        <text name="rl_feed_feedShareFormat" text="%s (%.0f%% DM)"/>
+        <text name="rl_feed_feedPlanFormat" text="%s · plan %.0f L/%s"/>
+        <text name="rl_feed_reason_OK" text="Real-equivalent"/>
+        <text name="rl_feed_reason_MODE_OFF" text="Legacy mode"/>
+        <text name="rl_feed_reason_CONFIG_INVALID" text="Invalid feed data"/>
+        <text name="rl_feed_reason_MODEL_OFF" text="Weight model off"/>
+        <text name="rl_feed_reason_NOT_CATTLE" text="Cattle only"/>
+        <text name="rl_feed_reason_MILKCOW_LEGACY" text="Milk cows: legacy"/>
+        <text name="rl_feed_reason_NO_TROUGH" text="No supported trough"/>
+        <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="Unsupported animal"/>
+        <text name="rl_feed_reason_SUCKLING_CALF" text="Телёнок без матери"/>
+        <text name="rl_feed_reason_UNKNOWN" text="Status unavailable"/>
+        <text name="rl_feed_limit_NONE" text="No limit"/>
+        <text name="rl_feed_limit_FIBRE" text="Fibre limit"/>
+        <text name="rl_feed_limit_STARCH" text="Starch limit"/>
+        <text name="rl_feed_limit_WHEAT" text="Wheat limit"/>
+        <text name="rl_feed_limit_FEED_CAP" text="Предел корма"/>
+        <text name="rl_feed_limit_NO_FORAGE" text="No roughage"/>
+        <text name="rl_feed_limit_TARGET" text="Target share"/>
+        <text name="rl_feed_limit_PROTEIN_OR_DEMAND" text="Protein/need"/>
+        <text name="rl_feed_limit_ADAPTATION" text="Adapting"/>
+        <text name="rl_feed_limit_STOCK" text="Grain short"/>
+        <text name="rl_feed_limit_NO_CONCENTRATE" text="No grain"/>
+        <text name="rl_feed_limit_NO_FEED" text="No feed"/>
+        <text name="rl_feed_limit_APPETITE" text="Intake limit"/>
+        <text name="rl_feed_limit_FILL" text="Rumen full"/>
+        <text name="rl_feed_limit_DEMAND" text="Needs met"/>
+        <text name="rl_feed_limit_PROTEIN" text="Low protein"/>
+        <text name="rl_feed_limit_UNKNOWN" text="Unknown limit"/>
+        <text name="rl_feed_target_AUTO" text="Automatic"/>
+        <text name="rl_feed_target_GROW" text="Growth"/>
+        <text name="rl_feed_target_FINISH" text="Finishing"/>
+        <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
+        <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Рацион загона"/>
+        <text name="rl_feed_rationButton" text="Рацион"/>
+        <text name="rl_feed_dialogTitle" text="Настройки рациона"/>
+        <text name="rl_feed_labelTarget" text="Цель кормления"/>
+        <text name="rl_feed_labelGrain" text="Концентрат"/>
+        <text name="rl_feed_labelShare" text="Доля концентрата (СВ)"/>
+        <text name="rl_feed_labelSubstitute" text="Замена при нехватке"/>
+        <text name="rl_feed_share_AUTO" text="Авто (макс. допустимо)"/>
+        <text name="rl_feed_substitute_on" text="Разрешено"/>
+        <text name="rl_feed_substitute_off" text="Запрещено"/>
+        <text name="rl_feed_readOnly" text="Только чтение: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Нет прав"/>
+        <text name="rl_feed_statusClient" text="Вступит в силу после подтверждения сервера"/>
+        <text name="rl_feed_previewTarget" text="Цель"/>
+        <text name="rl_feed_previewNow" text="Сейчас"/>
+        <text name="rl_feed_previewAdapted" text="После адаптации"/>
+        <text name="rl_feed_previewIntake" text="%d гол. · %.1f кг СВ/гол./день · план энергии %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Корм"/>
+        <text name="rl_feed_colMonth" text="л/мес."/>
+        <text name="rl_feed_colShare" text="Доля СВ"/>
+        <text name="rl_feed_colStock" text="Запас"/>
+        <text name="rl_feed_colLasts" text="Хватит"/>
+        <text name="rl_feed_previewNote" text="Только предпросмотр, ничего не списывается. Доля — это цель: ограничения по клетчатке, крахмалу, пшенице и адаптации сохраняются."/>
+        <text name="rl_feed_previewMore" text="+%d других кормов."/>
+        <text name="rl_feed_previewError" text="Предпросмотр недоступен"/>
+        <text name="rl_feed_previewNoAnimals" text="В загоне нет животных"/>
+        <text name="rl_feed_previewNoFeed" text="В кормушке нет пригодного корма"/>
+        <text name="rl_feed_apply" text="Применить"/>
     </texts>
 </l10n>

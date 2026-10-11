@@ -7,7 +7,12 @@
     keep their own meaning.
 
     Covered: cattle (animal type COW) from calfLegacyUntilAgeMonth on, in a pen with a feed trough.
-    Calves, other species and Hof Bergmann's MILKCOW keep the old rules.
+    Calves, other species and Hof Bergmann's MILKCOW keep the old rules. Under the weight model v2
+    (weightProfiles.xml) covered cattle - and MILKCOW where the game holds it as individual animals,
+    on the Holstein female curve - take the same budget from birth with their own frame, reserve
+    mass and development (scripts/animal/RLGrowth.lua); the yield, price and conception factors
+    still start at calfLegacyUntilAgeMonth. The reserve index r is then their reserve mass over
+    reserveCapacityRatio of their frame's live weight at the reference reserve.
 
     Every hour the pen's actual consumption (trough and meadow) is shared between the animals by
     their food request. The ration supports a share of each animal's full-feed demand: liters
@@ -18,6 +23,20 @@
 
     enabled                    Off: the old weight and milk rules; saved conditions are kept.
     calfLegacyUntilAgeMonth    Younger cattle keep the old rules.
+    fixedFeedPrice             How much a liter eaten is worth (server only).
+                               false: what this animal needs on full feed - maintenance at its
+                               own weight, its own growth (a steer's x1.15, a sick animal's less)
+                               and milk - so needing more makes the same liters richer.
+                               true: what an animal of its genes on its full-feed growth line at
+                               its age and state needs, intact and healthy, whatever this one
+                               needs now; a disease's lost growth is spent on the disease. Animals
+                               behind their line (slow forage routes) get only maintenance-level
+                               feed once the line is grown, so this stays off; see
+                               tests/test_weight.lua. Under the weight model v2 the reference is an
+                               average animal on its breed's curve at this one's age; it still
+                               slows hay (an Angus bull 35.8 months to slaughter instead of 24.3)
+                               and stalls a water buffalo bull on grass near 350 kg, so the forage
+                               energies and intakes need calibrating for it first.
 
     Reserve
     initialReserve             Reserve of a cow or heifer whose condition is first set up
@@ -82,7 +101,7 @@
     modSettings/FS25_RealisticLivestockRM/bodyCondition.xml; that copy then replaces this file
     entirely. An invalid file switches the feature off and logs why.
 -->
-<bodyCondition enabled="true" calfLegacyUntilAgeMonth="6"
+<bodyCondition enabled="true" calfLegacyUntilAgeMonth="6" fixedFeedPrice="false"
     initialReserve="0.45" reserveCapacityRatio="0.20" referenceReserve="0.45" minReserve="0.05"
     gainRatePerMonth="0.07" lossRatePerMonth="0.08" mobilizeEaseRange="0.15" trendTauMonths="0.5"
     maintenancePerKgMetabolic="4.5" growthNUPerKg="40" depositNUPerKg="48" mobilizeNUPerKg="32"

@@ -6,6 +6,7 @@ function RealisticLivestock_PlaceableHusbandryFood.registerOverwrittenFunctions(
 	SpecializationUtil.registerOverwrittenFunction(placeable, "updateFeeding", RealisticLivestock_PlaceableHusbandryFood.updateFeeding)
 	SpecializationUtil.registerOverwrittenFunction(placeable, "removeFood", RealisticLivestock_PlaceableHusbandryFood.removeFood)
 	SpecializationUtil.registerOverwrittenFunction(placeable, "updateInfo", RealisticLivestock_PlaceableHusbandryFood.updateInfo)
+	SpecializationUtil.registerOverwrittenFunction(placeable, "getFoodInfos", RealisticLivestock_PlaceableHusbandryFood.getFoodInfos)
 end
 
 PlaceableHusbandryFood.registerOverwrittenFunctions = Utils.appendedFunction(PlaceableHusbandryFood.registerOverwrittenFunctions, RealisticLivestock_PlaceableHusbandryFood.registerOverwrittenFunctions)
@@ -34,16 +35,20 @@ function RealisticLivestock_PlaceableHusbandryFood:updateFeeding(superFunc)
     local before = {}
     for fillTypeIndex, fillLevel in pairs(spec.fillLevels) do before[fillTypeIndex] = fillLevel end
 
+    -- Real-equivalent nutrition (RLFeed): when the pen runs it this hour, the engine's food
+    -- consumption is the ration planner's (AnimalFoodSystem.consumeFood), not the calf caps'.
+    local realEquivalent = false
     if self.isServer then
+        realEquivalent = RLFeed.beginFeeding(self)
         RLBodyCondition.beginFeeding(self)
-        RLCalfRearing.beginFeeding(self)
+        if not realEquivalent then RLCalfRearing.beginFeeding(self) end
     end
 
     local foodFactor = superFunc(self)
 
     if self.isServer then
         RLBodyCondition.endFeeding(self)
-        RLCalfRearing.settle(self)
+        if realEquivalent then RLFeed.endFeeding(self) else RLCalfRearing.settle(self) end
     end
 
     spec.rlForageShares = RLBreedTraits.getForageShares(before, spec.fillLevels, self.spec_husbandryMeadow ~= nil)
@@ -52,15 +57,17 @@ function RealisticLivestock_PlaceableHusbandryFood:updateFeeding(superFunc)
 end
 
 
---- Cattle pens: body condition and last hour's ration in the pen's info box (RLBodyCondition.getPenInfo).
+--- Cattle pens: body condition and last hour's ration in the pen's info box (RLBodyCondition.getPenInfo),
+--- and the real-equivalent nutrition mode's state, ration and first feed to run out (RLFeedInfoService).
 function RealisticLivestock_PlaceableHusbandryFood:updateInfo(superFunc, infoTable)
     superFunc(self, infoTable)
 
     local spec = self.spec_husbandryFood
     if spec == nil then return end
 
-    local rows = RLBodyCondition.getPenInfo(self)
-    if rows == nil then return end
+    local rows = RLBodyCondition.getPenInfo(self) or {}
+    for _, row in ipairs(RLFeedInfoService.getPenInfoRows(self)) do table.insert(rows, row) end
+    if #rows == 0 then return end
 
     spec.rlInfoRows = spec.rlInfoRows or {}
     for index, row in ipairs(rows) do
@@ -72,6 +79,13 @@ function RealisticLivestock_PlaceableHusbandryFood:updateInfo(superFunc, infoTab
         info.text = row.text
         table.insert(infoTable, info)
     end
+end
+
+
+--- Cattle pens' food rows: per feed in the real-equivalent nutrition mode, the grain group marked
+--- as not eaten under the old rules (RLFeedInfoService.adjustFoodInfos).
+function RealisticLivestock_PlaceableHusbandryFood:getFoodInfos(superFunc)
+    return RLFeedInfoService.adjustFoodInfos(self, superFunc(self))
 end
 
 
@@ -88,6 +102,21 @@ function RealisticLivestock_PlaceableHusbandryFood:removeFood(superFunc, deltaTo
 
     return removed
 end
+
+
+--- The pen's ration settings and feed months (RLFeed), saved with its trough.
+function RealisticLivestock_PlaceableHusbandryFood:saveToXMLFile(xmlFile, key)
+    RLFeed.savePen(self, xmlFile, key)
+end
+
+PlaceableHusbandryFood.saveToXMLFile = Utils.appendedFunction(PlaceableHusbandryFood.saveToXMLFile, RealisticLivestock_PlaceableHusbandryFood.saveToXMLFile)
+
+
+function RealisticLivestock_PlaceableHusbandryFood:loadFromXMLFile(xmlFile, key)
+    RLFeed.loadPen(self, xmlFile, key)
+end
+
+PlaceableHusbandryFood.loadFromXMLFile = Utils.appendedFunction(PlaceableHusbandryFood.loadFromXMLFile, RealisticLivestock_PlaceableHusbandryFood.loadFromXMLFile)
 
 
 function RealisticLivestock_PlaceableHusbandryFood.onSettingChanged(name, state)

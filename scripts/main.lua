@@ -40,11 +40,19 @@ source(modDirectory .. "scripts/core/RLConstants.lua")
 source(modDirectory .. "scripts/core/RLMapCountry.lua")
 
 -- SECTION 2e: Breed traits (xml/breedTraits.xml; its layered lookup is shared with the carcass yield config)
+-- Weight arithmetic of the growth line, the old weight rule and the body condition budget (pure)
+source(modDirectory .. "scripts/animal/RLWeightMath.lua")
 source(modDirectory .. "scripts/animal/RLBreedTraits.lua")
 -- Carcass yield arithmetic, pure; AnimalMoveEvent feeds it the animal and config snapshot
 source(modDirectory .. "scripts/animal/RLMeatMath.lua")
 -- Delivery rules shared by the delivery code and the trade quote (contract order, fee, butcher recipe), pure
 source(modDirectory .. "scripts/animal/RLFacilityRules.lua")
+-- Weight model v2 (xml/weightProfiles.xml): continuous growth curves (pure), the budget step
+-- (pure), and the profile each cattle subtype resolves to. RLGrowth, the game side, is sourced
+-- after the body condition it reads.
+source(modDirectory .. "scripts/animal/RLGrowthCurve.lua")
+source(modDirectory .. "scripts/animal/RLGrowthMath.lua")
+source(modDirectory .. "scripts/animal/RLWeightProfiles.lua")
 -- Livestock prices follow the difficulty multiplier: live prices, semen, contract slaughter fees
 source(modDirectory .. "scripts/animal/RLLivestockPrices.lua")
 -- Body condition of cattle (xml/bodyCondition.xml): nutrition budget, reserve, finish score / BCS.
@@ -53,6 +61,15 @@ source(modDirectory .. "scripts/nutrition/RLNutritionMath.lua")
 source(modDirectory .. "scripts/nutrition/RLBodyConditionConfig.lua")
 source(modDirectory .. "scripts/nutrition/RLBodyCondition.lua")
 source(modDirectory .. "scripts/nutrition/RLCalfRearing.lua")
+source(modDirectory .. "scripts/animal/RLGrowth.lua")
+-- Real-equivalent nutrition (xml/feedProfiles.xml): units and profiles, the pure ration math and
+-- planner, then the game side, which wraps AnimalFoodSystem after RLCalfRearing's wrapper.
+source(modDirectory .. "scripts/feed/RLFeedUnits.lua")
+source(modDirectory .. "scripts/feed/RLFeedProfiles.lua")
+source(modDirectory .. "scripts/feed/RLFeedMath.lua")
+source(modDirectory .. "scripts/feed/RLFeedRationPlanner.lua")
+source(modDirectory .. "scripts/feed/RLFeed.lua")
+source(modDirectory .. "scripts/feed/RLFeedInfoService.lua")
 
 -- SECTION 3: Animal Husbandry - Cluster System
 source(modDirectory .. "scripts/animals/husbandry/cluster/RealisticLivestock_AnimalCluster.lua")
@@ -104,6 +121,7 @@ source(modDirectory .. "scripts/animal/RLLiveSale.lua")
 source(modDirectory .. "scripts/animal/RLTradePersistence.lua")
 source(modDirectory .. "scripts/animal/RLTradeRecovery.lua")
 source(modDirectory .. "scripts/animal/RLTradeCheckpoint.lua")
+source(modDirectory .. "scripts/animal/RLContractDiag.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalSellEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/SemenBuyEvent.lua")
 
@@ -114,6 +132,7 @@ source(modDirectory .. "scripts/animals/shop/RealisticLivestock_AnimalItemStock.
 source(modDirectory .. "scripts/events/HusbandryMessageStateEvent.lua")
 source(modDirectory .. "scripts/events/RLBodyConditionStateEvent.lua")
 source(modDirectory .. "scripts/events/RLBodyConditionConfigEvent.lua")
+source(modDirectory .. "scripts/events/RLFeedRationEvent.lua")
 source(modDirectory .. "scripts/events/HusbandryMessageAddEvent.lua")
 source(modDirectory .. "scripts/events/HusbandryMessageDeleteEvent.lua")
 source(modDirectory .. "scripts/events/ReturnStrawEvent.lua")
@@ -242,6 +261,7 @@ source(modDirectory .. "scripts/gui/RLHerdsmanDestinationPickerDialog.lua")
 source(modDirectory .. "scripts/gui/RLDealerSaleSelectorDialog.lua")
 -- Reads the disease-selection modules (SECTION 20e2) at call time only.
 source(modDirectory .. "scripts/gui/RLDiseaseSelectorDialog.lua")
+source(modDirectory .. "scripts/gui/RLFeedRationDialog.lua")
 source(modDirectory .. "scripts/gui/FileExplorerDialog.lua")
 source(modDirectory .. "scripts/gui/RL_InfoDisplayKeyValueBox.lua")
 source(modDirectory .. "scripts/gui/RealisticLivestock_InGameMenuAnimalsFrame.lua")
@@ -252,6 +272,7 @@ source(modDirectory .. "scripts/gui/rlmenu/services/RLMessageService.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLAnimalQuery.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLGeneticsFormatter.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLPenFeedForecast.lua")
+source(modDirectory .. "scripts/gui/rlmenu/services/RLFeedRationModel.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLAnimalInfoService.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLDetailPaneHelper.lua")
 -- The shared trade-request guard, before the three trade services that dispatch through it.
@@ -397,6 +418,7 @@ source(modDirectory .. "scripts/console/RLBodyConditionConsole.lua")
 source(modDirectory .. "scripts/console/RLTradeReportConsole.lua")
 source(modDirectory .. "scripts/console/RLPenConsole.lua")
 source(modDirectory .. "scripts/console/RLDealerConsole.lua")
+source(modDirectory .. "scripts/console/RLFeedConsole.lua")
 source(modDirectory .. "scripts/console/RLConsoleCommandManager.lua")
 
 -- SECTION 20j: Messaging

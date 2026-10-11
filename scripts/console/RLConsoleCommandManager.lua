@@ -56,6 +56,12 @@ function RLConsoleCommandManager.new()
         RLTradeReportConsole, "<facility> <uniqueId|pen:NAME> [farmId]")
     addConsoleCommand("rlPenReport", "Log each profiled pen's rule, map filter, feed and animals (RLPEN PEN_REPORT)", "report", RLPenConsole, "[pen]")
     addConsoleCommand("rlDealerCatalog", "Log what the dealer can sell per subtype (dealerStock.xml purposes, ages, gaps) and its pool (RLDEALER)", "catalog", RLDealerConsole, "[animalType]")
+    addConsoleCommand("rlWeightProfiles", "Log each cattle subtype's weight profile and where its weight settings come from (RLWEIGHT)", "consoleReport", RLWeightProfiles, "[filter]")
+    -- Real-equivalent nutrition (RLFeedConsole): report is read-only; the ration goes through its event.
+    addConsoleCommand("rlFeedReport", "Real-equivalent nutrition per cattle pen: mode, ration, trough per feed (L, real DM, ME, months left), animals", "report",
+        RLFeedConsole, "[animals] [pen]")
+    addConsoleCommand("rlFeedRation", "Set a cattle pen's ration for the real-equivalent nutrition mode", "ration", RLFeedConsole,
+        "<pen> [target=AUTO|FINISH|GROW|MAINTAIN] [grain=AUTO|NONE|MAIZE|WHEAT|BARLEY|OAT] [share=max|0..0.8] [substitute=yes|no]")
 
 	return self
 

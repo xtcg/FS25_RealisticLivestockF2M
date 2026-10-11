@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    Weight model v2 of cattle (scripts/animal/RLGrowth.lua): each physical breed's female and male
+    reference growth curve and mean birth weight, the breed names maps use for them, the animal
+    types bound to a breed's curve as a stand-in, and the model's settings. Source: the all-cattle
+    weight design v2 (FS25_CowBreeds_离线准备_2026-10-07/all-cattle-weight-design-v2.md and its
+    all-cattle-weight-profiles-v2.json). Every number here is a design candidate, not a measured
+    breed value; the status of each profile says where it stands.
+
+    The console command rlWeightProfiles lists every cattle subtype the game has loaded (base,
+    Cow Breeds pack, map), the profile it resolves to, its curve, and which of its old weight
+    settings come from a config file.
+
+    enabled        On: covered cattle grow on these curves (with the body condition feature on,
+                   bodyCondition.xml). Off: every animal keeps the old weight rules; states saved
+                   by the model are kept for when it is switched on again.
+
+    Curves
+    profile name   A breed name as subtypes carry it (animals.xml breed="...").
+            status BASE_XML_UNREVALIDATED  this mod's breeds: adult = animals.xml targetWeight
+                   PACK_REVIEW_ONLY        Cow Breeds pack: research candidates (the pack's own
+                                           targetWeight is not used for growth), with the seven
+                                           beef breeds' confirmed admission weights as knots
+                   MAP_REVIEW_ONLY         breeds only a map brings: research candidates
+            birthFemaleKg  Mean birth weight of a single heifer calf from an average dam; a bull
+                   calf is maleBirthFactor heavier (or the profile's own maleBirthFactor).
+    female / male knots  month:kg after birth, the last one the adult plateau. Between knots the
+                   curve is a monotone cubic Hermite (no overshoot, weight and gain continuous);
+                   after the last it is flat. Each animal grows on this curve x its size gene,
+                   from its actual birth weight (the difference to the mean fades out by
+                   birthFadeMonths).
+    alias breed    A breed name a map uses for a profile's breed: its subtypes grow on that
+            profile profile's curve and keep their own name and identity.
+    typeBinding    An animal type outside COW put on a profile's curve as a stand-in, where the
+                   game holds its animals as individuals: Hof Bergmann's MILKCOW (its subtype has
+                   no weights and does not reproduce) on the Holstein female curve. Its milk store
+                   keeps its own rule (its budget reads the milk, nothing more); its price is the
+                   same share-of-curve rule as other cattle, starting at its old price when taken
+                   over; enabled="false" leaves the type out. Where the type
+                   exists only as vanilla clusters the binding does nothing (the report says so).
+
+    A breed that is neither a profile nor an alias is reported UNRESOLVED and keeps the old rules:
+    it never falls into another breed's curve silently.
+
+    Settings (root)
+    maleBirthFactor   Bull calf / heifer calf birth weight.
+    birthWeightCV     Spread of birth weights (coefficient of variation), drawn normal around
+    birthTruncateSD   the birth's mean and drawn again beyond this many standard deviations.
+    birthGeneEffect   Birth weight x (1 + this x (metabolism - 1)).
+    firstBirthFactor  A heifer's first calf.
+    litter2/3/4       Each calf of twins, triplets, four or more.
+    damReserveEffect  The dam's body reserve r: x (1 + this x (r - referenceReserve)), between
+    damFactorMin/Max  these. A dam with no reserve on record counts as 1.
+    geneSpan          z = (metabolism - 1) / geneSpan, clamped to -1..1.
+    sizeGeneEffect    Adult weight x (1 + this x z).
+    speedGeneEffect   Development speed x (1 + this x z).
+    maintenanceGeneEffect  Maintenance and the feed it asks for x (1 + this x z).
+    birthFadeMonths   The animal's own birth weight fades into the reference curve by this age.
+    castratedSpeed    A steer develops at this speed of a bull's (no step: the change takes
+    transitionMonths  about this long, as does a change of intake capacity at calving or drying).
+    underweightRatio  Below this share of its curve at its age an animal loses health. Growth that
+                      fell behind does not catch up, so it leaves room for slow forage routes and an
+                      animal underfed once (0.6: a calf starved three months is at about 0.7).
+    frameFloorRatio   Numerical floor: the frame is never broken down below this share of the
+                      frame at birth. It is no part of the birth calibration.
+    migrationBlendMonths  An old savegame's animal grew on the old line: its price, food request
+                      and underweight check start where the old rules had them and move to its
+                      curve's over this many months.
+
+    Target weight. An animal's target weight (slaughter reference = target x maturity, finishing,
+    the finish verdict) stays its subtype's configured target x its size gene; only its growth
+    runs to the curve's adult. For this mod's breeds they are the same; a Cow Breeds pack bull
+    grows to the design's adult but is finished at the pack's reference, as the design's arrival
+    points assume.
+
+    To change these without editing the mod, copy this file to
+    modSettings/FS25_RealisticLivestockRM/weightProfiles.xml; that copy then replaces this file
+    entirely. An invalid file switches the model off and logs why.
+-->
+<weightProfiles enabled="true"
+    maleBirthFactor="1.07" birthWeightCV="0.10" birthTruncateSD="2.5" birthGeneEffect="0.05"
+    firstBirthFactor="0.93" litter2="0.85" litter3="0.75" litter4="0.70"
+    damReserveEffect="0.25" damFactorMin="0.90" damFactorMax="1.03"
+    geneSpan="0.75" sizeGeneEffect="0.12" speedGeneEffect="0.10" maintenanceGeneEffect="0.15"
+    birthFadeMonths="6" castratedSpeed="0.90" transitionMonths="0.5" underweightRatio="0.60"
+    frameFloorRatio="0.5" migrationBlendMonths="12">
+
+    <!-- This mod's breeds. Birth weight = birth ratio x the cow's targetWeight (Holstein 0.0618,
+         Swiss Brown 0.0615, Angus 0.0492, Limousin 0.0585, Hereford 0.0567, Highland 0.054,
+         water buffalo 0.0618). Bull knots through the slaughter-reference arrivals; female knots
+         AHDB heifer targets x the cow's weight (Highland, buffalo 1.25x slower), capped early so a
+         beef heifer is no heavier than a bull calf / 1.07. -->
+    <profile name="HOLSTEIN" status="BASE_XML_UNREVALIDATED" birthFemaleKg="45.114">
+        <female knots="3:124.1 6:197.1 12:365 14:401.5 24:620.5 48:715.4 60:730"/>
+        <male knots="3:135 6:250 12:450 17:649 24:820 48:1045 60:1100"/>
+    </profile>
+    <profile name="SWISS_BROWN" status="BASE_XML_UNREVALIDATED" birthFemaleKg="41.205">
+        <female knots="3:113.9 6:180.9 12:335 14:368.5 24:569.5 48:656.6 60:670"/>
+        <male knots="3:120 6:220 12:410 20:638 24:740 48:950 60:1000"/>
+    </profile>
+    <profile name="ANGUS" status="BASE_XML_UNREVALIDATED" birthFemaleKg="30.012">
+        <female knots="3:102.8037 6:164.7 12:305 14:335.5 24:518.5 48:597.8 60:610"/>
+        <male knots="3:110 6:215 12:420 19.5:663 24:770 48:950 60:1000"/>
+    </profile>
+    <profile name="LIMOUSIN" status="BASE_XML_UNREVALIDATED" birthFemaleKg="45.63">
+        <female knots="3:112.1495 6:210.6 12:390 14:429 24:663 48:764.4 60:780"/>
+        <male knots="3:120 6:230 12:450 18:702 24:850 48:1140 60:1200"/>
+    </profile>
+    <profile name="HEREFORD" status="BASE_XML_UNREVALIDATED" birthFemaleKg="37.422">
+        <female knots="3:102.8037 6:178.2 12:330 14:363 24:561 48:646.8 60:660"/>
+        <male knots="3:110 6:210 12:400 19.5:646 24:740 48:902.5 60:950"/>
+    </profile>
+    <profile name="HIGHLAND" status="BASE_XML_UNREVALIDATED" birthFemaleKg="27">
+        <female knots="3.75:85 7.5:135 15:250 17.5:275 30:425 60:490 75:500"/>
+        <male knots="3:85 6:145 12:290 24:597 36:743 60:780"/>
+    </profile>
+    <profile name="WATER_BUFFALO" status="BASE_XML_UNREVALIDATED" birthFemaleKg="36.462">
+        <female knots="3.75:93.3755 7.5:159.3 15:295 17.5:324.5 30:501.5 60:578.2 75:590"/>
+        <male knots="3:85 6:150 12:260 18:365 24:460 48:684 60:720"/>
+    </profile>
+
+    <!-- Cow Breeds pack: R-DATA adult candidates. The seven beef breeds' bull curves pass through
+         their confirmed admission weights (Red Angus 340 kg at 9 months, Charolais 350 at 9.5,
+         Simmental 360 at 8.5, Shorthorn 300 at 8, British Blue 300 at 8.5, Irish Moiled 250 at 7,
+         Belted Galloway 220 at 7). -->
+    <profile name="REDHOLSTEIN_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="42">
+        <female knots="3:120.7 6:191.7 12:355 14:390.5 24:603.5 48:695.8 60:710"/>
+        <male knots="3:134.4 6:249.6 12:441.6 24:720 48:912 60:960"/>
+    </profile>
+    <profile name="AYRSHIRE_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="30">
+        <female knots="3:81.6 6:129.6 12:240 14:264 24:408 48:470.4 60:480"/>
+        <male knots="3:106.4 6:197.6 12:349.6 24:570 48:722 60:760"/>
+    </profile>
+    <profile name="JERSEY_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="25">
+        <female knots="3:74.8 6:118.8 12:220 14:242 24:374 48:431.2 60:440"/>
+        <male knots="3:93.52 6:173.68 12:307.28 24:501 48:634.6 60:668"/>
+    </profile>
+    <profile name="GUERNSEY_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="30">
+        <female knots="3:91.12 6:144.72 12:268 14:294.8 24:455.6 48:525.28 60:536"/>
+        <male knots="3:114.8 6:213.2 12:377.2 24:615 48:779 60:820"/>
+    </profile>
+    <profile name="KERRY_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="27">
+        <female knots="3.75:76.5 7.5:121.5 15:225 17.5:247.5 30:382.5 60:441 75:450"/>
+        <male knots="3:84 6:156 12:276 24:450 48:570 60:600"/>
+    </profile>
+    <profile name="SHORTHORNMILKERS_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="37">
+        <female knots="3:112.88 6:179.28 12:332 14:365.2 24:564.4 48:650.72 60:664"/>
+        <male knots="3:138.6 6:257.4 12:455.4 24:742.5 48:940.5 60:990"/>
+    </profile>
+    <profile name="REDANGUS_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="35.5">
+        <female knots="3:107.4766 6:194.4 12:360 14:396 24:612 48:705.6 60:720"/>
+        <male knots="3:115 6:225 9:340 17.5:650 24:830 48:1064 60:1120"/>
+    </profile>
+    <profile name="CHAROLAIS_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="39.3">
+        <female knots="3:112.1495 6:214.9533 12:420 14:462 24:714 48:823.2 60:840"/>
+        <male knots="3:120 6:230 9.5:350 20:790 24:930 48:1197 60:1260"/>
+    </profile>
+    <profile name="SHORTHORN_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="35.5">
+        <female knots="3:107.4766 6:172.8 12:320 14:352 24:544 48:627.2 60:640"/>
+        <male knots="3:115 6:225 8:300 13:490 18:650 24:800 48:1064 60:1120"/>
+    </profile>
+    <profile name="IRISHMOILED_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="30">
+        <female knots="3.75:102 7.5:162 15:300 17.5:330 30:510 60:588 75:600"/>
+        <male knots="3:100 6:210 7:250 20:520 24:600 48:760 60:800"/>
+    </profile>
+    <profile name="BRITISHBLUE_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="42">
+        <female knots="3:121.4953 6:210.2804 12:410 14:451 24:697 48:803.6 60:820"/>
+        <male knots="3:130 6:225 8.5:300 12:475 16:680 24:775 48:1102 60:1160"/>
+    </profile>
+    <profile name="BELTEDGALLOWAY_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="32.2">
+        <female knots="3.75:98.6 7.5:156.6 15:290 17.5:319 30:493 60:568.4 75:580"/>
+        <male knots="3:95 6:190 7:220 22:500 30:620 54:807.5 66:850"/>
+    </profile>
+    <profile name="SIMMENTAL_PACK" status="PACK_REVIEW_ONLY" birthFemaleKg="37.4">
+        <female knots="3:130.9 6:207.9 12:385 14:423.5 24:654.5 48:754.6 60:770"/>
+        <male knots="3:150 6:255 8.5:360 18.5:770 24:920 48:1159 60:1220"/>
+    </profile>
+
+    <!-- Breeds only a map brings (The Mechet): adults at 60% of the breed range, not a mean. -->
+    <profile name="MONTBELIARDE" status="MAP_REVIEW_ONLY" birthFemaleKg="40">
+        <female knots="3:117.3 6:186.3 12:345 14:379.5 24:586.5 48:676.2 60:690"/>
+        <male knots="3:131.6 6:244.4 12:432.4 24:705 48:893 60:940"/>
+    </profile>
+    <profile name="VOSGIENNE" status="MAP_REVIEW_ONLY" birthFemaleKg="39.6">
+        <female knots="3.75:103.7 7.5:164.7 15:305 17.5:335.5 30:518.5 60:597.8 75:610"/>
+        <male knots="3:113.4 6:210.6 12:372.6 24:607.5 48:769.5 60:810"/>
+    </profile>
+    <alias breed="CHAROLAISE" profile="CHAROLAIS_PACK" source="FS25_The_Mechet"/>
+    <alias breed="SIMMENTAL"  profile="SIMMENTAL_PACK" source="FS25_The_Mechet"/>
+    <alias breed="JERSEY"     profile="JERSEY_PACK"    source="FS25_Witcombe"/>
+
+    <typeBinding type="MILKCOW" profile="HOLSTEIN" sex="female" status="PROXY_HOLSTEIN_FEMALE" enabled="true"/>
+</weightProfiles>
