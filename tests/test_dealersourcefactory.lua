@@ -66,6 +66,9 @@ for _,pregnant in ipairs({false,true}) do
         and animal.name=="Selected mother" and candidate.animal.weight==originalWeight)
 end
 local cases={
+    {"native missing-owner identity fallback",function(c,p,x) p.adult.uniqueId="1";p.adult.farmId="1" end},
+    {"native fetal identity fallback",function(c,p,x) p.adult.farmId="1";p.pregnancy.fetuses[1].farmId="1";p.pregnancy.fetuses[1].uniqueId="1" end},
+    {"native sire identity fallback",function(c,p,x) p.sire.uniqueId="1";p.sire.farmId="1" end},
     {"unverified candidate",function(c,p,x) c.eligibility="UNSCREENED" end},
     {"missing D2 evaluated metadata",function(c,p,x) c.animal.sale=nil end},
     {"model disease cannot flatten",function(c,p,x) c.animal.diseases={{isCarrier=true,model={title="MODEL"}}} end},
@@ -135,3 +138,13 @@ local countryValue,countryFailure=F.materialize(invalidCountry,invalidCountryPre
 Animal.new=countryConstructor
 check("source factory: nonexistent fixed country refuses before constructing even a nonpregnant mother",not countryValue
     and countryFailure.reason=="SOURCE_FACTORY_ADULT" and countryShells==0)
+for _,placeholder in ipairs({"adult","fixedFetus"}) do
+    local candidate,prepared,ctx=fixture(true)
+    if placeholder=="adult" then prepared.adult.uniqueId="1-1"
+    else prepared.pregnancy.fetuses[1].uniqueId="1-1" end
+    local constructor=Animal.new;local shells=0
+    Animal.new=function(...) shells=shells+1;return constructor(...) end
+    local result,failure=F.materialize(candidate,prepared,ctx);Animal.new=constructor
+    check("source factory: "..placeholder.." placeholder 1-1 cannot materialize an owned identity",not result
+        and type(failure.reason)=="string" and shells==0)
+end

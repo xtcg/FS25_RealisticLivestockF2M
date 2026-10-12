@@ -18,7 +18,7 @@
 RLDealerSourceFactory={VERSION=1}
 local F=RLDealerSourceFactory
 local function finite(v) return type(v)=="number" and v==v and math.abs(v)<math.huge end
-local function id(v) return type(v)=="string" and #v>0 and #v<=256 and v~="-1" and v~="0" and v~="0-0" end
+local function id(v) return type(v)=="string" and #v>0 and #v<=256 and v~="-1" and v~="0" and v~="0-0" and v~="1-1" end
 local function copy(v) if type(v)~="table" then return v end;local o={};for k,x in pairs(v) do o[k]=copy(x) end;return o end
 local function equal(a,b)
     if type(a)~=type(b) then return false end
@@ -78,7 +78,8 @@ local function preflight(candidate,p,ctx)
         or p.evidence.requestId~=p.requestId or not id(p.evidence.selectionId) then return fail("SOURCE_FACTORY_PREPARED") end
     local a=p.adult
     if not keys(a,{uniqueId=true,farmId=true,subType=true,birthday=true,deathEnabled=true,diseases=true,name=true,marks=true,variation=true,motherId=true,fatherId=true,children=true})
-        or not id(a.uniqueId) or not id(a.farmId) or a.subType~=record.animal.subType or not calendar(a.birthday,true)
+        or not id(a.uniqueId) or not id(a.farmId) or (a.uniqueId=="1" and a.farmId=="1")
+        or a.subType~=record.animal.subType or not calendar(a.birthday,true)
         or type(a.deathEnabled)~="boolean" or not dense(a.diseases) or not equal(a.diseases,record.animal.diseases or {})
         or (a.name~=nil and type(a.name)~="string") or (a.marks~=nil and type(a.marks)~="table")
         or (a.variation~=nil and not integer(a.variation,1)) or (a.children~=nil and not dense(a.children))
@@ -94,7 +95,8 @@ local function preflight(candidate,p,ctx)
             or not calendar(pregnancy.expected,false) or not dense(pregnancy.fetuses) or #pregnancy.fetuses<1 or #pregnancy.fetuses>3
             or 1+#pregnancy.fetuses>p.capacity then return fail("SOURCE_FACTORY_PREGNANCY") end
         if not keys(sire,{uniqueId=true,farmId=true,breed=true,subType=true,genetics=true}) or not id(sire.uniqueId)
-            or not id(sire.farmId) or not id(sire.breed) or not genes(sire.genetics) or (sire.subType~=nil and not id(sire.subType)) then return fail("SOURCE_FACTORY_SIRE") end
+            or not id(sire.farmId) or (sire.uniqueId=="1" and sire.farmId=="1")
+            or not id(sire.breed) or not genes(sire.genetics) or (sire.subType~=nil and not id(sire.subType)) then return fail("SOURCE_FACTORY_SIRE") end
         local life=RLDealerReplay.getSourceLifecycle(record.history,record.observedSourceEvents,record.ageMonths)
         local selection
         for index,event in ipairs(record.history.events) do if event.kind=="CONCEPTION" and event.atMonths==life.conceptionMonths then selection=record.fetalSelections[index] end end
@@ -102,7 +104,7 @@ local function preflight(candidate,p,ctx)
         local seen={[a.uniqueId]=true}
         for index,child in ipairs(pregnancy.fetuses) do
             if not keys(child,{uniqueId=true,farmId=true,subType=true,genetics=true,weightKg=true}) or not id(child.uniqueId)
-                or seen[child.uniqueId] or child.farmId~=a.farmId or not genes(child.genetics)
+                or seen[child.uniqueId] or child.farmId~=a.farmId or (child.uniqueId=="1" and child.farmId=="1") or not genes(child.genetics)
                 or (child.weightKg~=nil and (not finite(child.weightKg) or child.weightKg<=0)) then return fail("SOURCE_FACTORY_FETAL") end
             seen[child.uniqueId]=true
             local binding=resolve(child.subType,ctx);local expected=selection[index]

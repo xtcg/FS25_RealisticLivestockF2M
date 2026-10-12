@@ -45,9 +45,9 @@ one animal type for the whole batch and agreement with any existing trailer type
 Capacity must count the whole batch once, rather than letting each animal see the same
 free slot.
 
-`RLHusbandryProfiles.checkAnimal` currently applies profiles and writes subtype filters;
-it cannot be described as a pure quote/read callback. A shared read-only predicate should
-evaluate the same rule without applying/logging/writing. Existing lifecycle application
+`RLHusbandryProfiles.checkAnimal` applies profiles and writes subtype filters. The new
+`checkAnimalReadOnly` evaluates the shared predicate without applying profiles, logging
+or populating rule/config/construction caches. Existing lifecycle application
 remains responsible for changing profiles. Local engine API evidence is in
 `Specializations/PlaceableHusbandryAnimals.md` and `Specializations/LivestockTrailer.md`;
 existing actual movement validation is in `scripts/animals/shop/events/AnimalMoveEvent.lua`.
@@ -56,3 +56,39 @@ These providers are independent capability implementations, not evidence of inst
 third-party container, multiplayer or save-interruption acceptance. Runtime hookup,
 durable identity allocation, listing UI and cross-save actual money/ownership recovery
 remain separate gates before `CHANNEL_ENABLED` may change.
+
+## Implemented dormant providers
+
+`RLDealerWorld.new({isServer=true, mission=...})` provides `allOwners` and
+`checkGlobalIdentities`. It requires the actual current server mission, holds on
+loading/deletion/pending cluster queues, and scans public owners, ridden animals,
+legacy stock and supplied private encoded ownership. It pins owner cluster and
+registry references, ordered members and backlinks across callbacks. Fixed source
+fetuses require the actual source-birth version and dam country rule; placeholders
+including `0`, `0-0`, `1-1` are rejected. Focused verification: **71/71**. It also freezes scanned identities, pregnancy
+members, rideable references and legacy registry members against late callback changes.
+
+`RLDealerCapacity.new(ctx)` returns a read-only whole-batch predicate. It proves
+current listing/source/subtype/physiology, complete authoritative owner inventory,
+pen construction/profile/map rules, or trailer whole-batch type, plus actual
+occupied/free/max slots. It rejects synchronous member/cluster/queue changes and
+source ownership changes caused by getters. Focused verification: **38/38**,
+including the real PurchaseAdapter/Source/Target/Money/Journal composition buying
+two animals into exactly two remaining slots alongside an existing animal. All
+four capacity callbacks in that composition run before transfer; the final money
+debit occurs once. Engine container capacity methods in these tests are local GDN
+stand-ins, not an installed-map acceptance run.
+
+SourceFactory now rejects placeholder full identities before construction;
+focused verification **43/43**. The identity allocation investigation is recorded
+in `DEALER_IDENTITY_ALLOCATION_PROGRESS.md`: native formatting is not injective
+and native counters are separated by type, so live conflict scanning does not
+prove durable lifetime identity allocation. No allocator or runtime gate is enabled.
+
+Verification checkpoint: complete regression **3673/3673** passed
+(`/private/tmp/rlrm-dealer-world-capacity-final-tests.log`). The native missing-owner
+Factory guard was completed after that run had loaded the Factory test file;
+its final focused rerun passes **43/43**, and dependent OwnedAdmission passes
+**56/56**. Final World and Capacity reruns pass **71/71** and **38/38**.
+All **45** dealer/loader/changed bridge files parse in stock Lua 5.1;
+`git diff --check` is clean. No installed-game acceptance is claimed.

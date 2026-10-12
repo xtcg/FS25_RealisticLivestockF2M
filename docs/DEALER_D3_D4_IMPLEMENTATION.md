@@ -558,7 +558,7 @@ owned rearing and birth continuation include transient locks in their original-s
 fingerprint and hold foreign callback mutations before the first attempted write, retaining
 the changed original state for reconciliation.
 
-Final focused checks pass **40/40** for birth continuation, **25/25** for owned rearing and
+Final focused checks pass **43/43** for birth continuation, **25/25** for owned rearing and
 **13/13** for retirement. All **39** dealer/loader files parse in standard Lua 5.1.
 The complete regression passes **3464/3464**
 (`/private/tmp/rlrm-dealer-owned-birth-verified-tests.log`). This supersedes the initial
@@ -618,3 +618,43 @@ remains untouched; birth PREPARED-payload changes cannot reach RNG. Focused chec
 parse in standard Lua 5.1. Complete regression: **3562/3562**
 (`/private/tmp/rlrm-dealer-owned-admission-tests.log`).
 The next runtime-provider work is recorded in `DEALER_RUNTIME_CAPABILITIES_PROGRESS.md`.
+
+
+## 2026-10-12: dormant world and whole-batch capacity providers
+
+`RLDealerWorld` reads the actual current server mission, complete placeable/vehicle
+registries, public pen/trailer clusters, ridden animals and legacy stock, together
+with supplied private ownership. Busy/unreadable loading and cluster queues hold
+without flushing. Owner/registry/member/identity/fetus/rideable/legacy references
+are rechecked after callbacks, including same-count replacements and late identity
+changes. Fixed private fetus country uses the pinned real source-birth rule.
+
+`RLDealerCapacity` proves complete-batch destination space from current owned
+source physiology and listing state. Pen construction, profiles and map rules
+share a read-only predicate; the legacy apply path remains responsible for normal
+cache/filter changes. Trailer batch/resident types and actual count/max/free slot
+interfaces must agree. Source snapshot and destination membership changes reject.
+Factory now rejects placeholder full identity `1-1` and the native missing-owner
+`farmId="1", uniqueId="1"` combination for adults, fetuses and pinned sires before construction.
+
+Focused checks: World **71/71**, Capacity **38/38**, Factory **43/43**.
+The capacity integration uses actual PurchaseAdapter/Source/Target/Money/Journal
+code and transfers two animals into exactly two remaining slots alongside one
+resident, debiting money once. All four capacity checks occur before transfer.
+Container engine method stand-ins do not constitute installed-map acceptance.
+
+Both providers are loaded but remain dormant: no generation/UI hook or full v2
+channel is enabled. `DEALER_RUNTIME_CAPABILITIES_PROGRESS.md` records capabilities;
+`DEALER_IDENTITY_ALLOCATION_PROGRESS.md` records the next allocation gate. The
+native ID formatter has collisions and counters are per type, so current-world
+conflict scanning cannot prove lifetime uniqueness. A durable complete-key ledger,
+ordinary birth/legacy allocation coordination and native counter save alignment
+remain required before generation can publish prepared selections.
+
+Verification checkpoint: complete regression **3673/3673** passed
+(`/private/tmp/rlrm-dealer-world-capacity-final-tests.log`). The native missing-owner
+Factory guard was completed after that run had loaded the Factory test file;
+its final focused rerun passes **43/43**, and dependent OwnedAdmission passes
+**56/56**. Final World and Capacity reruns pass **71/71** and **38/38**.
+All **45** dealer/loader/changed bridge files parse in stock Lua 5.1;
+`git diff --check` is clean. No installed-game acceptance is claimed.
