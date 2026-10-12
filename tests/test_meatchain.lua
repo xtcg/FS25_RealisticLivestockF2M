@@ -73,6 +73,8 @@ local function readAnimals(path)
 end
 readAnimals(REPO .. "xml/animals.xml")
 readAnimals(REPO .. "mod_support/FS25_HofBergmann/v1.5/animals.xml")
+-- Calibration runs (FS25_SheepBreeds_离线准备_2026-10-11/tools/calibrate_ram_prices.py) add a pack's animals.xml.
+for _, path in ipairs(MEATCHAIN_EXTRA_XML or {}) do readAnimals(path) end
 byName.RABBIT.gender = "female"  -- the map sets no gender on RABBIT: the loader reads it as female
 
 -- One selling point per meat: its base price is the annual mean / the seasonal mean, it pays `now`.
@@ -94,6 +96,16 @@ loadMod("scripts/animal/RLBreedTraits.lua")
 loadMod("scripts/animals/shop/events/AnimalMoveEvent.lua")
 loadMod("scripts/animal/RLMeatValue.lua")
 loadAnimalSection("function Animal:getSellPrice()", "function Animal:getDailyRidingTime()")
+
+-- breedTraits priceScale (RLCurveScale scales both price curves in game; the test reads the xml curves).
+for _, sub in pairs(byName) do
+    local factor = (MEATCHAIN_PRICE_SCALE or {})[sub.name]
+        or RLBreedTraits.resolve(RLBreedTraits.getConfig().layers, sub, "priceScale", 1)
+    if factor ~= 1 and sub.sellPrice ~= nil then
+        local curve = sub.sellPrice
+        sub.sellPrice = { get = function(_, age) return curve:get(age) * factor end }
+    end
+end
 if M ~= 1 then
     g_currentMission.missionInfo = {}
     loadMod("scripts/animal/RLLivestockPrices.lua")
@@ -125,20 +137,22 @@ local function net(sub, kg, price)
 end
 
 local MEAT_OF = { COW = "BEEFMEAT", PIG = "PORKMEAT", SHEEP = "SHEEPGOATMEAT", CHICKEN = "POULTRYMEAT", GOOSE = "GOOSEMEAT", RABBIT = "RABBITMEAT" }
--- Subtype, finishing age (the map butcher's youngest age), meat kg of a finished animal.
+-- Subtype, finishing age (the map butcher's youngest age; ram lambs their real grass-system age, sheep S3),
+-- meat kg of a finished animal.
 local FINISHED = {
     { "BULL_HOLSTEIN", 17, 259 }, { "BULL_SWISS_BROWN", 20, 267 }, { "BULL_ANGUS", 19.5, 286 },
     { "BULL_LIMOUSIN", 18, 298 }, { "BULL_HEREFORD", 19.5, 267 }, { "BULL_HIGHLAND_CATTLE", 25, 258 },
     { "BULL_WATERBUFFALO", 23, 236 },
     { "BOAR_LANDRACE", 6, 75.0 }, { "BOAR_BERKSHIRE", 6.5, 80.2 }, { "BOAR_BLACK_PIED", 6, 71.3 },
     { "PIG_LANDRACE", 6, 75.0 }, { "PIG_BERKSHIRE", 6.5, 80.2 }, { "PIG_BLACK_PIED", 6, 71.3 },
-    { "RAM_LANDRACE", 8, 19.2 }, { "RAM_STEINSCHAF", 8, 18.3 }, { "RAM_SWISS_MOUNTAIN", 8, 20.0 },
-    { "RAM_BLACK_WELSH", 8, 17.7 }, { "RAM_GOAT", 8, 16.5 },
+    { "RAM_LANDRACE", 4.53, 19.2 }, { "RAM_STEINSCHAF", 5.46, 19.03 }, { "RAM_SWISS_MOUNTAIN", 4.76, 19.97 },
+    { "RAM_BLACK_WELSH", 5.10, 18.32 }, { "RAM_GOAT", 8, 16.5 },
     { "CHICKEN_ROOSTER", 6, 1.92 }, { "DUCK_MALE", 6, 2.01 }, { "GOOSE_MALE", 10, 4.44 },
     { "RABBIT_MALE", 4, 1.57 }, { "RABBIT", 4, 1.57 },
 }
 
-for _, row in ipairs(FINISHED) do
+MEATCHAIN_MARGIN = {}
+for _, row in ipairs(MEATCHAIN_ROWS or FINISHED) do
     local sub = assert(byName[row[1]], row[1])
     local meat = MEAT_OF[TYPES[sub.typeIndex].name]
     local price = PRICE[meat]
@@ -162,6 +176,7 @@ for _, row in ipairs(FINISHED) do
     end
     -- Bulls were calibrated on the reference animal (PR #21), not the dealer's growth-line weight: +12.7 to
     -- +14.3% here, so they get a wider band.
+    MEATCHAIN_MARGIN[row[1]] = netSum / liveSum
     local band = TYPES[sub.typeIndex].name == "COW" and 0.025 or 0.015
     check(string.format(LABEL .. "%s: contract slaughter +%.1f%% over the year (12 +/- %.1f)", row[1], (netSum / liveSum - 1) * 100, band * 100),
         near(netSum / liveSum, 1.12, band))

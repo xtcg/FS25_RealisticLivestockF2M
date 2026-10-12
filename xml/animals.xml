@@ -1521,7 +1521,7 @@
 			<key ageMonth="120" value="130"/>
 			<key ageMonth="120" value="0"/>
 		</fertility>
-		<subType subType="SHEEP_LANDRACE" fillTypeName="SHEEP_LANDRACE" gender="female" minWeight="4.40" targetWeight="80.0" maxWeight="135.0" breed="LANDRACE">
+		<subType subType="SHEEP_LANDRACE" fillTypeName="SHEEP_LANDRACE" gender="female" minWeight="6.40" targetWeight="88.0" maxWeight="135.0" breed="LANDRACE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/sheep/store_sheepLandraceBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionSheepProfit</description>
@@ -1591,7 +1591,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_LANDRACE" fillTypeName="RAM_LANDRACE" gender="male" minWeight="4.71" targetWeight="125.0" maxWeight="180.0" breed="LANDRACE">
+		<subType subType="RAM_LANDRACE" fillTypeName="RAM_LANDRACE" gender="male" minWeight="6.85" targetWeight="144.0" maxWeight="180.0" breed="LANDRACE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/sheep/store_sheepLandraceBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -1658,7 +1658,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="SHEEP_STEINSCHAF" fillTypeName="SHEEP_STEINSCHAF" gender="female" minWeight="4.80" targetWeight="55.0" maxWeight="135.0" breed="STEINSCHAF">
+		<subType subType="SHEEP_STEINSCHAF" fillTypeName="SHEEP_STEINSCHAF" gender="female" minWeight="3.30" targetWeight="55.0" maxWeight="135.0" breed="STEINSCHAF">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/sheep/store_sheepSteinschafBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionSheepProfit</description>
@@ -1728,7 +1728,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_STEINSCHAF" fillTypeName="RAM_STEINSCHAF" gender="male" minWeight="5.14" targetWeight="75.0" maxWeight="150.0" breed="STEINSCHAF">
+		<subType subType="RAM_STEINSCHAF" fillTypeName="RAM_STEINSCHAF" gender="male" minWeight="3.53" targetWeight="75.0" maxWeight="150.0" breed="STEINSCHAF">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/sheep/store_sheepSteinschafBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -1795,7 +1795,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="SHEEP_SWISS_MOUNTAIN" fillTypeName="SHEEP_SWISS_MOUNTAIN" gender="female" minWeight="5.30" targetWeight="85.0" maxWeight="135.0" breed="SWISS_MOUNTAIN">
+		<subType subType="SHEEP_SWISS_MOUNTAIN" fillTypeName="SHEEP_SWISS_MOUNTAIN" gender="female" minWeight="6.01" targetWeight="72.0" maxWeight="135.0" breed="SWISS_MOUNTAIN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/sheep/store_sheepSwissMountainBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionSheepProfit</description>
@@ -1865,7 +1865,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_SWISS_MOUNTAIN" fillTypeName="RAM_SWISS_MOUNTAIN" gender="male" minWeight="5.67" targetWeight="120.0" maxWeight="180.0" breed="SWISS_MOUNTAIN">
+		<subType subType="RAM_SWISS_MOUNTAIN" fillTypeName="RAM_SWISS_MOUNTAIN" gender="male" minWeight="6.43" targetWeight="108.0" maxWeight="180.0" breed="SWISS_MOUNTAIN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/sheep/store_sheepSwissMountainBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -1932,7 +1932,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="SHEEP_BLACK_WELSH" fillTypeName="SHEEP_BLACK_WELSH" gender="female" minWeight="3.60" targetWeight="50.0" maxWeight="135.0" breed="BLACK_WELSH">
+		<subType subType="SHEEP_BLACK_WELSH" fillTypeName="SHEEP_BLACK_WELSH" gender="female" minWeight="4.00" targetWeight="50.0" maxWeight="135.0" breed="BLACK_WELSH">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="10" image="$dataS/character/animals/domesticated/sheep/store_sheepBlackWelshBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionSheepProfit</description>
@@ -2002,7 +2002,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_BLACK_WELSH" fillTypeName="RAM_BLACK_WELSH" gender="male" minWeight="3.85" targetWeight="68.0" maxWeight="150.0" breed="BLACK_WELSH">
+		<subType subType="RAM_BLACK_WELSH" fillTypeName="RAM_BLACK_WELSH" gender="male" minWeight="4.28" targetWeight="68.0" maxWeight="150.0" breed="BLACK_WELSH">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="10" image="$dataS/character/animals/domesticated/sheep/store_sheepBlackWelshBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>

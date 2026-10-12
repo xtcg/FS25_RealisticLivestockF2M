@@ -576,7 +576,11 @@
         SHEEP type: HB 1.4 uses SHEEPWOOL_SHEARED instead of the base game's WOOL fillType.
         RLRM's bundled sheep subtypes produce WOOL. Remap output to match HB's building config
         so pallets actually spawn at the sheep stable/pasture.
+        The palletRemap does the same, after every animal pack has loaded, for any other sheep
+        subtype that makes WOOL (FS25_SheepBreedsRLRM's twelve breeds): HB's sheep stable and
+        pastures spawn only SHEEPWOOL_SHEARED and GOATMILK pallets.
     -->
+    <palletRemap type="SHEEP" from="WOOL" to="SHEEPWOOL_SHEARED"/>
     <animal type="SHEEP">
         <subType subType="SHEEP_LANDRACE">
             <output><pallets fillType="SHEEPWOOL_SHEARED"/></output>

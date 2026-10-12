@@ -12,8 +12,8 @@ local AGES = {
     { "BULL_HIGHLAND_CATTLE", "TMR", 25 },
     { "BOAR_LANDRACE", "full", 6 }, { "BOAR_BLACK_PIED", "full", 6 }, { "BOAR_BERKSHIRE", "full", 6.5 },
     { "PIG_LANDRACE", "full", 6 }, { "PIG_BLACK_PIED", "full", 6 }, { "PIG_BERKSHIRE", "full", 6.5 },
-    { "RAM_LANDRACE", "full", 8 }, { "RAM_STEINSCHAF", "full", 8 }, { "RAM_SWISS_MOUNTAIN", "full", 8 },
-    { "RAM_BLACK_WELSH", "full", 8 }, { "RAM_GOAT", "full", 8 }, { "CHICKEN_ROOSTER", "full", 6 },
+    { "RAM_LANDRACE", "full", 4.53 }, { "RAM_STEINSCHAF", "full", 5.46 }, { "RAM_SWISS_MOUNTAIN", "full", 4.76 },
+    { "RAM_BLACK_WELSH", "full", 5.10 }, { "RAM_GOAT", "full", 8 }, { "CHICKEN_ROOSTER", "full", 6 },
 }
 
 -- Feed relative to a reference breed: { reference, { subtype = ratio } }. Per kg gain for pigs and rams;
@@ -22,7 +22,9 @@ local FCR = {
     { "BULL_ANGUS", { BULL_LIMOUSIN = 1.02, BULL_HEREFORD = 0.92, BULL_SWISS_BROWN = 0.99, BULL_HOLSTEIN = 1.05,
         BULL_WATERBUFFALO = 1.01, BULL_HIGHLAND_CATTLE = 1.03 } },
     { "BOAR_BLACK_PIED", { BOAR_LANDRACE = 0.90, BOAR_BERKSHIRE = 1.15 } },
-    { "RAM_LANDRACE", { RAM_BLACK_WELSH = 0.95, RAM_STEINSCHAF = 1.05, RAM_SWISS_MOUNTAIN = 1.10 } },
+    -- Rams: food curves unchanged since PR #22, finishing ages real since sheep S3 (2026-10-11), so feed per kg
+    -- gain now follows from the growth lines; breed feed efficiency is calibrated again with the real feed mode (S5).
+    { "RAM_LANDRACE", { RAM_BLACK_WELSH = 0.93, RAM_STEINSCHAF = 1.21, RAM_SWISS_MOUNTAIN = 1.23 } },
 }
 
 local results = {}
