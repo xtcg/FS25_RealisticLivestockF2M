@@ -1105,6 +1105,23 @@ function Animal:addGeneticsInfo()
     return texts
 end
 
+--- "x L / day" for a per-hour amount, in the language's rl_ui_amountPerDay format. Amounts under 10 a
+--- day keep one decimal and under 1 two (a fleece is about half a liter a month), where the format's
+--- whole liters would show 0.
+---@param amountPerHour number
+---@param daysPerMonth number
+---@return string
+function Animal.formatAmountPerDay(amountPerHour, daysPerMonth)
+    local value = (amountPerHour * 24) / daysPerMonth
+    local format = g_i18n:getText("rl_ui_amountPerDay")
+    local size = math.abs(value)
+    if size > 0 and size < 10 then
+        format = string.gsub(format, "%%%.0f", size < 1 and "%%.2f" or "%%.1f", 1)
+    end
+    return string.format(format, value)
+end
+
+
 function Animal:showMonitorInfo(box)
     if not self.monitor.active and not self.monitor.removed then return end
 
@@ -1126,7 +1143,7 @@ function Animal:showMonitorInfo(box)
 
     for fillType, amount in pairs(self.input) do
         box:addLine(g_i18n:getText("rl_ui_input_" .. fillType),
-            string.format(g_i18n:getText("rl_ui_amountPerDay"), (amount * 24) / daysPerMonth))
+            Animal.formatAmountPerDay(amount, daysPerMonth))
     end
 
     for fillType, amount in pairs(self.output) do
@@ -1142,7 +1159,7 @@ function Animal:showMonitorInfo(box)
         end
 
         box:addLine(g_i18n:getText("rl_ui_output_" .. outputText),
-            string.format(g_i18n:getText("rl_ui_amountPerDay"), (amount * 24) / daysPerMonth))
+            Animal.formatAmountPerDay(amount, daysPerMonth))
     end
 end
 
@@ -1797,7 +1814,7 @@ end
 -- The disease multipliers come from getDiseaseMultipliers once per call, above the fill-type loop;
 -- it answers nil for an animal without records or with diseases off, and output then stays unscaled.
 --- Recompute this animal's per-hour output for every fill type its subtype produces.
----@param temp number The day's minimum temperature, read by the wool cold gate.
+---@param temp number The day's minimum temperature, read by the cold gate of a wool curve breedTraits does not scale.
 ---@return nil
 --- Fill types a map produces through a subtype's milk output that are semen, not milk.
 Animal.SEMEN_FILL_TYPE_NAMES = { BULLSPERM = true }
@@ -1830,6 +1847,18 @@ Animal.COW_MILK_PALLET_FILL_TYPE_NAMES = { MILK = true, BUFFALOMILK = true }
 function Animal.isCowMilkPalletFillType(fillTypeIndex)
     local name = fillTypeIndex ~= nil and g_fillTypeManager:getFillTypeNameByIndex(fillTypeIndex) or nil
     return name ~= nil and Animal.COW_MILK_PALLET_FILL_TYPE_NAMES[name] == true
+end
+
+--- Subtypes already warned about an unscaled wool curve (once per subtype a session).
+Animal.unscaledWoolWarned = {}
+
+--- Warn once that a subtype's wool curve has no breedTraits woolScale, so it keeps the cold gate.
+---@param subType table|nil
+function Animal.warnUnscaledWool(subType)
+    local name = subType ~= nil and subType.name or "?"
+    if Animal.unscaledWoolWarned[name] then return end
+    Animal.unscaledWoolWarned[name] = true
+    Log:warning("updateOutput: %s makes WOOL on a curve no breedTraits woolScale configures; it keeps the 12 C cold gate", tostring(name))
 end
 
 --- Milk yield through the lactation (RLLactation.getYieldFactor: 0.8 at birth, 1.3 at 3 months,
@@ -1926,10 +1955,18 @@ function Animal:updateOutput(temp)
             local productivity = self.genetics.productivity or 1
 
             if fillTypeIndex == FillType.WOOL then
-                if temp < 12 then litersPerDay = 0 end
-
-                Log:trace("updateOutput[wool]: animal=%s/%s temp=%s coldGateClosed=%s",
-                    tostring(self.farmId), tostring(self.uniqueId), tostring(temp), tostring(temp < 12))
+                -- A fleece grows every month (sheep S3, 2026-10-11): a curve breedTraits woolScale configured is
+                -- 1.2 x the real fleece a year spread over 12 months, with no cold gate, as Hof Bergmann's
+                -- SHEEPWOOL_SHEARED, never gated, already was. A wool curve nothing configured (an old breedTraits
+                -- copy in modSettings, a sheep pack the file does not list) is still on the raw scale, 100x real
+                -- and more, so it keeps the old gate: no wool below a 12 C minimum.
+                local configured = RLCurveScale ~= nil and RLCurveScale.isConfigured(output.curve)
+                if not configured then
+                    if temp < 12 then litersPerDay = 0 end
+                    Animal.warnUnscaledWool(subType)
+                end
+                Log:trace("updateOutput[wool]: animal=%s/%s temp=%s configured=%s", tostring(self.farmId),
+                    tostring(self.uniqueId), tostring(temp), tostring(configured))
             elseif Animal.isLactationPalletFillType(fillTypeIndex) then
                 -- Milk sold in cans or pallets: goat milk, and cow and buffalo milk in Hof
                 -- Bergmann's pallet-spawner cattle buildings. Gated like the tank milk below, so a

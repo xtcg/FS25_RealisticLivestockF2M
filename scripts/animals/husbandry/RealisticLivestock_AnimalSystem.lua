@@ -269,6 +269,9 @@ function RealisticLivestock_AnimalSystem:loadMapData(_, mapXml, mission, baseDir
 
     RLBirthWeight.syncMinWeights(self)
 
+    -- Curve scales from breedTraits.xml (sheep wool, water, straw, manure), once every bridge and pack is in.
+    RLCurveScale.apply(self)
+
     Log:info("AnimalSystem: Loaded %s animals:", #self.types)
 
     for _, type in pairs(self.types) do

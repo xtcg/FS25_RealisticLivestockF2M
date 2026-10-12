@@ -28,11 +28,11 @@ loadMod("scripts/animals/shop/events/AnimalMoveEvent.lua")
 local config = AnimalMoveEvent.getCarcassConfig()
 check("config: shipped xml/carcassYield.xml is read",
     near(config.layers.root.qualitySwing, 0.2) and config.layers.types.COW.anchorWeight == 600
-    and near(config.layers.breeds.COW.HOLSTEIN.maleMaturity, 0.59) and config.layers.breeds.SHEEP.GOAT.anchorWeight == nil and config.layers.types.SHEEP.anchorWeight == 50
+    and near(config.layers.breeds.COW.HOLSTEIN.maleMaturity, 0.59) and config.layers.breeds.SHEEP.GOAT.anchorWeight == 50 and near(config.layers.types.SHEEP.anchorWeight, 42.6667)
     and near(config.maxFinishFactor, 1.3) and near(config.sizeExponent, 0.25))
 
 -- The chain: a standard animal x dressing to the carcass x saleable to what the map sells.
-check("meat per head: cattle 600 x 0.60 x 0.75 = 270, pig 125 x 0.80 x 0.75 = 75, lamb 50 x 0.48 x 0.80 = 19.2",
+check("meat per head: cattle 600 x 0.60 x 0.75 = 270, pig 125 x 0.80 x 0.75 = 75, lamb 42.67 x 0.50 x 0.90 = 19.2",
     near(AnimalMoveEvent.getMeatPerHead("COW"), 270) and near(AnimalMoveEvent.getMeatPerHead("PIG"), 75)
     and near(AnimalMoveEvent.getMeatPerHead("SHEEP"), 19.2) and AnimalMoveEvent.getMeatPerHead("DUCKWILD") == nil)
 check("meat per head: bird 3 x 0.70 x 0.90 = 1.89, goose 7 x 0.70 x 0.90 = 4.41, rabbit 3 x 0.58 x 0.90 = 1.566",
@@ -114,8 +114,10 @@ check("butcher: Holstein cull cow at 621 kg, gene 1.5 -> 469.5", near(butcherUni
 check("butcher: 120 kg Landrace gilt (target 240 x 0.446) -> 120 units x 1.060 = 127.2", near(butcherUnits(animal(3, 120, 1)), 127.21, 0.05))
 check("butcher: unlisted type anchors on the facility mean target weight -> 10.39",
     near(butcherUnits(animal(4, 3.5, 1)), 10.39, 0.01))
-check("butcher: 51 kg doe on the SHEEP anchor, goat carcass 0.94 -> 30.72 x 0.945 = 29.0", near(butcherUnits(animal(6, 51, 1)), 29.02, 0.05))
-check("butcher: 46.75 kg Landrace ewe uses the SHEEP type -> 30.72 x 0.983 = 30.2", near(butcherUnits(animal(7, 46.75, 1)), 30.21, 0.05))
+check("butcher: 51 kg doe on the goat's own 50 kg anchor, goat carcass 0.94 -> 30.72 x 0.945 = 29.0",
+    near(butcherUnits(animal(6, 51, 1)), 29.02, 0.05))
+check("butcher: 46.75 kg Landrace ewe uses the SHEEP type -> 30.72 x (46.75/42.67)^0.25 = 31.43",
+    near(butcherUnits(animal(7, 46.75, 1)), 30.72 * (46.75 / 42.6667) ^ 0.25, 0.05))
 
 -- The rest checks batch, room and fee handling on a linear config: yield = live / reference x
 -- (1 + 0.25 x (gene - 1)), fixed references COW 650 and PIG 120.
