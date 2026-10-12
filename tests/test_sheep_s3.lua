@@ -98,6 +98,19 @@ local twinB = sheep("SHEEP_LANDRACE", "LANDRACE", "female", { water = 60, straw 
 twinA.input.water, twinB.input.water = shared, shared
 RLCurveScale.apply({ subTypes = { twinA, twinB } })
 check("scale: a curve two subtypes share is scaled once", near(shared:get(24), 26.7, 0.05))
+local sharedAgain = curve({ { 0, 3 }, { 18, 60 } })
+local eweC = sheep("SHEEP_LANDRACE", "LANDRACE", "female", { water = 60, straw = 40, manure = 35, wool = 85 })
+local ramC = sheep("RAM_LANDRACE", "LANDRACE", "male", { water = 70, straw = 40, manure = 35, wool = 85 })
+eweC.input.water, ramC.input.water = sharedAgain, sharedAgain
+local logBefore = #LOG
+RLCurveScale.apply({ subTypes = { eweC, ramC } })
+local sharedWarnings = 0
+for i = logBefore + 1, #LOG do if LOG[i]:find("curve is shared") then sharedWarnings = sharedWarnings + 1 end end
+check("scale: a shared curve asked for a second, different factor keeps the first and warns",
+    near(sharedAgain:get(24), 26.7, 0.05) and sharedWarnings == 1)
+for i = #LOG, logBefore + 1, -1 do table.remove(LOG, i) end
+check("scale: a configured curve is marked, an unconfigured one not (the wool cold gate reads it)",
+    RLCurveScale.isConfigured(ewe.output.pallets.curve) and not RLCurveScale.isConfigured(goat.output.pallets.curve))
 
 -- The shipped base sheep: the engine's integer curve keys at maturity x the scales = the change set.
 local function shipped()
@@ -143,6 +156,9 @@ check("carcass: SHEEP 42.67 x 0.50 x 0.90 = 19.2 kg a typical lamb, as before",
     near(AnimalMoveEvent.getMeatPerHead("SHEEP"), 19.2, 0.001) and near(sheepType.dressingRate * sheepType.saleableRate, 0.45))
 check("carcass: lambs from 3 months (slaughterMinAgeMonth, facilityMinAgeMonth)",
     sheepType.slaughterMinAgeMonth == 3 and sheepType.facilityMinAgeMonth == 3 and carcass.layers.types.COW.facilityMinAgeMonth == nil)
+check("carcass: goats share the 3-month minimum (decided 2026-10-13) and keep their 50 kg anchor",
+    RLBreedTraits.resolveNamed(carcass.layers, "SHEEP", "GOAT", "GOAT", "slaughterMinAgeMonth", nil) == 3
+    and RLBreedTraits.resolveNamed(carcass.layers, "SHEEP", "GOAT", "RAM_GOAT", "anchorWeight", nil) == 50)
 for name, market in pairs({ RAM_LANDRACE = 42.67, RAM_STEINSCHAF = 38, RAM_SWISS_MOUNTAIN = 42.67, RAM_BLACK_WELSH = 35.4 }) do
     local s = base[name]
     local maturity = RLBreedTraits.resolve(carcass.layers, { typeIndex = 2, name = name, breed = s.breed }, "maleMaturity", 1)
@@ -168,6 +184,13 @@ check("facility: the farm butcher's production point too, pigs untouched", eppDa
 check("facility: the original addPlaceable still runs", #added == 2)
 g_currentMission.placeableSystem = { placeables = { contract, butcher, {} } }
 check("facility: the sweep at mission start finds nothing left to change", RLFacilityAge.applyToAll() == 0)
+check("facility: the minimum is read from the type, else the file's root", RLFacilityAge.getMinAge("SHEEP") == 3
+    and RLFacilityAge.getMinAge("COW") == nil)
+local rootBefore = carcass.layers.root
+carcass.layers.root = { facilityMinAgeMonth = 5 }
+check("facility: a root facilityMinAgeMonth reaches a type without its own", RLFacilityAge.getMinAge("COW") == 5
+    and RLFacilityAge.getMinAge("SHEEP") == 3)
+carcass.layers.root = rootBefore
 check("facility: RLEppAge reads the new window", RLEppAge.check(3, eppData[2]) and not RLEppAge.check(2, eppData[2]))
 
 -- Hof Bergmann: a pack's WOOL becomes SHEEPWOOL_SHEARED once every pack has loaded.

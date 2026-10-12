@@ -28,14 +28,25 @@ local function perDay(path, fillTypeIndex, state, multipliers)
     return a.output[path] * 24
 end
 
--- Wool grows every month (sheep S3, 2026-10-11): no cold gate, whatever the day's minimum temperature.
-local function woolPerDay(temp)
+-- Wool grows every month (sheep S3, 2026-10-11) on a curve breedTraits woolScale configured (RLCurveScale marks it):
+-- no cold gate. A wool curve nothing configured is still on the raw scale and keeps the 12 C gate, with one warning.
+RLCurveScale = { isConfigured = function(curve) return curve ~= nil and curve.rlCurveScaled ~= nil end }
+local function woolPerDay(temp, configured)
     local a = cow("pallets", 5, { isParent = false, isLactating = false })
+    if configured then a:getSubType().output.pallets.curve.rlCurveScaled = 0.007 end
     a:updateOutput(temp)
     return a.output.pallets * 24
 end
-check("wool: produced on a cold day (minimum -5 C) as on a warm one (20 C)", near(woolPerDay(-5), 100) and near(woolPerDay(20), 100))
-check("wool: not gated at 11 C either (the old 12 C gate is gone)", near(woolPerDay(11), 100))
+check("wool: a configured curve makes wool on a cold day (minimum -5 C) as on a warm one (20 C)",
+    near(woolPerDay(-5, true), 100) and near(woolPerDay(20, true), 100))
+check("wool: a configured curve is not gated at 11 C either", near(woolPerDay(11, true), 100))
+local before = #LOG
+check("wool: an unconfigured curve keeps the 12 C gate (none at 11 C, all at 12 C)",
+    woolPerDay(11, false) == 0 and near(woolPerDay(12, false), 100))
+local warned = 0
+for i = before + 1, #LOG do if LOG[i]:find("no breedTraits woolScale") then warned = warned + 1 end end
+check("wool: the unconfigured subtype is warned about once", warned == 1)
+for i = #LOG, before + 1, -1 do table.remove(LOG, i) end
 
 local fresh = { isParent = true, isLactating = true, months = 3 }
 local dry = { isParent = true, isLactating = false, months = 11 }

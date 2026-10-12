@@ -8,6 +8,8 @@
     table. An animal type with `facilityMinAgeMonth` in carcassYield.xml (sheep: 3 months, real lambs
     finish at 12-14 weeks) gets that minimum written into every such table once the placeable is
     added, so the map files stay untouched. Types without the attribute keep the map's value.
+    The tables are keyed by animal type, so the minimum is per type (goats share the sheep's): the
+    attribute is read from the type element or the file's root, never from a breed or subtype.
 ]]
 
 RLFacilityAge = {}
@@ -21,8 +23,9 @@ local Log = RmLogging.getLogger("RLRM")
 function RLFacilityAge.getMinAge(typeName)
     if typeName == nil or AnimalMoveEvent == nil or AnimalMoveEvent.getCarcassConfig == nil then return nil end
     local layers = AnimalMoveEvent.getCarcassConfig().layers
-    local typeLayer = layers ~= nil and layers.types ~= nil and layers.types[typeName:upper()] or nil
-    local value = typeLayer ~= nil and typeLayer.facilityMinAgeMonth or nil
+    if layers == nil then return nil end
+    -- The facility table is per animal type, so only the type and root layers apply (no breed or subtype).
+    local value = RLBreedTraits.resolveNamed(layers, typeName:upper(), nil, nil, "facilityMinAgeMonth", nil)
     return type(value) == "number" and value or nil
 end
 

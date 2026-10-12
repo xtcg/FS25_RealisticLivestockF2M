@@ -108,7 +108,8 @@
          the ram's target weight): 42.7 kg lowland and terminal breeds, 38 kg hill breeds, Black Welsh 35.4 kg (14-19 kg
          carcass). Butchers and the slaughterhouse take sheep from 3 months (facilityMinAgeMonth; AHDB: early lambs on
          concentrate are finished at 12-14 weeks), over the map's 8. Ewes and does are culled grown. Goats share the SHEEP
-         type but keep their own anchor of 50 kg (goats are outside the sheep work), so a 35 kg kid still gives
+         type and so its 3-month minimum (meat kids are finished at 3-6 months; decided 2026-10-13), but keep their own
+         anchor of 50 kg and their buck kid line (35 kg at 8 months), so a 35 kg kid still gives
          19.2 x (35/50)^0.25 x 0.94 = 16.5 kg. -->
     <animalType name="SHEEP" anchorWeight="42.6667" dressingRate="0.50" saleableRate="0.90" slaughterFee="40" processingFeePerKg="1.20" marketPassThrough="0.6" marketFactorMin="0.5" marketFactorMax="1.5" meatFillType="SHEEPGOATMEAT" cullAgeMonth="12" slaughterMinAgeMonth="3" facilityMinAgeMonth="3" femaleMaturity="0.85">
         <breed name="LANDRACE"             maleMaturity="0.296" carcassFactor="1.00"/>  <!-- 42.7 kg -->
