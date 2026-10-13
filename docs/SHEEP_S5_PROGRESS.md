@@ -1,5 +1,7 @@
 # Sheep S5: decisions, calibration constraints and first implementation
 
+> Scope correction, 2026-10-13: the user requested **documentation verification only**. Do not continue implementation on the authority of this handoff. The first code batch remains local commit `2055872`; subsequent uncommitted edits to five Lua files were withdrawn. The authoritative reviewed decisions are in [S5 checklist](../../FS25_SheepBreeds_离线准备_2026-10-11/S5_待设计与决策清单.md).
+
 Date: 2026-10-13. Immutable starting point: `origin/dev` = `f9a6d9369cf66fcfeb441af3943c4c3e4cd9cbd0`, confirmed by fetch. Includes S3 (#53), S4 (#54) and dealer #55. Branch: `feat/sheep-s5-nutrition`; worktree: `rlrm-sheep5`.
 
 The user authorized fact-based decisions, using the proposed recommendations when gameplay needs a compromise. No new D1–D9 confirmation is required. This is the first independently reviewable S5 change, **not completion of S5**. Sheep v2 remains OFF. No package was deployed, no savegame was changed, and no game test was performed.
@@ -8,7 +10,7 @@ The user authorized fact-based decisions, using the proposed recommendations whe
 
 | ID | Decision | Evidence / constraint |
 |---|---|---|
-| D1 | Internal milk per dam, no sale, no fostering. Her own twins/triplets share one finite pool; no milk is created per lamb. | Recommendation A adopted. The old 2.1/3.0 kg/day and 20% DM anchors still need their original AHDB/NZ tables read; they remain candidates, not calibrated coefficients. Production, nursing and unused milk must reconcile after the dam's actual budget settles. |
+| D1 | Internal milk per dam, no sale, no fostering. Her own twins/triplets share one finite pool; no milk is created per lamb. | Recommendation A adopted. AHDB older edition p45 Table 28 now verifies 2.1/3.0 kg per ewe per day as first-month lowland averages. Milk DM 20% remains unverified; BLNZ fact sheet 94 does not support the former attribution. Production, nursing and unused milk must reconcile after the dam's actual budget settles. |
 | D2 | Normal weaning at 3 model months (90 days). | About 13 weeks, consistent with grass-system guidance. Transition on continuous age; never retain the cattle 6/7-month curves. |
 | D3 | Orphans may wean from 2 months; use weight and established solid intake as readiness checks. | AHDB supports 8–9-week weaning with at least 250 g/day creep intake sustained for 3–4 days. The old ≥10 kg threshold still needs its original source checked. Age alone must not certify a starving orphan as ready. Define explicit fallback/reporting for a young orphan before activating pens. |
 | D4 | Warn on separating a lamb still dependent on its dam; do not forbid transfer. | Approved gameplay choice. Covers moving the dam as well as the lamb. |
@@ -37,8 +39,8 @@ The shipped sheep entry sets only the already-approved `castratedSpeed="0.86"`. 
 
 ## Verification
 
-- Full suite: **3796/3796**, including 21 new settings checks. The first sandboxed run stopped because transaction fixtures write `/var/tmp`; the authorized run outside the sandbox completed.
-- New tests also passed under Lua 5.1. Four isolated mutations reverting stage speed, gene/litter settings, profile birth fallback or budget settings to cattle defaults were detected.
+- Full suite: **3797/3797**, including 22 new settings checks. The first sandboxed run stopped because transaction fixtures write `/var/tmp`; the authorized run outside the sandbox completed.
+- The earlier 21-check version also passed under Lua 5.1; the final 22-check suite count is from the full test runtime. Four isolated mutations reverting stage speed, gene/litter settings, profile birth fallback or budget settings to cattle defaults were detected.
 - Frozen baseline A/B under Lua 5.1: **396 cases, 50,688 scalar comparisons, zero differences**, identical snapshot SHA256. Every 22 cattle profiles × 2 sexes × 3 metabolism genes × 3 stages runs 120 real shared-budget steps. This proves the covered numerical probe, not every engine interaction or sheep feeding gate.
 - Static HB audit: the sheep stable and both pastures have food unload triggers without explicit fillTypes. That supports group-driven reception, but runtime group injection and unloading still require implementation and a game check.
 
@@ -55,7 +57,7 @@ Evidence: `../FS25_SheepBreeds_离线准备_2026-10-11/s5-logs/` (`cattle-ab.jso
 
 ## Remaining activation gates
 
-Implement and calibrate sheep feed and body configs; add silage/grain groups; build per-dam lactation and actual paid milk pools with orphan readiness and transfer warnings; add fat grade, meat factors and adjustment UI; extend console and W-DEBUG diagnostics. Verify primary breed/milk evidence, all R1–R4/V1–V10, maternal annual cycle, other-species A/B and 1/3/7/28-day periods. Open sheep v2 only after those gates pass. S3/S4 single-player short tests are still unperformed. When deploying, pair with EconomyTuner main `9a37551`.
+Implement and calibrate sheep feed and body configs; add silage/grain groups; build per-dam lactation and actual paid milk pools with orphan readiness and transfer warnings; add fat grade, meat factors and adjustment UI; extend console and W-DEBUG diagnostics. Verify outstanding breed evidence, milk composition and energy costs, all R1–R4/V1–V10, maternal annual cycle, other-species A/B and 1/3/7/28-day periods. Open sheep v2 only after those gates pass. S3/S4 single-player short tests are still unperformed. When deploying, pair with EconomyTuner main `9a37551`.
 
 ## Primary sources read for this batch
 
@@ -67,4 +69,4 @@ Implement and calibrate sheep feed and body configs; add silage/grain groups; bu
 - [Teagasc Finishing Store Lambs on All-Concentrate Diets](https://teagasc.ie/news--events/daily-archive/finishing-store-lambs-on-all-concentrate-diets/): gradual adaptation with retained roughage.
 - [FAS Keeping Lambs Growing](https://www.fas.scot/article/keeping-lambs-growing/): weaning depends on grass, growth and ewe condition; eight-week early option in extreme years.
 
-Original milk and ten outstanding breed tables from S1 remain unverified; no evidence grade was silently upgraded from search summaries.
+AHDB older-edition milk Table 28 was verified on 2026-10-13 (the registered 2024 URL returned 404). BLNZ fact sheet 94 was read and the unsupported 20% DM / 1:1 milk-DM-to-gain attribution withdrawn. Ten outstanding breed tables from S1 remain unverified; no breed evidence grade was upgraded. See the reviewed checklist for primary links and units.
