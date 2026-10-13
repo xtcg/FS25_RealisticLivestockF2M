@@ -47,7 +47,14 @@ end
 --- @param animal table
 --- @return boolean
 function RLBodyCondition.isCoveredType(animal)
-    return animal ~= nil and AnimalType ~= nil and animal.animalTypeIndex == AnimalType.COW
+    if animal == nil or AnimalType == nil then return false end
+    if animal.animalTypeIndex == AnimalType.COW then return true end
+    -- A species with a section of its own (sheep) only where the weight model v2 covers the animal:
+    -- it needs the real-equivalent nutrition model (RLGrowth.coversSubType).
+    local config = RLBodyConditionConfig.get()
+    if config.species == nil or next(config.species) == nil or animal.getSubType == nil then return false end
+    if RLBodyCondition.getConfig(animal) == config then return false end
+    return RLGrowth ~= nil and RLGrowth.covers(animal)
 end
 
 
@@ -58,7 +65,9 @@ end
 function RLBodyCondition.isEligible(animal)
     if not RLBodyCondition.isCoveredType(animal) or not RLBodyCondition.isEnabled() then return false end
     if animal.isDead then return false end
-    return (animal.age or 0) >= RLBodyCondition.getConfig(animal).calfLegacyUntilAgeMonth
+    local config = RLBodyCondition.getConfig(animal)
+    if config.enabled ~= true then return false end
+    return (animal.age or 0) >= config.calfLegacyUntilAgeMonth
 end
 
 
@@ -90,25 +99,37 @@ function RLBodyCondition.getReferenceWeight(animal)
 end
 
 
---- The reserve a bull or steer on full feed has at its weight; nil for a female.
+--- Whether a female of a species with femaleFinishShift (sheep: ewe lambs are finished too) reads
+--- the finishing target: young, never a mother.
+local function finishesFemale(animal, config)
+    return animal.gender == "female" and not animal.isParent and (config.femaleFinishShift or 0) > 0
+end
+
+
+--- The reserve a bull or steer on full feed has at its weight - and a species' young female that
+--- is finished (sheep: at x + femaleFinishShift, fat at a lighter weight); nil for any other
+--- female.
 --- @param animal table
 --- @param weight number|nil Defaults to the animal's weight
 --- @return number|nil
 function RLBodyCondition.getReserveTarget(animal, weight)
-    if animal.gender ~= "male" then return nil end
     local config = RLBodyCondition.getConfig(animal)
+    local female = finishesFemale(animal, config)
+    if animal.gender ~= "male" and not female then return nil end
     local reference = RLBodyCondition.getReferenceWeight(animal)
     if reference == nil then return config.initialReserve end
     local x = (weight or animal.weight or 0) / reference
-    if animal.isCastrated then x = x + config.steerFinishShift end
+    if female then x = x + config.femaleFinishShift
+    elseif animal.isCastrated then x = x + config.steerFinishShift end
     return math.clamp(RLNutritionMath.interpolate(config.curves.finishingTarget, x), config.minReserve, 1)
 end
 
 
---- Highest reserve a surplus fills: a bull's finishing target, a heifer's or a cow's ceiling.
+--- Highest reserve a surplus fills: a bull's finishing target (a finished young female's too), a
+--- heifer's or a cow's ceiling.
 function RLBodyCondition.getReserveCeiling(animal, weight)
     local config = RLBodyCondition.getConfig(animal)
-    if animal.gender == "male" then return RLBodyCondition.getReserveTarget(animal, weight) end
+    if animal.gender == "male" or finishesFemale(animal, config) then return RLBodyCondition.getReserveTarget(animal, weight) end
     return animal.isParent and config.cowReserveCeiling or config.heiferReserveCeiling
 end
 
@@ -212,6 +233,8 @@ end
 function RLBodyCondition.getFertilityFactor(animal)
     if not RLBodyCondition.appliesTo(animal) or animal.gender ~= "female" then return 1 end
     local config = RLBodyCondition.getConfig(animal)
+    -- A species whose condition does not touch conception yet (sheep: S7).
+    if config.fertilityEffect == 0 then return 1 end
     local state = animal.bodyCondition
     local lossRate = state ~= nil and state.lossRateEMA or 0
     return math.clamp(RLNutritionMath.interpolate(config.curves.fertility, RLBodyCondition.getBCS(animal))

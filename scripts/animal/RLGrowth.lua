@@ -34,8 +34,9 @@
         weight), speedFactor and intakeFactor (stage factors in transition), weightKg (the live
         weight the state was last set for), ageMonths (a continuous age clock), legacyAnchor and
         anchorElapsedMonths (an old savegame's animal, below), feedAdapted (the concentrate share its
-        rumen is adapted to) and feedShortDays (model days of maintenance shortfall built up), both
-        real-equivalent nutrition (RLFeed), source ("birth", "generated",
+        rumen is adapted to), feedShortDays (model days of maintenance shortfall built up) and
+        solidIntakeKg (a young animal's recent solid feed, kg DM a day: an orphan lamb's readiness
+        to wean), all real-equivalent nutrition (RLFeed), source ("birth", "generated",
         "derived", "resync", "stream"), lastTick (game hour of the last step), version.
     The body condition state (animal.bodyCondition) mirrors the reserve as its index r = R / K
     after every step, so BCS, finish score and their factors read it as before.
@@ -164,9 +165,34 @@ function RLGrowth.getBinding(subType)
 end
 
 
---- Whether the model covers animals of this subtype.
+--- Whether the model covers animals of this subtype. A type that needs the real-equivalent
+--- nutrition model (weightProfiles.xml nutrition="REAL": sheep) is covered only while it runs and
+--- the type's species sections are valid.
 function RLGrowth.coversSubType(subType)
-    return RLGrowth.isEnabled() and RLGrowth.getBinding(subType) ~= nil
+    if not RLGrowth.isEnabled() then return false end
+    local binding = RLGrowth.getBinding(subType)
+    if binding == nil then return false end
+    if binding.typeName ~= nil then
+        local entry = RLWeightProfiles.getTypeEntry(binding.typeName)
+        if entry ~= nil and entry.nutrition == "REAL" then return RLGrowth.speciesNutritionReady(binding.typeName) end
+    end
+    return true
+end
+
+
+--- Whether a type that needs the real-equivalent nutrition model can run it now: the mode on and
+--- valid, and the type's feed and body condition sections valid.
+--- @param typeName string
+--- @return boolean
+function RLGrowth.speciesNutritionReady(typeName)
+    typeName = typeName:upper()
+    if RLFeed == nil or RLFeed.mode ~= RLFeed.MODE_REAL or RLFeedProfiles == nil then return false end
+    local feed = RLFeedProfiles.getConfig()
+    local section = feed.valid == true and feed.species ~= nil and feed.species[typeName] or nil
+    if section == nil or section.valid ~= true then return false end
+    local body = RLBodyConditionConfig.get()
+    local bodySection = body.species ~= nil and body.species[typeName] or nil
+    return bodySection ~= nil and bodySection.enabled == true
 end
 
 
@@ -483,6 +509,7 @@ function RLGrowth.newState(fields)
         anchorElapsedMonths = fields.anchorElapsedMonths,
         feedAdapted = fields.feedAdapted,
         feedShortDays = fields.feedShortDays,
+        solidIntakeKg = fields.solidIntakeKg,
         gravidKg = fields.gravidKg,
         lactationMonths = fields.lactationMonths,
         source = fields.source or "derived",
@@ -1434,6 +1461,7 @@ function RLGrowth.loadFromXMLFile(xmlFile, key)
         anchorElapsedMonths = xmlFile:getFloat(base .. "#anchorElapsedMonths"),
         feedAdapted = xmlFile:getFloat(base .. "#feedAdapted"),
         feedShortDays = xmlFile:getFloat(base .. "#feedShortDays"),
+        solidIntakeKg = xmlFile:getFloat(base .. "#solidIntakeKg"),
         gravidKg = xmlFile:getFloat(base .. "#gravidKg"),
         lactationMonths = xmlFile:getFloat(base .. "#lactationMonths"),
         source = xmlFile:getString(base .. "#source", "derived"),
@@ -1519,6 +1547,7 @@ function RLGrowth.isUsable(state)
         and (state.legacyAnchor == nil or (finite(state.legacyAnchor) and state.legacyAnchor > 0))
         and (state.feedAdapted == nil or (finite(state.feedAdapted) and state.feedAdapted >= 0 and state.feedAdapted <= 1))
         and optional(state.feedShortDays) and optional(state.gravidKg) and optional(state.lactationMonths)
+        and optional(state.solidIntakeKg)
 end
 
 
@@ -1540,6 +1569,7 @@ function RLGrowth.saveToXMLFile(state, xmlFile, key)
     end
     if state.feedAdapted ~= nil then xmlFile:setFloat(base .. "#feedAdapted", state.feedAdapted) end
     if state.feedShortDays ~= nil then xmlFile:setFloat(base .. "#feedShortDays", state.feedShortDays) end
+    if state.solidIntakeKg ~= nil then xmlFile:setFloat(base .. "#solidIntakeKg", state.solidIntakeKg) end
     if state.gravidKg ~= nil then xmlFile:setFloat(base .. "#gravidKg", state.gravidKg) end
     if state.lactationMonths ~= nil then xmlFile:setFloat(base .. "#lactationMonths", state.lactationMonths) end
     xmlFile:setString(base .. "#source", state.source or "derived")
@@ -1565,6 +1595,7 @@ function RLGrowth.writeStream(state, streamId)
     streamWriteFloat32(streamId, state.feedShortDays or -1)
     streamWriteFloat32(streamId, state.gravidKg or -1)
     streamWriteFloat32(streamId, state.lactationMonths or -1)
+    streamWriteFloat32(streamId, state.solidIntakeKg or -1)
 end
 
 
@@ -1589,6 +1620,7 @@ function RLGrowth.readStream(streamId)
         feedShortDays = optional(streamReadFloat32(streamId)),
         gravidKg = optional(streamReadFloat32(streamId)),
         lactationMonths = optional(streamReadFloat32(streamId)),
+        solidIntakeKg = optional(streamReadFloat32(streamId)),
         source = "stream",
     })
     if not RLGrowth.isUsable(state) then return nil end

@@ -150,7 +150,10 @@ function RLWeightProfiles.parse(xmlFile)
         local valid, reason = RLWeightProfiles.validateSettings(settings)
         config.types[typeName:upper()] = { enabled = valid and xmlFile:getBool(key .. "#enabled", false),
             status = xmlFile:getString(key .. "#status", "UNKNOWN"), excludeBreeds = excluded,
-            settings = settings, invalidReason = reason }
+            settings = settings, invalidReason = reason,
+            -- "REAL": the type's curves run only under the real-equivalent nutrition mode (sheep:
+            -- their budget has no calibration in the old mode's units); "ANY" (default) either.
+            nutrition = (xmlFile:getString(key .. "#nutrition") or "ANY"):upper() }
         if not valid then
             Log:error("RLWeightProfiles: %s settings invalid (%s) - this type switched off", typeName, reason)
         end
