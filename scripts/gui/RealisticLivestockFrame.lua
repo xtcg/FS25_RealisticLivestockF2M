@@ -235,13 +235,13 @@ function RealisticLivestockFrame:populateCellForItemInSection(list, section, ind
 
 	local daysPerMonth = g_currentMission.environment.daysPerPeriod
 	
-	cell:getAttribute("food"):setText(string.format(g_i18n:getText("rl_ui_amountPerDay"), (item.food * 24) / daysPerMonth))
-	cell:getAttribute("water"):setText(string.format(g_i18n:getText("rl_ui_amountPerDay"), (item.water * 24) / daysPerMonth))
-	cell:getAttribute("straw"):setText(string.format(g_i18n:getText("rl_ui_amountPerDay"), (item.straw * 24) / daysPerMonth))
+	cell:getAttribute("food"):setText(Animal.formatAmountPerDay(item.food, daysPerMonth))
+	cell:getAttribute("water"):setText(Animal.formatAmountPerDay(item.water, daysPerMonth))
+	cell:getAttribute("straw"):setText(Animal.formatAmountPerDay(item.straw, daysPerMonth))
 	
-	cell:getAttribute("product"):setText(string.format(g_i18n:getText("rl_ui_amountPerDay"), (item.product * 24) / daysPerMonth))
-	cell:getAttribute("manure"):setText(string.format(g_i18n:getText("rl_ui_amountPerDay"), (item.manure * 24) / daysPerMonth))
-	cell:getAttribute("liquidManure"):setText(string.format(g_i18n:getText("rl_ui_amountPerDay"), (item.liquidManure * 24) / daysPerMonth))
+	cell:getAttribute("product"):setText(Animal.formatAmountPerDay(item.product, daysPerMonth))
+	cell:getAttribute("manure"):setText(Animal.formatAmountPerDay(item.manure, daysPerMonth))
+	cell:getAttribute("liquidManure"):setText(Animal.formatAmountPerDay(item.liquidManure, daysPerMonth))
 	
 	cell.setSelected = Utils.appendedFunction(cell.setSelected, function(cell, selected)
 		if selected then self:onClickListItem(cell) end

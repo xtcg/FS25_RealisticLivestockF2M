@@ -66,7 +66,8 @@ function RLPenConstruction.getDefinition(placeable)
         end
     end
 
-    placeable.rlPenConstruction = definition
+    -- A read-only scope (RLHusbandryProfiles.read) writes nothing on the placeable.
+    if not RLHusbandryProfiles.reading() then placeable.rlPenConstruction = definition end
     return definition or nil
 end
 

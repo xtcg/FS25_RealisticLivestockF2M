@@ -156,11 +156,12 @@ do
     local records = RLWeightProfiles.enumerate()
     local summary = RLWeightProfiles.summarize(records)
     local resolved = (summary.resolution.EXACT or 0) + (summary.resolution.ALIAS or 0)
-    check(string.format("summary: %d subtypes = %d resolved + %d unresolved + %d not covered + %d stand-in; unresolved breeds %s",
+    check(string.format("summary: %d subtypes = %d resolved + %d unresolved + %d not covered + %d stand-in + %d type off; unresolved breeds %s",
         summary.subTypes, resolved, summary.resolution.UNRESOLVED or 0, summary.resolution.NOT_COVERED or 0, summary.resolution.PROXY or 0,
-        table.concat(summary.unresolvedBreeds, " ")), summary.subTypes == #records
+        summary.resolution.TYPE_OFF or 0, table.concat(summary.unresolvedBreeds, " ")), summary.subTypes == #records
         and resolved + (summary.resolution.UNRESOLVED or 0) + (summary.resolution.NOT_COVERED or 0)
-            + (summary.resolution.PROXY or 0) == #records and summary.resolution.PROXY == 1
+            + (summary.resolution.PROXY or 0) + (summary.resolution.TYPE_OFF or 0) == #records and summary.resolution.PROXY == 1
+        and (summary.resolution.TYPE_OFF or 0) > 0
         and table.concat(summary.unresolvedBreeds, " ") == "AUBRAC" and summary.resolution.ALIAS == 1)
 
     local longest, same = 0, true
@@ -179,7 +180,7 @@ do
         and line:find('"resolution":"ALIAS"', 1, true) ~= nil and line:find("\n", 1, true) == nil)
 
     local text = RLWeightProfiles:consoleReport("charola")
-    check("console: rlWeightProfiles reports the matching subtypes and the gaps", text:find("3 cattle subtypes", 1, true) ~= nil)
+    check("console: rlWeightProfiles reports the matching subtypes and the gaps", text:find("3 subtypes", 1, true) ~= nil)
 end
 
 
@@ -203,11 +204,14 @@ end
 
 do
     local config = RLWeightProfiles.getConfig()
-    local profiles = 0
-    for _ in pairs(config.profiles) do profiles = profiles + 1 end
-    check(string.format("file: 22 physical breeds and 3 map names (%d / %d)", profiles,
-        (function() local n = 0; for _ in pairs(config.aliases) do n = n + 1 end; return n end)()),
-        profiles == 22 and config.aliases.CHAROLAISE.profile == "CHAROLAIS_PACK" and config.aliases.JERSEY.profile == "JERSEY_PACK")
+    local profiles, sheepProfiles = 0, 0
+    for _, profile in pairs(config.profiles) do
+        if profile.typeName == "COW" then profiles = profiles + 1 elseif profile.typeName == "SHEEP" then sheepProfiles = sheepProfiles + 1 end
+    end
+    check(string.format("file: 22 physical cattle breeds and 3 map names (%d / %d), 16 sheep breeds of their own (%d, type off)", profiles,
+        (function() local n = 0; for _ in pairs(config.aliases) do n = n + 1 end; return n end)(), sheepProfiles),
+        profiles == 22 and sheepProfiles == 16 and config.types.SHEEP.enabled == false
+        and config.aliases.CHAROLAISE.profile == "CHAROLAIS_PACK" and config.aliases.JERSEY.profile == "JERSEY_PACK")
 
     local xml = {
         iterate = function(_, key, fn)

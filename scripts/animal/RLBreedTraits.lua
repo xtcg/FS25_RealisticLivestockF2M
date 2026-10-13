@@ -20,7 +20,8 @@ RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrow
     "birthWeightRatio", "maleBirthFactor", "birthWeightCV", "firstBirthFactor",
     "litter2", "litter3", "litter4", "litterBase", "litterStep", "litterMin", "litterMax",
     "birthSurvivalBase", "birthHealthEffect", "birthLowWeightSD", "birthLowWeightPenalty",
-    "birthHighWeightSD", "birthHighWeightPenalty" }
+    "birthHighWeightSD", "birthHighWeightPenalty", "milkScale", "milkCollect", "sucklingMonths",
+    "woolScale", "waterScale", "strawScale", "manureScale", "priceScale" }
 
 --- Female growth relative to male, where the file sets none (the mod's original rule).
 RLBreedTraits.DEFAULT_FEMALE_GROWTH = 0.6
@@ -88,9 +89,15 @@ function RLBreedTraits.parseLayers(xmlFile, root, attributes)
         end)
     end)
 
+    -- A subtype may appear more than once (growth line in one block, curve scales in another):
+    -- the entries merge, a later one winning per attribute.
     xmlFile:iterate(root .. ".subType", function(_, subTypeKey)
         local subTypeName = name(subTypeKey)
-        if subTypeName ~= nil then layers.subTypes[subTypeName] = read(subTypeKey) end
+        if subTypeName ~= nil then
+            local merged = layers.subTypes[subTypeName] or {}
+            for attr, value in pairs(read(subTypeKey)) do merged[attr] = value end
+            layers.subTypes[subTypeName] = merged
+        end
     end)
 
     return layers
@@ -244,6 +251,15 @@ end
 --- @return number
 function RLBreedTraits.get(subType, trait)
     return RLBreedTraits.resolve(RLBreedTraits.getConfig().layers, subType, trait, 1)
+end
+
+
+--- Share of a cow's milk beyond what her own calves drink that is collected (0..1, breedTraits
+--- milkCollect): 1 for dairy breeds, 0 for suckler (beef) breeds, whose milk is for their calves.
+--- @param subType table|nil
+--- @return number 0..1
+function RLBreedTraits.getMilkCollect(subType)
+    return math.clamp(RLBreedTraits.get(subType, "milkCollect"), 0, 1)
 end
 
 

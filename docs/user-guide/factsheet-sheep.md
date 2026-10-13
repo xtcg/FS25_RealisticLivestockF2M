@@ -1,6 +1,6 @@
 # Sheep & Goats Factsheet
 
-Sheep and goats share a husbandry but have different production types. Sheep produce wool (warm weather only), while goats produce goat milk (requires lactation). Four sheep breeds offer different wool/price trade-offs, and goats are a distinct breed-locked type.
+Sheep and goats share a husbandry but have different production types. Sheep produce wool all year round at real fleece weights, while goats produce goat milk (requires lactation). Lambs are the main income, as on a real sheep farm; goats are a distinct breed-locked type.
 
 > **Note:** This documentation was generated with AI assistance and may contain inaccuracies. If you spot an error, please [open an issue](https://github.com/rittermod/FS25_RealisticLivestockRM/issues).
 
@@ -12,14 +12,14 @@ Sheep and goats share a husbandry but have different production types. Sheep pro
 
 ### Sheep
 
-| Breed | Target Weight (ewe / ram) | Wool Range (peak) | Sell Value |
-|-------|--------------------------|-------------------|------------|
-| **Black Welsh** | 45 / 62 kg | 24 - 166 | Lowest |
-| **Landrace** | 55 / 75 kg | 21 - 149 | Below average |
-| **Steinschaf** | 80 / 95 kg | 18 - 123 | Above average |
-| **Swiss Mountain** | 75 / 100 kg | 14 - 96 | Highest |
+| Breed | Real breed | Target Weight (ewe / ram) | Wool a year (ewe / ram, average genetics) |
+|-------|------------|--------------------------|-------------------------------------------|
+| **Black Welsh** | Black Welsh Mountain | 50 / 68 kg | 2.3 / 2.9 kg |
+| **Landrace** | Merinolandschaf | 88 / 144 kg | 5.5 / 8.2 kg |
+| **Steinschaf** | Alpines Steinschaf | 55 / 75 kg | 3.6 / 4.2 kg |
+| **Swiss Mountain** | Weisses Alpenschaf | 72 / 108 kg | 4.6 / 5.7 kg |
 
-*Black Welsh produce the most wool by far, but Swiss Mountain sell for double the price. Wool range shows the full span from poor to excellent genetics.*
+*Wool is 1.2 x each breed's real annual fleece. The productivity gene moves it up or down.*
 
 ### Goat
 
@@ -35,18 +35,18 @@ Sheep and goats share a husbandry but have different production types. Sheep pro
 
 ## Wool Production (Sheep Only)
 
-Both ewes and rams produce wool - identical output per breed. **Wool is only produced when temperature is 12°C or above** (warm weather shearing season). In winter, wool output drops to zero.
+Ewes and rams produce wool every month of the year, as a real fleece grows all year (there is no longer a cold-weather stop). The amount is 1.2 x the breed's real annual fleece, rams a little more than ewes. Wool reaches the mature amount at 18 months.
 
-### Wool Output Range (units/month, warm weather)
+### Wool at maturity (liters/month, average genetics; 0.76 kg per liter)
 
-| Breed | 6 mo | 18 mo (peak) |
-|-------|------|--------------|
-| **Black Welsh** | 5 - 35 | **24 - 166** |
-| **Landrace** | 4 - 26 | **21 - 149** |
-| **Steinschaf** | 3 - 21 | **18 - 123** |
-| **Swiss Mountain** | 2 - 14 | **14 - 96** |
+| Breed | Ewe | Ram |
+|-------|-----|-----|
+| **Black Welsh** | 0.25 | 0.31 |
+| **Landrace** | 0.61 | 0.90 |
+| **Steinschaf** | 0.40 | 0.46 |
+| **Swiss Mountain** | 0.50 | 0.63 |
 
-*Genetics cause large variation between individual animals. Most sheep produce somewhere in the middle of these ranges. (Sheep never lactate, so they cannot catch mastitis - it only affects lactating goats.)*
+*A flock's wool is a side income: about 5-8 kg a sheep a year. Lambs are what a sheep farm sells. (Sheep never lactate, so they cannot catch mastitis - it only affects lactating goats.)*
 
 ---
 
@@ -222,12 +222,12 @@ Sheep and goats usually produce twins - at every age, including first-time mothe
 
 ## Tips
 
-1. **Wool vs price trade-off:** Black Welsh produce far more wool than Swiss Mountain, but Swiss Mountain sell for double. Choose based on whether you want wool income or sell income.
+1. **Lambs pay, wool helps.** Wool follows real fleece weights, so most of a flock's income comes from lambs. Ram lambs reach market weight (about 43 kg lowland, 38 kg hill) at 4.5-5.5 months on grass, and the butcher takes lambs from 3 months.
 
 2. **Twins are the norm.** Sheep and goats produce twins more often than singles, at any age. Budget pen space for 2 lambs per ewe per cycle.
 
 3. **Goats are niche.** Goat milk (GOATMILK) requires specific storage and processing. Make sure you have compatible facilities before investing.
 
-4. **Seasonal wool.** Wool only produces in warm weather (12°C+). In cold climates with long winters, wool income will be seasonal. Plan accordingly.
+4. **Wool all year.** Wool is produced in every month, whatever the weather.
 
 5. **Short lifespan.** Sheep can start dying of old age at 10 years - right when they stop breeding. Sell ageing sheep before they die of old age to recover value.

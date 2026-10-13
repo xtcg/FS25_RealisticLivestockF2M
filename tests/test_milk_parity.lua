@@ -7,6 +7,12 @@ local FILL = { [1] = "MILK", [2] = "BUFFALOMILK", [3] = "GOATMILK" }
 g_fillTypeManager = { getFillTypeNameByIndex = function(_, i) return FILL[i] end }
 FillType = { WOOL = 5 }
 AnimalType = { COW = 1, GOAT = 2 }
+-- The shipped breedTraits.xml (milkScale of the pack breeds).
+g_currentMission = { animalSystem = { getTypeByIndex = function() return { name = "COW" } end } }
+XMLFile = { loadIfExists = function(_, path) return loadXMLFileFromDisk(path) end }
+fileExists = function() return false end
+g_currentModDirectory = REPO
+loadMod("scripts/animal/RLBreedTraits.lua")
 g_server = {}
 
 loadAnimalSection("Animal.SEMEN_FILL_TYPE_NAMES", "\nfunction Animal:getInput")
@@ -18,10 +24,10 @@ RLBodyCondition.applyMilk = function(_, potential, curvePerPeriod) lastCurve = c
 -- The game's step: 590 from 12 to 36 months, 1000 from 36.
 local stepCurve = { get = function(_, age) if age < 12 then return 0 end if age < 36 then return 590 end if age < 120 then return 1000 end return 545 end }
 
-local function cow(age, births, typeIndex, path, children)
+local function cow(age, births, typeIndex, path, children, subTypeName)
     path = path or "milk"
     local output = path == "pallets" and { fillType = 1, curve = stepCurve } or { fillType = 1, get = stepCurve.get }
-    local subType = { name = "COW_HOLSTEIN", output = { [path] = output } }
+    local subType = { name = subTypeName or "COW_HOLSTEIN", output = { [path] = output } }
     local kids = {}
     for i = 1, children or 0 do kids[i] = { uniqueId = tostring(i) } end
     local a = setmetatable({ age = age, farmId = 1, uniqueId = "1", genetics = { productivity = 1 }, diseases = {},
@@ -31,8 +37,8 @@ local function cow(age, births, typeIndex, path, children)
     a.getDiseaseMultipliers = function() return nil, 0 end
     return a
 end
-local function perDay(age, births, typeIndex, path, children)
-    local a = cow(age, births, typeIndex, path, children)
+local function perDay(age, births, typeIndex, path, children, subTypeName)
+    local a = cow(age, births, typeIndex, path, children, subTypeName)
     a:updateOutput(20)
     return a.output[path or "milk"] * 24
 end
@@ -86,6 +92,9 @@ do
     check("parity: the budget's anchor curve carries the level too (a first-lactation cow's demand is 80% of a mature one's)",
         near(lastCurve, 1000 * 0.80, 1e-9))
 end
+check("milkScale: a pack breed's curve is taken to this mod's scale (Jersey pack x2.58), the mod's own breeds are not touched",
+    near(RLBreedTraits.get({ name = "COW_JERSEY_PACK" }, "milkScale"), 652 / 253, 1e-3) and RLBreedTraits.get({ name = "COW_HOLSTEIN" }, "milkScale") == 1
+    and near(perDay(60, 3, nil, nil, nil, "COW_JERSEY_PACK") / mature, 652 / 253, 1e-3) and near(perDay(24, 1, nil, nil, nil, "COW_JERSEY_PACK") / mature, 0.8 * 652 / 253, 1e-3))
 check("parity: the pure functions", RLMilkParity.getParity(0) == 1 and RLMilkParity.getParity(7) == 3 and RLMilkParity.getImpliedBirths(29) == 1
     and RLMilkParity.getImpliedBirths(30) == 2 and RLMilkParity.getImpliedBirths(43) == 3 and RLMilkParity.getFactor(1) == 0.80 and RLMilkParity.getFactor(2) == 0.92 and RLMilkParity.getFactor(3) == 1
     and RLMilkParity.getCurveAge(11) == 11 and RLMilkParity.getCurveAge(12) == 60 and RLMilkParity.getCurveAge(40) == 60 and RLMilkParity.getCurveAge(60) == 60 and RLMilkParity.getCurveAge(80) == 80)
@@ -93,3 +102,31 @@ check("parity: the pure functions", RLMilkParity.getParity(0) == 1 and RLMilkPar
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end
 end
+
+-- breedTraits milkCollect: a suckler (beef) breed's milk is her calf's, not the store's.
+check("suckler: a Cow Breeds pack beef cow (milkCollect 0) puts nothing in the tank or the cans; her budget still sees her milk",
+    perDay(60, 5, nil, nil, nil, "COW_CHAROLAIS_PACK") == 0 and perDay(60, 5, nil, "pallets", nil, "COW_CHAROLAIS_PACK") == 0
+    and lastCurve ~= nil and lastCurve > 0)
+
+-- breedTraits sucklingMonths: a suckler cow is dried off when her calf is weaned at 7 months.
+loadAnimalSection("function Animal:advanceRecoveryPeriod", "\nfunction Animal:onPeriodChanged")
+local function mother(subType, monthsSinceLastBirth)
+    local a = setmetatable({ isParent = true, isLactating = true, monthsSinceLastBirth = monthsSinceLastBirth, uniqueId = "1" },
+        { __index = Animal })
+    a.getSubType = function() return subType end
+    return a
+end
+local angusSub, packSub = { name = "COW_ANGUS", breed = "ANGUS" }, { name = "COW_CHAROLAIS_PACK", breed = "CHAROLAIS_PACK" }
+local holsteinSub = { name = "COW_HOLSTEIN", breed = "HOLSTEIN" }
+local function after(subType, monthsSinceLastBirth)
+    local a = mother(subType, monthsSinceLastBirth)
+    a:advanceRecoveryPeriod()
+    return a.isLactating, a.monthsSinceLastBirth
+end
+local angusAt6, angusAt7, packAt7 = after(angusSub, 5), after(angusSub, 6), after(packSub, 6)
+local holsteinAt7, holsteinAt10 = after(holsteinSub, 6), after(holsteinSub, 9)
+check("suckler cows dry at 7 months after calving (Angus, the pack's Charolais); a Holstein milks to 10",
+    angusAt6 and not angusAt7 and not packAt7 and holsteinAt7 and not holsteinAt10)
+check("suckler yield: Angus 6 months after calving as before, 0 from 7; Holstein unchanged at 7",
+    near(mother(angusSub, 6):getLactationFactor(), 0.8 + 5 / 15, 1e-9) and mother(angusSub, 7):getLactationFactor() == 0
+    and near(mother(holsteinSub, 7):getLactationFactor(), 0.8 + 4 / 15, 1e-9))

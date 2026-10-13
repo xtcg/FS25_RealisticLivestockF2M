@@ -989,7 +989,7 @@
         <text name="rl_feed_reason_MILKCOW_LEGACY" text="特殊奶牛沿用旧模式"/>
         <text name="rl_feed_reason_NO_TROUGH" text="食槽不支持"/>
         <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="栏内有未覆盖动物"/>
-        <text name="rl_feed_reason_SUCKLING_CALF" text="吃奶小牛缺母牛"/>
+        <text name="rl_feed_reason_SUCKLING_CALF" text="吃奶小牛需母牛或小牛栏"/>
         <text name="rl_feed_reason_UNKNOWN" text="状态未知"/>
         <text name="rl_feed_limit_NONE" text="无限制"/>
         <text name="rl_feed_limit_FIBRE" text="粗料限制"/>
@@ -1008,6 +1008,12 @@
         <text name="rl_feed_limit_DEMAND" text="需求已满足"/>
         <text name="rl_feed_limit_PROTEIN" text="蛋白不足"/>
         <text name="rl_feed_limit_UNKNOWN" text="限制未知"/>
+        <text name="rl_feed_limit_NO_CALF_MILK" text="缺小牛奶"/>
+        <text name="rl_feed_penCalfMilk" text="吃奶小牛"/>
+        <text name="rl_feed_calfMilkNone" text="%d 头缺小牛奶"/>
+        <text name="rl_feed_calfMilkLow" text="小牛奶还够 %s"/>
+        <text name="rl_feed_calfMilkAlert" text="%s：%d 头吃奶小牛没有小牛奶，会掉健康甚至死亡"/>
+        <text name="rl_feed_calfMilkLowAlert" text="%s：小牛奶约 %s 后用完"/>
         <text name="rl_feed_target_AUTO" text="自动"/>
         <text name="rl_feed_target_GROW" text="生长"/>
         <text name="rl_feed_target_FINISH" text="育肥"/>

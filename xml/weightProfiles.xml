@@ -38,6 +38,11 @@
                    same share-of-curve rule as other cattle, starting at its old price when taken
                    over; enabled="false" leaves the type out. Where the type
                    exists only as vanilla clusters the binding does nothing (the report says so).
+    animalType     Another animal type with profiles of its own (<profile type="SHEEP">, kept apart from
+                   cattle breeds of the same name). enabled="false" keeps every animal of it on the old
+                   rules (resolution TYPE_OFF; the report shows its curves, inactive). excludeBreeds lists
+                   breeds of the type that get no curve (NOT_COVERED): goats share the SHEEP type. A
+                   typeBinding for a listed type is ignored with a warning.
 
     A breed that is neither a profile nor an alias is reported UNRESOLVED and keeps the old rules:
     it never falls into another breed's curve silently.
@@ -210,4 +215,85 @@
     <alias breed="JERSEY"     profile="JERSEY_PACK"    source="FS25_Witcombe"/>
 
     <typeBinding type="MILKCOW" profile="HOLSTEIN" sex="female" status="PROXY_HOLSTEIN_FEMALE" enabled="true"/>
+
+    <!--
+        Sheep (sheep S4, 2026-10-11; FS25_SheepBreeds_离线准备_2026-10-11/sheep-weight-curves-v1.json). The animal type is
+        switched OFF: sheep keep the old weight rules until the sheep feed and body condition (S5) price their growth; the
+        curves are here for review and for that step. Each curve is the breed's potential on good rearing, as the cattle
+        curves are on full TMR: birth as the game has it today; a ram lamb's market weight (42.67 kg lowland and terminal,
+        38 kg hill, Black Welsh 35.4) at its real intensive age (breed ADG on concentrate, LfL / AHDB); 6 months and the
+        yearling (15 months) from LfL breed tables where the breed has them (Merinolandschaf, Texel, Suffolk, Alpines
+        Steinschaf), else the group's share of mature weight; mature at 36 months (S0: L + 0.6 (U - L) of the real range).
+        A ewe lamb of a breed without LfL figures is at birth + 0.76 x (the ram lamb's 6-month gain) at 6 months, the S3
+        femaleGrowth the LfL breeds confirm (Merinolandschaf 55.9 against LfL 56), so no ewe outweighs a ram (2026-10-13).
+        The market point is the intensive (concentrate) age, as cattle curves are on TMR: lambs on grass reach it at
+        4.3-5.5 months once S5's feed and body condition hold them back - an S5 acceptance check.
+        Profiles of a type other than cattle are its own: SHEEP LANDRACE is not a cattle or a pig breed.
+    -->
+    <!-- Goats share the SHEEP type but are not sheep: no sheep curve, the old rules (excludeBreeds). -->
+    <animalType name="SHEEP" enabled="false" status="S4_CANDIDATE_OFF" excludeBreeds="GOAT"/>
+    <profile name="LANDRACE" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="6.4" maleBirthFactor="1.07">  <!-- Merinolandschaf (DE) (A) -->
+        <female knots="6:56 15:74.8 24:83.6 36:88"/>
+        <male knots="2.6:42.67 6:72 15:108 24:133.9 36:144"/>
+    </profile>
+    <profile name="STEINSCHAF" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="3.3" maleBirthFactor="1.07">  <!-- Alpines Steinschaf (DE/AT) (A) -->
+        <female knots="6:35.6 15:41 24:49.7 36:54"/>
+        <male knots="4.96:38 6:42.3 15:52 24:63.5 36:69"/>
+    </profile>
+    <profile name="SWISS_MOUNTAIN" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="6.01" maleBirthFactor="1.07">  <!-- Weißes Alpenschaf (CH/AT) (B/C) -->
+        <female knots="6:52.4 15:61.2 24:68.4 36:72"/>
+        <male knots="2.85:42.67 6:67.5 15:84.2 24:100.4 36:108"/>
+    </profile>
+    <profile name="BLACK_WELSH" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="4" maleBirthFactor="1.07">  <!-- Black Welsh Mountain (UK) (B) -->
+        <female knots="6:31.8 15:34.2 24:41.4 36:45"/>
+        <male knots="4.68:35.4 6:40.9 15:47.2 24:58 36:63"/>
+    </profile>
+    <profile name="TEXEL" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="5.6" maleBirthFactor="1.125">  <!-- Texel (A) -->
+        <female knots="6:56 15:64.6 24:72.2 36:76"/>
+        <male knots="2.9:42.67 6:66.2 15:112 24:123.7 36:133"/>
+    </profile>
+    <profile name="SUFFOLK" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="5.6" maleBirthFactor="1.125">  <!-- Suffolk (A) -->
+        <female knots="6:56 15:74.8 24:83.6 36:88"/>
+        <male knots="2.6:42.67 6:72 15:108 24:133.9 36:144"/>
+    </profile>
+    <profile name="BLUE_FACED_LEICESTER" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="5.4" maleBirthFactor="1.1111">  <!-- Bluefaced Leicester (C) -->
+        <female knots="6:47.9 15:68 24:76 36:80"/>
+        <male knots="3.19:42.67 6:61.9 15:89.7 24:107 36:115"/>
+    </profile>
+    <profile name="BORDER_LEICESTER" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="5.6" maleBirthFactor="1.125">  <!-- Border Leicester (C) -->
+        <female knots="6:59 15:91.8 24:102.6 36:108"/>
+        <male knots="3.02:42.67 6:76.6 15:125.6 24:149.7 36:161"/>
+    </profile>
+    <profile name="BELCLARE" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="5.2" maleBirthFactor="1.0962">  <!-- Belclare (IE) (C) -->
+        <female knots="6:47.8 15:64.6 24:72.2 36:76"/>
+        <male knots="3.22:42.67 6:61.7 15:83 24:99 36:106.4"/>
+    </profile>
+    <profile name="DORSET" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="5" maleBirthFactor="1.14">  <!-- Dorset Horn (C) -->
+        <female knots="6:47.7 15:68.8 24:77 36:81"/>
+        <male knots="3.19:42.67 6:61.9 15:93.6 24:111.6 36:120"/>
+    </profile>
+    <profile name="CHEVIOT" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="4.7" maleBirthFactor="1.1064">  <!-- Cheviot (North Country / Border) (C) -->
+        <female knots="6:35.6 15:49.6 24:60 36:65.2"/>
+        <male knots="4.85:38 6:45.9 15:62.1 24:76.2 36:82.8"/>
+    </profile>
+    <profile name="KERRY_HILL" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="4.7" maleBirthFactor="1.1064">  <!-- Kerry Hill (C) -->
+        <female knots="6:33.1 15:46.4 24:56.1 36:61"/>
+        <male knots="4.89:38 6:42.6 15:51 24:62.6 36:68"/>
+    </profile>
+    <profile name="NORFOLK" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="4.7" maleBirthFactor="1.1064">  <!-- Norfolk Horn (C) -->
+        <female knots="6:35.9 15:53.2 24:64.4 36:70"/>
+        <male knots="4.8:38 6:46.3 15:69.8 24:85.6 36:93"/>
+    </profile>
+    <profile name="BLACKFACE" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="4.9" maleBirthFactor="1.102">  <!-- Scottish Blackface (C) -->
+        <female knots="6:34.3 15:44.8 24:54.3 36:59"/>
+        <male knots="4.91:38 6:44.1 15:57 24:69.9 36:76"/>
+    </profile>
+    <profile name="EASYCARE" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="5" maleBirthFactor="1.1">  <!-- EasyCare (UK) (C) -->
+        <female knots="6:47.4 15:56.1 24:62.7 36:66"/>
+        <male knots="3.28:42.67 6:61.3 15:72.1 24:85.9 36:92.4"/>
+    </profile>
+    <profile name="JACOB" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="4.5" maleBirthFactor="1.0889">  <!-- Jacob (UK) (C) -->
+        <female knots="6:35.6 15:47.9 24:58 36:63"/>
+        <male knots="4.87:38 6:45.8 15:69 24:84.6 36:92"/>
+    </profile>
 </weightProfiles>

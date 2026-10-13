@@ -207,6 +207,9 @@ function RealisticLivestock_FSBaseMission:onStartMission()
 
     -- Map pen rules go in after the map has set its own husbandry filters at load.
     RLHusbandryProfiles.applyAll()
+    -- Butcher and slaughterhouse minimum ages from carcassYield.xml (facilityMinAgeMonth); placeables
+    -- added later get them in PlaceableSystem.addPlaceable.
+    RmSafeUtils.safeCall("RLFacilityAge.applyToAll", function() RLFacilityAge.applyToAll() end)
     -- Animals a pen's rules would no longer take in stay where they are; they are only logged.
     if g_currentMission:getIsServer() then
         RmSafeUtils.safeCall("RLHusbandryProfiles.checkAllResidents", function()
@@ -319,6 +322,15 @@ function RealisticLivestock_FSBaseMission:onStartMission()
         if not checked then
             Log:error("onStartMission: T02 ledger check failed: %s - T02 transactions stay closed", tostring(checkErr))
             RLTradeCheckpoint.state, RLTradeCheckpoint.reason = RLTradeCheckpoint.RECOVERY_REQUIRED, "CHECK_THREW"
+        end
+        if RLDealerRuntime ~= nil then
+            local dealerChecked, dealerError = pcall(RLDealerRuntime.onMissionStarted, self,
+                { identityRepairs = fallbackRepairCount })
+            if not dealerChecked then
+                Log:error("onStartMission: dealer checkpoint check failed: %s - v2 purchases stay closed", tostring(dealerError))
+                RLDealerRuntime.state, RLDealerRuntime.reason = "RECOVERY_REQUIRED", "CHECK_THREW"
+                RLDealerCheckpoint.state, RLDealerCheckpoint.reason = RLDealerCheckpoint.RECOVERY_REQUIRED, "CHECK_THREW"
+            end
         end
     end
 

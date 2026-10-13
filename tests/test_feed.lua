@@ -26,8 +26,9 @@ do
         and within(maize.me, 88 * 0.04409 * 0.82 * 4.184, 1e-9) and within(maize.me, 13.311, 0.001))
     check("config: densities are the engine's massPerLiter (TMR 0.30, hay 0.07, wheat 0.78, maize 0.80)",
         tmr.density == 0.30 and hay.density == 0.07 and wheat.density == 0.78 and maize.density == 0.80)
-    check("config: TMR is one complete ration, grains are concentrates for weaned animals, milk for calves only",
-        tmr.role == "COMPLETE" and wheat.role == "CONCENTRATE" and wheat.stages.WEANED and not wheat.stages.PRE_WEANING
+    check("config: TMR is one complete ration, grains are concentrates for every stage (calves too: creep feed), sugar beet for weaned animals, milk for calves only",
+        tmr.role == "COMPLETE" and wheat.role == "CONCENTRATE" and wheat.stages.WEANED and wheat.stages.PRE_WEANING and wheat.stages.WEANING
+        and maize.stages.PRE_WEANING and F.getUsableFeed("SUGARBEET_CUT").stages.WEANED and not F.getUsableFeed("SUGARBEET_CUT").stages.PRE_WEANING
         and F.getUsableFeed("CALFMILK").role == "MILK" and not F.getUsableFeed("CALFMILK").stages.WEANED)
     check("config: Hof Bergmann's ROUNDBALE (a bale marker, never a feed) is listed but never usable; GRAINGRIST is a stated proxy",
         F.getFeed("ROUNDBALE") ~= nil and F.getUsableFeed("ROUNDBALE") == nil and F.getUsableFeed("GRAINGRIST") ~= nil

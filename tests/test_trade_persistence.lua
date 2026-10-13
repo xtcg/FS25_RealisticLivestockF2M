@@ -760,10 +760,14 @@ do
 
     XMLDisk.write(dir .. "/rm_RlTradeLedger.xml", "this is not xml <<<")
     load(dir)
-    check("J08 ledger not XML: LEDGER_UNREADABLE, its text kept", C.state == "RECOVERY_REQUIRED" and has(C.reason, "LEDGER_UNREADABLE")
-        and C.quarantine ~= nil)
+    check("J08 ledger not XML: LEDGER_UNREADABLE, quarantined, the damaged file left as it was (never opened to read)",
+        C.state == "RECOVERY_REQUIRED" and has(C.reason, "LEDGER_UNREADABLE") and C.quarantine ~= nil
+        and XMLDisk.read(dir .. "/rm_RlTradeLedger.xml") == "this is not xml <<<")
     save()
-    check("J08 the next save keeps the damaged text beside the save", XMLDisk.read(dir .. "/rm_RlTradeLedger.quarantine.txt") == "this is not xml <<<")
+    -- The engine reads files only as XML (FS25 io.open writes), so text that is not XML cannot be copied.
+    local note = XMLDisk.read(dir .. "/rm_RlTradeLedger.quarantine.txt")
+    check("J08 the next save leaves a quarantine note beside the save (not-XML text points to savegameBackup)",
+        note ~= nil and note:find("savegameBackup", 1, true) ~= nil and note:find("LEDGER_UNREADABLE", 1, true) ~= nil)
     load(dir)
     check("J08 a save never launders recovery: the next load is still RECOVERY_REQUIRED (CARRIED)", C.state == "RECOVERY_REQUIRED"
         and has(C.reason, "CARRIED"))

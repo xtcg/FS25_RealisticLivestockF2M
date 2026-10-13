@@ -272,6 +272,27 @@ function RLFeedMath.getProteinFactor(cp, need, maintenance)
 end
 
 
+--- Share of its milk potential a cow's ration protein allows: milk answers protein with a
+--- diminishing return (a ration somewhat short of protein costs little milk, one far short a lot),
+--- so 1 - (1 - f)^milkResponse of the linear share f; growth keeps f. 1 at f = 1, 0 at f = 0.
+--- @param factor number getProteinFactor
+--- @param milkResponse number|nil exponent >= 1 (1: linear)
+--- @return number 0..1
+function RLFeedMath.getMilkProteinFactor(factor, milkResponse)
+    return 1 - (1 - math.clamp(factor, 0, 1)) ^ (milkResponse or 1)
+end
+
+
+--- The protein share of a whole production need: growth at the linear share, milk at the milk one.
+--- Equals factor when there is no milk.
+--- @return number 0..1
+function RLFeedMath.getProductionProteinFactor(factor, growth, milk, milkResponse)
+    growth, milk = math.max(growth or 0, 0), math.max(milk or 0, 0)
+    if growth + milk <= 0 then return factor end
+    return (factor * growth + RLFeedMath.getMilkProteinFactor(factor, milkResponse) * milk) / (growth + milk)
+end
+
+
 -- =============================================================================
 -- Rumen adaptation
 -- =============================================================================
