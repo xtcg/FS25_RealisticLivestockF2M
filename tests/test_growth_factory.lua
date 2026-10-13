@@ -14,7 +14,12 @@ local function sameState(a, b)
 end
 
 local cases, births, independent = 0, true, true
+local cattle = {}
 for name, profile in pairs(G.getConfig().profiles) do
+    -- Cattle profiles only (SHEEP:<breed> curves are in the file since sheep S4, type switched off).
+    if profile.typeName == nil or profile.typeName == "COW" then cattle[name] = profile end
+end
+for name, profile in pairs(cattle) do
     for _, sex in ipairs({ "female", "male" }) do
         local subtypeName = "D3_" .. name .. "_" .. sex
         GrowthSim.addSubType(subtypeName, name, sex, profile.knots[sex][#profile.knots[sex]][2])

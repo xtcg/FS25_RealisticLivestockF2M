@@ -227,6 +227,24 @@ end
 P.CHUNK = 16384
 
 
+--- The text of an XML file on disk, as the engine serializes it, or nil when the file is missing,
+--- does not parse as XML or is longer than maxBytes. Never io.open: FS25's io.open opens every file
+--- for WRITE whatever the mode asked (dataS/scripts/io.lua), so reading through it empties the file,
+--- and the engine has no other raw read. A file that is not XML cannot be read back at all.
+--- @param path string
+--- @param maxBytes number|nil
+--- @return string|nil
+function P.readXMLText(path, maxBytes)
+    if type(path) ~= "string" or XMLFile == nil or XMLFile.loadIfExists == nil then return nil end
+    local ok, xml = pcall(XMLFile.loadIfExists, "rlReadXMLText", path)
+    if not ok or xml == nil then return nil end
+    local okText, text = pcall(function() return xml:getAsString() end)
+    xml:delete()
+    if not okText or type(text) ~= "string" or (maxBytes ~= nil and #text > maxBytes) then return nil end
+    return text
+end
+
+
 --- Two 31-bit polynomial hashes of a text (exact in doubles, Lua 5.1 safe).
 function P.checksum(text)
     local h1, h2 = 7, 11

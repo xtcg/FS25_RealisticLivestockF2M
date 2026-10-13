@@ -10,12 +10,8 @@ local function clone(v) if type(v) ~= "table" then return v end; local o={}; for
 local function defaultStorage()
     return {
         exists=function(path) return fileExists(path) end,
-        read=function(path)
-            local h=io.open(path,"rb"); if not h then return nil end
-            local text=h:read(C.MAX_FILE_BYTES+1);h:close()
-            if not text or #text>C.MAX_FILE_BYTES then return nil end
-            return text
-        end,
+        -- Never io.open here: in FS25 it opens for WRITE and would empty placeables.xml and the rest.
+        read=function(path) return RLTradePersistence.readXMLText(path,C.MAX_FILE_BYTES) end,
         load=function(path) return XMLFile.loadIfExists("rlDealerCheckpointRead",path) end,
         create=function(path) return XMLFile.create("rlDealerCheckpointWrite",path,RLDealerPersistence.ROOT) end,
         careerSet=function(handle,key,value) setXMLString(handle,key,value) end,

@@ -101,7 +101,10 @@ check("cursor: advancing physiology cannot rewrite immutable birth/history prove
 local badSession = clone(record); badSession.session.timeMonths = badSession.ageMonths + 0.25
 check("source: saved replay session cannot disagree with authoritative physiology cursor", not S.validate(badSession))
 local profiles, matrixPass, matrixCount, maxDifference = {}, true, 0, 0
-for name in pairs(RLGrowth.getConfig().profiles) do profiles[#profiles + 1] = name end
+-- Cattle profiles only (the file also holds SHEEP:<breed> curves since sheep S4; the dealer is cattle-only).
+for name, profile in pairs(RLGrowth.getConfig().profiles) do
+    if profile.typeName == nil or profile.typeName == "COW" then profiles[#profiles + 1] = name end
+end
 table.sort(profiles)
 for _, profile in ipairs(profiles) do
     for _, sex in ipairs({ "female", "male" }) do

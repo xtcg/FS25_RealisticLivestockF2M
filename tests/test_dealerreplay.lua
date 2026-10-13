@@ -115,7 +115,10 @@ invalid.template = RLDealerHistory.getTemplate("NORMAL_REARING")
 bad, failure = R.run(seed, invalid, productionOptions)
 check("history: edited rearing-only template cannot silently claim a production history", bad == nil and failure.reason == "INVALID_HISTORY")
 local profiles, failures, count = {}, {}, 0
-for name in pairs(G.getConfig().profiles) do profiles[#profiles + 1] = name end
+-- Cattle profiles only: the file also holds other types' curves (SHEEP:<breed> since sheep S4), which the dealer does not use.
+for name, profile in pairs(G.getConfig().profiles) do
+    if profile.typeName == nil or profile.typeName == "COW" then profiles[#profiles + 1] = name end
+end
 table.sort(profiles)
 for _, profile in ipairs(profiles) do
     for _, sex in ipairs({ "female", "male" }) do
