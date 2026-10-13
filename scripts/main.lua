@@ -161,6 +161,7 @@ source(modDirectory .. "scripts/bridge/RLPenConstruction.lua")
 
 -- SECTION 11b: Breeding Mathematics
 source(modDirectory .. "scripts/animal/BreedingMath.lua")
+source(modDirectory .. "scripts/animal/RLBreedingValue.lua")
 source(modDirectory .. "scripts/animal/RLGeneticsDraw.lua")
 -- Reads RLConstants at file scope, so it must follow SECTION 2c; a consumer binding one of
 -- its re-exported tables at file scope must follow this line.
