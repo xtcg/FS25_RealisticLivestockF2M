@@ -289,6 +289,66 @@ end
 
 
 -- -------------------------------------------------------------------------------------------
+-- Batches for the dealer (T3): adults, fetuses and a sire reserved together, then bound and consumed
+-- -------------------------------------------------------------------------------------------
+
+--- Reserve the keys of one dealer source (adult, fixed fetuses, sire) in one domain.
+--- items = { { role = "adult"|"fetus"|"ai", type = "COW" }, ... }. Idempotent per requestId.
+--- Returns { keys = { { key, farmId, uniqueId, country, raw, role, state } } } or nil and why.
+function R.reserveFor(ctx, requestId, items)
+    if not R.authoritative() then return nil, "IDENTITY_NOT_AUTHORITATIVE" end
+    local d, why = ensureDomain(ctx)
+    if d == nil then return nil, why end
+    local res
+    res, why = I.reserveBatch(R.ledger, requestId, { country = ctx.country, farmId = tostring(ctx.herd), items = items })
+    if res == nil then return nil, why end
+    if not res.replayed and ctx.mirror ~= nil then
+        for _, k in ipairs(res.keys) do ctx.mirror(k.raw) end
+    end
+    return res
+end
+
+
+--- The request's current record (read only), or nil.
+function R.requestState(requestId)
+    local request = R.ledger ~= nil and R.ledger.requests[requestId] or nil
+    if request == nil then return nil end
+    local states = {}
+    for i, key in ipairs(request.keys) do states[i] = R.ledger.keys[key].state end
+    return { keys = request.keys, states = states, selectionDigest = request.selectionDigest }
+end
+
+
+function R.bindFor(requestId, digest)
+    if R.ledger == nil then return nil, "NO_LEDGER" end
+    return I.bindMaterialization(R.ledger, requestId, digest)
+end
+
+
+--- Every key of the request that is MATERIALIZED becomes CONSUMED (the animals exist now).
+function R.consumeAll(requestId)
+    local request = R.ledger ~= nil and R.ledger.requests[requestId] or nil
+    if request == nil then return nil, "REQUEST_UNKNOWN" end
+    for _, key in ipairs(request.keys) do
+        local ok, why = I.consume(R.ledger, key)
+        if ok == nil then return nil, why end
+        journalKey(key)
+    end
+    afterAllocation()
+    return true
+end
+
+
+--- The request failed before any animal existed; its keys stay blocked, burned.
+function R.burnFor(requestId, reason)
+    if R.ledger == nil then return nil, "NO_LEDGER" end
+    local request = R.ledger.requests[requestId]
+    if request ~= nil then for _, key in ipairs(request.keys) do journalKey(key) end end
+    return I.burn(R.ledger, requestId, reason)
+end
+
+
+-- -------------------------------------------------------------------------------------------
 -- Activation (migration)
 -- -------------------------------------------------------------------------------------------
 

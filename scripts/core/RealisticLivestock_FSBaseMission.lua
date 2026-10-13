@@ -344,6 +344,8 @@ function RealisticLivestock_FSBaseMission:onStartMission()
         end
         if g_messageCenter ~= nil and MessageType ~= nil and MessageType.HOUR_CHANGED ~= nil then
             g_messageCenter:subscribe(MessageType.HOUR_CHANGED, RLAnimalIdentityCheckpoint.onHour, RLAnimalIdentityCheckpoint)
+            -- Dealer v2 hourly tick: a no-op until rlDealerEnable switched the channel on.
+            g_messageCenter:subscribe(MessageType.HOUR_CHANGED, RLDealerRuntime.onHour, RLDealerRuntime)
         end
     end
 

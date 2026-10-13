@@ -208,6 +208,19 @@ function P.execute(store, request, principal, adapter)
     end
     return finish(store, record, adapter, outcome, applyReason)
 end
+-- Read-only answer for an order's owner, independent of the live adapter and of recovery state: the saved
+-- result of a finished order, PENDING while it is in flight, UNCERTAIN when it needs reconciliation. Another
+-- principal's order is indistinguishable from a missing one.
+function P.lookup(store, requestId, principal)
+    if type(store) ~= "table" or not str(requestId) or not str(principal) then return nil, "BAD_LOOKUP" end
+    local record = store.records[requestId]
+    if record == nil or record.request.principal ~= principal then return nil, "UNKNOWN_REQUEST" end
+    if terminal[record.stage] and not record.needsReconciliation then return copy(record.result) end
+    if record.stage == "RECOVERY_REQUIRED" or record.needsReconciliation then
+        return { status = "UNCERTAIN", requestId = requestId }
+    end
+    return { status = "PENDING", requestId = requestId }
+end
 -- Plain journal import validates identity, request fingerprint and finished results.
 -- Every interrupted stage closes the gate; locks are reconstructed only as recovery ownership.
 function P.import(data, options)

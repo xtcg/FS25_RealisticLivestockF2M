@@ -244,3 +244,119 @@ result,why=P.execute(stock.purchase,request,principal,adapter)
 check("purchase adapter: post-debit permission loss remains owned recovery rather than fabricated rollback",not result and why=="RECOVERY_REQUIRED"
     and stock.recoveryRequired and #w.cluster.animals==2 and w.farm.money==800 and w.calls==1)
 check("purchase adapter: constructor requires every authoritative engine capability",not A.new({stock=stock,quotes={},quoteAdapter={},epoch="x"}))
+
+-- SV-01 (dealer v2 T4): buy, save, reload, look up the old order, buy again. Nothing is paid twice, the
+-- earlier order is answered from its saved receipt and needs no money record in the new session.
+do
+    local D = RLDealerPersistence
+    local stock1, adapter1, w1, _, principal1 = fixture()
+    local sent = {}
+    local ids = {}
+    for _, row in pairs(stock1.listings.records) do ids[#ids + 1] = { saleId = row.saleId, revision = row.recordRevision } end
+    table.sort(ids, function(a, b) return a.saleId < b.saleId end)
+    local function quoteAndBuy(stock, adapterCtx, adapterObj, item, requestId)
+        local q = assert(RLDealerQuote.issue(adapterCtx.quotes, { destination = "net:17", items = { item } }, principal1, adapterCtx.quoteAdapter))
+        local request = { requestId = requestId, destination = "net:17", items = { item }, quoteCredential = q.credential }
+        sent[requestId] = request
+        return P.execute(stock.purchase, request, principal1, adapterObj)
+    end
+    local first = quoteAndBuy(stock1, w1.context, adapter1, ids[1], "order-1")
+    check("SV-01 first order commits and pays once", first and first.status == "COMMITTED" and w1.farm.money == 900 and w1.calls == 1)
+
+    -- the engine save: three participants, the stock document, the career commit mark
+    local parts = {}
+    for _, role in ipairs({ "placeables", "vehicles", "farms" }) do parts[role] = assert(D.marker("DLsv1", 1, { role = role, content = role })) end
+    local snapshot = assert(RLDealerStockService.buildSnapshot(stock1, { lineage = "DLsv1", generation = 1, parentGeneration = 0, checkpointId = "DLsv1:1" }, parts))
+    local xml = { values = {} }
+    function xml:setString(k, v) self.values[k] = v end
+    function xml:getString(k) return self.values[k] end
+    function xml:iterate(prefix, fn)
+        local i = 0
+        while self.values[prefix .. "(" .. i .. ")#v"] do fn(i, prefix .. "(" .. i .. ")"); i = i + 1 end
+    end
+    local written, digest = D.writeDocument(xml, snapshot, parts)
+    local career = assert(D.commitMarker(snapshot, digest))
+    local resolver = function(name) local i, sub = Economics.find(name); return sub, i end
+    local doc, why = D.readDocument(xml, parts, resolver, career, { isServer = true })
+    check("SV-01 the saved dealer document verifies against its participants and the career mark", written and doc and doc.state == "VERIFIED", tostring(why))
+    check("SV-01 the verified load is not a recovery: terminal receipts need no reconciliation", doc and doc.restored.recoveryRequired == false)
+
+    -- reload: a new store from the document, a new money epoch, the same world
+    local stock2 = assert(RLDealerStockService.fromVerifiedDocument(doc))
+    check("SV-01 the loaded store has no money record and no recovery flag", stock2.money == nil and stock2.moneyEvidence == nil and not stock2.recoveryRequired
+        and not stock2.purchase.recoveryRequired and stock2.purchase.records["order-1"].stage == "COMMITTED")
+    local ctx2 = {}
+    for k, v in pairs(w1.context) do ctx2[k] = v end
+    ctx2.stock, ctx2.epoch = stock2, "epoch-after-reload"
+    ctx2.quotes = assert(RLDealerQuote.new("quote-after-reload"))
+    ctx2.quoteAdapter = {}
+    for k, v in pairs(w1.context.quoteAdapter) do ctx2.quoteAdapter[k] = v end
+    ctx2.quoteAdapter.currentClock = function() return stock2.farm.clock.months end
+    ctx2.quoteAdapter.readListing = function(id) return RLDealerListingRegistry.get(stock2.listings, id) end
+    local journal2 = assert(RLDealerJournal.new("DLsv1", "epoch-after-reload"))
+    local disk2 = {}
+    local storage2 = { save = function(path, data) disk2[path] = RLTradePersistence.canonical(data); return true end,
+        load = function(path) local text = disk2[path]; return assert(RLTradePersistence.parse(text, RLDealerPersistence.LIMITS)), RLTradePersistence.checksum(text) end }
+    ctx2.persistBarrier = function(payload) return RLDealerJournal.checkpoint(journal2, "/save", payload.purchase, 1, storage2, payload.recovery) end
+    -- the world after the reload: the first order's animal is in the pen, the second source is still the dealer's
+    local adapter2 = assert(A.new(ctx2))
+    w1.moneyBefore, w1.callsBefore = w1.farm.money, w1.calls
+    local old = P.execute(stock2.purchase, sent["order-1"], principal1, adapter2)
+    check("SV-01 the old order is answered from its saved receipt: same result, no money touched", old and old.status == "COMMITTED" and w1.farm.money == w1.moneyBefore and w1.calls == w1.callsBefore)
+    local second = quoteAndBuy(stock2, ctx2, adapter2, ids[2], "order-2")
+    check("SV-01 a new order after the reload commits and pays exactly once more", second and second.status == "COMMITTED" and w1.farm.money == 800 and w1.calls == w1.callsBefore + 1
+        and #w1.cluster.animals == 2)
+    local again = P.execute(stock2.purchase, sent["order-2"], principal1, adapter2)
+    local changed = P.execute(stock2.purchase, { requestId = "order-2", destination = "net:17", items = { ids[1] }, quoteCredential = sent["order-2"].quoteCredential }, principal1, adapter2)
+    check("SV-01 retrying the new order returns its result without a third debit", again and again.status == "COMMITTED" and w1.farm.money == 800)
+    check("SV-01 the same order id with another payload is refused", changed == nil)
+    check("SV-01 the new session never replays the old money record: its money store holds only order-2", adapter2.money.records["dealer:order-1"] == nil
+        and adapter2.money.records["dealer:order-2"] ~= nil)
+end
+
+-- T4 service facade over the assembled parts
+do
+    loadMod("scripts/dealer/RLDealerAssembly.lua")
+    loadMod("scripts/dealer/RLDealerService.lua")
+    local stock, _, w, _, principal = fixture()
+    stock.money = nil
+    local items = {}
+    for _, row in pairs(stock.listings.records) do items[#items + 1] = { saleId = row.saleId, revision = row.recordRevision } end
+    table.sort(items, function(a, b) return a.saleId < b.saleId end)
+    local realCapacity = RLDealerCapacity
+    RLDealerCapacity = { new = function() return function() return w.capacity end end }
+    local disk = {}
+    local storage = { save = function(path, data) disk[path] = RLTradePersistence.canonical(data); return true end,
+        load = function(path) local text = disk[path]; return assert(RLTradePersistence.parse(text, RLDealerPersistence.LIMITS)), RLTradePersistence.checksum(text) end }
+    local parts, why = RLDealerAssembly.assemble({ mission = g_currentMission, farmManager = g_farmManager, stock = stock, epoch = "svc-epoch",
+        directory = "/save", lineage = "DLsvc", generation = function() return 1 end, monotonicMs = function() return w.ms end,
+        resolveSubType = function(name) local i, sub = Economics.find(name); return sub, i end, eligible = function() return true end,
+        allOwners = function() return { w.dest } end, priceOf = function() return 100 end, feeOf = function() return 5 end, storage = storage })
+    RLDealerCapacity = realCapacity
+    check("T4 assembly builds the parts over an owned store", parts ~= nil, tostring(why))
+    local open = true
+    parts.gate = function() if open then return true end return false, "DEALER_V2_DISABLED" end
+    local service = assert(RLDealerService.new(parts))
+    local connection = { getIsServer = function() return false end }
+    check("T4 authorize passes the gate, the permission and the farm's ownership of the destination", service.authorize(connection, "net:17") == true)
+    local who = service.resolvePrincipal(connection)
+    check("T4 the principal comes from the connection", who == principal)
+    local quote = service.quote({ destination = "net:17", items = items }, who, connection)
+    check("T4 a quote adds the shop's body price and transport fee per animal (2 x 100 + 2 x 5)", quote and quote.subtotal == 200 and quote.transportFee == 10 and quote.amount == 210)
+    local request = { requestId = "svc-order", destination = "net:17", items = items, quoteCredential = quote.credential }
+    local result = service.execute(connection, request)
+    check("T4 execute runs the guarded purchase for the connection's principal", result and result.status == "COMMITTED" and w.farm.money == 790 and #w.cluster.animals == 2)
+    local saved = service.lookup(connection, "svc-order")
+    check("T4 lookup returns the owner's saved result", saved and saved.status == "COMMITTED" and saved.amount == 210)
+    check("T4 another principal sees nothing of the order", select(2, RLDealerPurchase.lookup(stock.purchase, "svc-order", "farm:2:user:other")) == "UNKNOWN_REQUEST"
+        and select(2, service.lookup(connection, "never-sent")) == "UNKNOWN_REQUEST")
+    check("T4 the connection is not left on the shared purchase context", parts.purchaseContext.connection == nil)
+    open = false
+    check("T4 a closed gate refuses authorize, quote and execute with its reason", select(2, service.authorize(connection, "net:17")) == "DEALER_V2_DISABLED"
+        and select(2, service.quote({ destination = "net:17", items = items }, who, connection)) == "DEALER_V2_DISABLED"
+        and select(2, service.execute(connection, request)) == "DEALER_V2_DISABLED")
+    open = true
+    stock.recoveryRequired = true
+    check("T4 a store in recovery is never ready", select(2, service.authorize(connection, "net:17")) == "RECOVERY_REQUIRED" and service.lookup(connection, "svc-order").status == "COMMITTED")
+    check("T4 assembly refuses a legacy (not owned) store", select(2, RLDealerAssembly.assemble({ stock = RLDealerStockService.new("legacy-x", 100) })) == "OWNED_STORE_REQUIRED")
+end

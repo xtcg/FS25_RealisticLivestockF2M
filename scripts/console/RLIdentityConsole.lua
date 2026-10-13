@@ -105,3 +105,30 @@ function C.recoveryClear()
     if not ok then return say("RLIDENTITY: " .. tostring(why)) end
     return say("RLIDENTITY: recovery cleared; the ledger as loaded is in use")
 end
+
+
+-- ---- dealer v2 channel (singleplayer cattle only) -------------------------------------------------
+function C.dealerStatus()
+    local D, K = RLDealerRuntime, RLDealerCheckpoint
+    local ok, reason = D.gate()
+    local listed, sources = 0, 0
+    if D.store ~= nil then
+        for _, row in pairs(D.store.listings.records) do if row.state == "LISTED" then listed = listed + 1 end end
+        for _ in pairs(D.store.farm.sources) do sources = sources + 1 end
+    end
+    return say(string.format("RLDEALERV2 STATUS enabled=%s state=%s(%s) gate=%s(%s) checkpoint=%s(%s) generation=%s listed=%d sources=%d identity=%s",
+        tostring(D.CHANNEL_ENABLED), tostring(D.state), tostring(D.reason), tostring(ok), tostring(reason), tostring(K.state), tostring(K.reason),
+        tostring(K.generation), listed, sources, tostring(RLAnimalIdentityRuntime.authoritative())))
+end
+
+function C.dealerEnable()
+    if not RLAnimalIdentityRuntime.server then return "RLDEALERV2: server only" end
+    local ok, why = RLDealerRuntime.enable()
+    if not ok then return say("RLDEALERV2: not enabled: " .. tostring(why)) end
+    return say("RLDEALERV2: enabled for this session (singleplayer cattle). Save the game once so the first checkpoint verifies; purchases open after it.")
+end
+
+function C.dealerDisable()
+    RLDealerRuntime.disable()
+    return say("RLDEALERV2: disabled; stock, ledger and orders stay as they are")
+end

@@ -60,6 +60,11 @@ function RLConsoleCommandManager.new()
         addConsoleCommand("rlIdentityMode", "Identity ledger back to OFF (old counters) or SHADOW (observe only)", "mode", RLIdentityConsole, "<OFF|SHADOW>")
         addConsoleCommand("rlIdentityRecoveryClear", "Leave identity RECOVERY_REQUIRED after reading the evidence", "recoveryClear", RLIdentityConsole, "")
     end
+    addConsoleCommand("rlDealerV2Status", "Dealer v2 channel: state, gate reason, stock counts (read-only)", "dealerStatus", RLIdentityConsole, "")
+    if g_currentMission:getIsServer() then
+        addConsoleCommand("rlDealerV2Enable", "Switch the dealer v2 channel on for this session (singleplayer cattle; needs the identity ledger ON)", "dealerEnable", RLIdentityConsole, "")
+        addConsoleCommand("rlDealerV2Disable", "Switch the dealer v2 channel off for this session", "dealerDisable", RLIdentityConsole, "")
+    end
     addConsoleCommand("rlTradePlan", "Read-only whole-batch contract budget (shadow, no reservation or delivery)", "plan",
         RLTradeReportConsole, "<facility> <uniqueId|pen:NAME> [farmId]")
     addConsoleCommand("rlPenReport", "Log each profiled pen's rule, map filter, feed and animals (RLPEN PEN_REPORT)", "report", RLPenConsole, "[pen]")

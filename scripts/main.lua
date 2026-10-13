@@ -285,6 +285,14 @@ source(modDirectory .. "scripts/dealer/RLDealerCapacity.lua")
 source(modDirectory .. "scripts/dealer/RLDealerJournal.lua")
 source(modDirectory .. "scripts/dealer/RLDealerPurchaseAdapter.lua")
 source(modDirectory .. "scripts/dealer/RLDealerCheckpoint.lua")
+-- Dealer v2 T3/T4: stock generation, scheduler, service facade, game binding. Dormant until rlDealerEnable.
+source(modDirectory .. "scripts/dealer/RLDealerRng.lua")
+source(modDirectory .. "scripts/dealer/RLDealerPlanner.lua")
+source(modDirectory .. "scripts/dealer/RLDealerGeneration.lua")
+source(modDirectory .. "scripts/dealer/RLDealerScheduler.lua")
+source(modDirectory .. "scripts/dealer/RLDealerAssembly.lua")
+source(modDirectory .. "scripts/dealer/RLDealerService.lua")
+source(modDirectory .. "scripts/dealer/RLDealerGameBinding.lua")
 source(modDirectory .. "scripts/dealer/RLDealerRuntime.lua")
 
 -- SECTION 12: GUI Elements
