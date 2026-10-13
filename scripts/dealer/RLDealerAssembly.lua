@@ -42,12 +42,21 @@ function A.assemble(deps)
     -- Price, fee and eligibility of one listing revision at one clock are fixed: mid-purchase, after the
     -- source animal left the dealer's inventory, the figures given before the effects are the ones asked again.
     local memo, memoSize = { eligible = {}, price = {}, fee = {} }, 0
+    local older = { eligible = {}, price = {}, fee = {} }
     local function cacheKey(listing, context)
         return tostring(listing.saleId) .. "|" .. tostring(listing.recordRevision) .. "|" .. tostring(context and context.currentClock)
     end
-    local function remember(table_, key, value)
-        if memoSize > 4096 then memo, memoSize = { eligible = {}, price = {}, fee = {} }, 0; table_ = nil end
-        if table_ ~= nil then table_[key] = value; memoSize = memoSize + 1 end
+    -- Two generations: when the newer is full it becomes the older and a fresh one starts, so the figures of an
+    -- order in flight (put in recently) are never dropped by an unrelated browse.
+    local function remember(kind, key, value)
+        if memoSize >= 4096 then older, memo, memoSize = memo, { eligible = {}, price = {}, fee = {} }, 0 end
+        memo[kind][key] = value
+        memoSize = memoSize + 1
+    end
+    local function recall(kind, key)
+        local v = memo[kind][key]
+        if v == nil then v = older[kind][key] end
+        return v
     end
     local quoteAdapter = {
         isServer = function() return mission:getIsServer() == true end,
@@ -64,33 +73,33 @@ function A.assemble(deps)
             local source = stock.farm.sources[listing.payload and listing.payload.sourceId]
             if source == nil then
                 -- Mid-purchase the source is already detached: the answer given before the effects stands.
-                if memo.eligible[key] then return true end
+                if recall("eligible", key) then return true end
                 return false, "SOURCE_NOT_CURRENT"
             end
             local ok, reason = deps.eligible(source, listing, context)
-            if ok == true then remember(memo.eligible, key, true) end
+            if ok == true then remember("eligible", key, true) end
             return ok, reason
         end,
         computeBuyPrice = function(listing, context)
             local key = cacheKey(listing, context)
             local animal = listingAnimal(stock, listing)
             if animal == nil then
-                if memo.price[key] ~= nil then return memo.price[key] end
+                if recall("price", key) ~= nil then return recall("price", key) end
                 return nil, "SOURCE_NOT_CURRENT"
             end
             local price = priceOf(animal)
-            if price ~= nil then remember(memo.price, key, price) end
+            if price ~= nil then remember("price", key, price) end
             return price
         end,
         computeTransportFee = function(listing, context)
             local key = cacheKey(listing, context)
             local animal = listingAnimal(stock, listing)
             if animal == nil then
-                if memo.fee[key] ~= nil then return memo.fee[key] end
+                if recall("fee", key) ~= nil then return recall("fee", key) end
                 return nil, "SOURCE_NOT_CURRENT"
             end
             local fee = feeOf(animal)
-            if fee ~= nil then remember(memo.fee, key, fee) end
+            if fee ~= nil then remember("fee", key, fee) end
             return fee
         end,
     }

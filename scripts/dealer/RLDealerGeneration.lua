@@ -133,7 +133,10 @@ function G.attempt(store, world, ctx, jobId, attempt)
     end
     local consumed
     consumed, why = port.consume(requestId)
-    if consumed == nil then return nil, "IDENTITY_CONSUME:" .. tostring(why), row end
+    if consumed == nil then
+        -- The animal is admitted and listed: the place IS filled. The keys stay MATERIALIZED (blocked); say so loudly.
+        if Log ~= nil then Log:error("RLDealerGeneration: %s listed but its keys could not be consumed (%s)", requestId, tostring(why)) end
+    end
     return row, nil, selection
 end
 

@@ -374,20 +374,37 @@ function R.activate(scan, options)
     local report = R.report(scan)
     local unproven = {}
     for dk, d in pairs(report.domains) do
-        if d.status ~= I.VERIFIED then unproven[#unproven + 1] = dk end
+        local known = ledger.domains[dk]
+        if d.status ~= I.VERIFIED and not (known ~= nil and known.status == I.VERIFIED) then unproven[#unproven + 1] = dk end
+    end
+    -- Herds whose counters were used but that hold no animal now have no domain in the scan: they need the
+    -- same acceptance, or a later key in that herd would be refused (DOMAIN_UNPROVEN).
+    for _, herd in ipairs(scan.uncoveredHerds or {}) do
+        if ledger.policy.acceptWeak ~= true then unproven[#unproven + 1] = herd end
     end
     table.sort(unproven)
     if #unproven > 0 and options.accept ~= true then return nil, "UNPROVEN_DOMAINS", unproven, report end
-    I.applyMigration(ledger, report, scan.records)
+    -- Keys the ledger already holds (a re-activation after OFF / SHADOW) are not imported again.
+    local fresh = {}
+    for _, r in ipairs(scan.records) do
+        if r.farmId ~= nil and r.uniqueId ~= nil and r.country ~= nil and ledger.keys[I.keyString(r.farmId, r.uniqueId, r.country)] ~= nil then
+            -- already known
+        else
+            fresh[#fresh + 1] = r
+        end
+    end
+    I.applyMigration(ledger, report, fresh)
     for _, dk in ipairs(unproven) do
         local d = report.domains[dk]
-        local counterMax = 0
-        for _, nextRaw in pairs(d.counters) do counterMax = math.max(counterMax, nextRaw) end
-        local start = math.max(counterMax, (d.maxLiveRaw or 0) + 1, 1)
-        I.promoteDomain(ledger, d.country, d.farmId, math.min(start, I.MAX_RAW + 1), true)
+        if d ~= nil and ledger.domains[dk] ~= nil and ledger.domains[dk].status ~= I.VERIFIED then
+            local counterMax = 0
+            for _, nextRaw in pairs(d.counters) do counterMax = math.max(counterMax, nextRaw) end
+            local start = math.max(counterMax, (d.maxLiveRaw or 0) + 1, 1)
+            I.promoteDomain(ledger, d.country, d.farmId, math.min(start, I.MAX_RAW + 1), true)
+        end
     end
     ledger.policy.mode = R.ON
-    ledger.policy.acceptWeak = options.accept == true or nil
+    ledger.policy.acceptWeak = (options.accept == true or ledger.policy.acceptWeak == true) or nil
     ledger.policy.activatedGeneration = ledger.generation
     R.ledger, R.mode = ledger, R.ON
     R.setLive(scan.records)

@@ -441,3 +441,19 @@ do
     check("T5 event: a throwing service becomes SERVICE_ERROR", sent[4].payload.reason == "SERVICE_ERROR")
     E.service = nil
 end
+
+
+-- review: a consume failure after publication must not produce a second listing for the same place
+do
+    local s8, c8, w8 = setup()
+    local realPort = c8.identity
+    local wrapped = {}
+    for k, v in pairs(realPort) do wrapped[k] = v end
+    wrapped.consume = function() return nil, "BAD_STATE" end
+    c8.identity = wrapped
+    local before = 0
+    local row8, why8 = G.fillPlace(s8, w8, c8)
+    local listedCount = 0
+    for _, r in pairs(s8.listings.records) do if r.state == "LISTED" then listedCount = listedCount + 1 end end
+    check("R6 consume failure after admission: the place is filled once, not retried into extra listings", row8 ~= nil and listedCount == 1)
+end

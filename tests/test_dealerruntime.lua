@@ -105,3 +105,30 @@ do
     check("T4 disable: closes the switch and clears both event handles", not R.CHANNEL_ENABLED and RLDealerPurchaseEvent.service == nil and RLDealerQuoteEvent.service == nil)
     check("T4 status never claims an open channel while disabled", R.getStatus().channelEnabled == false)
 end
+
+-- review: every hourly tick plans with the game date of that tick
+do
+    R.reset(true)
+    local seen
+    R.CHANNEL_ENABLED = true
+    R.service = { tick = function(_, world) seen = world.now.day; return {} end }
+    R.parts = { world = { now = { day = 1 } } }
+    RLDealerGameBinding = { now = function() return { day = 9 } end }
+    g_currentMission = { environment = { daysPerPeriod = 4 } }
+    R.onHour()
+    check("R5 onHour refreshes world.now before the tick", seen == 9 and R.parts.world.now.day == 9)
+    R.disable()
+end
+
+-- review: a failed enable leaves nothing armed, stored or installed
+do
+    R.reset(true); R.state = "DORMANT"
+    g_currentMission = { missionDynamicInfo = { isMultiplayer = false }, environment = {} }
+    RLAnimalIdentityRuntime = { authoritative = function() return true end }
+    C.state = C.UNARMED; C.armed = false
+    RLDealerStockService.newOwned = RLDealerStockService.newOwned or function() return {} end
+    local armedBefore = C.armed
+    local ok, why = R.enable({ generationWorld = function() return nil, "BOOM" end })
+    check("R7 enable that fails after the store was made leaves the checkpoint unarmed and R.store empty", ok == nil and why == "WORLD:BOOM"
+        and C.state == C.UNARMED and C.armed == armedBefore and R.store == nil and R.service == nil and not R.CHANNEL_ENABLED)
+end

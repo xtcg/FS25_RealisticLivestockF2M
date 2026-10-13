@@ -82,5 +82,20 @@ class AnalyzerTest(unittest.TestCase):
         self.assertEqual(A.analyze(text)["LIVE-UNIQUE"][0], "INCOMPLETE")
 
 
+
+class ReviewRegressions(unittest.TestCase):
+    def test_old_order_reprinted_later_is_not_charged_twice(self):
+        a = dump([K1], [(K1, "CONSUMED")], "ON", 1000)
+        b = dump([K1], [(K1, "CONSUMED")], "ON", 790)
+        c = dump([K1], [(K1, "CONSUMED")], "ON", 790)
+        text = a + "\nRLDEALERV2 ORDER c-1 COMMITTED amount=210.00\n" + b + "\nRLDEALERV2 ORDER c-1 COMMITTED amount=210.00\n" + c
+        self.assertEqual(A.analyze(text)["MONEY-DELTA"][0], "PASS")
+
+    def test_placeholder_identity_is_not_a_ledger_failure(self):
+        ph = ("1", "1", "2")
+        r = A.analyze(dump([K1, ph], [(K1, "CONSUMED")], "ON", 5))
+        self.assertEqual(r["LIVE-IN-LEDGER"][0], "PASS")
+
+
 if __name__ == "__main__":
     unittest.main()

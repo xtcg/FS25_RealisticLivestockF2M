@@ -45,3 +45,14 @@
   conversion forces the map country into `birthday.country` (ON only) so the key and the animal agree.
 - The first dealer checkpoint needs one verified save after `rlDealerV2Enable` before purchases open.
 - Shared-save-hook helper between Trade/Dealer/Identity was not extracted (three independent checkpoints).
+
+## Code review (2026-10-14, `/code-review high` against origin/dev)
+
+Nine findings, all fixed with a regression test each (suite 4099/4099 + 13 analyzer tests):
+world.now frozen at enable (now refreshed per tick); a recovery with no ledger dropped on the next save (stub ledger carries it);
+unresolved purchase handling in the client (new orders blocked, UNKNOWN_REQUEST settles as NOT_RECEIVED, clock fault is UNCERTAIN);
+herds with used counters but no animal needed no acceptance (now they do); births with an unresolvable domain were held for ever
+(now numbered as before, with a warning; only reservation failures hold); a consume failure after publication re-generated the place;
+`enable` failing half way left the checkpoint armed (now armed last); re-activation re-imported every key (now only new ones);
+the price memo dropped in-flight figures on overflow (two generations); two analyzer false FAILs.
+Not covered by a test: the memo rotation itself.

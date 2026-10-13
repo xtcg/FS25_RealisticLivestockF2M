@@ -170,16 +170,17 @@ function R.enable(overrides)
     if mission.missionDynamicInfo ~= nil and mission.missionDynamicInfo.isMultiplayer then return nil, "MULTIPLAYER_NOT_VERIFIED" end
     if RLAnimalIdentityRuntime == nil or not RLAnimalIdentityRuntime.authoritative() then return nil, "IDENTITY_NOT_AUTHORITATIVE" end
     local checkpoint = RLDealerCheckpoint
-    if checkpoint.state == checkpoint.UNARMED then
-        local armed, why = checkpoint.arm("DL" .. stamp())
-        if not armed then return nil, "ARM:" .. tostring(why) end
+    -- Nothing is armed, stored or installed until everything below has succeeded.
+    local store = R.store
+    if store == nil then
+        local created, why = RLDealerStockService.newOwned("dealer-v2", 0)
+        if not created then return nil, why end
+        store = created
     end
-    if R.store == nil then
-        local store, why = RLDealerStockService.newOwned("dealer-v2", 0)
-        if not store then return nil, why end
-        R.store = store
-    end
-    if R.store.sourceOwners == nil then return nil, "LEGACY_STORE_RECONCILIATION_REQUIRED" end
+    if store.sourceOwners == nil then return nil, "LEGACY_STORE_RECONCILIATION_REQUIRED" end
+    local lineage = checkpoint.lineage
+    if checkpoint.state == checkpoint.UNARMED then lineage = "DL" .. stamp() end
+    if lineage == nil then return nil, "NO_LINEAGE" end
     local environment = mission.environment
     local resolveSubType = overrides.resolveSubType or resolve
     local world, why = (overrides.generationWorld or function()
@@ -188,9 +189,9 @@ function R.enable(overrides)
     if not world then return nil, "WORLD:" .. tostring(why) end
     local eligible = overrides.eligible or RLDealerGameBinding.eligible(world, resolveSubType)
     local ownerWorld = overrides.ownerWorld or RLDealerWorld.new({ isServer = true, mission = mission })
-    local deps = { mission = mission, farmManager = overrides.farmManager or g_farmManager, stock = R.store,
+    local deps = { mission = mission, farmManager = overrides.farmManager or g_farmManager, stock = store,
         epoch = "e" .. stamp() .. tostring(math.random(1000, 9999)), directory = mission.missionInfo.savegameDirectory,
-        lineage = checkpoint.lineage, generation = function() return checkpoint.generation end,
+        lineage = lineage, generation = function() return checkpoint.generation end,
         monotonicMs = overrides.monotonicMs or function() return g_time end, resolveSubType = resolveSubType,
         resolveDiseaseModel = R.checkpointRuntime.ownershipContext.resolveDiseaseModel, eligible = eligible,
         allOwners = ownerWorld.allOwners, storage = overrides.storage,
@@ -217,6 +218,11 @@ function R.enable(overrides)
     local service
     service, why = RLDealerService.new(parts)
     if not service then return nil, why end
+    if checkpoint.state == checkpoint.UNARMED then
+        local armed, armWhy = checkpoint.arm(lineage)
+        if not armed then return nil, "ARM:" .. tostring(armWhy) end
+    end
+    R.store = store
     R.service, R.parts, R.state, R.reason = service, parts, "READY", "ENABLED"
     R.CHANNEL_ENABLED = true
     R.setCapability("cattleSingleplayer", true)
@@ -238,6 +244,8 @@ end
 function R.onHour()
     if R.service == nil or not R.CHANNEL_ENABLED then return end
     local environment = g_currentMission.environment
+    -- The planner dates birthdays and due dates from world.now: it is the game date of THIS tick.
+    R.parts.world.now = RLDealerGameBinding.now(environment)
     local ok, report, why = pcall(R.service.tick, { { hours = 1, daysPerMonth = environment.daysPerPeriod } }, R.parts.world)
     if not ok then
         RmLogging.getLogger("RLRM"):error("RLDealerRuntime.onHour: %s", tostring(report))

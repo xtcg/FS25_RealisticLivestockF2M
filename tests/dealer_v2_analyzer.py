@@ -76,6 +76,8 @@ def analyze(text, allow_income=False):
         else:
             for b in on:
                 for farm, uid, country, _where in b["live"]:
+                    if farm == "1" and uid == "1":
+                        continue     # the placeholder identity of an unmanaged pen's animal: never in the ledger by design
                     if b["ledger"].get("%s %s %s" % (farm, uid, country)) != "CONSUMED":
                         missing.append((farm, uid, country))
             results["LIVE-IN-LEDGER"] = ("FAIL", "live but not CONSUMED: %s" % missing[:5]) if missing else ("PASS", "%d dump(s) ON" % len(on))
@@ -96,7 +98,7 @@ def analyze(text, allow_income=False):
                 if e[0] == "order" and e[2] == "COMMITTED" and e[3] is not None:
                     order_amounts.setdefault(e[1], e[3])
             segment, committed_in_segment, last_dump = None, 0.0, None
-            seen_in_segment = set()
+            counted = set()      # an order is charged in the segment where it first committed, never again
             for e in events:
                 if e[0] == "dump":
                     b = blocks[e[1]]
@@ -109,9 +111,9 @@ def analyze(text, allow_income=False):
                             verdict = "FAIL"
                     b["idx"] = e[1]
                     last_dump = b
-                    committed_in_segment, seen_in_segment = 0.0, set()
-                elif e[0] == "order" and e[2] == "COMMITTED" and e[3] is not None and e[1] not in seen_in_segment:
-                    seen_in_segment.add(e[1])
+                    committed_in_segment = 0.0
+                elif e[0] == "order" and e[2] == "COMMITTED" and e[3] is not None and e[1] not in counted:
+                    counted.add(e[1])
                     committed_in_segment += e[3]
         results["MONEY-DELTA"] = (verdict, "; ".join(note))
     # orders

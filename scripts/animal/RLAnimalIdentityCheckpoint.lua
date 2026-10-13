@@ -95,6 +95,8 @@ end
 
 local function recover(reason)
     C.state, C.reason, C.recovery = C.RECOVERY_REQUIRED, reason, C.recovery or reason
+    -- Arm even without a ledger: every later save writes a stub that carries this recovery.
+    if not C.armed and type(R.lineage) == "string" then C.lineage, C.armed = R.lineage, true end
     R.setLoaded(R.ledger, "RECOVERY_REQUIRED", reason)
     logf("error", "RLAnimalIdentityCheckpoint: RECOVERY_REQUIRED (%s) - keys come from the old counters again until rlIdentityRecoveryClear", tostring(reason))
 end
@@ -109,10 +111,19 @@ function C.onSaveBegin(missionInfo)
         C.last = { generation = C.pass.generation, status = "ABORTED", reason = "NEXT_SAVE_STARTED" }
         C.pass = nil
     end
-    if not C.armed or R.ledger == nil or C.state == C.LOADING then return end
+    if not C.armed or C.state == C.LOADING then return end
     local generation = C.generation + 1
     C.generation = generation
-    local exported, why = R.exportLedger(generation)
+    local exported, why
+    if R.ledger ~= nil then exported, why = R.exportLedger(generation) else why = "NO_LEDGER" end
+    if exported == nil then
+        -- No ledger could be exported (it was unreadable, or its export failed): the save still carries a stub
+        -- that says so, so the next load is RECOVERY_REQUIRED and the evidence is not silently dropped.
+        local stub = assert(I.new(C.lineage))
+        stub.generation = generation
+        exported = I.export(stub)
+        C.recovery = C.recovery or ("LEDGER_NOT_EXPORTED:" .. tostring(why))
+    end
     C.pass = { generation = generation, marker = C.lineage .. ":" .. string.format("%d", generation), participants = {},
         journalCount = #R.journalKeys() }
     if exported == nil then

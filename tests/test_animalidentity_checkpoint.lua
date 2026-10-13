@@ -234,3 +234,39 @@ do
     check("a save whose career commit mark never reached the disk is RECOVERY_REQUIRED", C.state == C.RECOVERY_REQUIRED
         and C.reason:find("career=nil", 1, true) ~= nil)
 end
+
+-- review: a save in RECOVERY_REQUIRED with no ledger must still carry the recovery
+do
+    local wr = world()
+    wr:load()
+    wr.disk["/save/" .. P.FILENAME] = { garbage = "x" }
+    wr:load()
+    check("R1 unreadable ledger: recovery, armed so that saves keep writing", C.state == C.RECOVERY_REQUIRED and C.armed == true)
+    wr:save()
+    check("R1 the save wrote a stub ledger that carries the recovery", wr.disk["/save/" .. P.FILENAME] ~= nil and C.last.status == "COMMITTED")
+    wr:load()
+    check("R1 the next load is still RECOVERY_REQUIRED, not 'never used the ledger'", C.state == C.RECOVERY_REQUIRED and C.reason:find("RECOVERY_CARRIED", 1, true) ~= nil)
+end
+
+-- review: re-activation after SHADOW does not re-import, does not ask again, keeps the acceptance
+do
+    local wa = world()
+    wa:load()
+    local farmA = herdFarm(123456, 4)
+    R.setMode(R.SHADOW)
+    local scanA = { records = { { farmId = "123456", uniqueId = U.generateUniqueId(123456, 2), country = 2, type = "1" } },
+        counters = { { country = 2, farmId = "123456", type = "cowId", nextRaw = 5 } } }
+    assert(R.activate(scanA, { accept = true }))
+    local seqBefore = R.ledger.writerSequence
+    R.setMode(R.SHADOW)
+    local ok, why = R.activate(scanA, {})
+    check("R2 re-activation needs no new acceptance for a domain the ledger already holds", ok == true, tostring(why))
+    check("R2 re-activation imports no live key twice and keeps the acceptance", next(R.ledger.duplicates) == nil and R.ledger.policy.acceptWeak == true
+        and R.ledger.writerSequence - seqBefore <= 3)
+    -- a herd that used counters but holds no animal still needs the acceptance
+    R.reset(true); R.lineage = "Ltest-r3"; R.setLoaded(nil, "READY", "T")
+    local refused = select(2, R.activate({ records = {}, counters = {}, uncoveredHerds = { "*/555555" } }, {}))
+    check("R3 an uncovered herd (counters used, no animal) needs the acceptance too", refused == "UNPROVEN_DOMAINS")
+    check("R3 with the acceptance a later key in it is served", R.activate({ records = {}, counters = {}, uncoveredHerds = { "*/555555" } }, { accept = true })
+        and W.nextStatsRaw("t", (function() local f = herdFarm(555555, 30); return f end)(), AnimalType.COW, 2, "auto") == 31)
+end

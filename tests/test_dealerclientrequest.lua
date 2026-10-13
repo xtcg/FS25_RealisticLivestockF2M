@@ -111,3 +111,17 @@ client,a,w=fixture(); id=C.begin(client,selection()); C.receiveQuote(client,quot
 _,why=C.cancel(client)
 check("dealer client: cannot pretend dispatched authority purchase was cancelled",why=="PURCHASE_ALREADY_DISPATCHED" and client.pending.phase=="PURCHASE")
 check("dealer client: exact immutable purchase is retained for idempotent retry",client.lastPurchase.requestId==id and client.lastPurchase.quoteCredential=="server-quote" and not client.lastPurchase.amount)
+
+-- review: unresolved orders
+do
+    local client2, a2, w2 = fixture(); local id2 = C.begin(client2, selection()); C.receiveQuote(client2, quoted(id2)); w2.confirmations[1].respond(true)
+    w2.ms = client2.pending.deadline; C.tick(client2)
+    check("R4 a new order cannot start while a purchase is unresolved", select(2, C.begin(client2, selection())) == "ORDER_UNRESOLVED")
+    local answer = C.receiveOrderStatus(client2, { status = "UNKNOWN_REQUEST" })
+    check("R4 a server that has no such order means it was never received: settled as a refusal, nothing bought", answer.status == "REJECTED"
+        and answer.reason == "NOT_RECEIVED" and C.statusQuery(client2) == nil and C.begin(client2, selection()) ~= nil)
+    local client3, a3, w3 = fixture(); local id3 = C.begin(client3, selection()); C.receiveQuote(client3, quoted(id3)); w3.confirmations[1].respond(true)
+    w3.ms = 1
+    C.tick(client3)
+    check("R4 a local clock fault after dispatch is UNCERTAIN, not a refusal", client3.unresolved ~= nil and w3.completions[1].status == "UNCERTAIN")
+end
