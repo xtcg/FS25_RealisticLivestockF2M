@@ -91,6 +91,12 @@ def judge(c):
     last = ewe[-1][1]
     gate("EWE lowland twins on grass: weaning BCS about 2.5 (2.25-2.75), back to 3+ before mating", 2.25 <= at3 <= 2.75 and last >= 2.9,
          f"weaning {at3:.2f}, month {ewe[-1][0]:.0f} {last:.2f}")
+    for feed in ("silage", "silageBarley"):
+        twin = c[f"PREG/{feed}/2"]
+        gate(f"EWE twins, late pregnancy on {feed}: lambing BCS 3 +-0.25 (lowland target), ME about AHDB's 18 MJ at term",
+             2.75 <= twin["bcsAtTerm"] <= 3.25, f"BCS {twin['bcsAtTerm']:.2f}, {twin['dmPerDay']:.2f} kg DM, {twin['mePerDay']:.1f} MJ, gravid {twin['gravidKg']:.1f} kg")
+    hay = c["PREG/hay/2"]
+    print(f"INFO EWE twins, late pregnancy on hay alone: BCS {hay['bcsAtTerm']:.2f} at lambing (forage-only twin ewes lose condition)")
     one = c["R1/LANDRACE/2"]["lambs"][0]["ageAtRef"]
     for d in (7, 28):
         other = c[f"R1/LANDRACE/2/days{d}"]["lambs"][0]["ageAtRef"]

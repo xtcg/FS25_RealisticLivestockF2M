@@ -222,6 +222,29 @@ do
     CALIB["EWE/grass/twins"] = { ewe = eweLog }
 end
 
+-- Ewe late pregnancy: the last two of five months on hay, silage, silage and barley; single, twins.
+do
+    GrowthSim.setDaysPerPeriod(1)
+    local _, ramSub = Economics.find("RAM_LANDRACE")
+    local stocks = { hay = { DRYGRASS_WINDROW = 4000 }, silage = { SILAGE = 4000 }, silageBarley = { SILAGE = 4000, BARLEY = 4000 } }
+    for name, stock in pairs(stocks) do
+        for _, n in ipairs({ 1, 2 }) do
+            local ewe = SheepSim.ewe("SHEEP_LANDRACE", "PG")
+            local pregnancies = {}
+            for i = 1, n do pregnancies[i] = { getSubType = function() return ramSub end } end
+            ewe.isPregnant, ewe.pregnancy, ewe.reproduction = true, { pregnancies = pregnancies }, 60
+            local pen = SheepSim.makePen({ ewe })
+            for h = 1, 48 do
+                ewe.reproduction = 60 + 40 * h / 48
+                SheepSim.run(pen, 1, stock)
+            end
+            local r = ewe.rlFeedIntake
+            CALIB["PREG/" .. name .. "/" .. n] = { bcsAtTerm = RLBodyCondition.getBCS(ewe), gravidKg = ewe.rlGrowth.gravidKg or 0,
+                dmPerDay = r.kg / r.dtDays, mePerDay = r.me / r.dtDays }
+        end
+    end
+end
+
 -- Month length: R1 Landrace twins at 1, 7 and 28 days.
 for _, days in ipairs({ 7, 28 }) do
     local lambs = raiseWithDam("LANDRACE", 2, INTENSIVE, { maxMonths = 6, days = days })

@@ -266,3 +266,23 @@ do
         #notes - before == 1 and notes[#notes]:find("rl_feed_lambNoDam") ~= nil)
     g_currentMission.addIngameNotification, g_currentMission.getIsClient = nil, nil
 end
+
+
+-- Saving: a lamb's solid intake (an orphan's readiness) is kept with its state ---------------------
+
+do
+    local lamb = SheepSim.grown("RAM_LANDRACE", "SV1", 1.5, { motherId = "GONE" })
+    lamb.rlGrowth.solidIntakeKg = 0.31
+    local stored = {}
+    local xml = {
+        setInt = function(_, k, v) stored[k] = v end, setFloat = function(_, k, v) stored[k] = v end,
+        setString = function(_, k, v) stored[k] = v end, setBool = function(_, k, v) stored[k] = v end,
+        getInt = function(_, k, d) return stored[k] or d end, getFloat = function(_, k, d) return stored[k] or d end,
+        getString = function(_, k, d) return stored[k] or d end, getBool = function(_, k, d) local v = stored[k] if v == nil then return d end return v end,
+    }
+    RLGrowth.saveToXMLFile(lamb.rlGrowth, xml, "a")
+    local loaded = RLGrowth.loadFromXMLFile(xml, "a")
+    check("saving: a lamb's solid intake survives a save and load", loaded ~= nil and near(loaded.solidIntakeKg, 0.31, 1e-9))
+    stored["a.growth#solidIntakeKg"] = -1
+    check("saving: a negative solid intake makes the state unusable (derived again), never trusted", RLGrowth.loadFromXMLFile(xml, "a") == nil)
+end
