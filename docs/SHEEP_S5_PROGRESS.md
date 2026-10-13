@@ -1,72 +1,76 @@
-# Sheep S5: decisions, calibration constraints and first implementation
+# Sheep S5: nutrition, ewe milk, body condition and finishing (S5 + S5b)
 
-> Scope correction, 2026-10-13: the user requested **documentation verification only**. Do not continue implementation on the authority of this handoff. The first code batch remains local commit `2055872`; subsequent uncommitted edits to five Lua files were withdrawn. The authoritative reviewed decisions are in [S5 checklist](../../FS25_SheepBreeds_离线准备_2026-10-11/S5_待设计与决策清单.md).
+Status 2026-10-14. Branch `feat/sheep-s5-nutrition` (worktree `rlrm-sheep5`), rebased on `origin/dev` `bbb4573` (S3 #53, S4 #54, dealer #55, breeding value #56). Decisions: [S5 checklist](../../FS25_SheepBreeds_离线准备_2026-10-11/S5_待设计与决策清单.md) D1–D9 and the [finishing design](../../FS25_SheepBreeds_离线准备_2026-10-11/sheep-finishing-design-v1.md) F-D1–F-D5, all approved by the user. The user asked on 2026-10-13 to develop from the checklist.
 
-Date: 2026-10-13. Immutable starting point: `origin/dev` = `f9a6d9369cf66fcfeb441af3943c4c3e4cd9cbd0`, confirmed by fetch. Includes S3 (#53), S4 (#54) and dealer #55. Branch: `feat/sheep-s5-nutrition`; worktree: `rlrm-sheep5`.
+**Four states:** code committed — yes; in a run package — no; automated checks — pass (see Verification); game test — not done. **Sheep v2 stays OFF** (`weightProfiles.xml` SHEEP `enabled="false"`): five calibration checks still fail and nothing has been tried in game.
 
-The user authorized fact-based decisions, using the proposed recommendations when gameplay needs a compromise. No new D1–D9 confirmation is required. This is the first independently reviewable S5 change, **not completion of S5**. Sheep v2 remains OFF. No package was deployed, no savegame was changed, and no game test was performed.
+## What the code does
 
-## Decisions for the rest of S5
+| Part | Implementation |
+|---|---|
+| Species config | `scripts/animal/RLSpecies.lua` picks a config's `<species name="SHEEP">` section for an animal, pen, subtype or type name; cattle, goats (`excludeBreeds="GOAT"`) and every other type read the root, the same table as before. `feedProfiles.xml` and `bodyCondition.xml` each have a SHEEP section; the body section is sent to clients with the rest of the config. |
+| Coverage | `weightProfiles.xml` SHEEP `nutrition="REAL"`: sheep are on v2 only while the real-equivalent nutrition model runs and both species sections are valid (`RLGrowth.speciesNutritionReady`). Under the old model they keep the old rules. `RLBodyCondition.isCoveredType` covers sheep only where v2 does. Sheep body condition starts at birth (`calfLegacyUntilAgeMonth 0`). |
+| Feed | `RLFeed.registerSpeciesFeeds` adds SILAGE and the grains and PEA as SHEEP groups, marked `rlSpecies`. The old rules never eat them, and a trough accepts them only while its pen eats them (`RLFeed.isSpeciesFeedOpen`): the mode on, the sheep curves on, and no uncovered animal (a goat) in the pen. |
+| Ewe milk (D1, D4) | No rearing pen and no trough milk. A ewe nurses while her lambs on milk are in her pen (`RLFeed.getNursingDams` returns the dams and the suckled count). Her milk is the AHDB Table 28 row for her system (lowland / hill by breed) and the number she suckles (single, twin; three or more share the twin row), as a step per month of the youngest lamb's age (`RLFeed.getDamMilk`). Her budget pays it (8.3 MJ ME a kg) with the early-lactation reserve rule on her lambs' age; her lambs share one pool; nothing is stored, sold or given to another ewe's lamb (`milkCollect` 0). |
+| Weaning (D2, D3) | Nursing curves by age: milk ends at 3 months; solids and their worth rise to 1 by then. An orphan has no milk at all; from 2 months, once its solid intake averages 0.22 kg DM a day (`rlGrowth.solidIntakeKg`, saved and streamed), it is weaned early. Younger, its pen stays in the mode and it lives on what it eats (no SUCKLING_CALF fallback, no milk made for it). `RLFeed.countUnnursed` drives one notification when lambs on milk are away from their ewe (`rl_feed_lambNoDam`). |
+| Creep (D8) | A lamb at foot eats at most 0.35 kg DM of concentrate a day (about 0.4 kg fresh): planner limit `CREEP`. |
+| Adaptation (D7) | 14 days to 90% concentrate; an unadapted lamb may take up to 50% of its DM as concentrate. This is a game rule: FAS's 50% is barley within the concentrate mix. |
+| Physiology | Lamb maintenance 0.475 MJ/kg^0.75 to 6 months, moving to the ewe's 0.37 by 12 months. Growth cost 33 MJ ME per kg of frame at 40 kg, linear in weight (exponent 1.0, floor 14). By sex: rams x0.80, wethers x1.00, ewe lambs x1.25. Newborn lambs start lean (reserve 0.25, fat class 2). |
+| Body condition, fat (S5b) | Reserve capacity 0.48 (one BCS point = 12% of reference weight), reference BCS 3. Lambs under 12 months show EUROP fat classes 1/2/3L/3H/4L/4H/5; grown sheep show BCS. The finishing target applies to ram lambs, wethers (x + 0.09) and ewe lambs (x + 0.18). A ewe lamb is read against her breed ram's market weight. The meat factor is set per class (3L 1.00, 3H 0.99, 4L 0.97, 4H 0.955, 5 0.90, 1 0.95). Verdict: ready at the market weight from class 2, over-fat from 4L. Under AUTO, lambs of both sexes under 12 months eat freely. Sheep BCS never changes conception in this batch (`fertilityEffect 0`, D5). |
+| Display, diagnostics | Pen info rows for ewes and lambs. The menus' feed rows, ration preview and forecast work on sheep pens. `rlFeed*`, `rlBc*` and `rlPen*` reports include sheep pens; the pen report adds each lamb's milk cap, early weaning and fat class. All 17 languages have the new keys (de and Chinese translated, the others English, as before). |
 
-| ID | Decision | Evidence / constraint |
-|---|---|---|
-| D1 | Internal milk per dam, no sale, no fostering. Her own twins/triplets share one finite pool; no milk is created per lamb. | Recommendation A adopted. AHDB older edition p45 Table 28 now verifies 2.1/3.0 kg per ewe per day as first-month lowland averages. Milk DM 20% remains unverified; BLNZ fact sheet 94 does not support the former attribution. Production, nursing and unused milk must reconcile after the dam's actual budget settles. |
-| D2 | Normal weaning at 3 model months (90 days). | About 13 weeks, consistent with grass-system guidance. Transition on continuous age; never retain the cattle 6/7-month curves. |
-| D3 | Orphans may wean from 2 months; use weight and established solid intake as readiness checks. | AHDB supports 8–9-week weaning with at least 250 g/day creep intake sustained for 3–4 days. The old ≥10 kg threshold still needs its original source checked. Age alone must not certify a starving orphan as ready. Define explicit fallback/reporting for a young orphan before activating pens. |
-| D4 | Warn on separating a lamb still dependent on its dam; do not forbid transfer. | Approved gameplay choice. Covers moving the dam as well as the lamb. |
-| D5 | Do not change litter size, seasonality or breed first-mating age in this batch. | S7. New sheep body condition must not silently inherit cattle fertility penalties. |
-| D6 | Use production-system targets: lowland mating 3–3.5, lambing 3, weaning 2.5; upland 3 / 2.5 / 2; hill 2.5 / 2 / 2. | FAS original tables. These are husbandry targets, not hard reproduction gates. S0 growth group alone does not prove every breed's maternal management system. |
-| D7 | 14-day adaptation is the approved game approximation. Initial total concentrate ceiling 50% may be retained as a game rule, with existing low-utilisation treatment. Require real roughage alongside ad-lib concentrates. | FAS's actual 50% guidance concerns **barley in the concentrate mix**, not all concentrate in total DM. Do not label the broader game cap as the original recommendation. Teagasc increases concentrates gradually and retains roughage. |
-| D8 | Start calibration with 0.4 kg fresh creep/animal/model day, inside the approved 0.3–0.5 range. | A calibration candidate, not a measured biological ceiling. Young creep 18% CP; AHDB permits 15–16% after 8 weeks. Preserve the source's basis; no single “18%” value should be copied into every DM field. |
-| D9 | Measure the real 300-sheep feeding path first; group only if the measured budget fails. | No current sheep feeding performance pass. This batch's A/B budget timing would not certify the pen planner. |
+## Calibration (`python tests/sheepcalib.py`)
 
-## Corrections that calibration must respect
+The results are in `../FS25_SheepBreeds_离线准备_2026-10-11/s5-logs/calibration-2026-10-14.{txt,json}`. They come from the real modules at a 1-day month; the month-length checks also run at 7 and 28 days.
 
-1. FAS finishing-concentrate **15% CP is fresh weight**, equivalent to 16.67% of DM at 90% DM. It describes the concentrate component, not necessarily the whole ration. The code's feed CP is on a DM basis; quantify the whole mixed ration instead of changing feed composition to force a target.
-2. The shipped SILAGE has DM 0.35 and density 0.45 kg/L. Therefore 0.5 kg fresh silage = **0.175 kg DM**, costing 0.1388889 game L/model day at resourceScale 0.125. Earlier 0.15 kg DM assumed different silage. Use the effective feed file, including modSettings overrides, when converting. Other roughages need their own equivalent; a percentage alone cannot guarantee an absolute roughage allowance.
-3. FAS puts a ewe's one-point BCS change at 10–13% of live weight. The cattle reserveCapacityRatio 0.20 with BCS = 1+4r is only 5% of reference weight per point. Candidate sheep ratio 0.48 corresponds to 12% **at the model's reference weight**; this is a derived calibration hypothesis, not a proven conversion at every reserve index. It needs species-specific body config and an annual cycle test before use.
-4. The dry 70 kg ewe maintenance example is 10 MJ/day, or about 0.4132 MJ/kg^0.75. The old 0.475 growing-lamb candidate concerns another physiological stage. Verify stage-specific coefficients rather than applying one trial to all ewes.
-5. The v2 female curve already embodies female growth. Do not multiply it by femaleGrowth 0.76 again. Wether **development speed** 0.86 does not prove an exact 0.86 daily mass-gain ratio on a nonlinear curve; validate V6 on actual animals and rations.
-6. No universal 3-month market-weight requirement for hill breeds: the existing male potential reaches its breed reference at 4.68–4.96 months. V1 applies to its stated lowland/terminal population. All 32 sex curves were audited with the real Lua curve evaluator; these potential crossing ages are not feeding-route outcomes.
+| Gate | Result |
+|---|---|
+| V1 R1 early single ram lamb, 2.8–3.3 months to its market weight | Landrace 3.04, Suffolk 3.08, Swiss Mountain 3.25 PASS; **Texel 3.33 FAIL** (the window edge; the breed's own S4 potential is 2.9) |
+| V1 creep feed conversion | Reported both ways, because the source does not say which (checklist): 0.6–0.7 kg per kg of all gain, 5.9–6.9 per kg of gain above grass alone (candidate 2–4) |
+| V2 R2 milk and grass, flock mix (lowland 30% singles, hill 70%) | Landrace 4.82, Texel 5.21 PASS. **Hill FAIL**: Steinschaf 6.40, Black Welsh 6.14, Blackface 6.05 (window 5.1–5.5 ± 0.5) |
+| V3 R3 grass allowance + 0.25 / 0.5 kg barley | 1.66x, 2.03x grass alone PASS (Teagasc 1.63x / 1.99x) |
+| V4 R4 housed store ram lamb | Feed conversion 10.3 kg per kg carcass PASS. **ADG 300 g FAIL** (220–280; intake 1.48 kg DM = Teagasc's) |
+| V5 over-fat | Past the reference on ad lib feed: 4L / 4H, meat 0.970 / 0.955 PASS |
+| V6 ram : wether : ewe lamb ADG | 1 : 0.88 : 0.76 PASS |
+| V7 typical lamb | 3L meat factor exactly 1 (`test_sheep_s5_config`, `test_sheep_s5_nursing`) PASS |
+| Ewe cycle | Lowland twins on grass: BCS 3.0 at lambing, 2.30 at weaning, 2.95 three months later. Twins on silage at term: BCS 2.95, 20 MJ a day (AHDB 18.3). On hay alone: 2.75. PASS |
+| V8 month length | Same route at 1 / 7 / 28-day months within 0.8%; the pool closes every step to 1e-9 PASS |
+| V9 cattle and other species | A/B against dev `bbb4573`: 396 legacy-budget cases (50,688 values) and 640 real-mode cases (suckler, dairy, bulls, shortage, rearing; 1- and 7-day months): 0 differences PASS |
+| V10 300 sheep | 100 ewes with twins, 28-day month: 13 ms a game hour PASS |
 
-## Implemented in this batch
+### Why the five failures stay open
 
-`weightProfiles.animalType` accepts the same numeric physiology settings as the root, as independent validated tables. Missing values inherit the root for compatibility with older user XML; a bad type disables that type alone and exposes the reason. Root/cattle and proxy APIs preserve the same effective root table. Profile-local maleBirthFactor wins over the type; otherwise the type supplies its birth knot.
+1. **Hill lambs.** The ewe's milk uses AFRC's hill rows, which describe hill ewes on hill grazing. The game's cut grass is a mid-quality pasture (GRASS_WINDROW, ME 9.7 MJ/kg DM, shared with cattle), not spring grazing at 11–12. The checklist forbids changing feed composition to meet a target. Options: accept the gap; give hill breeds the lowland row on lowland feed; or revisit the C-grade target.
+2. **R4 ADG +7%.** At Teagasc's intake the model gives 300 g a day, close to AFRC's equations. Teagasc's lambs grew less (248 g). Raising the cost of gain would push R1 out of its window.
+3. **Texel R1 3.33.** This is the breed's own S4 potential (2.9 months) plus the same milk/creep lag as the other breeds.
 
-Every existing weight-physiology consumer now carries its animal/subtype/binding: genes, birth distributions and litter effects, birth fade, pregnancy mass, castration, appetite lag, milk reserve mobilization, underweight checks, migration, stage relaxation and state sanitization. Feed and dealer callers and newborn feed forecasting pass their existing species context too. Reports include a copy of effective settings; excluded goats report root compatibility settings.
+## Game compromises added in S5 (four columns in the finishing design §4)
 
-The shipped sheep entry sets only the already-approved `castratedSpeed="0.86"`. The other inherited coefficients are **not sheep calibration** and the type remains `enabled="false"`, status `S5_CALIBRATION_OFF`. Body condition and feed settings still need their own species sections. This change does not make enabling sheep safe on its own.
+SHEEP-C09 to C17 are recorded in the finishing design §4 (2026-10-14 addendum): monthly milk steps; lean newborn reserve; growth cost by sex; AUTO finishing young females; goat pens stay on the old rules; creep gate; the notification comes the hour after a separation, not at the move; ewe milk composition is a proxy; the hill gap.
 
 ## Verification
 
-- Full suite: **3797/3797**, including 22 new settings checks. The first sandboxed run stopped because transaction fixtures write `/var/tmp`; the authorized run outside the sandbox completed.
-- The earlier 21-check version also passed under Lua 5.1; the final 22-check suite count is from the full test runtime. Four isolated mutations reverting stage speed, gene/litter settings, profile birth fallback or budget settings to cattle defaults were detected.
-- Frozen baseline A/B under Lua 5.1: **396 cases, 50,688 scalar comparisons, zero differences**, identical snapshot SHA256. Every 22 cattle profiles × 2 sexes × 3 metabolism genes × 3 stages runs 120 real shared-budget steps. This proves the covered numerical probe, not every engine interaction or sheep feeding gate.
-- Static HB audit: the sheep stable and both pastures have food unload triggers without explicit fillTypes. That supports group-driven reception, but runtime group injection and unloading still require implementation and a game check.
+- Full suite: **3899/3899** (`python tests/run.py`; log in `s5-logs/tests-full.log`). The new files are `test_sheep_s5_config` (19 checks), `test_sheep_s5_nursing` (33) and `test_sheep_s5_settings` (24).
+- Cattle A/B: `python tests/sheep_s5_ab.py --baseline bbb4573 --out …` (legacy budget, Lua 5.1) and `python tests/feed_ab.py --baseline bbb4573 --out …` (real-equivalent mode); both show 0 differences.
+- The three sheep test files also pass under Lua 5.1 (19 / 33 / 24).
+- Not done: game test, W-DEBUG/TestDiagnostics sheep scenario (separate mod), multiplayer.
 
-Reproduce with an environment containing lupa:
+## Before sheep v2 may be enabled
 
-```sh
-python tests/run.py
-python tests/sheep_s5_ab.py --out /tmp/sheep-s5-ab.json
-python ../FS25_SheepBreeds_离线准备_2026-10-11/tools/audit_s5_inputs.py \
-  --rlrm . --hb ../FS25_HofBergmann.zip --out /tmp/sheep-s5-input-audit.json
-```
+1. Decide the five open gates (above).
+2. Dealer: sheep listings under v2 (dealerStock SHEEP is still LEGACY_WEIGHT) — not wired.
+3. In-game short test (single player): an R1 group and an R4 group; check fat classes, the notification, butcher meat, saving and loading, troughs accepting silage and grain, and that a goat pen stays on the old rules.
+4. S7 (reproduction: BCS effects, litter size, seasonality) is untouched.
+5. Pair with EconomyTuner main `9a37551` when deploying.
 
-Evidence: `../FS25_SheepBreeds_离线准备_2026-10-11/s5-logs/` (`cattle-ab.json`, `input-audit.json`, `settings-validation.json`, `tests-full.log`). These local preparation artifacts are outside the RLRM git repository.
+## Sources read for this batch
 
-## Remaining activation gates
-
-Implement and calibrate sheep feed and body configs; add silage/grain groups; build per-dam lactation and actual paid milk pools with orphan readiness and transfer warnings; add fat grade, meat factors and adjustment UI; extend console and W-DEBUG diagnostics. Verify outstanding breed evidence, milk composition and energy costs, all R1–R4/V1–V10, maternal annual cycle, other-species A/B and 1/3/7/28-day periods. Open sheep v2 only after those gates pass. S3/S4 single-player short tests are still unperformed. When deploying, pair with EconomyTuner main `9a37551`.
-
-## Primary sources read for this batch
-
-- [FAS Keeping and Maintaining Ewe Condition](https://www.fas.scot/article/keeping-and-maintaining-ewe-condition/): BCS mass and maintenance example; 2024 table's upland lambing cell contains “2.54”, so the clean 2018 table is used for that target.
-- [FAS Creep Feed To Aid Condition](https://www.fas.scot/article/creep-feed-to-aid-condition/): lowground/upland/hill target table.
-- [FAS Pre-Mating Management Of The Flock](https://www.fas.scot/article/pre-mating-management-flock/): lowland versus hill mating targets.
-- [FAS Finishing Lambs on Concentrates](https://www.fas.scot/article/finishing-lambs-on-concentrates/): CP fresh-weight basis and barley-specific transition advice.
-- [AHDB Lambing ewe lambs](https://ahdb.org.uk/knowledge-library/lambing-ewe-lambs): creep protein by age and early-weaning solid-intake readiness. Its population is first-lambing ewes, not every adult-ewe flock.
-- [Teagasc Finishing Store Lambs on All-Concentrate Diets](https://teagasc.ie/news--events/daily-archive/finishing-store-lambs-on-all-concentrate-diets/): gradual adaptation with retained roughage.
-- [FAS Keeping Lambs Growing](https://www.fas.scot/article/keeping-lambs-growing/): weaning depends on grass, growth and ewe condition; eight-week early option in extreme years.
-
-AHDB older-edition milk Table 28 was verified on 2026-10-13 (the registered 2024 URL returned 404). BLNZ fact sheet 94 was read and the unsupported 20% DM / 1:1 milk-DM-to-gain attribution withdrawn. Ten outstanding breed tables from S1 remain unverified; no breed evidence grade was upgraded. See the reviewed checklist for primary links and units.
+- [AHDB Feeding the ewe (older edition, AFRC 1993 tables)](https://projectblue.blob.core.windows.net/media/Default/Imported%20Publication%20Docs/Feeding-the-ewe-1.pdf), read in full text this time:
+  - Table 2: intake as % of body weight;
+  - Table 4: maintenance about 12% of body weight in MJ, 1 BCS ≈ 10% of body weight;
+  - Table 8: pregnancy ME by litter;
+  - Table 28: milk;
+  - Table 29: ME per kg of milk, and the effect of weight loss and gain;
+  - p50: 6.5 MJ of ME from milk per twin lamb at six weeks; weaning at 12 weeks with a 30 kg target.
+- [Šebek & Everts 1993, Prediction of gross energy content of ewe milk](https://www.cambridge.org/core/journals/animal-science/article/abs/prediction-of-gross-energy-content-of-ewe-milk/D2A5EE8C6BC3A42D0CE6853818545917): the GE equation and composition ranges.
+- Sex effect on the energy of gain: the ARC 0.85 / 1.15 factors were **not** found for sheep (they appear in cattle equations). A Brazilian Texel-cross study reports female NEg about 26% above intact males (seen only in a search summary; the original was not opened). The factors 0.80 / 1.00 / 1.25 are calibrated to the trial ADG ratio and registered as SHEEP-C11.
