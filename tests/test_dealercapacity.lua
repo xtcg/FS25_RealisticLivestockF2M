@@ -111,7 +111,8 @@ local cases={
     {"profile sex",function(c,t)t.rlPenRule={female=false} end,"PEN_RULES"},
     {"profile breed",function(c,t)t.rlPenRule={female=true,breeds={ANGUS=true}} end,"PEN_RULES"},
     {"map age",function(c,t)t.spec_husbandryAnimals.subtypeFilterAgeMin=9 end,"AGE_TOO_YOUNG"},
-    {"map visual",function(c,t)t.rlPenRule={female=true};t.spec_husbandryAnimals.subtypeFilterAllowedSubTypes={} end,"PEN_RULES"}}
+    {"map visual",function(c,t)t.rlPenRule={female=true};t.spec_husbandryAnimals.subtypeFilterAllowedSubTypes={}
+        t.spec_husbandryAnimals.rlPenProfileApplied=true end,"PEN_RULES"}}
 for _,case in ipairs(cases) do
     local c,t,q,l,x=fixture("PEN");case[2](c,t,q,l,x)
     local validate=assert(C.new(c));local ok,why=validate(t,l,x)
@@ -136,10 +137,28 @@ do
     t.spec_constructible={stateIndex=1,stateMachine={{name="DONE",inputs={}}},stateTransitions={}}
     local logs=#LOG
     local ok,why=assert(C.new(c))(t,l,x)
-    check("dealer capacity: first lookup with nil config and pen caches never writes spec/global cache or logs",ok and RLHusbandryProfiles.config==nil
+    check("dealer capacity: first lookup with nil config and pen caches writes nothing on the pen and never logs; the parsed config is memoized",
+        ok and RLHusbandryProfiles.config~=nil and RLHusbandryProfiles.readDepth==0
         and t.rlPenRule==nil and t.rlPenConstruction==nil and t.spec_husbandryAnimals.rlPenProfileApplied==nil and #LOG==logs)
     RLHusbandryProfiles.checkAnimal(t,{subTypeIndex=select(2,c.resolveSubType(c.stock.farm.sources.source.animal.subType)),age=8,gender="female"})
     check("dealer capacity: legacy profile path still populates original lookup caches",RLHusbandryProfiles.config~=nil and t.rlPenRule==false and t.rlPenConstruction==false)
+end
+do
+    -- A pen whose profile is not applied yet still has the map's own (narrower) filter: the read checks
+    -- the fields apply would write, so it admits what a purchase (which applies first) admits.
+    local c,t,q,l,x=fixture("PEN")
+    t.rlPenRule={female=true};t.spec_husbandryAnimals.subtypeFilterAllowedSubTypes={}
+    local index=select(2,c.resolveSubType(c.stock.farm.sources.source.animal.subType))
+    local cowType=g_currentMission.animalSystem:getTypeByIndex(AnimalType.COW)
+    cowType.subTypes={index}
+    local ok,why=assert(C.new(c))(t,l,x)
+    check("dealer capacity: a profile not yet applied is read as apply would write it, not the map's default filter",ok==true
+        and t.spec_husbandryAnimals.rlPenProfileApplied==nil and next(t.spec_husbandryAnimals.subtypeFilterAllowedSubTypes)==nil)
+end
+do
+    local depth=RLHusbandryProfiles.readDepth
+    local okCall=pcall(RLHusbandryProfiles.read,function() error("boom") end)
+    check("dealer capacity: a read scope closes when its body throws",not okCall and RLHusbandryProfiles.readDepth==depth)
 end
 for _,fault in ipairs({"replace","pending","cluster"}) do
     local c,t,q,l,x=fixture("PEN")

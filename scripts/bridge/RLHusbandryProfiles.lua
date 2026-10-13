@@ -29,6 +29,28 @@
 
 RLHusbandryProfiles = {}
 
+--- Depth of read-only scopes (RLHusbandryProfiles.read): inside one, nothing logs and nothing is written
+--- on a placeable or its spec (no applied profile, no cached rule or construction entry). The parsed
+--- config, the same for every caller, is still memoized.
+RLHusbandryProfiles.readDepth = 0
+
+--- Whether a read-only scope is open.
+function RLHusbandryProfiles.reading()
+    return RLHusbandryProfiles.readDepth > 0
+end
+
+local function closeRead(ok, ...)
+    RLHusbandryProfiles.readDepth = RLHusbandryProfiles.readDepth - 1
+    if not ok then error((...), 0) end
+    return ...
+end
+
+--- Run fn(...) in a read-only scope; the scope closes even when fn throws (the error is raised again).
+function RLHusbandryProfiles.read(fn, ...)
+    RLHusbandryProfiles.readDepth = RLHusbandryProfiles.readDepth + 1
+    return closeRead(pcall(fn, ...))
+end
+
 local Log = RmLogging.getLogger("RLRM")
 local modDirectory = g_currentModDirectory
 
@@ -74,7 +96,7 @@ end
 --- @param source string|nil Path of the file, kept on each profile and entry for the log
 --- @return table config {profiles = {NAME = rule}, husbandries = {{filename, profile, breeds, source}},
 ---   constructions = {{filename, readyStates = {NAME = true}, names, source}}}
-function RLHusbandryProfiles.parse(xmlFile, config, source, readOnly)
+function RLHusbandryProfiles.parse(xmlFile, config, source)
     config = config or { profiles = {}, husbandries = {}, constructions = {} }
     config.constructions = config.constructions or {}
     if xmlFile == nil then return config end
@@ -82,7 +104,7 @@ function RLHusbandryProfiles.parse(xmlFile, config, source, readOnly)
     xmlFile:iterate("husbandryProfiles.profile", function(_, key)
         local name = xmlFile:getString(key .. "#name")
         if name == nil then
-            if not readOnly then Log:warning("RLHusbandryProfiles.parse: %s has no name", key) end
+            if not RLHusbandryProfiles.reading() then Log:warning("RLHusbandryProfiles.parse: %s has no name", key) end
             return
         end
         local intactMale = (xmlFile:getString(key .. "#intactMale", "false")):lower()
@@ -103,7 +125,7 @@ function RLHusbandryProfiles.parse(xmlFile, config, source, readOnly)
     xmlFile:iterate("husbandryProfiles.husbandry", function(_, key)
         local filename, profile = xmlFile:getString(key .. "#filename"), xmlFile:getString(key .. "#profile")
         if filename == nil or profile == nil then
-            if not readOnly then Log:warning("RLHusbandryProfiles.parse: %s needs a filename and a profile", key) end
+            if not RLHusbandryProfiles.reading() then Log:warning("RLHusbandryProfiles.parse: %s needs a filename and a profile", key) end
             return
         end
         table.insert(config.husbandries, {
@@ -120,7 +142,7 @@ function RLHusbandryProfiles.parse(xmlFile, config, source, readOnly)
         local filename = xmlFile:getString(key .. "#filename")
         local readyStates = splitNames(xmlFile:getString(key .. "#readyStates"))
         if filename == nil or readyStates == nil then
-            if not readOnly then Log:warning("RLHusbandryProfiles.parse: %s needs a filename and readyStates", key) end
+            if not RLHusbandryProfiles.reading() then Log:warning("RLHusbandryProfiles.parse: %s needs a filename and readyStates", key) end
             return
         end
         table.insert(config.constructions, {
@@ -137,7 +159,7 @@ end
 
 --- Profiles from every active map bridge, loaded on the first call.
 --- @return table config See parse
-function RLHusbandryProfiles.getConfig(readOnly)
+function RLHusbandryProfiles.getConfig()
     if RLHusbandryProfiles.config ~= nil then return RLHusbandryProfiles.config end
 
     local config = { profiles = {}, husbandries = {}, constructions = {} }
@@ -146,14 +168,15 @@ function RLHusbandryProfiles.getConfig(readOnly)
             local path = modDirectory .. bridge.resolvedConfigPath .. RLHusbandryProfiles.FILE
             local xmlFile = XMLFile.loadIfExists("husbandryProfiles", path)
             if xmlFile ~= nil then
-                RLHusbandryProfiles.parse(xmlFile, config, bridge.resolvedConfigPath .. RLHusbandryProfiles.FILE, readOnly)
+                RLHusbandryProfiles.parse(xmlFile, config, bridge.resolvedConfigPath .. RLHusbandryProfiles.FILE)
                 xmlFile:delete()
-                if not readOnly then Log:info("RLHusbandryProfiles: loaded %s (%d husbandries)", path, #config.husbandries) end
+                if not RLHusbandryProfiles.reading() then Log:info("RLHusbandryProfiles: loaded %s (%d husbandries)", path, #config.husbandries) end
             end
         end
     end
 
-    if not readOnly then RLHusbandryProfiles.config = config end
+    -- The parsed files are the same whoever asks first, so a read scope memoizes them too.
+    RLHusbandryProfiles.config = config
     return config
 end
 
@@ -161,19 +184,19 @@ end
 --- The rule for a placeable: its profile, with the husbandry entry's breeds taking the place
 --- of the profile's when given. Cached on the placeable.
 --- @return table|nil rule nil when no profile names this placeable
-function RLHusbandryProfiles.getRule(placeable, readOnly)
+function RLHusbandryProfiles.getRule(placeable)
     if placeable == nil then return nil end
     if placeable.rlPenRule ~= nil then return placeable.rlPenRule or nil end
 
     local rule = false
     local configFileName = placeable.configFileName ~= nil and placeable.configFileName:gsub("\\", "/"):lower() or nil
     if configFileName ~= nil then
-        local config = RLHusbandryProfiles.getConfig(readOnly)
+        local config = RLHusbandryProfiles.getConfig()
         for _, entry in ipairs(config.husbandries) do
             if configFileName:sub(-#entry.filename) == entry.filename then
                 local profile = config.profiles[entry.profile]
                 if profile == nil then
-                    if not readOnly then Log:warning("RLHusbandryProfiles.getRule: unknown profile '%s' for %s", entry.profile, entry.filename) end
+                    if not RLHusbandryProfiles.reading() then Log:warning("RLHusbandryProfiles.getRule: unknown profile '%s' for %s", entry.profile, entry.filename) end
                 else
                     rule = setmetatable({ breeds = entry.breeds or profile.breeds, entry = entry.filename,
                         entrySource = entry.source }, { __index = profile })
@@ -183,7 +206,7 @@ function RLHusbandryProfiles.getRule(placeable, readOnly)
         end
     end
 
-    if not readOnly then placeable.rlPenRule = rule end
+    if not RLHusbandryProfiles.reading() then placeable.rlPenRule = rule end
     return rule or nil
 end
 
@@ -233,15 +256,18 @@ end
 --- @return boolean ok
 --- @return string|nil code MAP_SUBTYPE, MAP_AGE_MIN, MAP_AGE_MAX, MAP_NEXT_VISUAL_STAGE or MAP_VISUAL
 --- @return number|nil value The limit or visual index that refused
-function RLHusbandryProfiles.checkMapFilter(placeable, subTypeIndex, age)
+--- @param fields table|nil {allowedSubTypes, ageMin, ageMax} to check instead of the pen's own (a profile not applied yet)
+function RLHusbandryProfiles.checkMapFilter(placeable, subTypeIndex, age, fields)
     local spec = placeable ~= nil and placeable.spec_husbandryAnimals or nil
     if spec == nil then return true end
     age = tonumber(age) or 0
 
-    if spec.subtypeFilterAllowedSubTypes ~= nil and spec.subtypeFilterAllowedSubTypes[subTypeIndex] ~= true then
+    local allowedSubTypes = spec.subtypeFilterAllowedSubTypes
+    local minAge, maxAge = spec.subtypeFilterAgeMin, spec.subtypeFilterAgeMax
+    if fields ~= nil then allowedSubTypes, minAge, maxAge = fields.allowedSubTypes, fields.ageMin, fields.ageMax end
+    if allowedSubTypes ~= nil and allowedSubTypes[subTypeIndex] ~= true then
         return false, RLHusbandryProfiles.MAP_SUBTYPE
     end
-    local minAge, maxAge = spec.subtypeFilterAgeMin, spec.subtypeFilterAgeMax
     if minAge ~= nil and age < minAge then return false, RLHusbandryProfiles.MAP_AGE_MIN, minAge end
     if maxAge ~= nil and age > maxAge then return false, RLHusbandryProfiles.MAP_AGE_MAX, maxAge end
     if minAge ~= nil and maxAge == nil then
@@ -339,20 +365,15 @@ local function describeRule(rule)
 end
 
 
---- Write a placeable's profile into the map filter's fields (subtype whitelist and age
---- window) so the map's own checks follow it. Idempotent; no-op without a profile.
-function RLHusbandryProfiles.apply(placeable)
+--- The map filter fields a profile writes on a pen (apply), without writing them.
+--- @return table|nil fields {allowedSubTypes, ageMin, ageMax}; nil without an animal system or type
+--- @return table names The allowed subtypes' names
+function RLHusbandryProfiles.getProfileFilter(placeable, rule)
     local spec = placeable ~= nil and placeable.spec_husbandryAnimals or nil
-    if spec == nil or spec.rlPenProfileApplied then return end
-
-    local rule = RLHusbandryProfiles.getRule(placeable)
     local animalSystem = getAnimalSystem()
-    if rule == nil or animalSystem == nil then return end
-
+    if spec == nil or rule == nil or animalSystem == nil then return nil, {} end
     local animalType = animalSystem:getTypeByIndex(spec.animalTypeIndex)
-    if animalType == nil then return end
-
-    local before = RLHusbandryProfiles.getMapFilterState(placeable)
+    if animalType == nil then return nil, {} end
 
     local allowed, names = {}, {}
     for _, subTypeIndex in ipairs(animalType.subTypes) do
@@ -364,10 +385,28 @@ function RLHusbandryProfiles.apply(placeable)
             table.insert(names, subType.name)
         end
     end
+    return { allowedSubTypes = allowed, ageMin = rule.minAge, ageMax = rule.maxAge or RLHusbandryProfiles.OPEN_MAX_AGE }, names
+end
 
-    spec.subtypeFilterAllowedSubTypes = allowed
-    spec.subtypeFilterAgeMin = rule.minAge
-    spec.subtypeFilterAgeMax = rule.maxAge or RLHusbandryProfiles.OPEN_MAX_AGE
+
+--- Write a placeable's profile into the map filter's fields (subtype whitelist and age
+--- window) so the map's own checks follow it. Idempotent; no-op without a profile.
+function RLHusbandryProfiles.apply(placeable)
+    local spec = placeable ~= nil and placeable.spec_husbandryAnimals or nil
+    if spec == nil or spec.rlPenProfileApplied then return end
+
+    local rule = RLHusbandryProfiles.getRule(placeable)
+    local animalSystem = getAnimalSystem()
+    if rule == nil or animalSystem == nil then return end
+
+    local fields, names = RLHusbandryProfiles.getProfileFilter(placeable, rule)
+    if fields == nil then return end
+
+    local before = RLHusbandryProfiles.getMapFilterState(placeable)
+
+    spec.subtypeFilterAllowedSubTypes = fields.allowedSubTypes
+    spec.subtypeFilterAgeMin = fields.ageMin
+    spec.subtypeFilterAgeMax = fields.ageMax
     spec.rlPenProfileApplied = true
 
     Log:info("RLHusbandryProfiles: %s -> %s, age %s-%s, %d subtype(s): %s",
@@ -416,18 +455,18 @@ end
 --- @return boolean ok
 --- @return string|nil reason RLPenConstruction.REJECT, REJECT_PEN_RULES, "AGE_TOO_YOUNG" or "AGE_TOO_OLD"
 --- @return string|nil detail For the log
-local function checkAnimalBody(placeable, animal, readOnly)
+local function checkAnimalBody(placeable, animal)
     local spec = placeable ~= nil and placeable.spec_husbandryAnimals or nil
     if spec == nil then return true end
 
-    local admit, construction = RLPenConstruction.canAdmit(placeable, readOnly)
+    local admit, construction = RLPenConstruction.canAdmit(placeable)
     if not admit then return false, RLPenConstruction.REJECT, RLPenConstruction.detail(construction) end
 
     if animal == nil then return true end
-    if not readOnly then RLHusbandryProfiles.apply(placeable) end
+    if not RLHusbandryProfiles.reading() then RLHusbandryProfiles.apply(placeable) end
 
     local age = animal.age or 0
-    local rule = RLHusbandryProfiles.getRule(placeable, readOnly)
+    local rule = RLHusbandryProfiles.getRule(placeable)
 
     if rule == nil then
         -- The map's age window, which its move hook misses for RLRM moves (it reads the
@@ -460,21 +499,24 @@ local function checkAnimalBody(placeable, animal, readOnly)
     if rule.maxAge ~= nil and age > rule.maxAge then return false, reject, string.format("age %d > %d", age, rule.maxAge) end
 
     -- The map's buy check runs on the fields apply wrote; refuse here what it would refuse there.
-    local mapOk, code, value = RLHusbandryProfiles.checkMapFilter(placeable, animal.subTypeIndex, age)
+    -- A read before the profile was applied checks the fields apply would write.
+    local pending = nil
+    if spec.rlPenProfileApplied ~= true then pending = RLHusbandryProfiles.getProfileFilter(placeable, rule) end
+    local mapOk, code, value = RLHusbandryProfiles.checkMapFilter(placeable, animal.subTypeIndex, age, pending)
     if not mapOk then return false, reject, string.format("map filter %s %s", tostring(code), tostring(value)) end
 
     return true
 end
 
 function RLHusbandryProfiles.checkAnimal(placeable, animal)
-    return checkAnimalBody(placeable, animal, false)
+    return checkAnimalBody(placeable, animal)
 end
 
 -- Admission observes the current map filter; it does not apply a profile, cache
 -- bridge/config/construction lookups, or log during a read. The owning lifecycle
 -- remains responsible for applying profiles before ordinary game purchases.
 function RLHusbandryProfiles.checkAnimalReadOnly(placeable, animal)
-    return checkAnimalBody(placeable, animal, true)
+    return RLHusbandryProfiles.read(checkAnimalBody, placeable, animal)
 end
 
 

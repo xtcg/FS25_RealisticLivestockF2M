@@ -51,14 +51,14 @@ RLPenConstruction.started = false
 --- The bridge's construction entry for a placeable. Cached on the placeable (the config does not
 --- change in a session); the state itself is never cached.
 --- @return table|nil {filename, readyStates = {NAME = true}, names = {...}, source}
-function RLPenConstruction.getDefinition(placeable, readOnly)
+function RLPenConstruction.getDefinition(placeable)
     if placeable == nil then return nil end
     if placeable.rlPenConstruction ~= nil then return placeable.rlPenConstruction or nil end
 
     local definition = false
     local configFileName = placeable.configFileName ~= nil and placeable.configFileName:gsub("\\", "/"):lower() or nil
     if configFileName ~= nil then
-        for _, entry in ipairs(RLHusbandryProfiles.getConfig(readOnly).constructions or {}) do
+        for _, entry in ipairs(RLHusbandryProfiles.getConfig().constructions or {}) do
             if configFileName:sub(-#entry.filename) == entry.filename then
                 definition = entry
                 break
@@ -66,7 +66,8 @@ function RLPenConstruction.getDefinition(placeable, readOnly)
         end
     end
 
-    if not readOnly then placeable.rlPenConstruction = definition end
+    -- A read-only scope (RLHusbandryProfiles.read) writes nothing on the placeable.
+    if not RLHusbandryProfiles.reading() then placeable.rlPenConstruction = definition end
     return definition or nil
 end
 
@@ -102,7 +103,7 @@ end
 --- The construction status of a husbandry, read live. Read-only.
 --- @param placeable table
 --- @return table {status, admit, reason, present, stateName, stateIndex, numStates, readyStates, unfinishedInputs, source}
-function RLPenConstruction.getStatus(placeable, readOnly)
+function RLPenConstruction.getStatus(placeable)
     local spec = placeable ~= nil and placeable.spec_constructible or nil
     if spec == nil then
         return { status = RLPenConstruction.READY, admit = true, reason = "NO_CONSTRUCTION", present = false }
@@ -118,7 +119,7 @@ function RLPenConstruction.getStatus(placeable, readOnly)
         unfinishedInputs = unfinishedInputs(state),
     }
 
-    local definition = RLPenConstruction.getDefinition(placeable, readOnly)
+    local definition = RLPenConstruction.getDefinition(placeable)
     if definition ~= nil then
         result.readyStates = definition.names
         result.source = definition.source
@@ -176,10 +177,10 @@ end
 --- anything else.
 --- @return boolean
 --- @return table|nil status getStatus, when it is such a building
-function RLPenConstruction.canAdmit(object, readOnly)
+function RLPenConstruction.canAdmit(object)
     local building = RLPenConstruction.getBuilding(object)
     if building == nil then return true end
-    local status = RLPenConstruction.getStatus(building, readOnly)
+    local status = RLPenConstruction.getStatus(building)
     return status.admit, status
 end
 
