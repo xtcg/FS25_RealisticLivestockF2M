@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    Live value of cattle against standard genes (PRICE-BREED-03, RLBreedingValue). Live trade only:
+    what the dealer pays and asks, the herdsman's trades and the payments that are a share of an
+    animal's live value. Carcass yield, slaughter, contracts and meat prices do not read it.
+
+    Standard (every gene 1) is the base: the animal's curve price (Animal:getCurvePrice, the HARD
+    calibration) without the old fixed state parts, plus alphaNormal x the value of its present
+    state against an open, dry animal of its age (a calf on the way, the rest of this lactation).
+    Genes then move the price asymmetrically, from a reference cash flow over the animal's
+    remaining breeding life in game money (milk at the best station's annual mean price, calves at
+    the newborn curve price, offspring meat at the annual mean meat price):
+
+        own     = PV(own genes)   - PV(standard genes)            milk, calvings, staying in the herd
+        hered   = PV(+offspring)  - PV(own genes)                 future calves' inherited genes
+        female  = standard - alphaNormal x losses + alphaOwn x rhoOwn x own+
+                           + alphaHered x rhoHered x E(q) x hered+
+        sire    = curve price + alphaHered x rhoHered x E(q) x (own + hered)+   (no loss: a poor
+                  bull is a meat bull)
+        E(q)    = 0 up to excellenceThreshold, convex to 1 at excellenceTop (excellenceK), q the
+                  breed's weighted genetic score (dairy / beef terminal for bulls / beef maternal
+                  for cows, mixed by dairyShare)
+
+    A cow's meat gene is priced once, by what it adds to her slaughter value; a bull's stays in his
+    curve price (a meat animal). The price stays between the meat route (slaughter value; a bull's
+    curve price; a calf too young for the butcher the lower of her curve and her breed's bull
+    curve: fattening) and the standard plus the whole PV gain.
+    Castrated and infertile (fertility 0) animals are priced on the meat route only.
+
+    Every value here is a game-economy candidate, not fitted to market data. Each is looked up by
+    subType name, then breed within the animal type, then animal type, then this root element.
+    To change them without editing the mod, copy this file to
+    modSettings/FS25_RealisticLivestockRM/breedingValue.xml (it then replaces this file).
+
+    enabled              1 prices cattle so, 0 keeps the old curve price with the fixed bonuses.
+    alphaNormal          Share of standard production value paid, and of a shortfall taken off.
+    alphaOwn, rhoOwn     Share of the animal's own gain paid, and confidence in it.
+    alphaHered, rhoHered Share of the offspring gain paid, and confidence in it.
+    discountRate         Yearly discount of the cash flow.
+    annualExitRisk       Yearly chance a cow or bull leaves the herd at health gene 1;
+                         x exp(-healthExitSlope x (health - 1) / 0.75).
+    referenceOpenMonths  Months open after the wait at fertility 1. Other fertility scales it by
+                         the game's conception odds ((1 - f/2) / (f/2)), between minOpenMonths
+                         and maxOpenMonths.
+    postpartumWaitMonth  Months after calving before she can conceive (the game: 3).
+    femaleBirthSlots     Most future calvings counted.  breedingExitAgeMonth  No calving after.
+                         Dairy 4 / 96 (about 3.5 lactations), suckler 6 / 132 (a working life of
+                         7-8 years, some to 10-12), Highland 7 / 156.
+    dairyShare           Share of milk sold (1 dairy, 0 beef); also mixes the score weights.
+    milkNetShare         Share of the milk price a standard cow's milk nets after all its costs.
+    milkIncrementShare   Share of the milk price extra milk (productivity) nets after its feed.
+    offspringCapture     Share of an offspring's gain its parent's buyer can count on (0.7; suckler
+                         breeds 0.9: their calves are sold off the farm, weaned or as breeding stock).
+    sonSlaughterAgeMonth When a son's meat is sold.
+    sireFemalesPerSeason, sireSeasons, sireConception, sireExitAgeMonth  A bull's own herd: cows
+                         served a season (suckler bulls 30, a working average of yearling 20-25 and
+                         mature 40-50), seasons counted (4, a working life of 4-5), calves per cow
+                         served, last age.
+    sireCaptureDairy, sireCaptureBeef  Share of a bull's offspring gain his buyer counts on, mixed
+                         by dairyShare: dairy herds breed mostly by AI (bought semen of the same
+                         merit competes), suckler herds mostly by the bull (Teagasc: 23% of beef
+                         calves by AI).
+    sireQualificationAtBirth  Chance a bull calf proves out as a sire (0.35: pedigree herds sell a
+                         third or so of their bulls for breeding), rising to 1 at breeding age.
+    heiferQualificationAtBirth  The same for a heifer calf's premium (0.5: rearing losses and
+                         heifers that fail selection); a shortfall is taken in full.
+    sonSaleAgeMonth      When a cow's son is sold as a breeding bull (the seedstock channel: his
+                         expected sire premium, integrated over his gene spread).
+    cowMateGene          Merit of the bull or semen used on a cow her buyer pays for: 1.6, the
+                         best of ten premium-dealer bulls (1.57-1.60); her calves are compared with
+                         the same mate's calves of a standard cow.
+    cowCurveScale        Factor on a cow's curve price, eased in from cowCurveScaleFromMonth to
+                         cowCurveScaleFullMonth (calves keep theirs). Game prices are set to 1.2x
+                         the 2025 UK market while the game's slaughter value is about 0.9x real
+                         culls, so per breed a standard in-calf cow of 40 months is 1.91x her game
+                         cull value (dairy: 1.2 x fresh/in-milk about GBP 2,400 vs Holstein culls
+                         GBP 1,500-1,900) or 2.33x (suckler: 1.2 x the 2025 Drumdow in-calf average
+                         GBP 3,087 vs beef culls about GBP 1,700-1,900).
+    beefCalfSaleAgeMonth, beefCalfNetShare  A suckler calf is sold weaned at this age, at this
+                         share of its curve price (its and its dam's costs to weaning).
+    maternalMilkEffect   A suckler calf's weaning value per unit of its dam's productivity (milk).
+    fertilityExitShare, fertilityExitSlope  Share of exits that are failures to get in calf (the
+                         main involuntary cull reason) and how the fertility gene moves them.
+    exitReplacementDairy, exitReplacementBeef  An early exit costs a replacement's premium over
+                         the cull value, as a share of a typical cull value (0.5 / 0.75, as above).
+    w*                   Score weights (dairy, beef terminal sire, beef maternal cow).
+-->
+<breedingValue enabled="1"
+               alphaNormal="0.60" alphaOwn="0.35" alphaHered="0.65" rhoOwn="0.85" rhoHered="0.85"
+               excellenceThreshold="1.10" excellenceTop="1.75" excellenceK="1"
+               discountRate="0.10" annualExitRisk="0.14" healthExitSlope="0.35"
+               referenceOpenMonths="1.5" minOpenMonths="0.5" maxOpenMonths="8" postpartumWaitMonth="3"
+               femaleBirthSlots="4" breedingExitAgeMonth="96" dairyShare="0.5"
+               milkNetShare="0.25" milkIncrementShare="0.40"
+               offspringCapture="0.70" sonSlaughterAgeMonth="20"
+               sireFemalesPerSeason="24" sireSeasons="4" sireConception="0.90" sireExitAgeMonth="132"
+               sireCaptureDairy="0.20" sireCaptureBeef="0.52" sireQualificationAtBirth="0.35" heiferQualificationAtBirth="0.50" sonSaleAgeMonth="12"
+               cowMateGene="1.60" cowCurveScale="1" cowCurveScaleFromMonth="6" cowCurveScaleFullMonth="12"
+               beefCalfSaleAgeMonth="8" beefCalfNetShare="0.55" maternalMilkEffect="0.10"
+               fertilityExitShare="0.35" fertilityExitSlope="0.60" exitReplacementDairy="0.50" exitReplacementBeef="0.75"
+               wDairyProductivity="0.40" wDairyFertility="0.30" wDairyHealth="0.30"
+               wTerminalQuality="0.70" wTerminalFertility="0.20" wTerminalHealth="0.10"
+               wMaternalQuality="0.45" wMaternalFertility="0.35" wMaternalHealth="0.20">
+    <!-- Management candidates per breed from breeding-value-profiles-v2 (map aliases repeat their breed). -->
+    <animalType name="COW">
+        <breed name="HOLSTEIN"              dairyShare="1" femaleBirthSlots="4" breedingExitAgeMonth="96" annualExitRisk="0.18" sireFemalesPerSeason="24" cowCurveScale="1.12"/>
+        <breed name="REDHOLSTEIN_PACK"      dairyShare="1" femaleBirthSlots="4" breedingExitAgeMonth="96" annualExitRisk="0.18" sireFemalesPerSeason="24" cowCurveScale="1.32"/>
+        <breed name="SWISS_BROWN"           dairyShare="0.75" femaleBirthSlots="4" breedingExitAgeMonth="96" annualExitRisk="0.14" sireFemalesPerSeason="24" cowCurveScale="1.10"/>
+        <breed name="AYRSHIRE_PACK"         dairyShare="1" femaleBirthSlots="4" breedingExitAgeMonth="96" annualExitRisk="0.18" sireFemalesPerSeason="24" cowCurveScale="1.48"/>
+        <breed name="KERRY_PACK"            dairyShare="1" femaleBirthSlots="3" breedingExitAgeMonth="120" annualExitRisk="0.18" sireFemalesPerSeason="24" cowCurveScale="1.49"/>
+        <breed name="SHORTHORNMILKERS_PACK" dairyShare="1" femaleBirthSlots="4" breedingExitAgeMonth="96" annualExitRisk="0.18" sireFemalesPerSeason="24" cowCurveScale="1.31"/>
+        <breed name="JERSEY_PACK"           dairyShare="1" femaleBirthSlots="4" breedingExitAgeMonth="96" annualExitRisk="0.18" sireFemalesPerSeason="24" cowCurveScale="1.48"/>
+        <breed name="JERSEY"                dairyShare="1" femaleBirthSlots="4" breedingExitAgeMonth="96" annualExitRisk="0.18" sireFemalesPerSeason="24" cowCurveScale="1.48"/>
+        <breed name="GUERNSEY_PACK"         dairyShare="1" femaleBirthSlots="4" breedingExitAgeMonth="96" annualExitRisk="0.18" sireFemalesPerSeason="24" cowCurveScale="1.45"/>
+        <breed name="MONTBELIARDE"          dairyShare="0.7" femaleBirthSlots="4" breedingExitAgeMonth="96" annualExitRisk="0.14" sireFemalesPerSeason="25"/>
+        <breed name="VOSGIENNE"             dairyShare="0.5" femaleBirthSlots="4" breedingExitAgeMonth="96" annualExitRisk="0.14" sireFemalesPerSeason="22"/>
+        <breed name="WATER_BUFFALO"         dairyShare="0.75" femaleBirthSlots="3" breedingExitAgeMonth="120" annualExitRisk="0.14" sireFemalesPerSeason="20"/>
+        <breed name="ANGUS"                 dairyShare="0" femaleBirthSlots="6" breedingExitAgeMonth="132" annualExitRisk="0.1" sireFemalesPerSeason="30" offspringCapture="0.90" cowCurveScale="0.97"/>
+        <breed name="REDANGUS_PACK"         dairyShare="0" femaleBirthSlots="6" breedingExitAgeMonth="132" annualExitRisk="0.1" sireFemalesPerSeason="30" offspringCapture="0.90" cowCurveScale="1.04"/>
+        <breed name="LIMOUSIN"              dairyShare="0" femaleBirthSlots="6" breedingExitAgeMonth="132" annualExitRisk="0.1" sireFemalesPerSeason="30" offspringCapture="0.90" cowCurveScale="0.98"/>
+        <breed name="HEREFORD"              dairyShare="0" femaleBirthSlots="6" breedingExitAgeMonth="132" annualExitRisk="0.1" sireFemalesPerSeason="30" offspringCapture="0.90" cowCurveScale="1.23"/>
+        <breed name="CHAROLAIS_PACK"        dairyShare="0" femaleBirthSlots="6" breedingExitAgeMonth="132" annualExitRisk="0.1" sireFemalesPerSeason="30" offspringCapture="0.90" cowCurveScale="0.93"/>
+        <breed name="CHAROLAISE"            dairyShare="0" femaleBirthSlots="6" breedingExitAgeMonth="132" annualExitRisk="0.1" sireFemalesPerSeason="30" offspringCapture="0.90" cowCurveScale="0.93"/>
+        <breed name="SIMMENTAL_PACK"        dairyShare="0" femaleBirthSlots="6" breedingExitAgeMonth="132" annualExitRisk="0.1" sireFemalesPerSeason="30" offspringCapture="0.90" cowCurveScale="1.12"/>
+        <breed name="SIMMENTAL"             dairyShare="0" femaleBirthSlots="6" breedingExitAgeMonth="132" annualExitRisk="0.1" sireFemalesPerSeason="30" offspringCapture="0.90" cowCurveScale="1.12"/>
+        <breed name="SHORTHORN_PACK"        dairyShare="0" femaleBirthSlots="6" breedingExitAgeMonth="132" annualExitRisk="0.1" sireFemalesPerSeason="30" offspringCapture="0.90" cowCurveScale="1.21"/>
+        <breed name="BRITISHBLUE_PACK"      dairyShare="0" femaleBirthSlots="6" breedingExitAgeMonth="132" annualExitRisk="0.1" sireFemalesPerSeason="30" offspringCapture="0.90" cowCurveScale="0.92"/>
+        <breed name="IRISHMOILED_PACK"      dairyShare="0" femaleBirthSlots="6" breedingExitAgeMonth="132" annualExitRisk="0.1" sireFemalesPerSeason="30" offspringCapture="0.90" cowCurveScale="1.24"/>
+        <breed name="BELTEDGALLOWAY_PACK"   dairyShare="0" femaleBirthSlots="6" breedingExitAgeMonth="132" annualExitRisk="0.1" sireFemalesPerSeason="30" offspringCapture="0.90" cowCurveScale="1.19"/>
+        <breed name="HIGHLAND"              dairyShare="0" femaleBirthSlots="7" breedingExitAgeMonth="156" annualExitRisk="0.1" sireFemalesPerSeason="25" offspringCapture="0.90" cowCurveScale="0.93"/>
+    </animalType>
+</breedingValue>

@@ -1614,6 +1614,43 @@ function Animal:changeDirt(delta) AnimalHorse.changeDirt(self, delta) end
 
 function Animal:getSellPrice()
     local subType = self:getSubType()
+
+    -- Cattle are priced by RLBreedingValue (PRICE-BREED-03): the curve price below with genes at
+    -- the standard as the base, an asymmetric premium for genes that pay over the animal's
+    -- production and breeding life, and the meat route as the floor. Live trade only: the meat an
+    -- animal gives at slaughter (carcass yield) does not read this price.
+    if RLBreedingValue ~= nil and RLBreedingValue.covers(self, subType) then
+        return RLBreedingValue.getQuote(self, subType).price
+    end
+
+    local price = self:getCurvePrice(subType, true)
+    if self:isHorse() then return price end
+
+    -- Never below what a slaughterhouse pays for its meat (RLMeatValue); a disease lowers both.
+    local slaughterValue = RLMeatValue ~= nil and RLMeatValue.getSlaughterValue(self) or 0
+    if slaughterValue > price then
+        for _, disease in pairs(self.diseases) do slaughterValue = disease:modifyValue(slaughterValue) end
+        price = math.max(price, slaughterValue)
+    end
+
+    return price
+end
+
+
+--- The curve price of the animal: its subtype's price curve for its age, moved by its weight against
+--- its line, its meat gene, health and body condition, disease and (a male meat animal) the meat
+--- market. withStateBonuses adds the old fixed parts: +15% castrated, +15% lactating, +25% pregnant
+--- (RLBreedingValue values those states itself and passes false). subType and gender may name
+--- another subtype to price the animal on (a heifer on her breed's bull curve: the fattening route).
+--- quality replaces the meat gene (RLBreedingValue prices a cow's meat gene through her meat value).
+--- @param subType table|nil Defaults to the animal's own
+--- @param withStateBonuses boolean
+--- @param gender string|nil Defaults to the animal's own
+--- @param quality number|nil Defaults to the animal's meat gene
+--- @return number
+function Animal:getCurvePrice(subType, withStateBonuses, gender, quality)
+    subType = subType or self:getSubType()
+    gender = gender or self.gender
     -- Every animal's price, the dealer's too, follows the difficulty like meat and milk (RLLivestockPrices).
     local sellPrice = subType.sellPrice:get(self.age < 0 and 0 or self.age) * RLLivestockPrices.getMultiplier()
 
@@ -1632,7 +1669,7 @@ function Animal:getSellPrice()
     if growthPriced then weight, ownTarget = RLGrowth.getPriceWeight(self, subType) end
     if priceTarget ~= nil then
         if not growthPriced then
-            weight = RLBreedTraits.toPriceWeight(subType, self.gender, self.targetWeight, self.age, self.genetics.metabolism, weight)
+            weight = RLBreedTraits.toPriceWeight(subType, gender, self.targetWeight, self.age, self.genetics.metabolism, weight)
         end
         matureAge = priceMatureAge
         baseTarget = priceTarget
@@ -1644,13 +1681,13 @@ function Animal:getSellPrice()
 
     local weightFactor = 1 + ((weight - targetWeightForAge) / targetWeightForAge)
 
-    local meatFactor = self.genetics.quality
+    local meatFactor = quality or self.genetics.quality
 
     sellPrice = sellPrice + (sellPrice * 0.25 * (meatFactor - 1))
 
     sellPrice = math.max(sellPrice + (((sellPrice * 0.6) / baseTarget) * weight * (-1 + meatFactor)), 0.5)
 
-    if self.isCastrated then sellPrice = sellPrice + sellPrice * 0.15 end
+    if withStateBonuses and self.isCastrated then sellPrice = sellPrice + sellPrice * 0.15 end
 
     for _, disease in pairs(self.diseases) do sellPrice = disease:modifyValue(sellPrice) end
 
@@ -1663,19 +1700,12 @@ function Animal:getSellPrice()
     -- cut as meat. The lactation and pregnancy parts are not touched.
     local base = sellPrice * 0.6
     local body = sellPrice * 0.4 * weightFactor * (0.75 * self:getHealthFactor()) * RLBodyCondition.getMarketFactor(self)
-    local lactation = sellPrice * (self.isLactating and 0.15 or 0)
-    local pregnancy = sellPrice * (self.isPregnant and 0.25 or 0)
+    local lactation = sellPrice * ((withStateBonuses and self.isLactating) and 0.15 or 0)
+    local pregnancy = sellPrice * ((withStateBonuses and self.isPregnant) and 0.25 or 0)
     local price = math.max(base + body + lactation + pregnancy, sellPrice * 0.05)
 
     -- A meat animal's price follows its meat market through the seasons (RLMeatValue.getMarketFactor).
-    if RLMeatValue ~= nil then price = price * RLMeatValue.getMarketFactor(subType, self.gender) end
-
-    -- Never below what a slaughterhouse pays for its meat (RLMeatValue); a disease lowers both.
-    local slaughterValue = RLMeatValue ~= nil and RLMeatValue.getSlaughterValue(self) or 0
-    if slaughterValue > price then
-        for _, disease in pairs(self.diseases) do slaughterValue = disease:modifyValue(slaughterValue) end
-        price = math.max(price, slaughterValue)
-    end
+    if RLMeatValue ~= nil then price = price * RLMeatValue.getMarketFactor(subType, gender) end
 
     return price
 end
