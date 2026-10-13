@@ -82,9 +82,9 @@ function C.receivePurchase(client,value)
     local pending=client.pending
     if not pending or reply.requestId~=pending.request.requestId then return nil,"STALE_REPLY" end
     if pending.phase~="PURCHASE" then return nil,"WRONG_PHASE" end
-    local ms; ms,why=now(client)
-    if not ms then return refused(client,pending,why) end
-    if ms>=pending.deadline then return refused(client,pending,"PURCHASE_TIMEOUT") end
+    -- A reply the server really sent is the outcome, however late: only silence is uncertain.
+    now(client)
+    client.unresolved=nil
     return finish(client,pending,reply)
 end
 function C.cancel(client)
@@ -96,7 +96,31 @@ function C.tick(client)
     local pending=client.pending; if not pending then return false end
     local ms,why=now(client); if not ms then return refused(client,pending,why) end
     if ms>=pending.deadline then
+        if pending.phase=="PURCHASE" then
+            -- Dispatched and unanswered: the server may have bought. Never show a refusal; keep the
+            -- request for a status query (same order id, never a new purchase).
+            client.unresolved={requestId=pending.request.requestId}
+            return finish(client,pending,{requestId=pending.request.requestId,status="UNCERTAIN",reason="PURCHASE_TIMEOUT"})
+        end
         return refused(client,pending,pending.phase=="CONFIRM" and "QUOTE_EXPIRED" or pending.phase.."_TIMEOUT")
     end
     return false
+end
+-- The order-status question for an unanswered purchase, or nil.
+function C.statusQuery(client)
+    if client.unresolved==nil then return nil end
+    return {orderId=client.unresolved.requestId}
+end
+-- The server's answer to that question. COMMITTED / ROLLED_BACK settle it; PENDING / UNCERTAIN keep it open.
+function C.receiveOrderStatus(client,reply)
+    local un=client.unresolved
+    if un==nil then return nil,"NOTHING_UNRESOLVED" end
+    if type(reply)~="table" then return nil,"MALFORMED_ORDER_STATUS" end
+    if reply.status=="COMMITTED" or reply.status=="ROLLED_BACK" then
+        client.unresolved=nil
+        client.lastResult={requestId=un.requestId,status=reply.status,amount=reply.amount,transferIds=copy(reply.transferIds)}
+        if type(client.adapter.complete)=="function" then pcall(client.adapter.complete,copy(client.lastResult)) end
+        return copy(client.lastResult)
+    end
+    return {requestId=un.requestId,status=reply.status or "UNCERTAIN"}
 end

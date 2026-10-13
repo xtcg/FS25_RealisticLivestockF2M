@@ -109,9 +109,52 @@ function A.assemble(deps)
             return RLDealerJournal.checkpoint(journal, deps.directory, payload.purchase, deps.generation(), deps.storage, payload.recovery)
         end,
     }
+    -- Singleplayer console route: the host plays without a connection object. Only offered when the game is not
+    -- multiplayer; the principal is the host's farm, the destination must be that farm's own.
+    local localAuthority
+    if deps.localFarmId ~= nil then
+        localAuthority = function(reference)
+            local object, failure = RLDealerDestination.resolveWire(reference)
+            if not object then return nil, failure end
+            local identity
+            identity, failure = RLDealerDestination.persistedIdentity(object)
+            if not identity then return nil, failure end
+            local farmId = deps.localFarmId()
+            if farmId == nil or identity.ownerFarmId ~= farmId then return nil, "DESTINATION_NOT_OWNED" end
+            return { principal = "farm:" .. tostring(farmId) .. ":local", farmId = farmId, destination = object, identity = identity }
+        end
+        purchaseContext.localAuthority = localAuthority
+    end
     local adapter
     adapter, why = RLDealerPurchaseAdapter.new(purchaseContext)
     if not adapter then return nil, "ADAPTER:" .. tostring(why) end
-    return { mission = mission, farmManager = farmManager, stock = stock, quotes = quotes, quoteAdapter = quoteAdapter,
+    -- Destinations for a selection: the owner's pens and trailers, each with free places and the capacity verdict.
+    local function destinations(connection, saleIds)
+        local principal, farmId
+        if connection == nil and deps.localFarmId ~= nil then principal, farmId = "local", deps.localFarmId()
+        else principal, farmId = RLDealerDestination.principal(connection, mission, farmManager) end
+        if not principal then return { status = "REJECTED", reason = "NO_PLAYER_FARM" } end
+        local listings = {}
+        for _, id in ipairs(saleIds) do
+            local row = RLDealerListingRegistry.get(stock.listings, id)
+            if row == nil or row.state ~= "LISTED" then return { status = "REJECTED", reason = "SALE_NOT_LISTED" } end
+            listings[#listings + 1] = row
+        end
+        local out = {}
+        for _, owner in ipairs(deps.allOwners()) do
+            if owner:getOwnerFarmId() == farmId and #out < 64 then
+                local reference = RLDealerDestination.wireReference(owner)
+                if reference ~= nil then
+                    local free = (owner.spec_husbandryAnimals and owner.spec_husbandryAnimals.maxNumAnimals or 0) - (owner:getNumOfAnimals() or 0)
+                    local usable, reason = capacity(owner, listings, { currentClock = stock.farm.clock.months })
+                    out[#out + 1] = { ref = reference, name = owner.getName and owner:getName() or reference, freeSlots = math.max(0, free),
+                        usable = usable == true, reason = usable ~= true and tostring(reason) or nil }
+                end
+            end
+        end
+        return { status = "OK", destinations = out }
+    end
+    return { mission = mission, farmManager = farmManager, stock = stock, quotes = quotes, epoch = deps.epoch,
+        refPrice = priceOf, destinations = destinations, localAuthority = localAuthority, quoteAdapter = quoteAdapter,
         adapter = adapter, purchaseContext = purchaseContext, journal = journal, capacity = capacity }
 end

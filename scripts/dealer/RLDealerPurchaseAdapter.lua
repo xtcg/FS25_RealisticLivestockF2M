@@ -26,6 +26,14 @@ function A.new(ctx)
         return nil,reason
     end
     local function authority(principal,reference)
+        -- Singleplayer console route (ctx.localAuthority is only ever set there): the host's own farm,
+        -- no connection object. Everything after this point is the same guarded path.
+        if ctx.useLocal==true and type(ctx.localAuthority)=="function" then
+            local resolved,why=ctx.localAuthority(reference)
+            if not resolved then return nil,why end
+            if resolved.principal~=principal then return nil,"PRINCIPAL_CHANGED" end
+            return resolved
+        end
         local resolved,why=RLDealerDestination.authorize(ctx.connection,reference,ctx.mission,ctx.farmManager)
         if not resolved then return nil,why end
         if resolved.principal~=principal then return nil,"PRINCIPAL_CHANGED" end

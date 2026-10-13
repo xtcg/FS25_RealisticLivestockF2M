@@ -1037,5 +1037,15 @@
         <text name="rl_feed_previewNoAnimals" text="Keine Tiere in diesem Stall"/>
         <text name="rl_feed_previewNoFeed" text="Kein nutzbares Futter im Trog"/>
         <text name="rl_feed_apply" text="Übernehmen"/>
+        <text name="rl_dealer_v2_stale" text="Das Angebot hat sich geändert. Bitte neu auswählen."/>
+        <text name="rl_dealer_v2_quote_expired" text="Das Angebot ist abgelaufen. Bitte ein neues anfordern und bestätigen."/>
+        <text name="rl_dealer_v2_capacity" text="Das Ziel kann diese Tiere nicht aufnehmen."/>
+        <text name="rl_dealer_v2_no_permission" text="Du darfst dieses Ziel nicht verwenden."/>
+        <text name="rl_dealer_v2_funds" text="Nicht genug Geld für diese Bestellung."/>
+        <text name="rl_dealer_v2_updating" text="Der Bestand wird aktualisiert. Bitte gleich nochmal versuchen."/>
+        <text name="rl_dealer_v2_checking" text="Das Ergebnis dieser Bestellung wird geprüft. Handel pausiert bis dahin."/>
+        <text name="rl_dealer_v2_closed" text="Der neue Bestand des Händlers ist noch nicht verfügbar."/>
+        <text name="rl_dealer_v2_limit" text="Pro Bestellung sind höchstens 100 Tiere möglich."/>
+        <text name="rl_dealer_v2_generic" text="Die Bestellung konnte nicht abgeschlossen werden."/>
     </texts>
 </l10n>

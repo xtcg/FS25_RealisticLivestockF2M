@@ -61,7 +61,17 @@ C.receiveQuote(client,quoted(id))
 check("dealer client: quote response at timeout cannot open confirmation",#w.confirmations==0 and w.completions[1].reason=="QUOTE_TIMEOUT")
 client,a,w=fixture(); id=C.begin(client,selection()); C.receiveQuote(client,quoted(id)); w.confirmations[1].respond(true); w.ms=client.pending.deadline
 C.receivePurchase(client,bought(id))
-check("dealer client: purchase response at timeout reports timeout once",not client.pending and w.completions[1].reason=="PURCHASE_TIMEOUT")
+check("dealer client: a real purchase reply is the outcome even after the deadline",not client.pending and #w.completions==1 and w.completions[1].status~="REJECTED")
+client,a,w=fixture(); id=C.begin(client,selection()); w.ms=9; C.tick(client)
+client,a,w=fixture(); id=C.begin(client,selection()); C.receiveQuote(client,quoted(id)); w.confirmations[1].respond(true); w.ms=client.pending.deadline; C.tick(client)
+check("dealer client: an unanswered purchase is UNCERTAIN, never a refusal, and keeps the order id for a status query",
+    not client.pending and w.completions[1].status=="UNCERTAIN" and w.completions[1].reason=="PURCHASE_TIMEOUT"
+    and C.statusQuery(client).orderId==id and #w.purchases==1)
+local answer=C.receiveOrderStatus(client,{status="PENDING"})
+check("dealer client: PENDING keeps the query open; the same id is asked again",answer.status=="PENDING" and C.statusQuery(client).orderId==id)
+answer=C.receiveOrderStatus(client,{status="COMMITTED",amount=210,transferIds={"t1"}})
+check("dealer client: a COMMITTED status settles it once and clears the query",answer.status=="COMMITTED" and C.statusQuery(client)==nil
+    and w.completions[2].status=="COMMITTED" and #w.purchases==1 and select(2,C.receiveOrderStatus(client,{status="COMMITTED"}))=="NOTHING_UNRESOLVED")
 client,a,w=fixture(); id=C.begin(client,selection()); w.ms=9; C.tick(client)
 check("dealer client: monotonic regression closes pending safely",not client.pending and w.completions[1].reason=="BAD_LOCAL_CLOCK")
 client,a,w=fixture(); a.sendQuote=function() return false end

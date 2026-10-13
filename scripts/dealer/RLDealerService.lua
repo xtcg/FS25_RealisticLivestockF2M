@@ -76,6 +76,77 @@ function S.new(parts)
         return RLDealerPurchase.lookup(parts.stock.purchase, requestId, principal)
     end
 
+    -- Browsing: pages, detail, destinations, order status. Read only; answers from the last tick.
+    function self.browse(connection, kind, payload)
+        local P = RLDealerCatalogProtocol
+        local ok, reason = ready()
+        if not ok then return { status = "REJECTED", reason = reason } end
+        local principal, why = RLDealerDestination.principal(connection, parts.mission, parts.farmManager)
+        if not principal then return { status = "REJECTED", reason = why or "NO_PLAYER_FARM" } end
+        local deps = { epoch = parts.epoch, refPrice = parts.refPrice }
+        if kind == P.PAGE then
+            local page, failure = RLDealerCatalog.page(parts.stock, payload, deps)
+            if page == nil then return { status = "REJECTED", reason = failure } end
+            if page.status == "STALE_SNAPSHOT" then page.rows = nil end
+            return page
+        elseif kind == P.DETAIL then
+            return RLDealerCatalog.detail(parts.stock, payload.saleId, payload.revision, deps)
+        elseif kind == P.DESTINATIONS then
+            if parts.destinations == nil then return { status = "REJECTED", reason = "DESTINATIONS_UNAVAILABLE" } end
+            return parts.destinations(connection, payload.saleIds)
+        elseif kind == P.ORDER then
+            local result, failure = RLDealerPurchase.lookup(parts.stock.purchase, payload.orderId, principal)
+            if result == nil then return { status = failure == "UNKNOWN_REQUEST" and "UNKNOWN_REQUEST" or "REJECTED", reason = failure } end
+            return { status = result.status, amount = result.amount, transferIds = result.transferIds }
+        end
+        return { status = "REJECTED", reason = "UNKNOWN_CATALOG_MESSAGE" }
+    end
+
+    -- Singleplayer console route (no connection object); present only when the assembly was given a local farm.
+    local function localPrincipal()
+        if parts.localAuthority == nil then return nil, "LOCAL_ROUTE_UNAVAILABLE" end
+        local farmId = parts.localFarmId and parts.localFarmId()
+        if farmId == nil then return nil, "NO_PLAYER_FARM" end
+        return "farm:" .. tostring(farmId) .. ":local"
+    end
+    function self.localQuote(request)
+        local ok, reason = ready()
+        if not ok then return nil, reason end
+        local principal, why = localPrincipal()
+        if not principal then return nil, why end
+        return RLDealerQuote.issue(parts.quotes, { destination = request.destination, items = request.items }, principal, parts.quoteAdapter)
+    end
+    function self.localExecute(request)
+        local ok, reason = ready()
+        if not ok then return nil, reason end
+        local principal, why = localPrincipal()
+        if not principal then return nil, why end
+        local previous = parts.purchaseContext.useLocal
+        parts.purchaseContext.useLocal, parts.purchaseContext.connection = true, nil
+        local ran, result, failure = pcall(RLDealerPurchase.execute, parts.stock.purchase, request, principal, parts.adapter)
+        parts.purchaseContext.useLocal = previous
+        if not ran then return nil, "SERVICE_ERROR" end
+        return result, failure
+    end
+    function self.localLookup(requestId)
+        local principal, why = localPrincipal()
+        if not principal then return nil, why end
+        return RLDealerPurchase.lookup(parts.stock.purchase, requestId, principal)
+    end
+    function self.localBrowse(kind, payload)
+        local P = RLDealerCatalogProtocol
+        local ok, reason = ready()
+        if not ok then return { status = "REJECTED", reason = reason } end
+        local deps = { epoch = parts.epoch, refPrice = parts.refPrice }
+        if kind == P.PAGE then
+            local page, failure = RLDealerCatalog.page(parts.stock, payload, deps)
+            if page == nil then return { status = "REJECTED", reason = failure } end
+            return page
+        elseif kind == P.DETAIL then return RLDealerCatalog.detail(parts.stock, payload.saleId, payload.revision, deps)
+        elseif kind == P.DESTINATIONS then return parts.destinations(nil, payload.saleIds) end
+        return { status = "REJECTED", reason = "UNKNOWN_CATALOG_MESSAGE" }
+    end
+
     function self.tick(segments, world)
         if parts.scheduler == nil then return nil, "NO_SCHEDULER" end
         local ok, reason = ready()

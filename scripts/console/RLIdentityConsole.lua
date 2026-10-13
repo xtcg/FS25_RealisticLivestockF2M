@@ -132,3 +132,109 @@ function C.dealerDisable()
     RLDealerRuntime.disable()
     return say("RLDEALERV2: disabled; stock, ledger and orders stay as they are")
 end
+
+
+-- ---- dealer v2 singleplayer test route (no GUI yet): list, detail, pens, quote, confirm, order ----------
+local function service()
+    local s = RLDealerRuntime.service
+    if s == nil or s.localBrowse == nil then return nil, "RLDEALERV2: not enabled (rlDealerV2Enable)" end
+    return s
+end
+
+function C.dealerList(cursor, sort)
+    local s, why = service(); if not s then return why end
+    local P = RLDealerCatalogProtocol
+    local page = s.localBrowse(P.PAGE, { cursor = tonumber(cursor) or 0, pageSize = 20, sort = sort or "price" })
+    if page.status ~= "OK" then return say("RLDEALERV2 LIST " .. tostring(page.status) .. " " .. tostring(page.reason)) end
+    for _, r in ipairs(page.rows) do
+        say(string.format("RLDEALERV2 ROW sale=%s rev=%d %s %s %s age=%dm w=%.1fkg parity=%d%s price=%.2f", r.saleId, r.revision, r.breed, r.gender, r.purpose,
+            r.ageMonths, r.weightKg, r.parity, r.pregnant and " PREGNANT" or "", r.price))
+    end
+    return say(string.format("RLDEALERV2 LIST total=%d shown=%d next=%s snapshot=%s", page.total, #page.rows, tostring(page.nextCursor), tostring(page.snapshotSequence)))
+end
+
+function C.dealerDetail(saleId)
+    local s, why = service(); if not s then return why end
+    local P = RLDealerCatalogProtocol
+    local page = s.localBrowse(P.PAGE, { pageSize = 50 })
+    local revision
+    for _, r in ipairs(page.rows or {}) do if r.saleId == saleId then revision = r.revision end end
+    if revision == nil then return say("RLDEALERV2 DETAIL not listed: " .. tostring(saleId)) end
+    local d = s.localBrowse(P.DETAIL, { saleId = saleId, revision = revision })
+    return say("RLDEALERV2 DETAIL " .. RLTradePersistence.canonical(d))
+end
+
+function C.dealerPens(...)
+    local s, why = service(); if not s then return why end
+    local ids = { ... }
+    if #ids == 0 then return "usage: rlDealerV2Pens <saleId> [saleId...]" end
+    local r = s.localBrowse(RLDealerCatalogProtocol.DESTINATIONS, { saleIds = ids })
+    if r.status ~= "OK" then return say("RLDEALERV2 PENS " .. tostring(r.status) .. " " .. tostring(r.reason)) end
+    for _, d in ipairs(r.destinations) do
+        say(string.format("RLDEALERV2 PEN ref=%s name=%s free=%d usable=%s %s", d.ref, tostring(d.name), d.freeSlots, tostring(d.usable), d.reason or ""))
+    end
+    return "RLDEALERV2 PENS " .. #r.destinations
+end
+
+function C.dealerQuote(destination, ...)
+    local s, why = service(); if not s then return why end
+    local ids = { ... }
+    if destination == nil or #ids == 0 then return "usage: rlDealerV2Quote <penRef> <saleId> [saleId...]" end
+    local page = s.localBrowse(RLDealerCatalogProtocol.PAGE, { pageSize = 50 })
+    local revisions = {}
+    for _, r in ipairs(page.rows or {}) do revisions[r.saleId] = r.revision end
+    local items = {}
+    for _, id in ipairs(ids) do
+        if revisions[id] == nil then return say("RLDEALERV2 QUOTE not listed: " .. id) end
+        items[#items + 1] = { saleId = id, revision = revisions[id] }
+    end
+    local quote, failure = s.localQuote({ destination = destination, items = items })
+    if not quote then return say("RLDEALERV2 QUOTE refused: " .. tostring(failure) .. " (" .. RLDealerMessages.text(failure) .. ")") end
+    C.lastQuote = { destination = destination, items = items, credential = quote.credential }
+    return say(string.format("RLDEALERV2 QUOTE animals=%d subtotal=%.2f transport=%.2f total=%.2f valid=%dms - confirm with rlDealerV2Confirm", #items,
+        quote.subtotal, quote.transportFee, quote.amount, quote.ttlMs or 0))
+end
+
+function C.dealerConfirm()
+    local s, why = service(); if not s then return why end
+    local q = C.lastQuote
+    if q == nil then return "RLDEALERV2: no quote; use rlDealerV2Quote first" end
+    C.orderSeq = (C.orderSeq or 0) + 1
+    local requestId = string.format("console-%s-%d", tostring(RLAnimalIdentityCheckpoint.lineage or "x"), C.orderSeq)
+    local result, failure = s.localExecute({ requestId = requestId, destination = q.destination, items = q.items, quoteCredential = q.credential })
+    C.lastQuote = nil
+    C.lastOrder = requestId
+    if not result then return say("RLDEALERV2 ORDER " .. requestId .. " refused: " .. tostring(failure) .. " (" .. RLDealerMessages.text(failure) .. ")") end
+    return say(string.format("RLDEALERV2 ORDER %s %s amount=%.2f", requestId, result.status, result.amount or 0))
+end
+
+function C.dealerOrder(requestId)
+    local s, why = service(); if not s then return why end
+    requestId = requestId or C.lastOrder
+    if requestId == nil then return "usage: rlDealerV2Order <orderId>" end
+    local result, failure = s.localLookup(requestId)
+    if not result then return say("RLDEALERV2 ORDER " .. requestId .. " " .. tostring(failure)) end
+    return say(string.format("RLDEALERV2 ORDER %s %s amount=%s", requestId, result.status, tostring(result.amount)))
+end
+
+
+-- ---- evidence for the test cards: one line per live key and per ledger key, and the money of the host farm ----
+function C.dump()
+    local R = RLAnimalIdentityRuntime
+    if not R.server then return "RLIDENTITY: server only" end
+    local scan = RLAnimalIdentityWorld.scan(g_currentMission)
+    for _, r in ipairs(scan.records) do
+        say(string.format("RLIDENTITY LIVE %s %s %s %s", tostring(r.farmId), tostring(r.uniqueId), tostring(r.country), tostring(r.where)))
+    end
+    local ledgerKeys = 0
+    if R.ledger ~= nil then
+        for key, rec in pairs(R.ledger.keys) do
+            ledgerKeys = ledgerKeys + 1
+            say(string.format("RLIDENTITY LEDGER %s %s", key, rec.state))
+        end
+    end
+    local farm = g_farmManager:getFarmById(g_currentMission:getFarmId())
+    say(string.format("RLIDENTITY DUMP live=%d ledger=%d mode=%s generation=%s money=%.2f", #scan.records, ledgerKeys, tostring(R.mode),
+        tostring(RLAnimalIdentityCheckpoint.generation), farm ~= nil and farm.money or -1))
+    return string.format("%d live keys, %d ledger keys; see the log", #scan.records, ledgerKeys)
+end

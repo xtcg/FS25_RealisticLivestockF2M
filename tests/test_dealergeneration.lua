@@ -277,3 +277,167 @@ do
     broken.animal.health = 10
     check("T3 binding: a source that fell ill below the minimum health is not eligible", select(1, eligible(broken, row9, {})) == false)
 end
+
+-- ---- T5: catalog, protocol, selection, messages -----------------------------------------------------
+loadMod("scripts/dealer/RLDealerCatalog.lua")
+loadMod("scripts/dealer/RLDealerCatalogProtocol.lua")
+loadMod("scripts/dealer/RLDealerSelection.lua")
+loadMod("scripts/dealer/RLDealerMessages.lua")
+loadMod("scripts/dealer/RLDealerService.lua")
+do
+    local Cat, CP, Sel = RLDealerCatalog, RLDealerCatalogProtocol, RLDealerSelection
+    local s, ctx, w = setup()
+    local listedNow = 0
+    for _ = 1, 40 do
+        if G.fillPlace(s, w, ctx) then listedNow = listedNow + 1 end
+        if listedNow >= 12 then break end
+    end
+    local priceOf = function(animal) return 100 + math.floor(animal.weight) % 7 * 10 end   -- many equal prices on purpose
+    local deps = { epoch = "epoch-1", refPrice = priceOf }
+    local function snapshotState()
+        return canon({ s.listings, s.farm, s.sourceBindings, s.retiredSources })
+    end
+    local before = snapshotState()
+    local drawn = 0
+    local saved2 = math.random
+    math.random = function(...) drawn = drawn + 1; return saved2(...) end
+    local full = assert(Cat.page(s, { pageSize = 50 }, deps))
+    check("T5 the first page lists every LISTED row", full.status == "OK" and full.total == listedNow and #full.rows == listedNow and full.nextCursor == nil)
+    local noExtras = true
+    for _, row in ipairs(full.rows) do
+        for k in pairs(row) do
+            if not ({ saleId = 1, revision = 1, subType = 1, breed = 1, gender = 1, purpose = 1, source = 1, ageMonths = 1, weightKg = 1, parity = 1, pregnant = 1, lactating = 1, price = 1 })[k] then noExtras = false end
+        end
+        if not CP.validate(CP.PAGE, CP.REPLY, { status = "OK", rows = { row } }) then noExtras = false end
+    end
+    check("T5 a row carries only the display fields, and passes the protocol shape", noExtras)
+
+    -- paging by 5 never repeats or skips, equal prices included
+    local seen, order, cursor, snapshot = {}, {}, 0, full.snapshotSequence
+    repeat
+        local page = assert(Cat.page(s, { pageSize = 5, cursor = cursor, snapshot = snapshot, sort = "price" }, deps))
+        for _, row in ipairs(page.rows) do
+            check("T5 no row twice across pages", not seen[row.saleId]); seen[row.saleId] = true; order[#order + 1] = row
+        end
+        cursor = page.nextCursor
+    until cursor == nil
+    local sorted = true
+    for i = 2, #order do
+        if order[i - 1].price > order[i].price or (order[i - 1].price == order[i].price and order[i - 1].saleId > order[i].saleId) then sorted = false end
+    end
+    check("T5 pages together are the full list, ordered by price then saleId", #order == listedNow and sorted)
+    local desc = assert(Cat.page(s, { sort = "age", descending = true }, deps))
+    local okDesc = true
+    for i = 2, #desc.rows do if desc.rows[i - 1].ageMonths < desc.rows[i].ageMonths then okDesc = false end end
+    check("T5 descending sort", okDesc)
+    local females = assert(Cat.page(s, { filter = { gender = "female" } }, deps))
+    local allFemale = true
+    for _, row in ipairs(females.rows) do if row.gender ~= "female" then allFemale = false end end
+    check("T5 filter by gender and price", allFemale and assert(Cat.page(s, { filter = { maxPrice = 0 } }, deps)).total == 0)
+    check("T5 unknown sort, filter key, wrong filter type, page size and cursor are refused", select(2, Cat.page(s, { sort = "uniqueId" }, deps)) == "BAD_SORT"
+        and select(2, Cat.page(s, { filter = { farmId = "1" } }, deps)) == "BAD_FILTER" and select(2, Cat.page(s, { filter = { maxPrice = "9" } }, deps)) == "BAD_FILTER"
+        and select(2, Cat.page(s, { pageSize = 51 }, deps)) == "BAD_PAGE_SIZE" and select(2, Cat.page(s, { cursor = -1 }, deps)) == "BAD_CURSOR")
+
+    -- detail
+    local one = full.rows[1]
+    local d = Cat.detail(s, one.saleId, one.revision, deps)
+    check("T5 detail: identification, genes, health and the row fields, nothing the server keeps", d.status == "OK" and type(d.earTag) == "string" and d.genetics ~= nil
+        and d.saleId == one.saleId and CP.validate(CP.DETAIL, CP.REPLY, d) ~= nil)
+    check("T5 detail: a newer revision or a gone listing is named, not guessed", Cat.detail(s, one.saleId, one.revision + 1, deps).status == "STALE_REVISION"
+        and Cat.detail(s, "nope", 1, deps).status == "NOT_LISTED")
+    math.random = saved2
+    check("T5 reading drew no random number and changed no listing, source or binding", drawn == 0 and snapshotState() == before)
+
+    -- a change makes the snapshot stale
+    local withdrawn = RLDealerListingRegistry.withdraw(s.listings, one.saleId, s.farm.clock.months, "TEST")
+    local stale = Cat.page(s, { snapshot = snapshot }, deps)
+    check("T5 a page asked for an old snapshot is STALE_SNAPSHOT and carries the new one", withdrawn and stale.status == "STALE_SNAPSHOT" and stale.snapshotSequence ~= snapshot and stale.rows == nil)
+    check("T5 the withdrawn row is gone from the next snapshot", assert(Cat.page(s, {}, deps)).total == listedNow - 1)
+
+    -- selection across pages
+    local sel = Sel.new()
+    check("T5 selection: toggle adds and removes", Sel.toggle(sel, "a", 3) and sel.count == 1 and select(2, Sel.toggle(sel, "a", 3)) == "REMOVED" and sel.count == 0)
+    for i = 1, 100 do assert(Sel.toggle(sel, "s" .. i, 1)) end
+    check("T5 selection: the 101st animal is refused", select(2, Sel.toggle(sel, "x", 1)) == "SELECTION_LIMIT" and sel.count == 100)
+    Sel.observe(sel, { { saleId = "s5", revision = 2 }, { saleId = "s6", revision = 1 } })
+    check("T5 selection: another revision turns the entry stale; the order cannot be quoted until it is dropped", Sel.hasStale(sel) and select(2, Sel.items(sel)) == "STALE_SELECTION")
+    Sel.dropStale(sel)
+    check("T5 selection: dropping stale entries keeps the rest, sorted by saleId", sel.count == 99 and #Sel.items(sel) == 99 and Sel.items(sel)[1].saleId <= Sel.items(sel)[2].saleId)
+    check("T5 selection: an empty selection is not an order", select(2, Sel.items(Sel.new())) == "EMPTY_SELECTION")
+
+    -- messages
+    local M = RLDealerMessages
+    check("T5 messages: known reasons map to a sentence key, unknown ones to the generic sentence, never the code",
+        M.key("STALE_REVISION") == "rl_dealer_v2_stale" and M.key("QUOTE_EXPIRED") == "rl_dealer_v2_quote_expired" and M.key("CAPACITY_UNSAFE:x") == "rl_dealer_v2_capacity"
+        and M.key("UNCERTAIN") == "rl_dealer_v2_checking" and M.key("WHATEVER") == "rl_dealer_v2_generic" and M.key(nil) == "rl_dealer_v2_generic")
+    local f = assert(io.open(REPO .. "translations/translation_en.xml", "r")); local en = f:read("*a"); f:close()
+    local all = true
+    for _, key in ipairs(M.KEYS) do if not en:find('name="' .. key .. '"', 1, true) then all = false end end
+    check("T5 messages: every key exists in the English l10n file", all)
+end
+
+-- protocol streams
+do
+    local CP = RLDealerCatalogProtocol
+    local function stream(values) return { values = values or {}, cursor = 1 } end
+    local function put(st, v) st.values[#st.values + 1] = v end
+    local function take(st) local v = st.values[st.cursor]; st.cursor = st.cursor + 1; assert(v ~= nil); return v end
+    streamWriteUIntN = function(st, v, b) assert(type(v) == "number" and v % 1 == 0 and v >= 0 and v < 2 ^ b); put(st, v) end
+    streamReadUIntN = function(st, b) local v = take(st); assert(type(v) == "number" and v % 1 == 0 and v >= 0 and v < 2 ^ b); return v end
+    streamWriteString = function(st, v) assert(type(v) == "string"); put(st, v) end
+    streamReadString = function(st) local v = take(st); assert(type(v) == "string"); return v end
+    local function roundtrip(kind, dir, payload)
+        local st = stream(); assert(CP.write(st, kind, dir, "r1", payload)); return CP.read(st)
+    end
+    local m = roundtrip(CP.PAGE, CP.REQUEST, { cursor = 5, pageSize = 50, sort = "price", descending = true, filter = { breed = "HOLSTEIN", maxPrice = 1234.5 } })
+    check("T5 protocol: a page request round trips", m and m.payload.filter.maxPrice == 1234.5 and m.payload.cursor == 5 and m.requestId == "r1")
+    m = roundtrip(CP.PAGE, CP.REPLY, { status = "OK", catalogEpoch = "e", snapshotSequence = "abc", total = 1, rows = { { saleId = "a", revision = 4294967295, price = 12.5, pregnant = false } } })
+    check("T5 protocol: a page reply keeps uint32 revisions and decimals", m and m.payload.rows[1].revision == 4294967295 and m.payload.rows[1].price == 12.5)
+    check("T5 protocol: detail, destinations and order messages round trip",
+        roundtrip(CP.DETAIL, CP.REQUEST, { saleId = "a", revision = 2 }) ~= nil and roundtrip(CP.DESTINATIONS, CP.REQUEST, { saleIds = { "a", "b" } }) ~= nil
+        and roundtrip(CP.DESTINATIONS, CP.REPLY, { status = "OK", destinations = { { ref = "net:5", name = "Barn", freeSlots = 3, usable = true } } }) ~= nil
+        and roundtrip(CP.ORDER, CP.REQUEST, { orderId = "x" }) ~= nil and roundtrip(CP.ORDER, CP.REPLY, { status = "COMMITTED", amount = 210, transferIds = { "t" } }) ~= nil)
+    local bad = {
+        { "an unknown key", CP.PAGE, CP.REQUEST, { price = 1 } },
+        { "a client farm id", CP.PAGE, CP.REQUEST, { filter = { farmId = "1" } } },
+        { "a wrong type", CP.PAGE, CP.REQUEST, { cursor = "0" } },
+        { "a page size of 51", CP.PAGE, CP.REQUEST, { pageSize = 51 } },
+        { "a negative cursor", CP.PAGE, CP.REQUEST, { cursor = -1 } },
+        { "a fractional revision", CP.DETAIL, CP.REQUEST, { saleId = "a", revision = 1.5 } },
+        { "a missing revision", CP.DETAIL, CP.REQUEST, { saleId = "a" } },
+        { "101 sale ids", CP.DESTINATIONS, CP.REQUEST, { saleIds = (function() local l = {}; for i = 1, 101 do l[i] = "s" .. i end; return l end)() } },
+        { "51 rows", CP.PAGE, CP.REPLY, { status = "OK", rows = (function() local l = {}; for i = 1, 51 do l[i] = { saleId = "s" .. i, revision = 1 } end; return l end)() } },
+        { "an animal in a row", CP.PAGE, CP.REPLY, { status = "OK", rows = { { saleId = "a", revision = 1, animal = {} } } } },
+        { "a long string", CP.ORDER, CP.REQUEST, { orderId = string.rep("x", 300) } },
+        { "an unknown kind", 7, CP.REQUEST, {} },
+    }
+    for _, case in ipairs(bad) do
+        check("T5 protocol refuses " .. case[1], select(1, CP.write(stream(), case[2], case[3], "r", case[4])) == nil)
+    end
+    local st = stream({ 9, CP.PAGE, CP.REQUEST, "r1", "{}", "NEXT" })
+    local refused = CP.read(st)
+    check("T5 protocol: a newer version is refused after the whole message was read, the stream stays aligned", refused == nil and st.cursor == 6 and st.values[st.cursor] == "NEXT")
+    st = stream({ CP.VERSION, CP.PAGE, CP.REQUEST, "r1", "not canonical", "NEXT" })
+    check("T5 protocol: damaged payload text is refused with the stream aligned", CP.read(st) == nil and st.values[st.cursor] == "NEXT")
+    check("T5 protocol: a payload for the wrong direction is refused", select(1, CP.write(stream(), CP.PAGE, CP.REPLY, "r", { cursor = 1 })) == nil)
+
+    -- event on the server
+    loadMod("scripts/events/RLDealerCatalogEvent.lua")
+    local E = RLDealerCatalogEvent
+    g_server = {}
+    local sent = {}
+    local connection = { getIsServer = function() return false end, sendEvent = function(_, ev) sent[#sent + 1] = ev end }
+    local request = E.new(CP.PAGE, CP.REQUEST, "r9", { pageSize = 5 })
+    local out = request:run(connection)
+    check("T5 event: with no service the server answers DEALER_V2_DISABLED", out == nil and sent[1] ~= nil and sent[1].payload.reason == "DEALER_V2_DISABLED")
+    E.service = { browse = function(_, kind, payload) return { status = "OK", total = 0, rows = {} } end }
+    request:run(connection)
+    check("T5 event: a service result is validated and sent back", sent[2].payload.status == "OK" and sent[2].requestId == "r9")
+    E.service = { browse = function() return { status = "OK", rows = { { saleId = "a", revision = 1, secret = 1 } } } end }
+    request:run(connection)
+    check("T5 event: an invalid service result never reaches the client", sent[3].payload.reason == "INVALID_SERVICE_RESULT")
+    E.service = { browse = function() error("boom") end }
+    request:run(connection)
+    check("T5 event: a throwing service becomes SERVICE_ERROR", sent[4].payload.reason == "SERVICE_ERROR")
+    E.service = nil
+end

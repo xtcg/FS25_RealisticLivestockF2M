@@ -1017,5 +1017,15 @@
         <text name="rl_feed_previewNoAnimals" text="Nessun animale in questo recinto"/>
         <text name="rl_feed_previewNoFeed" text="Nessun alimento utilizzabile nella mangiatoia"/>
         <text name="rl_feed_apply" text="Applica"/>
+        <text name="rl_dealer_v2_stale" text="The listing has changed. Please choose again."/>
+        <text name="rl_dealer_v2_quote_expired" text="The quote has expired. Get a new quote and confirm it."/>
+        <text name="rl_dealer_v2_capacity" text="The destination cannot take these animals."/>
+        <text name="rl_dealer_v2_no_permission" text="You are not allowed to use this destination."/>
+        <text name="rl_dealer_v2_funds" text="Not enough money for this order."/>
+        <text name="rl_dealer_v2_updating" text="The stock is being updated. Please try again shortly."/>
+        <text name="rl_dealer_v2_checking" text="The result of this order is being checked. Trading is paused until then."/>
+        <text name="rl_dealer_v2_closed" text="The dealer's new stock is not available yet."/>
+        <text name="rl_dealer_v2_limit" text="At most 100 animals can be bought in one order."/>
+        <text name="rl_dealer_v2_generic" text="The order could not be completed."/>
     </texts>
 </l10n>

@@ -316,6 +316,8 @@ end
 
 -- T4 service facade over the assembled parts
 do
+    loadMod("scripts/dealer/RLDealerCatalog.lua")
+    loadMod("scripts/dealer/RLDealerCatalogProtocol.lua")
     loadMod("scripts/dealer/RLDealerAssembly.lua")
     loadMod("scripts/dealer/RLDealerService.lua")
     local stock, _, w, _, principal = fixture()
@@ -358,5 +360,35 @@ do
     open = true
     stock.recoveryRequired = true
     check("T4 a store in recovery is never ready", select(2, service.authorize(connection, "net:17")) == "RECOVERY_REQUIRED" and service.lookup(connection, "svc-order").status == "COMMITTED")
+    -- the singleplayer console route: no connection object, the host's own farm, the same guarded purchase
+    do
+        local stockL, _, wL = fixture()
+        stockL.money = nil
+        local itemsL = {}
+        for _, row in pairs(stockL.listings.records) do itemsL[#itemsL + 1] = { saleId = row.saleId, revision = row.recordRevision } end
+        table.sort(itemsL, function(a, b) return a.saleId < b.saleId end)
+        local real = RLDealerCapacity
+        RLDealerCapacity = { new = function() return function() return wL.capacity end end }
+        local partsL = assert(RLDealerAssembly.assemble({ mission = g_currentMission, farmManager = g_farmManager, stock = stockL, epoch = "local-epoch",
+            directory = "/save", lineage = "DLloc", generation = function() return 1 end, monotonicMs = function() return wL.ms end,
+            resolveSubType = function(name) local i, sub = Economics.find(name); return sub, i end, eligible = function() return true end,
+            allOwners = function() return { wL.dest } end, priceOf = function() return 100 end, feeOf = function() return 0 end, storage = storage,
+            localFarmId = function() return 1 end }))
+        RLDealerCapacity = real
+        partsL.gate = function() return true end
+        partsL.localFarmId = function() return 1 end
+        local svc = assert(RLDealerService.new(partsL))
+        local q = svc.localQuote({ destination = "net:17", items = itemsL })
+        check("T4 local route: the host's quote needs no connection object", q ~= nil and q.amount == 200)
+        local r = svc.localExecute({ requestId = "local-1", destination = "net:17", items = itemsL, quoteCredential = q.credential })
+        check("T4 local route: the same guarded purchase commits and pays once", r and r.status == "COMMITTED" and wL.farm.money == 800 and #wL.cluster.animals == 2)
+        check("T4 local route: the order is answered from the saved receipt", svc.localLookup("local-1").status == "COMMITTED" and partsL.purchaseContext.useLocal == nil)
+        local page = svc.localBrowse(RLDealerCatalogProtocol.DESTINATIONS, { saleIds = { itemsL[1].saleId } })
+        check("T4 local route: destinations of a sold listing are refused", page.status == "REJECTED" and page.reason == "SALE_NOT_LISTED")
+        local noLocal = {}
+        for k, v in pairs(partsL) do noLocal[k] = v end
+        noLocal.localAuthority = nil
+        check("T4 without a local farm the route does not exist", select(2, assert(RLDealerService.new(noLocal)).localQuote({ destination = "net:17", items = itemsL })) == "LOCAL_ROUTE_UNAVAILABLE")
+    end
     check("T4 assembly refuses a legacy (not owned) store", select(2, RLDealerAssembly.assemble({ stock = RLDealerStockService.new("legacy-x", 100) })) == "OWNED_STORE_REQUIRED")
 end

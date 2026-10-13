@@ -33,6 +33,7 @@ function R.reset(isServer)
     -- Events from an earlier map must never retain a service or authority handle.
     if RLDealerPurchaseEvent then RLDealerPurchaseEvent.service = nil end
     if RLDealerQuoteEvent then RLDealerQuoteEvent.service = nil end
+    if RLDealerCatalogEvent then RLDealerCatalogEvent.service = nil end
     local runtime = {
         resolver = resolve,
         ownershipContext = {isServer=R.server, resolveDiseaseModel=function(title)
@@ -192,7 +193,8 @@ function R.enable(overrides)
         lineage = checkpoint.lineage, generation = function() return checkpoint.generation end,
         monotonicMs = overrides.monotonicMs or function() return g_time end, resolveSubType = resolveSubType,
         resolveDiseaseModel = R.checkpointRuntime.ownershipContext.resolveDiseaseModel, eligible = eligible,
-        allOwners = ownerWorld.allOwners, storage = overrides.storage }
+        allOwners = ownerWorld.allOwners, storage = overrides.storage,
+        localFarmId = overrides.localFarmId or function() return mission:getFarmId() end }
     local parts
     parts, why = RLDealerAssembly.assemble(deps)
     if not parts then return nil, "ASSEMBLE:" .. tostring(why) end
@@ -211,6 +213,7 @@ function R.enable(overrides)
     parts.scheduler = RLDealerScheduler.new({ budget = overrides.budget or 1,
         shelfTarget = overrides.shelfTarget or function() return mission.animalSystem.maxDealerAnimals or 0 end })
     parts.gate = R.gate
+    parts.localFarmId = deps.localFarmId
     local service
     service, why = RLDealerService.new(parts)
     if not service then return nil, why end
@@ -219,6 +222,7 @@ function R.enable(overrides)
     R.setCapability("cattleSingleplayer", true)
     if RLDealerPurchaseEvent then RLDealerPurchaseEvent.service = service end
     if RLDealerQuoteEvent then RLDealerQuoteEvent.service = service end
+    if RLDealerCatalogEvent then RLDealerCatalogEvent.service = service end
     return true
 end
 function R.disable()
@@ -227,6 +231,7 @@ function R.disable()
     if R.state == "READY" then R.state, R.reason = "DORMANT", "DISABLED" end
     if RLDealerPurchaseEvent then RLDealerPurchaseEvent.service = nil end
     if RLDealerQuoteEvent then RLDealerQuoteEvent.service = nil end
+    if RLDealerCatalogEvent then RLDealerCatalogEvent.service = nil end
     return true
 end
 --- The hourly game tick (HOUR_CHANGED), only while enabled: progress, restock, generation within the budget.

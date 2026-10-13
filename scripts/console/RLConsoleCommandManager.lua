@@ -54,6 +54,7 @@ function RLConsoleCommandManager.new()
     end
     -- Animal identity ledger (RLIdentityConsole): status and report are read-only; the rest is server only.
     addConsoleCommand("rlIdentityStatus", "Identity ledger: mode, state, generation, counts, shadow collisions (read-only)", "status", RLIdentityConsole, "")
+    addConsoleCommand("rlIdentityDump", "Identity evidence for the test cards: every live key, every ledger key, the host farm's money (log lines)", "dump", RLIdentityConsole, "")
     addConsoleCommand("rlIdentityReport", "Identity ledger: what switching it on would find per herd domain (read-only)", "report", RLIdentityConsole, "")
     if g_currentMission:getIsServer() then
         addConsoleCommand("rlIdentityActivate", "Switch the identity ledger on; 'accept' takes the weaker guarantee for unprovable herds", "activate", RLIdentityConsole, "[accept]")
@@ -63,6 +64,12 @@ function RLConsoleCommandManager.new()
     addConsoleCommand("rlDealerV2Status", "Dealer v2 channel: state, gate reason, stock counts (read-only)", "dealerStatus", RLIdentityConsole, "")
     if g_currentMission:getIsServer() then
         addConsoleCommand("rlDealerV2Enable", "Switch the dealer v2 channel on for this session (singleplayer cattle; needs the identity ledger ON)", "dealerEnable", RLIdentityConsole, "")
+        addConsoleCommand("rlDealerV2List", "Dealer v2 stock page (singleplayer test route)", "dealerList", RLIdentityConsole, "[cursor] [price|age|weight|breed]")
+        addConsoleCommand("rlDealerV2Detail", "Dealer v2 listing detail", "dealerDetail", RLIdentityConsole, "<saleId>")
+        addConsoleCommand("rlDealerV2Pens", "Dealer v2: your pens and trailers for a selection, with room and verdict", "dealerPens", RLIdentityConsole, "<saleId> [saleId...]")
+        addConsoleCommand("rlDealerV2Quote", "Dealer v2: formal quote for a selection into one pen (valid 15 s)", "dealerQuote", RLIdentityConsole, "<penRef> <saleId> [saleId...]")
+        addConsoleCommand("rlDealerV2Confirm", "Dealer v2: buy the last quote", "dealerConfirm", RLIdentityConsole, "")
+        addConsoleCommand("rlDealerV2Order", "Dealer v2: status of an order (default: the last)", "dealerOrder", RLIdentityConsole, "[orderId]")
         addConsoleCommand("rlDealerV2Disable", "Switch the dealer v2 channel off for this session", "dealerDisable", RLIdentityConsole, "")
     end
     addConsoleCommand("rlTradePlan", "Read-only whole-batch contract budget (shadow, no reservation or delivery)", "plan",
