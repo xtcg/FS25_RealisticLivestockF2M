@@ -967,8 +967,9 @@ function RLBodyCondition.getInfoText(animal)
     -- A species with fat classes (sheep): a lamb shows its EUROP fat class, a grown animal its BCS.
     local fatClass = RLBodyCondition.getFatClass(animal)
     if fatClass ~= nil then return fatClass .. trend, RLBodyCondition.getReserve(animal) end
+    local byBcs = RLBodyCondition.getConfig(animal).fatClasses ~= nil
 
-    if animal.gender == "male" then
+    if animal.gender == "male" and not byBcs then
         local score = RLBodyCondition.getFinishScore(animal)
         local band = score < 50 and "rl_ui_finishLean" or (score < 65 and "rl_ui_finishStore")
             or (score <= 80 and "rl_ui_finishReady") or (score <= 90 and "rl_ui_finishFat") or "rl_ui_finishOverfat"
@@ -1018,7 +1019,8 @@ function RLBodyCondition.addInfos(animal, infos)
     if text == nil then return end
 
     local titleKey = animal.gender == "male" and "rl_ui_finish" or "rl_ui_bodyCondition"
-    if RLBodyCondition.getFatClass(animal) ~= nil then titleKey = "rl_ui_fatClass" end
+    if RLBodyCondition.getFatClass(animal) ~= nil then titleKey = "rl_ui_fatClass"
+    elseif RLBodyCondition.getConfig(animal).fatClasses ~= nil then titleKey = "rl_ui_bodyCondition" end
     local row = infoRow(animal, "condition", titleKey)
     row.ratio = math.clamp(ratio or 0, 0, 1)
     row.valueText = text

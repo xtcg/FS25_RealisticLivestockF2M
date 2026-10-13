@@ -238,6 +238,9 @@ do
     check("display: a lamb shows its EUROP fat class (3L at reserve 0.42, 4L at 0.62), a ewe her BCS",
         RLBodyCondition.getFatClass(ram) == "3L" and RLBodyCondition.getFatClass(eweLamb) == "4L" and RLBodyCondition.getFatClass(ewe) == nil
         and RLBodyCondition.getInfoText(ram):sub(1, 2) == "3L")
+    local tup = SheepSim.ewe("RAM_LANDRACE", "F4")
+    check("display: a grown ram shows BCS, as a ewe does", RLBodyCondition.getFatClass(tup) == nil
+        and RLBodyCondition.getInfoText(tup):find("rl_ui_bcs") ~= nil)
     check("display: a ewe lamb is read against her breed's ram lamb market weight, not a grown ewe's",
         near(RLBodyCondition.getReferenceWeight(eweLamb), RLBodyCondition.getReferenceWeight(ram), 1e-6))
     ram.weight = RLBodyCondition.getReferenceWeight(ram)
