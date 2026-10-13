@@ -156,12 +156,13 @@ do
     local records = RLWeightProfiles.enumerate()
     local summary = RLWeightProfiles.summarize(records)
     local resolved = (summary.resolution.EXACT or 0) + (summary.resolution.ALIAS or 0)
-    check(string.format("summary: %d subtypes = %d resolved + %d unresolved + %d not covered + %d stand-in; unresolved breeds %s",
+    check(string.format("summary: %d subtypes = %d resolved + %d unresolved + %d not covered + %d stand-in + %d type off; unresolved breeds %s",
         summary.subTypes, resolved, summary.resolution.UNRESOLVED or 0, summary.resolution.NOT_COVERED or 0, summary.resolution.PROXY or 0,
-        table.concat(summary.unresolvedBreeds, " ")), summary.subTypes == #records
+        summary.resolution.TYPE_OFF or 0, table.concat(summary.unresolvedBreeds, " ")), summary.subTypes == #records
         and resolved + (summary.resolution.UNRESOLVED or 0) + (summary.resolution.NOT_COVERED or 0)
-            + (summary.resolution.PROXY or 0) == #records and summary.resolution.PROXY == 1
-        and table.concat(summary.unresolvedBreeds, " ") == "AUBRAC GOAT" and summary.resolution.ALIAS == 1)
+            + (summary.resolution.PROXY or 0) + (summary.resolution.TYPE_OFF or 0) == #records and summary.resolution.PROXY == 1
+        and (summary.resolution.TYPE_OFF or 0) > 0
+        and table.concat(summary.unresolvedBreeds, " ") == "AUBRAC" and summary.resolution.ALIAS == 1)
 
     local longest, same = 0, true
     for _, sub in ipairs(subTypes) do
@@ -179,7 +180,7 @@ do
         and line:find('"resolution":"ALIAS"', 1, true) ~= nil and line:find("\n", 1, true) == nil)
 
     local text = RLWeightProfiles:consoleReport("charola")
-    check("console: rlWeightProfiles reports the matching subtypes and the gaps", text:find("3 cattle subtypes", 1, true) ~= nil)
+    check("console: rlWeightProfiles reports the matching subtypes and the gaps", text:find("3 subtypes", 1, true) ~= nil)
 end
 
 

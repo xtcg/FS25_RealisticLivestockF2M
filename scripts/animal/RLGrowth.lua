@@ -758,7 +758,6 @@ end
 --- @param typeName string|nil A type with profiles of its own (sheep); cattle and proxy types read cattle breeds
 --- @return number|nil
 function RLGrowth.getBreedBirthMean(breed, sex, typeName)
-    if RLWeightProfiles.getTypeEntry(typeName) == nil then typeName = nil end
     local name = RLWeightProfiles.resolveBreed(breed, typeName)
     local profile = name ~= nil and RLGrowth.getConfig().profiles[name] or nil
     local knots = profile ~= nil and profile.knots[sex == "male" and "male" or "female"] or nil
@@ -1555,15 +1554,16 @@ end
 --- The curve a subtype's animals grow on (average genes): whether the model runs it, adult and
 --- birth weight, the plateau month and the knots.
 --- @param subType table
+--- @param preview table|nil A binding to show instead of the subtype's own (a type switched off), never active
 --- @return table|nil
-function RLGrowth.describeCurve(subType)
-    local binding = RLGrowth.getBinding(subType)
+function RLGrowth.describeCurve(subType, preview)
+    local binding = preview or RLGrowth.getBinding(subType)
     if binding == nil then return nil end
     local knots = RLGrowth.getReferenceKnots(binding)
     local list = {}
     for _, knot in ipairs(knots) do list[#list + 1] = { knot[1], RLWeightProfiles.round(knot[2], 2) } end
     return {
-        active = RLGrowth.isEnabled(),
+        active = preview == nil and RLGrowth.isEnabled(),
         sex = binding.sex,
         adultKg = RLWeightProfiles.round(RLGrowth.getAdultReference(binding), 2),
         birthKg = RLWeightProfiles.round(RLGrowth.getBirthMean(binding), 3),

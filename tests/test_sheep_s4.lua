@@ -63,27 +63,39 @@ end
 check("off: the cattle breed lookup is unchanged (no cattle LANDRACE)", RLWeightProfiles.resolveBreed("LANDRACE") == nil
     and RLWeightProfiles.resolveBreed("HOLSTEIN") == "HOLSTEIN")
 
--- On (for review): sheep resolve to their own profiles, goats stay a gap, cattle bindings do not move.
+check("off: a proxy type (MILKCOW) still reads the cattle breeds", RLWeightProfiles.resolveBreed("HOLSTEIN", "MILKCOW") == "HOLSTEIN"
+    and RLWeightProfiles.resolveBreed("LANDRACE", "SHEEP") == "SHEEP:LANDRACE" and RLWeightProfiles.resolveBreed("LANDRACE", "PIG") == nil)
+local _, goatOff = bindingOf(goat)
+check("off: a goat is NOT_COVERED (excludeBreeds), not a gap", goatOff == "NOT_COVERED")
+
+-- On (for review): sheep resolve to their own profiles, goats stay out, cattle bindings do not move.
+-- The switch is undone even when a check throws, so later checks see the type off.
 config.types.SHEEP.enabled = true
-local eweOn, eweWhy = bindingOf(ewe)
-local ramOn = bindingOf(ram)
-local _, goatWhy = bindingOf(goat)
+local okOn, eweOn, eweWhy, ramOn, goatOnBinding, goatWhy = pcall(function()
+    local b1, r1 = bindingOf(ewe)
+    local b3, r3 = bindingOf(goat)
+    return b1, r1, bindingOf(ram), b3, r3
+end)
 check("on: SHEEP_LANDRACE -> SHEEP:LANDRACE female, RAM_TEXEL -> SHEEP:TEXEL male (EXACT)",
     eweOn ~= nil and eweOn.profile == "SHEEP:LANDRACE" and eweOn.sex == "female" and eweWhy == "EXACT"
     and ramOn ~= nil and ramOn.profile == "SHEEP:TEXEL" and ramOn.sex == "male")
-check("on: a goat has no sheep curve (UNRESOLVED, a gap)", bindingOf(goat) == nil and goatWhy == "UNRESOLVED")
-local same = true
-for _, s in ipairs(Economics.subTypes) do
-    if s.typeName == "COW" then
-        local b, r = bindingOf(s)
-        same = same and cowBefore[s.name] == (b ~= nil and (b.profile .. "/" .. b.sex) or "nil") .. "/" .. r
+check("on: a goat has no sheep curve (NOT_COVERED, excluded)", okOn and goatOnBinding == nil and goatWhy == "NOT_COVERED")
+local okSame, same = pcall(function()
+    local all = true
+    for _, s in ipairs(Economics.subTypes) do
+        if s.typeName == "COW" then
+            local b, r = bindingOf(s)
+            all = all and cowBefore[s.name] == (b ~= nil and (b.profile .. "/" .. b.sex) or "nil") .. "/" .. r
+        end
     end
-end
-check("on: every cattle subtype's binding is the same as with sheep off", same and next(cowBefore) ~= nil)
+    return all
+end)
 config.types.SHEEP.enabled = false
+check("on: every cattle subtype's binding is the same as with sheep off", okOn and okSame and same and next(cowBefore) ~= nil)
 
 -- The curves: birth as the game has it today, the ram lamb's market weight at its real intensive age,
--- 6 months and the yearling from LfL where it has them, mature at 36 months; growth never above 0.47 kg a day.
+-- 6 months and the yearling from LfL where it has them, mature at 36 months. Segments gain at most 0.47 kg a day;
+-- the smooth curve's peak sits a little above its secant, at most about 0.50.
 local function curveOf(breed, sex)
     local profile = config.profiles["SHEEP:" .. breed]
     return RLGrowthCurve.new(profile.knots[sex]), profile.knots[sex]
@@ -107,9 +119,34 @@ for _, breed in ipairs(BREEDS) do
         end
     end
 end
--- LfL fattening lambs average 400-500 g a day; the smooth curve's peak sits a little above its secant.
-check(string.format("curve: no sheep gains more than 0.55 kg a day anywhere (most %.3f, %s)", fastest, where), fastest <= 0.55)
-check("curve: ewes stay below their breed's rams", landraceEwe:value(6) < landraceRam:value(6) and landraceEwe:value(36) < landraceRam:value(36))
+-- LfL fattening lambs average 400-500 g a day.
+check(string.format("curve: no sheep gains more than 0.51 kg a day anywhere (most %.3f, %s)", fastest, where), fastest <= 0.51)
+local heaviest, at = -1, ""
+for _, breed in ipairs(BREEDS) do
+    local f, m = curveOf(breed, "female"), curveOf(breed, "male")
+    for t = 0, 40, 0.05 do
+        local d = f:value(t) - m:value(t)
+        if d > heaviest then heaviest, at = d, breed .. " " .. t end
+    end
+end
+check(string.format("curve: no ewe outweighs her breed's ram at any age (closest %.2f kg, %s)", heaviest, at), heaviest < 0)
+local function eweSix(breed)
+    local profile = config.profiles["SHEEP:" .. breed]
+    local ram6 = curveOf(breed, "male"):value(6)
+    return profile.knots.female[1][2] + 0.76 * (ram6 - profile.knots.male[1][2]), curveOf(breed, "female"):value(6)
+end
+local formula, actual = eweSix("BORDER_LEICESTER")
+local lflFormula, lflActual = eweSix("LANDRACE")
+check(string.format("curve: a ewe lamb without LfL figures is at 0.76 of the ram's gain at 6 months (Border Leicester %.1f = %.1f), as LfL Merinolandschaf (%.1f vs 56)",
+    formula, actual, lflFormula), near(actual, formula, 0.06) and near(lflActual, 56, 0.01) and near(lflFormula, 56, 0.2))
+
+-- The report: with the type off, a sheep is TYPE_OFF with its curve shown inactive; a goat NOT_COVERED, no gap.
+local eweRecord = RLWeightProfiles.describe(ewe)
+check("report: a sheep with the type off is TYPE_OFF (EXACT profile), its curve shown but not active",
+    eweRecord.resolution == "TYPE_OFF" and eweRecord.profileResolution == "EXACT" and eweRecord.profile == "SHEEP:LANDRACE"
+    and eweRecord.curve ~= nil and eweRecord.curve.active == false and near(eweRecord.curve.adultKg, 88, 0.01))
+local goatRecord = RLWeightProfiles.describe(goat)
+check("report: a goat is NOT_COVERED and no gap", goatRecord.resolution == "NOT_COVERED" and goatRecord.gap == false)
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") or line:find("^warning") then check("no warning or error: " .. line, false) end

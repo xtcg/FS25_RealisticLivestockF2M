@@ -10,8 +10,9 @@
 
     Resolution of a subtype's breed: EXACT (the breed is a profile), ALIAS (a map's name for a
     profile's breed), PROXY (its animal type is bound to a profile as a stand-in), NOT_COVERED
-    (an animal type the file names without a binding in use) or UNRESOLVED (none of these: a
-    gap, never put under another breed).
+    (an animal type the file names without a binding in use, or a breed a listed type excludes),
+    TYPE_OFF (a resolved breed of a listed type switched off; its curve is shown, inactive) or
+    UNRESOLVED (none of these: a gap, never put under another breed).
 
     Each legacy weight setting is reported with the value the game uses (read through the same
     getter) and its source: the layer of the config file that set it ("subType", "breed", "type",
@@ -139,8 +140,10 @@ function RLWeightProfiles.parse(xmlFile)
     xmlFile:iterate("weightProfiles.animalType", function(_, key)
         local typeName = xmlFile:getString(key .. "#name")
         if typeName == nil or typeName:upper() == RLWeightProfiles.COVERED_TYPE then return end
+        local excluded = {}
+        for breed in (xmlFile:getString(key .. "#excludeBreeds") or ""):gmatch("%S+") do excluded[breed:upper()] = true end
         config.types[typeName:upper()] = { enabled = xmlFile:getBool(key .. "#enabled", false),
-            status = xmlFile:getString(key .. "#status", "UNKNOWN") }
+            status = xmlFile:getString(key .. "#status", "UNKNOWN"), excludeBreeds = excluded }
     end)
 
     xmlFile:iterate("weightProfiles.profile", function(_, key)
@@ -208,6 +211,12 @@ function RLWeightProfiles.parse(xmlFile)
             status = xmlFile:getString(key .. "#status", "PROXY") }
     end)
 
+    for typeName in pairs(config.bindings) do
+        if config.types[typeName] ~= nil then
+            Log:warning("RLWeightProfiles: the typeBinding of %s is ignored, its animalType element gives it profiles of its own", typeName)
+        end
+    end
+
     local ok, reason = RLWeightProfiles.validateSettings(config.settings)
     if not ok then
         Log:error("RLWeightProfiles: %s - weight model v2 switched off", reason)
@@ -230,13 +239,14 @@ end
 
 --- The profile a breed name resolves to.
 --- @param breed string|nil As subtypes carry it
---- @param typeName string|nil The animal type (cattle when nil): other types use their own profiles, no aliases
+--- @param typeName string|nil The animal type: a type the file lists (`<animalType>`) uses its own profiles and no
+--- aliases; cattle, nil and any other type (a proxy such as MILKCOW) read the cattle breeds
 --- @return string|nil profile
 --- @return string resolution "EXACT", "ALIAS" or "UNRESOLVED"
 function RLWeightProfiles.resolveBreed(breed, typeName)
     if breed == nil then return nil, "UNRESOLVED" end
     local config = RLWeightProfiles.getConfig()
-    if typeName ~= nil and typeName:upper() ~= RLWeightProfiles.COVERED_TYPE then
+    if RLWeightProfiles.getTypeEntry(typeName) ~= nil then
         local key = RLWeightProfiles.profileKey(typeName, breed)
         if config.profiles[key] ~= nil then return key, "EXACT" end
         return nil, "UNRESOLVED"
@@ -261,10 +271,19 @@ end
 
 --- A non-cattle animal type the file lists (`<animalType>`), or nil.
 --- @param typeName string|nil
---- @return table|nil { enabled, status }
+--- @return table|nil { enabled, status, excludeBreeds = { BREED = true } }
 function RLWeightProfiles.getTypeEntry(typeName)
     if typeName == nil then return nil end
     return RLWeightProfiles.getConfig().types[typeName:upper()]
+end
+
+
+--- Whether a listed type leaves a breed out of its curves (`excludeBreeds`: goats share the SHEEP type).
+--- @param typeEntry table|nil From getTypeEntry
+--- @param breed string|nil
+--- @return boolean
+function RLWeightProfiles.isExcludedBreed(typeEntry, breed)
+    return typeEntry ~= nil and breed ~= nil and typeEntry.excludeBreeds ~= nil and typeEntry.excludeBreeds[breed:upper()] == true
 end
 
 
@@ -282,8 +301,8 @@ end
 --- Which profile and sex curve a subtype grows on, and how it got there.
 --- @param subType table|nil
 --- @return table|nil binding { profile, sex, resolution = "EXACT" / "ALIAS" / "PROXY", typeName }
---- @return string resolution Also "UNRESOLVED", "NOT_COVERED", "NOT_CATTLE", "TYPE_OFF" (a listed type switched
---- off) or "INVALID_PROFILE" when there is none
+--- @return string resolution Also "UNRESOLVED", "NOT_COVERED" (also a breed a listed type excludes), "NOT_CATTLE",
+--- "TYPE_OFF" (a listed type switched off) or "INVALID_PROFILE" when there is none
 function RLWeightProfiles.getCurveBinding(subType)
     if subType == nil then return nil, "UNRESOLVED" end
     local typeName = RLBreedTraits.getTypeName(subType)
@@ -292,6 +311,7 @@ function RLWeightProfiles.getCurveBinding(subType)
 
     local profileName, sex, resolution
     if typeName == RLWeightProfiles.COVERED_TYPE or typeEntry ~= nil then
+        if RLWeightProfiles.isExcludedBreed(typeEntry, subType.breed) then return nil, "NOT_COVERED" end
         if typeEntry ~= nil and not typeEntry.enabled then return nil, "TYPE_OFF" end
         profileName, resolution = RLWeightProfiles.resolveProfile(subType)
         sex = subType.gender == "male" and "male" or "female"
@@ -339,6 +359,11 @@ function RLWeightProfiles.describe(subType, counts)
 
     local typeEntry = RLWeightProfiles.getTypeEntry(typeName)
     if typeEntry ~= nil then record.typeEnabled = typeEntry.enabled end
+    if RLWeightProfiles.isExcludedBreed(typeEntry, subType.breed) then
+        record.resolution, record.reason, record.gap = "NOT_COVERED", "breed excluded from the " .. typeName .. " curves", false
+        if RLGrowth ~= nil then record.capability = RLGrowth.describeCapability(subType, counts) end
+        return record
+    end
     if typeName ~= RLWeightProfiles.COVERED_TYPE and typeEntry == nil then
         local binding = RLWeightProfiles.getBinding(typeName)
         if binding == nil then
@@ -394,7 +419,17 @@ function RLWeightProfiles.describe(subType, counts)
     end
     record.defaults, record.generic = defaults, generic
 
-    if RLGrowth ~= nil then record.curve = RLGrowth.describeCurve(subType) end
+    -- A listed type switched off: the subtype keeps the old rules (TYPE_OFF); a resolved one shows the
+    -- curve it would grow on, marked inactive, so the curves can be reviewed in game.
+    local typeOff = typeEntry ~= nil and not typeEntry.enabled
+    if typeOff and profile ~= nil then
+        record.resolution, record.profileResolution = "TYPE_OFF", resolution
+    end
+    if RLGrowth ~= nil then
+        local preview = typeOff and profile ~= nil
+            and { profile = profile, sex = subType.gender == "male" and "male" or "female", typeName = typeName } or nil
+        record.curve = RLGrowth.describeCurve(subType, preview)
+    end
 
     -- A gap: the breed is unresolved; or, where the v2 curve does not apply, a setting the old
     -- growth line needs (matureAgeMonth, and femaleGrowth for a female) is on the code's fallback.
@@ -472,7 +507,7 @@ function RLWeightProfiles.emit(record)
 end
 
 
---- Console: rlWeightProfiles [filter]. One line per cattle subtype, then the summary.
+--- Console: rlWeightProfiles [filter]. One line per covered subtype (cattle, listed types), then the summary.
 --- @param filter string|nil
 --- @return string text What the console shows
 function RLWeightProfiles:consoleReport(filter)
@@ -480,8 +515,8 @@ function RLWeightProfiles:consoleReport(filter)
     for _, record in ipairs(records) do RLWeightProfiles.emit(record) end
     local summary = RLWeightProfiles.summarize(records)
     RLWeightProfiles.emit(summary)
-    return string.format("rlWeightProfiles: %d cattle subtypes (%s model, %d on a v2 curve), %d with gaps, unresolved breeds: %s (RLWEIGHT lines in the log)",
-        summary.subTypes, summary.model, summary.onCurve, summary.gaps,
+    return string.format("rlWeightProfiles: %d subtypes (%s model, %d on a v2 curve, %d of a type switched off), %d with gaps, unresolved breeds: %s (RLWEIGHT lines in the log)",
+        summary.subTypes, summary.model, summary.onCurve, summary.resolution.TYPE_OFF or 0, summary.gaps,
         #summary.unresolvedBreeds > 0 and table.concat(summary.unresolvedBreeds, " ") or "none")
 end
 
