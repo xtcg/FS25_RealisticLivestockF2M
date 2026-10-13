@@ -37,11 +37,12 @@ I.MAX_SKIPS = 2000
 I.MAX_BATCH = 1000
 I.RESERVED, I.MATERIALIZED, I.CONSUMED, I.BURNED = "RESERVED", "MATERIALIZED", "CONSUMED", "BURNED"
 I.VERIFIED, I.UNPROVEN = "VERIFIED", "LEGACY_HISTORY_UNPROVEN"
-I.LIMITS = { maxNodes = 400000, maxString = 262144, maxDepth = 12 }
+I.LIMITS = { maxNodes = 1500000, maxString = 262144, maxDepth = 12 }
 
 local states = { RESERVED = true, MATERIALIZED = true, CONSUMED = true, BURNED = true }
 local proofs = { EXCLUSIVE_NEW = true, COUNTER_HISTORY = true, MIGRATION_POINT = true }
-local roles = { adult = true, fetus = true, birth = true, legacy = true, unsaved = true }
+local roles = { adult = true, fetus = true, birth = true, legacy = true, unsaved = true, ai = true, sale = true, auto = true }
+local batchRoles = { adult = true, fetus = true, birth = true, ai = true, sale = true, auto = true }
 
 
 local function str(v) return type(v) == "string" and #v > 0 and #v <= 256 end
@@ -56,6 +57,14 @@ end
 
 function I.keyString(farmId, uniqueId, country)
     return tostring(farmId) .. " " .. tostring(uniqueId) .. " " .. tostring(country)
+end
+
+
+--- The fields of a key string "farmId uniqueId country", or nil.
+function I.parseKey(key)
+    local farmId, uniqueId, country = tostring(key):match("^(%S+) (%S+) (%d+)$")
+    if farmId == nil then return nil end
+    return farmId, uniqueId, tonumber(country)
 end
 
 
@@ -92,7 +101,7 @@ end
 function I.new(lineage)
     if not str(lineage) then return nil, "BAD_LINEAGE" end
     return { schema = I.SCHEMA, lineage = lineage, generation = 0, writerSequence = 0,
-        domains = {}, keys = {}, requests = {}, duplicates = {} }
+        domains = {}, keys = {}, requests = {}, duplicates = {}, opSequence = 0, policy = {} }
 end
 
 
@@ -109,7 +118,7 @@ function I.registerDomain(ledger, country, farmId, proof)
     local domain = { country = country, farmId = tostring(farmId), status = I.UNPROVEN, next = 1, blocked = {}, skipped = 0 }
     if type(proof) == "table" and proofs[proof.kind] then
         if proof.kind == "EXCLUSIVE_NEW" then
-            if not int(proof.startRaw) or proof.startRaw < 1 or proof.startRaw > I.MAX_RAW then return nil, "BAD_PROOF" end
+            if not int(proof.startRaw) or proof.startRaw < 1 or proof.startRaw > I.MAX_RAW + 1 then return nil, "BAD_PROOF" end
             domain.next = proof.startRaw
         elseif proof.kind == "COUNTER_HISTORY" then
             if not int(proof.nextRaw) or proof.nextRaw < 1 or proof.nextRaw > I.MAX_RAW + 1 or not str(proof.evidence) then
@@ -119,7 +128,7 @@ function I.registerDomain(ledger, country, farmId, proof)
             if proof.nextRaw > 1 then domain.blocked[1] = { 1, proof.nextRaw - 1 } end
         else
             if proof.userAccepted ~= true then return nil, "WEAK_GUARANTEE_NOT_ACCEPTED" end
-            if not int(proof.startRaw) or proof.startRaw < 1 or proof.startRaw > I.MAX_RAW then return nil, "BAD_PROOF" end
+            if not int(proof.startRaw) or proof.startRaw < 1 or proof.startRaw > I.MAX_RAW + 1 then return nil, "BAD_PROOF" end
             domain.next = proof.startRaw
         end
         domain.status = I.VERIFIED
@@ -160,7 +169,7 @@ function I.importLiveKey(ledger, farmId, uniqueId, country, role)
         bump(ledger)
         return key, "DUPLICATE"
     end
-    ledger.keys[key] = { state = I.CONSUMED, role = role or "legacy", farmId = tostring(farmId), uniqueId = tostring(uniqueId), country = country }
+    ledger.keys[key] = { state = I.CONSUMED, role = role or "legacy" }
     bump(ledger)
     return key
 end
@@ -177,7 +186,8 @@ local function result(request, ledger, replayed)
     local out = { requestId = request.id, replayed = replayed, keys = {} }
     for i, key in ipairs(request.keys) do
         local rec = ledger.keys[key]
-        out.keys[i] = { key = key, farmId = rec.farmId, uniqueId = rec.uniqueId, country = rec.country,
+        local farmId, uniqueId, country = I.parseKey(key)
+        out.keys[i] = { key = key, farmId = farmId, uniqueId = uniqueId, country = country,
             raw = rec.raw, role = rec.role, type = rec.type, state = rec.state }
     end
     return out
@@ -195,7 +205,7 @@ function I.reserveBatch(ledger, requestId, plan, opts)
     if n < 1 or n > I.MAX_BATCH then return nil, "BAD_BATCH" end
     for k in pairs(plan.items) do if not int(k) or k < 1 or k > n then return nil, "BAD_BATCH" end end
     for _, item in ipairs(plan.items) do
-        if type(item) ~= "table" or (item.role ~= "adult" and item.role ~= "fetus") or not str(item.type) then return nil, "BAD_BATCH" end
+        if type(item) ~= "table" or not batchRoles[item.role] or not str(item.type) then return nil, "BAD_BATCH" end
     end
     local finger = fingerprint(plan)
     local prior = ledger.requests[requestId]
@@ -228,11 +238,11 @@ function I.reserveBatch(ledger, requestId, plan, opts)
         end
         raw = raw + 1
     end
-    local request = { id = requestId, fingerprint = finger, keys = {}, state = I.RESERVED, domain = I.domainKey(plan.country, plan.farmId) }
+    local request = { id = requestId, fingerprint = finger, keys = {}, state = I.RESERVED, domain = I.domainKey(plan.country, plan.farmId),
+        order = ledger.writerSequence + 1 }
     for i, p in ipairs(picked) do
         local item = plan.items[i]
-        ledger.keys[p.key] = { state = I.RESERVED, role = item.role, type = item.type, requestId = requestId, raw = p.raw,
-            farmId = tostring(plan.farmId), uniqueId = p.uniqueId, country = plan.country }
+        ledger.keys[p.key] = { state = I.RESERVED, role = item.role, type = item.type, requestId = requestId, raw = p.raw }
         request.keys[i] = p.key
     end
     domain.next = raw
@@ -301,12 +311,77 @@ function I.burnUnsaved(ledger, keys)
     for _, k in ipairs(keys) do
         local key = I.keyString(k.farmId, k.uniqueId, k.country)
         if ledger.keys[key] == nil then
-            ledger.keys[key] = { state = I.BURNED, role = "unsaved", farmId = tostring(k.farmId), uniqueId = tostring(k.uniqueId), country = k.country }
+            ledger.keys[key] = { state = I.BURNED, role = "unsaved" }
             added = added + 1
         end
     end
     if added > 0 then bump(ledger) end
     return added
+end
+
+
+--- Turn an UNPROVEN domain into a usable one under the weaker MIGRATION_POINT guarantee. The caller
+--- states the user accepted it. Live keys must already be in the ledger (applyMigration / importLiveKey).
+function I.promoteDomain(ledger, country, farmId, startRaw, userAccepted)
+    local domain = ledger.domains[I.domainKey(country, farmId)]
+    if domain == nil then return nil, "DOMAIN_UNKNOWN" end
+    if userAccepted ~= true then return nil, "WEAK_GUARANTEE_NOT_ACCEPTED" end
+    if not int(startRaw) or startRaw < 1 or startRaw > I.MAX_RAW + 1 then return nil, "BAD_PROOF" end
+    if domain.status == I.VERIFIED then return domain end
+    domain.status, domain.proof, domain.next = I.VERIFIED, "MIGRATION_POINT", math.max(domain.next, startRaw)
+    bump(ledger)
+    return domain
+end
+
+
+--- Burn one key that has not become an animal (a fetus that was lost, a stillborn). A CONSUMED key stays.
+--- Returns true, or nil and why. Other keys of the same request are not touched.
+function I.burnKey(ledger, key, reason)
+    local rec = ledger.keys[key]
+    if rec == nil then return nil, "KEY_UNKNOWN" end
+    if rec.state == I.CONSUMED then return nil, "BAD_STATE" end
+    if rec.state == I.BURNED then return true end
+    rec.state = I.BURNED
+    rec.reason = reason
+    bump(ledger)
+    return true
+end
+
+
+--- A new operation number (persisted in the ledger; ids for automatic single-key requests).
+function I.nextOp(ledger)
+    ledger.opSequence = ledger.opSequence + 1
+    return ledger.opSequence
+end
+
+
+--- Drop the request records whose keys are all finished (CONSUMED or BURNED), keeping the newest
+--- `keep` finished ones for exact retry. The keys themselves are never dropped: they stay blocked.
+--- Returns how many requests were dropped.
+function I.compact(ledger, keep)
+    keep = keep or 200
+    local finished = {}
+    for id, request in pairs(ledger.requests) do
+        local done = true
+        for _, key in ipairs(request.keys) do
+            local state = ledger.keys[key].state
+            if state ~= I.CONSUMED and state ~= I.BURNED then done = false break end
+        end
+        if done then finished[#finished + 1] = { id = id, order = request.order or 0 } end
+    end
+    table.sort(finished, function(a, b) if a.order ~= b.order then return a.order > b.order end return a.id > b.id end)
+    local dropped = 0
+    for i = keep + 1, #finished do
+        local request = ledger.requests[finished[i].id]
+        for _, key in ipairs(request.keys) do
+            local rec = ledger.keys[key]
+            rec.requestId, rec.raw, rec.type = nil, nil, nil
+        end
+        ledger.requests[finished[i].id] = nil
+        dropped = dropped + 1
+    end
+    if dropped > 0 then bump(ledger) end
+    return dropped
 end
 
 
@@ -404,6 +479,7 @@ end
 function I.validate(ledger)
     if type(ledger) ~= "table" or ledger.schema ~= I.SCHEMA or not str(ledger.lineage) then return "BAD_SCHEMA" end
     if not int(ledger.generation) or not int(ledger.writerSequence) or ledger.writerSequence < 0 then return "BAD_COUNTERS" end
+    if not int(ledger.opSequence) or ledger.opSequence < 0 or type(ledger.policy) ~= "table" then return "BAD_COUNTERS" end
     for dk, d in pairs(ledger.domains or {}) do
         if type(d) ~= "table" or dk ~= I.domainKey(d.country, d.farmId) then return "BAD_DOMAIN:" .. tostring(dk) end
         if d.status ~= I.VERIFIED and d.status ~= I.UNPROVEN then return "BAD_DOMAIN_STATUS:" .. dk end
@@ -412,7 +488,7 @@ function I.validate(ledger)
     local owners = {}
     for key, rec in pairs(ledger.keys or {}) do
         if type(rec) ~= "table" or not states[rec.state] or not roles[rec.role] then return "BAD_KEY:" .. tostring(key) end
-        if key ~= I.keyString(rec.farmId, rec.uniqueId, rec.country) then return "KEY_MISMATCH:" .. tostring(key) end
+        if I.parseKey(key) == nil then return "KEY_MISMATCH:" .. tostring(key) end
         if rec.requestId ~= nil then
             local request = ledger.requests and ledger.requests[rec.requestId]
             if request == nil then return "KEY_WITHOUT_REQUEST:" .. key end

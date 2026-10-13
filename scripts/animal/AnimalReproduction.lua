@@ -152,11 +152,32 @@ local function advancePregnancy(animal, spec, day, month, year, isSaleAnimal)
                     animal.uniqueId or "?", tostring(animal.genetics.productivity))
             end
 
+            -- Identity ledger: reserve this litter's keys before anything below changes. When it cannot,
+            -- the mother stays pregnant with every field as it was (no draw, no parity change, no
+            -- placeholder newborn) and the birth is tried again at the next day change.
+            local identityBirth = RLAnimalIdentityRuntime.authoritative()
+            if identityBirth then
+                local birthContext, birthEventId = RLAnimalIdentityWorld.birthContext(animal, isSaleAnimal)
+                local litterSize = type(animal.pregnancy.pregnancies) == "table" and #animal.pregnancy.pregnancies or 0
+                if litterSize >= 1 and not RLAnimalIdentityRuntime.beginBirth(birthContext, birthEventId, litterSize) then
+                    return children, deadAnimals, childrenSold, childrenSoldAmount
+                end
+            end
+
             animal.isPregnant = false
 
             local parentDied = false
-            children, parentDied, childrenSold, childrenSoldAmount =
-                animal:reproduce(spec, day, month, year, isSaleAnimal)
+            if identityBirth then
+                local birthOk, birthError = pcall(function()
+                    children, parentDied, childrenSold, childrenSoldAmount =
+                        animal:reproduce(spec, day, month, year, isSaleAnimal)
+                end)
+                RLAnimalIdentityRuntime.endBirth()
+                if not birthOk then error(birthError, 0) end
+            else
+                children, parentDied, childrenSold, childrenSoldAmount =
+                    animal:reproduce(spec, day, month, year, isSaleAnimal)
+            end
 
             animal.reproduction = 0
 

@@ -217,6 +217,7 @@ function Animal.new(config)
     self.farmId = farmId or nil
 
     local id = cfg.uniqueId
+    local deferredIdentity = nil
 
     if self.clusterSystem ~= nil then
         if id == nil then
@@ -226,6 +227,12 @@ function Animal.new(config)
 
             if farm == nil then
                 id = "1"
+            elseif RLAnimalIdentityRuntime.authoritative() then
+                -- The identity ledger numbers this animal once its birth country is known (below).
+                local farmHerdId = RLAnimalIdentityWorld.ensureHerd(farm)
+                self.farmId = tostring(farmHerdId)
+                deferredIdentity = { farm = farm, herd = farmHerdId,
+                    typeIndex = g_currentMission.animalSystem:getSubTypeByIndex(self.subTypeIndex).typeIndex }
             else
                 id = farm.stats:getNextAnimalId(g_currentMission.animalSystem:getSubTypeByIndex(self.subTypeIndex)
                 .typeIndex)
@@ -317,6 +324,16 @@ function Animal.new(config)
             ["country"] = birthCountry,
             ["lastAgeMonth"] = currentMonth
         }
+    end
+
+    if deferredIdentity ~= nil then
+        local country = self.birthday ~= nil and self.birthday.country or RealisticLivestock.getMapCountryIndex()
+        local raw = RLAnimalIdentityWorld.nextStatsRaw("animal-new", deferredIdentity.farm, deferredIdentity.typeIndex, country, "auto")
+        if raw ~= nil then
+            self.uniqueId = RLAnimalUtil.generateUniqueId(deferredIdentity.herd, raw)
+        else
+            self.uniqueId, self.farmId = "1", "1"
+        end
     end
 
     self.diseases = cfg.diseases or {}
@@ -477,6 +494,12 @@ function Animal:setUniqueId(farmId)
         local id = g_currentMission.animalSystem:getNextAnimalIdForFarm(self.birthday.country, self.animalTypeIndex,
             farmId)
 
+        if id == nil then
+            -- The identity ledger refused (it is the allocator and has no key): the old placeholder, repaired later.
+            self.uniqueId, self.farmId = "1", "1"
+            return
+        end
+
         self.farmId = tostring(farmId)
         self.uniqueId = RLAnimalUtil.generateUniqueId(farmId, id)
 
@@ -499,7 +522,14 @@ function Animal:setUniqueId(farmId)
         Log:trace("setUniqueId: farm is nil, fallback to 1/1")
         self.uniqueId, self.farmId = "1", "1"
     else
-        id = farm.stats:getNextAnimalId(g_currentMission.animalSystem:getSubTypeByIndex(self.subTypeIndex).typeIndex)
+        local typeIndex = g_currentMission.animalSystem:getSubTypeByIndex(self.subTypeIndex).typeIndex
+        local country = self.birthday ~= nil and self.birthday.country or RealisticLivestock.getMapCountryIndex()
+        id = RLAnimalIdentityWorld.nextStatsRaw("set-unique-id", farm, typeIndex, country, "birth")
+
+        if id == nil then
+            self.uniqueId, self.farmId = "1", "1"
+            return
+        end
 
         local farmHerdId = farm.stats.statistics.farmId
         if farmHerdId == nil then

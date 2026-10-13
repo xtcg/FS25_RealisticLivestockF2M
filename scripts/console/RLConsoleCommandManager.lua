@@ -52,6 +52,14 @@ function RLConsoleCommandManager.new()
         addConsoleCommand("rlTradeSaleMode", "T02 player/herdsman sale mode: OFF (old path), SHADOW (log only), TEST (transaction with money receipt; test saves only)",
             "saleMode", RLTradeReportConsole, "[OFF|SHADOW|TEST]")
     end
+    -- Animal identity ledger (RLIdentityConsole): status and report are read-only; the rest is server only.
+    addConsoleCommand("rlIdentityStatus", "Identity ledger: mode, state, generation, counts, shadow collisions (read-only)", "status", RLIdentityConsole, "")
+    addConsoleCommand("rlIdentityReport", "Identity ledger: what switching it on would find per herd domain (read-only)", "report", RLIdentityConsole, "")
+    if g_currentMission:getIsServer() then
+        addConsoleCommand("rlIdentityActivate", "Switch the identity ledger on; 'accept' takes the weaker guarantee for unprovable herds", "activate", RLIdentityConsole, "[accept]")
+        addConsoleCommand("rlIdentityMode", "Identity ledger back to OFF (old counters) or SHADOW (observe only)", "mode", RLIdentityConsole, "<OFF|SHADOW>")
+        addConsoleCommand("rlIdentityRecoveryClear", "Leave identity RECOVERY_REQUIRED after reading the evidence", "recoveryClear", RLIdentityConsole, "")
+    end
     addConsoleCommand("rlTradePlan", "Read-only whole-batch contract budget (shadow, no reservation or delivery)", "plan",
         RLTradeReportConsole, "<facility> <uniqueId|pen:NAME> [farmId]")
     addConsoleCommand("rlPenReport", "Log each profiled pen's rule, map filter, feed and animals (RLPEN PEN_REPORT)", "report", RLPenConsole, "[pen]")

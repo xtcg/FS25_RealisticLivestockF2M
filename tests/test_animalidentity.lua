@@ -176,3 +176,25 @@ I.burnUnsaved(la, { { farmId = "41", uniqueId = U.generateUniqueId("41", 2), cou
 I.importLiveKey(la, "41", U.generateUniqueId("41", 4), 2, "legacy")
 local ra = assert(I.reserveBatch(la, "ahead", plan(3)))
 check("ID-02 burned-unsaved and live keys ahead of the cursor are skipped (raws 1,3,5)", ra.keys[1].raw == 1 and ra.keys[2].raw == 3 and ra.keys[3].raw == 5)
+
+-- T2 compatibility extensions
+local lc = ledgerWith("41")
+local rc = assert(I.reserveBatch(lc, "litter", { country = 2, farmId = "41", items = { { role = "birth", type = "COW" }, { role = "birth", type = "COW" }, { role = "birth", type = "COW" } } }))
+check("T2 role=birth is a valid batch role; keys parse back to their fields", rc.keys[1].role == "birth" and rc.keys[1].farmId == "41"
+    and rc.keys[1].country == 2 and I.keyString(rc.keys[1].farmId, rc.keys[1].uniqueId, rc.keys[1].country) == rc.keys[1].key)
+assert(I.bindMaterialization(lc, "litter", "d"))
+assert(I.consume(lc, rc.keys[1].key))
+check("T2 burnKey burns one stillborn key only; a consumed key cannot be burned", I.burnKey(lc, rc.keys[2].key, "stillborn") == true
+    and lc.keys[rc.keys[2].key].state == I.BURNED and lc.keys[rc.keys[3].key].state == I.MATERIALIZED
+    and select(2, I.burnKey(lc, rc.keys[1].key)) == "BAD_STATE" and select(2, I.burnKey(lc, "nope")) == "KEY_UNKNOWN")
+check("T2 compact keeps a request that still has a live key", I.compact(lc, 0) == 0 and lc.requests.litter ~= nil)
+assert(I.burnKey(lc, rc.keys[3].key, "lost"))
+check("T2 compact drops finished requests beyond the newest N and the keys stay blocked", I.compact(lc, 0) == 1 and lc.requests.litter == nil
+    and lc.keys[rc.keys[1].key].state == I.CONSUMED and I.validate(lc) == nil and I.isBlocked(lc, "41", rc.keys[1].uniqueId, 2))
+local lc2 = ledgerWith("41")
+for i = 1, 5 do local r = assert(I.reserveBatch(lc2, "q" .. i, plan(1))); assert(I.bindMaterialization(lc2, "q" .. i, "d")); assert(I.consume(lc2, r.keys[1].key)) end
+check("T2 compact keeps the newest finished requests", I.compact(lc2, 2) == 3 and lc2.requests.q5 ~= nil and lc2.requests.q4 ~= nil and lc2.requests.q1 == nil)
+check("T2 opSequence is persisted and monotonic", I.nextOp(lc2) == 1 and I.nextOp(lc2) == 2 and assert(I.export(lc2)).opSequence == 2)
+local le2 = ledgerWith("41", { kind = "MIGRATION_POINT", startRaw = I.MAX_RAW + 1, userAccepted = true })
+check("T2 a domain whose cursor is past the range is valid and refuses with RANGE_EXHAUSTED", I.validate(le2) == nil
+    and select(2, I.reserveBatch(le2, "x", plan(1))) == "RANGE_EXHAUSTED")

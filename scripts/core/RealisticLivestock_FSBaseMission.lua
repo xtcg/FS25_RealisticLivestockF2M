@@ -334,6 +334,19 @@ function RealisticLivestock_FSBaseMission:onStartMission()
         end
     end
 
+    -- Identity ledger: after the identity repair above (so repaired ids are in the scan) and the T02 / dealer checks.
+    if isServer then
+        local idChecked, idError = pcall(RLAnimalIdentityCheckpoint.onMissionStarted, self)
+        if not idChecked then
+            Log:error("onStartMission: identity ledger check failed: %s - keys come from the old counters", tostring(idError))
+            RLAnimalIdentityCheckpoint.state, RLAnimalIdentityCheckpoint.reason = RLAnimalIdentityCheckpoint.RECOVERY_REQUIRED, "CHECK_THREW"
+            RLAnimalIdentityRuntime.setLoaded(RLAnimalIdentityRuntime.ledger, "RECOVERY_REQUIRED", "CHECK_THREW")
+        end
+        if g_messageCenter ~= nil and MessageType ~= nil and MessageType.HOUR_CHANGED ~= nil then
+            g_messageCenter:subscribe(MessageType.HOUR_CHANGED, RLAnimalIdentityCheckpoint.onHour, RLAnimalIdentityCheckpoint)
+        end
+    end
+
     local guiOk, guiErr = pcall(function()
         local realisticLivestockFrame = RealisticLivestockFrame.new()
         g_gui:loadGui(modDirectory .. "gui/RealisticLivestockFrame.xml", "RealisticLivestockFrame", realisticLivestockFrame, true)

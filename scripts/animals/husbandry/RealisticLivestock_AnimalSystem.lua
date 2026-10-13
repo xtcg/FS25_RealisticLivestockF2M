@@ -1270,6 +1270,8 @@ function AnimalSystem:saveToXMLFile(_)
 
     -- Add version attribute for future migrations
     xmlFile:setInt("rm_RlAnimalSystem#version", 1)
+    -- The native counters are a participant of the identity checkpoint (same save pass).
+    if RLAnimalIdentityCheckpoint ~= nil then RLAnimalIdentityCheckpoint.markParticipant("animalSystem", xmlFile, "rm_RlAnimalSystem") end
 
 
     xmlFile:setSortedTable("rm_RlAnimalSystem.animalTypes.type", self.types, function (key, type)
@@ -1670,9 +1672,11 @@ end
 --- Take the source farm's next animal id for a sale animal that qualified.
 ---@return number id
 function AnimalSystem:_takeSaleAnimalId(source, animalTypeIndex)
-    local id = (source.farm.ids[animalTypeIndex] or 0) + 1
-    source.farm.ids[animalTypeIndex] = id
-    return id
+    return RLAnimalIdentityWorld.nextSystemRaw("sale-animal", self, source.countryIndex, source.farm, animalTypeIndex, "sale", function()
+        local id = (source.farm.ids[animalTypeIndex] or 0) + 1
+        source.farm.ids[animalTypeIndex] = id
+        return id
+    end)
 end
 
 
@@ -2015,7 +2019,9 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
         if not ok then return nil, reasons[1] end
     end
 
-    animal.uniqueId = RLAnimalUtil.generateUniqueId(source.farmId, self:_takeSaleAnimalId(source, animalTypeIndex))
+    local saleRaw = self:_takeSaleAnimalId(source, animalTypeIndex)
+    if saleRaw == nil then return nil, "IDENTITY_REFUSED" end
+    animal.uniqueId = RLAnimalUtil.generateUniqueId(source.farmId, saleRaw)
     animal.birthday.country = source.countryIndex
 
     if #animal.diseases > 0 and Log.level >= RmLogging.LOG_LEVEL.DEBUG then
@@ -2201,7 +2207,10 @@ function AnimalSystem:getNextAnimalIdForFarm(countryIndex, animalTypeIndex, farm
 
     local country = self.countries[countryIndex]
 
-    if country == nil then return 1 end
+    if country == nil then
+        if RLAnimalIdentityRuntime.authoritative() then return nil, "NO_COUNTRY" end
+        return 1
+    end
 
     local farms = country.farms
 
@@ -2213,17 +2222,22 @@ function AnimalSystem:getNextAnimalIdForFarm(countryIndex, animalTypeIndex, farm
 
             if farm.ids[animalTypeIndex] ~= nil then
 
-                farm.ids[animalTypeIndex] = farm.ids[animalTypeIndex] + 1
-                return farm.ids[animalTypeIndex]
+                return RLAnimalIdentityWorld.nextSystemRaw("sale-birth", self, countryIndex, farm, animalTypeIndex, "birth", function()
+                    farm.ids[animalTypeIndex] = farm.ids[animalTypeIndex] + 1
+                    return farm.ids[animalTypeIndex]
+                end)
 
             end
 
+            -- Raw 1 is the old fallback for a farm that does not breed this type; it never authorises a key.
+            if RLAnimalIdentityRuntime.authoritative() then return nil, "TYPE_UNSUPPORTED" end
             return 1
 
         end
 
     end
 
+    if RLAnimalIdentityRuntime.authoritative() then return nil, "NO_FARM" end
     return 1
 
 end
@@ -3239,8 +3253,11 @@ function AnimalSystem:createNewAIAnimal(animalTypeIndex)
         farmQuality = farm.quality
         farmCountryIndex = countryIndex
 
-        farm.ids[animalTypeIndex] = (farm.ids[animalTypeIndex] or 0) + 1
-        lastAnimalId = farm.ids[animalTypeIndex]
+        lastAnimalId = RLAnimalIdentityWorld.nextSystemRaw("ai-animal", self, countryIndex, farm, animalTypeIndex, "ai", function()
+            farm.ids[animalTypeIndex] = (farm.ids[animalTypeIndex] or 0) + 1
+            return farm.ids[animalTypeIndex]
+        end)
+        if lastAnimalId == nil then return nil end
 
     end
 
