@@ -26,7 +26,7 @@ local function close(reason, evidence)
     RLDealerCheckpoint.state, RLDealerCheckpoint.reason = RLDealerCheckpoint.RECOVERY_REQUIRED, reason
 end
 function R.reset(isServer)
-    R.server, R.store, R.evidence = isServer == true, nil, nil
+    R.server, R.store, R.evidence, R.discardedWal = isServer == true, nil, nil, nil
     R.state, R.reason = isServer and "LOADING" or "DISABLED", isServer and "WAITING_FOR_MISSION" or "CLIENT"
     -- Events from an earlier map must never retain a service or authority handle.
     if RLDealerPurchaseEvent then RLDealerPurchaseEvent.service = nil end
@@ -74,11 +74,36 @@ function R.compareJournal(document, generation, lineage)
         recoveryMatches = wal.recovery ~= nil and RLTradePersistence.canonical(wal.recovery)==RLTradePersistence.canonical(currentRecovery)
     end
     if RLTradePersistence.canonical(wal.purchase) == RLTradePersistence.canonical(current) and recoveryMatches then return true end
-    -- Retain the independently saved stock as compensation evidence. A COMMITTED
-    -- WAL cannot overrule old saved source/target/money ownership by itself.
+    -- A WAL on the generation of the last verified checkpoint was written after that save, and no
+    -- later save took it in: the session that bought was left without saving (or crashed). The game
+    -- writes money and animals only in a save, so the whole save on disk is before the purchase and
+    -- consistent: the purchase never happened, as anything else not saved (decided 2026-10-13).
+    -- The WAL is set aside as evidence; nothing is replayed, paid or refunded.
+    if wal.baseGeneration == generation then
+        R.discardedWal = { reason = "WAL_UNSAVED_DISCARDED", generation = generation, lineage = lineage,
+            walSequence = document.data.sequence, purchase = copy(wal.purchase) }
+        return true, "WAL_UNSAVED_DISCARDED"
+    end
+    -- A WAL from an older generation that a later save did not reconcile: retain the independently
+    -- saved stock as compensation evidence. A COMMITTED WAL cannot overrule old saved
+    -- source/target/money ownership by itself.
     R.evidence = { checkpointPurchase = current, checkpointRecovery=currentRecovery, wal = copy(document), generation = generation, lineage = lineage }
     R.store.purchase, R.store.recoveryRequired = purchase, true
     return nil, "WAL_ASSET_RECONCILIATION_REQUIRED"
+end
+--- Move an unsaved session's WAL aside (rm_RlDealerPurchaseJournal.unsaved.xml) so the next purchase
+--- starts a fresh one; the next save replaces the folder and drops it (savegameBackup keeps it).
+function R.archiveWal(walPath)
+    local archived = walPath:gsub("%.xml$", ".unsaved.xml")
+    if copyFile ~= nil and deleteFile ~= nil then
+        copyFile(walPath, archived, true)
+        deleteFile(walPath)
+    end
+    R.reason = "WAL_UNSAVED_DISCARDED"
+    if RmLogging ~= nil then
+        RmLogging.getLogger("RLRM"):info("RLDealerRuntime: a purchase journal from a session left without saving was set aside (%s)", archived)
+    end
+    return archived
 end
 function R.onMissionStarted(mission, evidence)
     if not R.server then return end
@@ -96,8 +121,12 @@ function R.onMissionStarted(mission, evidence)
         local matched
         matched, why = R.compareJournal(journal, checkpoint.generation, checkpoint.lineage)
         if not matched then close(why, R.evidence or journal); return end
+        if why == "WAL_UNSAVED_DISCARDED" then R.archiveWal(walPath) end
     end
-    R.state, R.reason = "DORMANT", R.store and "SAVED_STOCK_VERIFIED_CHANNEL_CLOSED" or "EMPTY_CHANNEL_CLOSED"
+    R.state = "DORMANT"
+    if R.reason ~= "WAL_UNSAVED_DISCARDED" then
+        R.reason = R.store and "SAVED_STOCK_VERIFIED_CHANNEL_CLOSED" or "EMPTY_CHANNEL_CLOSED"
+    end
 end
 function R.canPurchase()
     if not R.CHANNEL_ENABLED then return false, "DEALER_V2_DISABLED" end

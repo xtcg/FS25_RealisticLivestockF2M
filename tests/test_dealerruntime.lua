@@ -25,8 +25,15 @@ local no, why = R.compareJournal(wal, 2, "DLruntime")
 check("dealer runtime: newer generation cannot attach to old backup assets", no == nil and why == "WAL_CHECKPOINT_MISMATCH"
     and not R.store.recoveryRequired)
 wal.data.purchase.recoveryRequired = true
+-- On the checkpoint's own generation a differing WAL is a session left without saving: the save on
+-- disk is wholly before the purchase, so the WAL is set aside and the saved stock stands.
+local yes, unsaved = R.compareJournal(wal, 3, "DLruntime")
+check("dealer runtime: a WAL on the last checkpoint's generation (left without saving) is discarded, stock kept",
+    yes == true and unsaved == "WAL_UNSAVED_DISCARDED" and not R.store.recoveryRequired
+    and R.discardedWal.generation == 3 and R.discardedWal.purchase.recoveryRequired)
+wal.data.baseGeneration = 2
 no, why = R.compareJournal(wal, 3, "DLruntime")
-check("dealer runtime: WAL ahead of asset snapshot holds ownership and retains both evidences", no == nil
+check("dealer runtime: an older WAL a later save did not reconcile holds ownership and retains both evidences", no == nil
     and why == "WAL_ASSET_RECONCILIATION_REQUIRED" and R.store.recoveryRequired
     and R.evidence.checkpointPurchase.recoveryRequired == false and R.evidence.wal.data.purchase.recoveryRequired)
 local can, reason = R.canPurchase()
@@ -40,4 +47,19 @@ local oldLoad = RLDealerJournal.load; RLDealerJournal.load = function() return n
 R.onMissionStarted({ missionInfo = { savegameDirectory = "/save" } })
 check("dealer runtime: damaged WAL is retained and closes game checkpoint gate", R.state == "RECOVERY_REQUIRED"
     and C.state == C.RECOVERY_REQUIRED and R.reason == "WAL:CORRUPT" and R.evidence.path ~= nil)
+-- Load after a purchase in a session left without saving: the WAL is moved aside, the dealer stays dormant (not closed).
+R.reset(true)
+C.onMissionStarted = function() C.state = C.READY; C.generation = 3; C.lineage = "DLruntime"; R.store = assert(V.new("runtime-unsaved", 10)) end
+local unsavedWal = { data = { lineage = "DLruntime", baseGeneration = 3, sequence = 2, purchase = P.export(P.new()) } }
+unsavedWal.data.purchase.recoveryRequired = true
+RLDealerJournal.load = function() return unsavedWal end
+local moved = {}
+copyFile = function(from, to) moved[#moved + 1] = "copy " .. from .. " " .. to end
+deleteFile = function(path) moved[#moved + 1] = "delete " .. path end
+R.onMissionStarted({ missionInfo = { savegameDirectory = "/save" } })
+check("dealer runtime: an unsaved session's WAL is set aside on load, the dealer stays dormant with its saved stock",
+    R.state == "DORMANT" and R.reason == "WAL_UNSAVED_DISCARDED" and C.state == C.READY and not R.store.recoveryRequired
+    and moved[1] == "copy /save/rm_RlDealerPurchaseJournal.xml /save/rm_RlDealerPurchaseJournal.unsaved.xml"
+    and moved[2] == "delete /save/rm_RlDealerPurchaseJournal.xml")
+copyFile, deleteFile = nil, nil
 RLDealerJournal.load, C.onMissionStarted, fileExists = oldLoad, oldMissionStarted, oldExists

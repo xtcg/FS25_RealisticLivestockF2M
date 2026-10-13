@@ -161,8 +161,9 @@ writeCount=writes
 check("owned journal: malformed money receipts cannot cross durable barrier",not J.checkpoint(journal,"/save",snapshot.purchase,1,storage,withMoney) and writes==writeCount)
 RLDealerRuntime.store=stock
 check("owned runtime: identical full ownership and purchase checkpoint can be compared without effects",RLDealerRuntime.compareJournal(wal,1,meta.lineage) and not stock.recoveryRequired)
+-- An older WAL (generation 1) against a later checkpoint (2): a save after it should have taken it in.
 local changedWal=copy(wal);changedWal.data.recovery.clockMonths=101
-local matched,matchReason=RLDealerRuntime.compareJournal(changedWal,1,meta.lineage)
+local matched,matchReason=RLDealerRuntime.compareJournal(changedWal,2,meta.lineage)
 check("owned runtime: equal purchase journal cannot hide different source ownership evidence",not matched
     and matchReason=="WAL_ASSET_RECONCILIATION_REQUIRED" and stock.recoveryRequired
     and RLDealerRuntime.evidence.checkpointRecovery.clockMonths==100 and RLDealerRuntime.evidence.wal.data.recovery.clockMonths==101)
