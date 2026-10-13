@@ -135,7 +135,7 @@
         <text name="rl_ui_penBullsReady" text="Bullen schlachtreif"/>
         <text name="rl_ui_penBullsOverfat" text="Bullen überfett"/>
         <text name="rl_ui_fatClass" text="Fettklasse"/>
-        <text name="rl_ui_penEwesThinFat" text="Mutterschafe dünn / fett"/>
+        <text name="rl_ui_penEwesThinFat" text="Schafe dünn / fett"/>
         <text name="rl_ui_penLambsReady" text="Lämmer schlachtreif"/>
         <text name="rl_ui_penLambsOverfat" text="Lämmer überfett"/>
         <text name="rl_ui_penFeedEaten" text="Futter gefressen"/>
@@ -1003,7 +1003,7 @@
         <text name="rl_feed_limit_PROTEIN" text="Low protein"/>
         <text name="rl_feed_limit_UNKNOWN" text="Unknown limit"/>
         <text name="rl_feed_limit_NO_CALF_MILK" text="No calf milk"/>
-        <text name="rl_feed_limit_CREEP" text="Lämmerfutter max."/>
+        <text name="rl_feed_limit_CREEP" text="Lämmerfutter"/>
         <text name="rl_feed_penCalfMilk" text="Calves on milk"/>
         <text name="rl_feed_calfMilkNone" text="%d without calf milk"/>
         <text name="rl_feed_calfMilkLow" text="Calf milk for %s"/>
