@@ -658,3 +658,24 @@ its final focused rerun passes **43/43**, and dependent OwnedAdmission passes
 **56/56**. Final World and Capacity reruns pass **71/71** and **38/38**.
 All **45** dealer/loader/changed bridge files parse in stock Lua 5.1;
 `git diff --check` is clean. No installed-game acceptance is claimed.
+
+## 2026-10-13: PR #55 review fixes
+
+The review fixes are in commits after `c9ab73c`, which also merge dev (sheep S3/S4) into the branch. The channel stays closed.
+
+- **No reads through `io.open`.** In FS25, `io.open` opens every file for writing, which empties it (`dataS/scripts/io.lua`). Files are now read only through `RLTradePersistence.readXMLText` (XMLFile + `getAsString`). This fixes:
+  - `readParticipant` truncating `placeables.xml`, `vehicles.xml` and `farms.xml`;
+  - the LOAD quarantine wiping the dealer document;
+  - PR34's ledger quarantine bug in `RLTradeCheckpoint`.
+
+  A file that isn't XML can no longer be copied, because the engine has no raw read. The quarantine note points to savegameBackup instead. `tests/test_engine_io.lua` fails if any script calls `io.open` with a mode other than `"w"`.
+- **Protocols.** Purchase and quote events are read to the end before they are validated, so a rejected event can't throw the stream out of alignment.
+- **Lock expiry after the debit.** The money adapter's durable checkpoints can take longer than `LOCK_MS`. The commit fence and `markSold(..., paid=true)` therefore skip the real-time lock check once the money is applied. Before the debit, an expired lock still rolls the purchase back.
+- **Source births.** Every newborn is checked before any is added. A collision quarantines the birth, keeps the identities as evidence and frees `pendingAdds`.
+- **Unsaved WAL (decided 2026-10-13).** A WAL on the last verified checkpoint's generation belongs to a session that was left without saving. It is moved aside (`*.unsaved.xml`) and the dealer stays dormant on its saved stock. An older WAL that no later save reconciled still closes for reconciliation.
+- **Pen reads.** `RLHusbandryProfiles.read` scopes replace the `readOnly` parameter.
+  - The parsed config is memoized.
+  - Nothing is written on a pen during a read, and nothing is logged.
+  - A pen whose profile isn't applied yet is checked against the filter that apply would write.
+- **Growth.** `RLGrowth.step` no longer runs `ensureState`/`resync` a second time through `advanceBudget`.
+- **Not done: shared checkpoint hooks.** `RLDealerCheckpoint` still keeps its own save hooks next to `RLTradeCheckpoint`, and the two share only the reader. Extracting a common participant helper would touch PR34's tested save path, so it is left for a separate change.

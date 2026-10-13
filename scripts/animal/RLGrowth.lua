@@ -1241,18 +1241,26 @@ end
 --- @return table input
 --- @return number weightBefore
 --- @return number ownReference
-function RLGrowth.advanceBudget(animal, supply, dtMonths, tick)
-    if type(dtMonths) ~= "number" or dtMonths ~= dtMonths or dtMonths <= 0 or dtMonths == math.huge then
-        return nil, nil, animal.weight, nil, "HISTORY_INTERVAL"
-    end
-    local state = RLGrowth.ensureState(animal)
-    RLGrowth.resync(animal, state)
+local function validInterval(dtMonths)
+    return type(dtMonths) == "number" and dtMonths == dtMonths and dtMonths > 0 and dtMonths ~= math.huge
+end
+
+-- The budget step on a state the caller has already ensured and resynchronised this step.
+local function advanceState(animal, state, supply, dtMonths, tick)
     prepareStep(animal, state, dtMonths)
     local input, config, ownReference = RLGrowth.buildBudgetInput(animal, state, supply, dtMonths)
     local weightBefore = animal.weight
     local result = RLGrowthMath.step(input, config)
     if not applyStepResult(animal, state, result, tick) then return nil, input, weightBefore, ownReference end
     return result, input, weightBefore, ownReference
+end
+
+function RLGrowth.advanceBudget(animal, supply, dtMonths, tick)
+    -- The reason names the shared integrator's interval check (historical and live callers alike).
+    if not validInterval(dtMonths) then return nil, nil, animal.weight, nil, "HISTORY_INTERVAL" end
+    local state = RLGrowth.ensureState(animal)
+    RLGrowth.resync(animal, state)
+    return advanceState(animal, state, supply, dtMonths, tick)
 end
 
 
@@ -1320,8 +1328,12 @@ function RLGrowth.step(animal, foodFactor)
     -- pen's food factor) before this step; the budget pays for that milk, not for more.
     local milkShare = fromLedger and waterCoverage or math.clamp(foodFactor or 0, 0, 1)
 
-    local result, _, _, ownReference = RLGrowth.advanceBudget(animal,
-        { intakeLiters = intakeStep / dtMonths, milkShare = milkShare }, dtMonths, tick)
+    -- The state was ensured and resynchronised above for this hour: step it directly.
+    local result, _, _, ownReference
+    if validInterval(dtMonths) then
+        result, _, _, ownReference = advanceState(animal, state,
+            { intakeLiters = intakeStep / dtMonths, milkShare = milkShare }, dtMonths, tick)
+    end
     if result == nil then
         animal.rlMilkPaid = { tick = tick, litersPerHour = 0, deposited = false }
         return true
