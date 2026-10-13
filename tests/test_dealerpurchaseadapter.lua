@@ -145,6 +145,23 @@ for _,fault in ipairs({"SILENT","PARTIAL"}) do
         and #x.cluster.animals==0 and #x.owner.animals==2 and x.owner.animals[1]==x.source[1] and x.farm.money==1000 and x.calls==0
         and a.money.locks[1]==nil and a.money.records["dealer:"..r.requestId].cancelled)
 end
+-- A slow durable write after the debit (a large save) outlasts the lock: the paid sale still commits.
+stock,adapter,w,request,principal=fixture()
+w.onWrite=function() if w.calls>=1 and not w.jumped then w.jumped=true;w.ms=w.ms+RLDealerPurchase.LOCK_MS+1 end end
+result,why=P.execute(stock.purchase,request,principal,adapter)
+check("purchase adapter: a lock that expires during the post-debit checkpoint still commits the paid sale",w.jumped
+    and result and result.status=="COMMITTED" and not stock.recoveryRequired and w.farm.money==800 and #w.cluster.animals==2 and w.calls==1)
+-- Before the debit the lock still guards the reservation: expiry there rolls back with no money moved.
+stock,adapter,w,request,principal=fixture()
+w.onWrite=function(_,payload)
+    if w.calls>0 or w.jumped or payload.listings==nil then return end
+    for _,record in pairs(payload.listings.records) do
+        if record.state=="RESERVED" then w.jumped=true;w.ms=w.ms+RLDealerPurchase.LOCK_MS+1;return end
+    end
+end
+result,why=P.execute(stock.purchase,request,principal,adapter)
+check("purchase adapter: a lock that expires before the debit rolls back, no money moved",w.jumped
+    and result and result.status=="ROLLED_BACK" and w.farm.money==1000 and w.calls==0 and #w.owner.animals==2)
 stock,adapter,w,request,principal=fixture();w.moneyFault="THROW_BEFORE"
 result=P.execute(stock.purchase,request,principal,adapter)
 check("purchase adapter: proven no-effect money throw compensates target/source and releases token",result and result.status=="ROLLED_BACK"

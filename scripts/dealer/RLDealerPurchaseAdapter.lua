@@ -179,9 +179,15 @@ function A.new(ctx)
             or not equal(stock.sourceBindings,active.plan.compensation.ownership.bindings) then return nil,"SOURCE_RECORD_CHANGED" end
         if active.reserved then
             if not equal(stock.listings,active.reserved) then return nil,"RESERVATION_CHANGED" end
-            local ms=ctx.monotonicMs()
-            for _,row in ipairs(active.listings) do
-                if ms>=active.reserved.records[row.saleId].lock.expiresAtReal then return nil,"LOCK_EXPIRED" end
+            -- The lock's real-time window guards a reservation until the debit. Once paid, the sale
+            -- is final: the durable checkpoints in between (money persistPrepared/Committed) may take
+            -- longer than LOCK_MS on a large save, and an expired lock must not strand a paid transfer.
+            -- The reservation itself (above) must still be ours.
+            if not paid then
+                local ms=ctx.monotonicMs()
+                for _,row in ipairs(active.listings) do
+                    if ms>=active.reserved.records[row.saleId].lock.expiresAtReal then return nil,"LOCK_EXPIRED" end
+                end
             end
         end
         local currentQuote;currentQuote,why=quote(context,active)
@@ -218,7 +224,7 @@ function A.new(ctx)
         for _,row in ipairs(active.listings) do
             local current=listings.records[row.saleId]
             local sold,reason=RLDealerListingRegistry.markSold(listings,row.saleId,context.request.requestId,
-                current.recordRevision,context.currentClock,ms)
+                current.recordRevision,context.currentClock,ms,true)
             if not sold or sold.state~="SOLD" then return nil,reason or "SALE_COMMIT_FAILED" end
         end
         stock.listings=listings

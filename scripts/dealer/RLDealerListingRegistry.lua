@@ -104,12 +104,14 @@ function R.release(registry, saleId, requestId, now, realNow)
     if now >= r.expiresAtMonths then return R.withdraw(registry, saleId, now, "EXPIRED") end
     return copy(r)
 end
-function R.markSold(registry, saleId, requestId, revision, now, realNow)
+-- paid: the buyer's money is already applied, so the sale is final even if the lock's real-time
+-- window ran out meanwhile (the lock must still be this request's).
+function R.markSold(registry, saleId, requestId, revision, now, realNow, paid)
     local r = registry.records[saleId]
     if not r or r.state ~= "RESERVED" or not r.lock or r.lock.requestId ~= requestId then return nil, "LOCKED" end
     if r.recordRevision ~= revision then return nil, "STALE_REVISION" end
     if not timeOK(r, now) or not finite(realNow) or realNow < r.lock.acquiredAtReal then return nil, "INVALID_TIME" end
-    if realNow >= r.lock.expiresAtReal then return nil, "LOCK_EXPIRED" end
+    if paid ~= true and realNow >= r.lock.expiresAtReal then return nil, "LOCK_EXPIRED" end
     if now ~= r.lastProgressedAtMonths then return nil, "PROGRESSION_REQUIRED" end
     if now >= r.expiresAtMonths then return R.withdraw(registry, saleId, now, "EXPIRED") end
     r.state, r.soldRequestId, r.lock = "SOLD", requestId, nil; bump(r, now); return copy(r)
