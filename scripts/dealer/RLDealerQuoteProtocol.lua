@@ -66,28 +66,35 @@ function P.write(s,kind,value)
     end
     return true
 end
+-- Every field is read before anything is checked (see RLDealerPurchaseProtocol: events carry no length).
 local function read(s)
-    if streamReadUIntN(s,8)~=P.VERSION then return nil,"UNKNOWN_QUOTE_PROTOCOL_VERSION" end
+    local version=streamReadUIntN(s,8)
     local kind=streamReadUIntN(s,2)
     if kind~=P.REQUEST and kind~=P.REPLY then return nil,"UNKNOWN_QUOTE_MESSAGE_KIND" end
     local value={requestId=streamReadString(s)}
+    local count
+    local encoded={}
+    if kind==P.REQUEST then
+        value.destination=streamReadString(s); count=streamReadUIntN(s,16)
+        value.items={}; for i=1,count do value.items[i]={saleId=streamReadString(s),revision=streamReadUIntN(s,32)} end
+    else
+        value.status=streamReadString(s); value.reason=streamReadString(s)
+        if value.status=="QUOTED" then
+            value.credential=streamReadString(s)
+            for _,key in ipairs({"subtotal","transportFee","amount"}) do encoded[key]=streamReadString(s) end
+            value.ttlMs=streamReadUIntN(s,16)
+        end
+    end
+    if version~=P.VERSION then return nil,"UNKNOWN_QUOTE_PROTOCOL_VERSION" end
     if not text(value.requestId,kind==P.REPLY) then return nil,"MALFORMED_REQUEST_ID" end
     if kind==P.REQUEST then
-        value.destination=streamReadString(s); local count=streamReadUIntN(s,16)
         if type(count)~="number" or count%1~=0 or count<1 or count>RLDealerPurchaseProtocol.MAX_BATCH then return nil,"BATCH_LIMIT" end
-        value.items={}; for i=1,count do value.items[i]={saleId=streamReadString(s),revision=streamReadUIntN(s,32)} end
         local request,why=P.request(value); if not request then return nil,why end
         return {kind=kind,payload=request}
     end
-    value.status=streamReadString(s); value.reason=streamReadString(s)
-    if value.status=="QUOTED" then
-        value.credential=streamReadString(s)
-        for _,key in ipairs({"subtotal","transportFee","amount"}) do
-            local encoded=streamReadString(s)
-            if type(encoded)~="string" or #encoded>64 then return nil,"MALFORMED_AMOUNT" end
-            value[key]=tonumber(encoded)
-        end
-        value.ttlMs=streamReadUIntN(s,16)
+    for key,text in pairs(encoded) do
+        if type(text)~="string" or #text>64 then return nil,"MALFORMED_AMOUNT" end
+        value[key]=tonumber(text)
     end
     local reply,why=P.reply(value); if not reply then return nil,why end
     return {kind=kind,payload=reply}

@@ -50,6 +50,11 @@ E.service.onReply=function() error("closed frame") end
 value,why=reply:run(server)
 check("quote Event: closed client consumer cannot throw through Event",not value and why=="REPLY_CONSUMER_ERROR")
 -- Version-drop path reaches neither endpoint nor authority.
-streamReadUIntN=function() return 99 end
+-- A whole frame of another version: version 99, a request with one item (read to its end, then dropped).
+local reads={99,RLDealerQuoteProtocol.REQUEST,1,4}
+streamReadUIntN=function() return table.remove(reads,1) end
+local readString=streamReadString
+streamReadString=function() return "x" end
 local incoming=E.emptyNew(); incoming:readStream({},server)
+streamReadString=readString
 check("quote Event: unknown-version frame drops before consumer",incoming.errorReason=="UNKNOWN_QUOTE_PROTOCOL_VERSION")

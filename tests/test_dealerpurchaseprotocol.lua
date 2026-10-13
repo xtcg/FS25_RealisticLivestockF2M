@@ -40,12 +40,21 @@ check("dealer protocol: sparse batch rejects",not P.request(r))
 r=request(); r.items={}
 for i=1,P.MAX_BATCH+1 do r.items[i]={saleId="s"..i,revision=1} end
 check("dealer protocol: batch count cap rejects before encoding",not P.request(r))
-s=stream({99,P.REQUEST}); message,why=P.read(s)
-check("dealer protocol: unknown version rejects before parsing body",not message and why=="UNKNOWN_PROTOCOL_VERSION" and s.cursor==2)
+-- Events carry no length: a rejected event is still read to its end, so the stream stays aligned for what follows.
+s=stream({99,P.REQUEST,"q1","pen","quote",1,"sale1",4,"NEXT"}); message,why=P.read(s)
+check("dealer protocol: unknown version is read to its end, then rejected (the next value is untouched)",
+    not message and why=="UNKNOWN_PROTOCOL_VERSION" and s.values[s.cursor]=="NEXT")
 s=stream({P.VERSION,3}); message,why=P.read(s)
 check("dealer protocol: unknown kind rejects",not message and why=="UNKNOWN_MESSAGE_KIND")
-s=stream({P.VERSION,P.REQUEST,"q1","pen","quote",1001}); message,why=P.read(s)
-check("dealer protocol: count cap rejects before reading any item",not message and why=="BATCH_LIMIT" and s.cursor==7)
+local over={P.VERSION,P.REQUEST,"q1","pen","quote",P.MAX_BATCH+1}
+for i=1,P.MAX_BATCH+1 do over[#over+1]="s"..i; over[#over+1]=1 end
+over[#over+1]="NEXT"
+s=stream(over); message,why=P.read(s)
+check("dealer protocol: count over the cap reads every item, then rejects (stream aligned)",
+    not message and why=="BATCH_LIMIT" and s.values[s.cursor]=="NEXT")
+s=stream({P.VERSION,P.REQUEST,"","pen","quote",1,"sale1",4,"NEXT"}); message,why=P.read(s)
+check("dealer protocol: a bad request id is rejected after the whole event is read",
+    not message and why=="MALFORMED_REQUEST_ID" and s.values[s.cursor]=="NEXT")
 s=stream({P.VERSION,P.REQUEST,"q1"}); message,why=P.read(s)
 check("dealer protocol: truncated stream returns stable error",not message and why=="MALFORMED_STREAM")
 local result={requestId="q1",status="COMMITTED",amount=123.4567891234567,transferIds={"a","b"}}
@@ -93,7 +102,7 @@ value,reason=replyEvent:run(client)
 check("dealer event: client rejects reply from a client peer",not value and reason=="WRONG_DIRECTION" and consumed==1)
 E.isServer=function() return true end; E.service={authorize=function() return true end,execute=function() calls=calls+1; return result end}
 local before=calls
-local malformed=E.emptyNew(); malformed:readStream(stream({99}),client)
+local malformed=E.emptyNew(); malformed:readStream(stream({99,P.REQUEST,"q1","pen","quote",1,"sale1",4}),client)
 check("dealer event: malformed stream never invokes service",malformed.errorReason=="UNKNOWN_PROTOCOL_VERSION" and calls==before)
 s=stream(); assert(E.newRequest(request())):writeStream(s,client)
 local received=E.emptyNew(); received:readStream(s,client)

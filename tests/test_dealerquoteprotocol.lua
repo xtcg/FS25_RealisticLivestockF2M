@@ -26,12 +26,18 @@ r=request(); r.items[2].saleId="b"
 check("quote RPC: duplicate sale IDs reject",not P.request(r))
 r=request(); r.items={}
 check("quote RPC: empty batch rejects",not P.request(r))
-s=stream({99,P.REQUEST}); message,why=P.read(s)
-check("quote RPC: unknown independent version rejects before body",not message and why=="UNKNOWN_QUOTE_PROTOCOL_VERSION" and s.cursor==2)
+-- Events carry no length: a rejected event is still read to its end, so the stream stays aligned.
+s=stream({99,P.REQUEST,"q1","pen:1",1,"sale1",4,"NEXT"}); message,why=P.read(s)
+check("quote RPC: unknown independent version is read to its end, then rejected",
+    not message and why=="UNKNOWN_QUOTE_PROTOCOL_VERSION" and s.values[s.cursor]=="NEXT")
 s=stream({1,3}); message,why=P.read(s)
 check("quote RPC: unknown route kind rejects",not message and why=="UNKNOWN_QUOTE_MESSAGE_KIND")
-s=stream({1,P.REQUEST,"q1","pen:1",1001}); message,why=P.read(s)
-check("quote RPC: oversized count rejects before records",not message and why=="BATCH_LIMIT" and s.cursor==6)
+local over={1,P.REQUEST,"q1","pen:1",1001}
+for i=1,1001 do over[#over+1]="s"..i; over[#over+1]=1 end
+over[#over+1]="NEXT"
+s=stream(over); message,why=P.read(s)
+check("quote RPC: oversized count reads every record, then rejects (stream aligned)",
+    not message and why=="BATCH_LIMIT" and s.values[s.cursor]=="NEXT")
 s=stream({1,P.REQUEST}); message,why=P.read(s)
 check("quote RPC: truncated frame returns stable error",not message and why=="MALFORMED_QUOTE_STREAM")
 for _,case in ipairs({{"sum",function(v) v.amount=v.amount+1 end},{"nan",function(v) v.amount=0/0 end},

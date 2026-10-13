@@ -78,30 +78,41 @@ function P.write(streamId,kind,value)
     end
     return true
 end
+-- Every field of the layout is read before anything is checked: events carry no length, so a read
+-- that stopped early would leave the rest of this event to be parsed as the next one. The 2-bit kind
+-- picks the layout; an unknown kind (0 or 3) has none and cannot be skipped (mods are identical on
+-- every peer in multiplayer, so only a forged event gets there).
 local function read(streamId)
-    if streamReadUIntN(streamId,8)~=P.VERSION then return nil,"UNKNOWN_PROTOCOL_VERSION" end
+    local version=streamReadUIntN(streamId,8)
     local kind=streamReadUIntN(streamId,2)
     if kind~=P.REQUEST and kind~=P.REPLY then return nil,"UNKNOWN_MESSAGE_KIND" end
     local value={requestId=streamReadString(streamId)}
-    if not text(value.requestId,kind==P.REPLY) then return nil,"MALFORMED_REQUEST_ID" end
+    local n
     if kind==P.REQUEST then
         value.destination=streamReadString(streamId); value.quoteCredential=streamReadString(streamId)
-        local n=streamReadUIntN(streamId,16)
-        if not integer(n,1,P.MAX_BATCH) then return nil,"BATCH_LIMIT" end
+        n=streamReadUIntN(streamId,16)
         value.items={}
         for i=1,n do value.items[i]={saleId=streamReadString(streamId),revision=streamReadUIntN(streamId,32)} end
+    else
+        value.status=streamReadString(streamId); value.reason=streamReadString(streamId)
+        if value.status~="REJECTED" then
+            value.amountText=streamReadString(streamId)
+            n=streamReadUIntN(streamId,16)
+            value.transferIds={}; for i=1,n do value.transferIds[i]=streamReadString(streamId) end
+        end
+    end
+    if version~=P.VERSION then return nil,"UNKNOWN_PROTOCOL_VERSION" end
+    if not text(value.requestId,kind==P.REPLY) then return nil,"MALFORMED_REQUEST_ID" end
+    if n~=nil and not integer(n,1,P.MAX_BATCH) then return nil,"BATCH_LIMIT" end
+    if kind==P.REQUEST then
         local request,why=P.request(value); if not request then return nil,why end
         return {kind=kind,payload=request}
     end
-    value.status=streamReadString(streamId); value.reason=streamReadString(streamId)
-    if value.status~="REJECTED" then
-        local amountText=streamReadString(streamId)
-        if type(amountText)~="string" or #amountText>64 then return nil,"MALFORMED_AMOUNT" end
-        value.amount=tonumber(amountText)
-        local n=streamReadUIntN(streamId,16)
-        if not integer(n,1,P.MAX_BATCH) then return nil,"BATCH_LIMIT" end
-        value.transferIds={}; for i=1,n do value.transferIds[i]=streamReadString(streamId) end
+    if value.amountText~=nil then
+        if type(value.amountText)~="string" or #value.amountText>64 then return nil,"MALFORMED_AMOUNT" end
+        value.amount=tonumber(value.amountText)
     end
+    value.amountText=nil
     local reply,why=P.reply(value); if not reply then return nil,why end
     return {kind=kind,payload=reply}
 end
