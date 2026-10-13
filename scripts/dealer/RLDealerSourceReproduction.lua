@@ -146,6 +146,29 @@ function B.execute(owner, dam, date, context)
         owner.quarantine[dam.uniqueId] = "SOURCE_BIRTH_INCOMPLETE"
         return fail("SOURCE_BIRTH_INCOMPLETE")
     end
+    -- Every newborn is checked before any is added: a unique identity the inventory does not hold
+    -- and a birth state. A failure adds none, keeps the children's identities as evidence and frees
+    -- pendingAdds, so a quarantined birth is never half in the inventory and blocks no other dam.
+    local seen, rejectReason = {}, nil
+    for _, child in ipairs(owner.pendingAdds) do
+        if type(child) ~= "table" or child.uniqueId == nil or owner.byId[child.uniqueId] ~= nil or seen[child.uniqueId] then
+            rejectReason = "SOURCE_BIRTH_IDENTITY"; break
+        end
+        seen[child.uniqueId] = true
+        if type(child.rlGrowth) ~= "table" or type(child.rlGrowth.birthWeightKg) ~= "number" then
+            rejectReason = "SOURCE_BIRTH_STATE"; break
+        end
+    end
+    if rejectReason ~= nil then
+        local rejected = {}
+        for _, child in ipairs(owner.pendingAdds) do
+            rejected[#rejected + 1] = type(child) == "table" and { uniqueId = child.uniqueId, farmId = child.farmId } or {}
+        end
+        event.stage, event.failure, event.rejectedChildren = "QUARANTINED", rejectReason, rejected
+        owner.quarantine[dam.uniqueId] = rejectReason
+        owner.pendingAdds = {}
+        return fail("SOURCE_BIRTH_INCOMPLETE")
+    end
     -- Normal reproduction owns birth weight, survival, parity and lactation. This owner
     -- clears the maternal pregnancy ledger once after those normal effects have completed.
     dam.weight, dam.rlGrowth.weightKg, dam.rlGrowth.gravidKg = prepared.beforeBodyKg, prepared.beforeBodyKg, 0
@@ -154,10 +177,6 @@ function B.execute(owner, dam, date, context)
     if parentDied then dam.isDead = true end
     local newborns = {}
     for _, child in ipairs(owner.pendingAdds) do
-        if owner.byId[child.uniqueId] ~= nil then
-            event.stage = "QUARANTINED"; owner.quarantine[dam.uniqueId] = "SOURCE_BIRTH_IDENTITY"
-            return fail("SOURCE_BIRTH_INCOMPLETE")
-        end
         owner.animals[#owner.animals + 1], owner.byId[child.uniqueId] = child, child
         newborns[#newborns + 1] = { uniqueId = child.uniqueId, farmId = child.farmId, subType = child.subType,
             birthWeightKg = child.rlGrowth.birthWeightKg, alive = not child.isDead }

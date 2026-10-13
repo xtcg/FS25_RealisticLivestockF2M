@@ -120,6 +120,18 @@ local twinResult = success(B.execute(twinOwner, twinDam, twinDate, twinContext))
 check("source birth: actual surviving twins retain two fixed identities and each one shared draw",
     twinResult.children == 2 and #twinOwner.animals == 3 and birthDraws == before + 2
     and twins[1].uniqueId == "UNBORN-1" and twins[2].uniqueId == "UNBORN-2" and twinDam.birthCount == 1)
+-- Twins whose second child's identity reaches the inventory after preflight (preflight already refuses
+-- one present before): neither is added, the birth is quarantined with both identities as evidence,
+-- and pendingAdds is free for the owner's other dams.
+local clashOwner, clashDam, clashTwins, clashDate, clashContext = fixture(10, true)
+clashContext.persistPrepared = function() clashOwner.byId[clashTwins[2].uniqueId] = {}; return true end
+local clashed, clashFailure = B.execute(clashOwner, clashDam, clashDate, clashContext)
+local clashEvent = clashOwner.birthJournal[clashDate.eventId]
+check("source birth: a twin identity collision adds neither child and frees pendingAdds",
+    clashed == nil and clashFailure.reason == "SOURCE_BIRTH_INCOMPLETE" and #clashOwner.animals == 1
+    and clashOwner.byId[clashTwins[1].uniqueId] == nil and #clashOwner.pendingAdds == 0
+    and clashOwner.quarantine[clashDam.uniqueId] == "SOURCE_BIRTH_IDENTITY" and clashEvent.stage == "QUARANTINED"
+    and #clashEvent.rejectedChildren == 2)
 -- Force normal infant mortality for one child; only the one-child continue is replaced
 -- by break in this stock-Lua execution, so all actual mortality code remains exercised.
 local deadOwner, deadDam, deadChildren, deadDate, deadContext = fixture()
