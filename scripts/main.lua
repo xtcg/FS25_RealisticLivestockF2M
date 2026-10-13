@@ -124,6 +124,8 @@ source(modDirectory .. "scripts/animal/RLSaleRecovery.lua")
 source(modDirectory .. "scripts/animal/RLLiveSale.lua")
 -- T02 batch 4: the ledger saved with the savegame, checked on load (gate before any T02 work)
 source(modDirectory .. "scripts/animal/RLTradePersistence.lua")
+-- Dealer v2 T1 identity ledger: dormant, no caller yet (T2 wires the entry points).
+source(modDirectory .. "scripts/animal/RLAnimalIdentity.lua")
 source(modDirectory .. "scripts/animal/RLTradeRecovery.lua")
 source(modDirectory .. "scripts/animal/RLTradeCheckpoint.lua")
 source(modDirectory .. "scripts/animal/RLContractDiag.lua")
