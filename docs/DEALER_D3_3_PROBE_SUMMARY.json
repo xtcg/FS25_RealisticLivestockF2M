@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "replayVersion": 1,
+  "recipeVersion": 1,
+  "evidence": "MODEL_ASSUMED_NUMERICAL_PROBE",
+  "ageMonths": 12.5,
+  "limitations": "Synthetic subtype engine food/milk curves; no game, transaction, or release acceptance.",
+  "summary": {
+    "NORMAL_REARING": {
+      "cases": 396,
+      "replays": 396,
+      "screened": 396,
+      "rejections": {},
+      "minHealth": 100,
+      "minReserveFraction": 0.08999999999999952,
+      "maxReserveFraction": 0.10784313725490298,
+      "maxEnergyError": 2.842170943040401e-14,
+      "maxMassError": 1.4556411631616584e-13,
+      "minDevelopmentLag": 0.0,
+      "maxDevelopmentLag": 0.0,
+      "minWeightLagKg": 0.0,
+      "maxWeightLagKg": 0.0
+    },
+    "MODERATE_SLOW_REARING": {
+      "cases": 396,
+      "replays": 396,
+      "screened": 396,
+      "rejections": {},
+      "minHealth": 100,
+      "minReserveFraction": 0.08999999999999954,
+      "maxReserveFraction": 0.10784313725490298,
+      "maxEnergyError": 2.842170943040401e-14,
+      "maxMassError": 1.545499839217257e-13,
+      "minDevelopmentLag": -0.0006410164694710119,
+      "maxDevelopmentLag": 0.2983626616179027,
+      "minWeightLagKg": -0.012484721407190591,
+      "maxWeightLagKg": 20.27445763905382
+    }
+  },
+  "casesLog": "/private/tmp/dealer-d3-3-calibration.json",
+  "recipeNote": "Normal: GROW on FORAGE + PEA/MAIZE + CALFMILK, planner physical limits. Slow: same profiles with 95% physical intake offer ceiling. Rejected hay/15% peas candidate had 3.08-7.23 months development lag at 12.5 months."
+}

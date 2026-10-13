@@ -1568,8 +1568,8 @@ function Animal:createPregnancy(childNum, month, year, father) AnimalReproductio
 
 function Animal:generateRandomOffspring() return AnimalReproduction.generateRandomOffspring(self) end
 
-function Animal:reproduce(spec, day, month, year, isSaleAnimal) return AnimalReproduction.reproduce(self, spec, day,
-        month, year, isSaleAnimal) end
+function Animal:reproduce(spec, day, month, year, isSaleAnimal, sourceContext) return AnimalReproduction.reproduce(self, spec, day,
+        month, year, isSaleAnimal, sourceContext) end
 
 function Animal:getAnimalTypeIndex()
     return g_currentMission.animalSystem:getTypeIndexBySubTypeIndex(self.subTypeIndex)
