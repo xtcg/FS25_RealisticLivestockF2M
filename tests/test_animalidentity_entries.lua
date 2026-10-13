@@ -67,6 +67,11 @@ check("ON: a player calf is numbered above the farm counter by the ledger", n1.u
 local s2 = saleCalf(9)
 check("ON: a sale birth is numbered by the country farm's domain", s2.uniqueId == U.generateUniqueId(9, 2) and sys.countries[2].farms[1].ids[1] == 2)
 check("ON: the raw-1 fallbacks now refuse instead of authorising a key", sys:getNextAnimalIdForFarm(77, 1, 9) == nil and sys:getNextAnimalIdForFarm(2, 1, 12345) == nil)
+sys.countries[2].farms[2] = { id = 10, ids = { [AnimalType.PIG] = 0 } }   -- keeps pigs, not cows
+check("ON: a farm that does not breed the type refuses instead of handing out raw 1", sys:getNextAnimalIdForFarm(2, 1, 10) == nil)
+R.mode = R.OFF
+check("OFF: the same farm still answers raw 1 like the old code", sys:getNextAnimalIdForFarm(2, 1, 10) == 1)
+R.mode = R.ON
 local ghost = saleCalf(12345)
 check("ON: a sale birth that cannot be numbered gets the placeholder the repair pass knows", ghost.uniqueId == "1" and ghost.farmId == "1")
 
@@ -126,3 +131,13 @@ local plain = mother(2)
 plain.reproduce = function(self) self.reproduced = self.reproduced + 1; return 2, false, 0, 0 end
 advance(plain, {}, 1, 1, 1, false)
 check("OFF: the birth block does not consult the ledger at all", plain.reproduced == 1 and plain.pregnancy == nil)
+
+-- a pen no player farm owns is not numbered by the ledger and is never held
+do
+    R.mode, R.state = R.ON, "READY"
+    assert(R.authoritative())
+    local orphan = mother(1)
+    orphan.clusterSystem = { owner = { ownerFarmId = 77 } }   -- no such farm
+    advance(orphan, {}, 1, 1, 1, false)
+    check("ON: a birth in a pen no player farm owns goes ahead as before (not held)", orphan.reproduced == 1 and orphan.pregnancy == nil)
+end

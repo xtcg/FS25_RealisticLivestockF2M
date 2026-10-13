@@ -159,7 +159,10 @@ local function advancePregnancy(animal, spec, day, month, year, isSaleAnimal)
             if identityBirth then
                 local birthContext, birthEventId = RLAnimalIdentityWorld.birthContext(animal, isSaleAnimal)
                 local litterSize = type(animal.pregnancy.pregnancies) == "table" and #animal.pregnancy.pregnancies or 0
-                if litterSize >= 1 and not RLAnimalIdentityRuntime.beginBirth(birthContext, birthEventId, litterSize) then
+                -- A pen no player farm owns (a map pen of the NPC farm) is not numbered by the ledger: its
+                -- newborns keep the placeholder identity the repair pass knows, exactly as before.
+                local unmanaged = birthContext == nil and birthEventId == "NO_OWNER_FARM"
+                if litterSize >= 1 and not unmanaged and not RLAnimalIdentityRuntime.beginBirth(birthContext, birthEventId, litterSize) then
                     return children, deadAnimals, childrenSold, childrenSoldAmount
                 end
             end

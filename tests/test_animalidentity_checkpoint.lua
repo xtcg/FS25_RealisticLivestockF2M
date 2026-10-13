@@ -218,3 +218,19 @@ check("an unreadable ledger file is RECOVERY_REQUIRED", C.state == C.RECOVERY_RE
 -- 10 hooks never throw into the engine
 C.install()
 check("install is idempotent and safe without the engine classes", C.installed == true)
+
+-- the career commit mark missing (the engine never finished the save) is a mixed save
+do
+    local wc = world()
+    wc:load()
+    local farmC = herdFarm(123456, 4)
+    activate(farmC)
+    wc:save()                 -- generation 1, complete
+    alloc(farmC, 1)
+    wc.info.xmlFile.values["careerSavegame#" .. C.MARKER] = nil
+    wc.disk["/save/careerSavegame.xml"] = nil
+    wc:save(false)            -- generation 2 written, the engine's career document never lands
+    wc:load()
+    check("a save whose career commit mark never reached the disk is RECOVERY_REQUIRED", C.state == C.RECOVERY_REQUIRED
+        and C.reason:find("career=nil", 1, true) ~= nil)
+end
