@@ -44,8 +44,9 @@ RLBodyConditionConfig.DEFAULT_CURVES = {
 --- Values only a species section has (the root, cattle, has none: a reader treats a missing one
 --- as the cattle rule). femaleFinishShift: a young female read on the finishing target curve at
 --- x + this (sheep: ewe lambs fatten at a lighter weight); fertilityEffect 0: body condition
---- leaves conception as it is (sheep S5: BCS and reproduction are S7).
-RLBodyConditionConfig.SPECIES_DEFAULTS = { femaleFinishShift = 0, fertilityEffect = 1 }
+--- leaves conception as it is (sheep S5: BCS and reproduction are S7); birthReserve (-1: the
+--- initialReserve) the reserve index a newborn starts with (sheep: lean, about fat class 2).
+RLBodyConditionConfig.SPECIES_DEFAULTS = { femaleFinishShift = 0, fertilityEffect = 1, birthReserve = -1 }
 
 
 --- A species section from its element: the root's values where it leaves one out, its own
@@ -95,6 +96,9 @@ end
 --- @return string|nil reason
 function RLBodyConditionConfig.validateSpecies(section)
     if section.fertilityEffect ~= 0 and section.fertilityEffect ~= 1 then return false, "fertilityEffect must be 0 or 1" end
+    if section.birthReserve ~= -1 and not (section.birthReserve >= section.minReserve and section.birthReserve <= 1) then
+        return false, "birthReserve must be -1 or between minReserve and 1"
+    end
     for i, class in ipairs(section.fatClasses or {}) do
         if class.minReserve ~= class.minReserve or class.minReserve < 0 or class.minReserve > 1 then
             return false, "fat class " .. tostring(class.name) .. " minReserve must be 0..1"

@@ -74,9 +74,14 @@ RLFeedProfiles.DAM_MILK = { dm = 0.125, me = 22.5, cp = 0.25 }
 -- physiology: growthReferenceKg, the live weight growthMEPerKgAt500 is given at (500 for cattle);
 -- youngMaintenanceMEPerKgMetabolic (0: none), maintenance of a young animal, used to
 -- youngMaintenanceUntilMonth and moving to the adult value by adultMaintenanceFromMonth;
--- calfGrowthCost 1: a young animal on milk pays NRC 2001's calf cost (calf), 0: the growth cost.
+-- calfGrowthCost 1: a young animal on milk pays NRC 2001's calf cost (calf), 0: the growth cost;
+-- autoFinishYoungUntilMonth: under AUTO a female younger than this that has not given birth eats
+-- freely (FINISH, sheep: ewe lambs are finished as ram lambs are), 0: females GROW;
+-- growthCostMale / Castrate / Female: the growth cost of a kg of frame by sex (an entire male's
+-- gain is leaner, a female's fatter at the same weight).
 RLFeedProfiles.PHYSIOLOGY = { growthReferenceKg = 500, youngMaintenanceMEPerKgMetabolic = 0, youngMaintenanceUntilMonth = 0,
-    adultMaintenanceFromMonth = 0, calfGrowthCost = 1 }
+    adultMaintenanceFromMonth = 0, calfGrowthCost = 1, autoFinishYoungUntilMonth = 0,
+    growthCostMale = 1, growthCostCastrate = 1, growthCostFemale = 1 }
 
 -- nursing: young animals that drink only from their dams (sheep: no rearing pen, no trough milk).
 -- The milkMax / solidMax / solidEnergy curves are read at the young animal's age (months), not

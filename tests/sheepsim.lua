@@ -15,6 +15,8 @@ for _, sub in ipairs(Economics.subTypes) do
 end
 SheepSim.TYPE = SHEEP
 AnimalType.SHEEP = SHEEP
+-- The animal system's subtype list (a ewe lamb's market reference is her breed's ram's).
+g_currentMission.animalSystem.subTypes = Economics.subTypes
 
 local function group(title, weight, names)
     local fillTypes = {}
@@ -109,11 +111,12 @@ end
 --- @param each function|nil Called after every hour with the hour count
 function SheepSim.run(pen, hours, stock, each)
     local refill = stock ~= nil and FeedSim.keepStocked(stock) or nil
-    local perMonth = 24 * GrowthSim.env.daysPerPeriod
+    local env = GrowthSim.env
     for h = 1, hours do
         if refill ~= nil then refill(pen) end
         FeedSim.hour(pen)
-        if h % perMonth == 0 then
+        -- A new month on the game's clock (its first hour has just run): every animal a month older.
+        if env.currentHour == 0 and env.currentDayInPeriod == 1 then
             for _, animal in ipairs(pen.animals) do animal.age = animal.age + 1 end
         end
         if each ~= nil then each(h) end

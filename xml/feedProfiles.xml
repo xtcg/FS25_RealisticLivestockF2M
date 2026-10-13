@@ -366,14 +366,15 @@
         ewe lambs: 8-9 weeks, 250 g/day for 3-4 days).
     -->
     <species name="SHEEP">
-        <requirements maintenanceMEPerKgMetabolic="0.37" growthMEPerKgAt500="28" growthWeightExponent="0.75" growthMEPerKgMin="14"
+        <requirements maintenanceMEPerKgMetabolic="0.37" growthMEPerKgAt500="33" growthWeightExponent="1.0" growthMEPerKgMin="14"
             reserveDepositMEPerKg="50" reserveMobilizeMEPerKg="35" catabolismMEPerKg="10" pregnancyFactor="0.55"/>
-        <physiology growthReferenceKg="40" youngMaintenanceMEPerKgMetabolic="0.45" youngMaintenanceUntilMonth="6"
-            adultMaintenanceFromMonth="12" calfGrowthCost="0"/>
+        <physiology growthReferenceKg="40" youngMaintenanceMEPerKgMetabolic="0.475" youngMaintenanceUntilMonth="6"
+            adultMaintenanceFromMonth="12" calfGrowthCost="0" autoFinishYoungUntilMonth="12"
+            growthCostMale="0.80" growthCostCastrate="1.0" growthCostFemale="1.25"/>
         <calf maintenanceMEPerKgMetabolic="0.37"/>
-        <intake growingPerKgMetabolic="0.095" dryPerKgMetabolic="0.055" lactatingPerKgMetabolic="0.050"
-            lactatingPerKgMilk="0.40" calfSolidPerKgMetabolic="0.095"
-            ndfFillGrowing="0.013" ndfFillDry="0.011" ndfFillLactating="0.016" ndfFillCalf="0.010"/>
+        <intake growingPerKgMetabolic="0.092" dryPerKgMetabolic="0.060" lactatingPerKgMetabolic="0.050"
+            lactatingPerKgMilk="0.50" calfSolidPerKgMetabolic="0.095"
+            ndfFillGrowing="0.018" ndfFillDry="0.012" ndfFillLactating="0.018" ndfFillCalf="0.016"/>
         <protein maintenance="0.07" calf="0.18" young="0.15" growing="0.13" finishing="0.12"
             lactating="0.15" dry="0.10" youngUntilMonth="4" growingUntilMonth="8" lactatingAtKg="3.0" milkResponse="2"/>
         <ration wheatMaxShare="0.30" adaptationDays="14" adaptationMaxShare="0.90" stepAllowance="0.50" unadaptedUtilisation="0.85">

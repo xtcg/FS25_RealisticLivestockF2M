@@ -551,7 +551,13 @@ end
 function RLFeed.getAnimalTarget(animal, ration, class)
     if class == "CALF" then return "FINISH" end
     local target = ration.target or "AUTO"
-    if target == "AUTO" then return animal.gender == "male" and "FINISH" or "GROW" end
+    if target == "AUTO" then
+        if animal.gender == "male" then return "FINISH" end
+        -- A species whose young females are finished too (sheep: ewe lambs).
+        local physiology = RLFeed.getConfig(animal).physiology
+        if physiology ~= nil and not animal.isParent and getFeedAge(animal) < physiology.autoFinishYoungUntilMonth then return "FINISH" end
+        return "GROW"
+    end
     return target
 end
 
@@ -631,6 +637,12 @@ function RLFeed.getGrowthCost(animal, dtMonths)
     local config = RLFeed.getConfig(animal)
     local physiology = config.physiology
     local adult = RLFeedMath.getGrowthCost(animal.weight or 0, config.requirements, physiology ~= nil and physiology.growthReferenceKg or nil)
+    if physiology ~= nil then
+        -- By sex (species with its own factors, sheep): a ram lamb's gain is leaner, a ewe lamb's fatter.
+        local sex = animal.gender ~= "male" and physiology.growthCostFemale
+            or (animal.isCastrated and physiology.growthCostCastrate or physiology.growthCostMale)
+        adult = adult * sex
+    end
     -- A species whose young pay the growth cost of their weight (sheep: calfGrowthCost 0).
     if physiology ~= nil and physiology.calfGrowthCost == 0 then return adult end
     local milkMax = getCalfCaps(animal, 0.5 * (dtMonths or 0))

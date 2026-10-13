@@ -115,7 +115,7 @@ check("body: sheep curves are their own, root curves untouched; the root's layer
     bodySheep.curves.finishingTarget ~= body.curves.finishingTarget and body.curves.finishingTarget[3][2] == 0.52
     and bodySheep.curves.finishingTarget[3][2] == 0.45 and bodySheep.layers == body.layers and bodySheep.feedEnergy == body.feedEnergy)
 check("body: a typical lamb at 3L keeps all its meat (yield 1 at reserve 0.45), 4H loses 4.5%",
-    RLNutritionMath.interpolate(bodySheep.curves.yield, 45) == 1 and RLNutritionMath.interpolate(bodySheep.curves.yield, 70.5) == 0.955)
+    RLNutritionMath.interpolate(bodySheep.curves.yield, 45) == 1 and RLNutritionMath.interpolate(bodySheep.curves.yield, 70.5) == 0.955 and RLNutritionMath.interpolate(bodySheep.curves.yield, 60) == 0.97)
 local savedGet = B.get
 B.get = function() return body end
 check("body: getFor gives an ewe the section and cattle and goats the root",

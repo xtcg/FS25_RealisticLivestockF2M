@@ -93,6 +93,8 @@ end
 --- @return number|nil
 function RLBodyCondition.getReferenceWeight(animal)
     if AnimalMoveEvent == nil or AnimalMoveEvent.getCarcassReferenceWeight == nil then return nil end
+    local lamb = RLBodyCondition.getYoungFemaleReference(animal)
+    if lamb ~= nil then return lamb end
     local reference = AnimalMoveEvent.getCarcassReferenceWeight(animal, nil, animal.subTypeIndex)
     if reference == nil or reference <= 0 then return nil end
     return reference
@@ -103,6 +105,45 @@ end
 --- the finishing target: young, never a mother.
 local function finishesFemale(animal, config)
     return animal.gender == "female" and not animal.isParent and (config.femaleFinishShift or 0) > 0
+end
+
+
+local maleOfBreed = setmetatable({}, { __mode = "k" })
+
+--- The male subtype of a subtype's type and breed (the ram of a ewe's breed), cached; nil when
+--- the animal system lists none.
+local function getMaleSubType(subType)
+    local cached = maleOfBreed[subType]
+    if cached ~= nil then return cached or nil end
+    local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
+    local found = false
+    for _, other in pairs(animalSystem ~= nil and animalSystem.subTypes or {}) do
+        if other.typeIndex == subType.typeIndex and other.breed == subType.breed and other.gender == "male" then
+            found = other
+            break
+        end
+    end
+    maleOfBreed[subType] = found
+    return found or nil
+end
+
+
+--- The market weight a finished young female is read against (a species with femaleFinishShift:
+--- the ram lamb's of her breed - the ram subtype's target weight x her size gene x the breed's
+--- maleMaturity, as the ram lamb's own reference is - not a grown ewe's cull reference); nil for
+--- any other animal, or when her breed has no ram.
+function RLBodyCondition.getYoungFemaleReference(animal)
+    if animal == nil or animal.getSubType == nil then return nil end
+    local config = RLBodyCondition.getConfig(animal)
+    if not finishesFemale(animal, config) or RLGrowth == nil or AnimalMoveEvent.getCarcassParams == nil then return nil end
+    local subType = animal:getSubType()
+    local male = subType ~= nil and getMaleSubType(subType) or nil
+    if male == nil or (male.targetWeight or 0) <= 0 then return nil end
+    local size = animal.genetics ~= nil and RLGrowth.getGeneFactors(animal.genetics.metabolism, animal) or 1
+    local params = AnimalMoveEvent.getCarcassParams(male, "male")
+    if params == nil or params.maleMaturity == nil then return nil end
+    local reference = male.targetWeight * size * params.maleMaturity
+    return reference > 0 and reference or nil
 end
 
 

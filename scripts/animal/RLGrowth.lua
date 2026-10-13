@@ -882,7 +882,9 @@ function RLGrowth.createBirthState(child, weight)
     if binding == nil then return nil, "MODEL_COVERAGE" end
     local bc = RLBodyCondition.getConfig(child)
     local kappa = RLGrowth.getKappa(child)
-    local frame, reserveKg = RLGrowthMath.split(weight, bc.initialReserve, kappa)
+    -- A species' newborn may start leaner than a grown animal set up (sheep: birthReserve).
+    local birthReserve = (bc.birthReserve ~= nil and bc.birthReserve >= 0) and bc.birthReserve or bc.initialReserve
+    local frame, reserveKg = RLGrowthMath.split(weight, birthReserve, kappa)
     -- Do not read a previous individual's state through getFrameTarget.
     local size = RLGrowth.getGeneFactors(child.genetics.metabolism, child)
     local frameTarget = RLGrowth.getAdultReference(binding) * size
