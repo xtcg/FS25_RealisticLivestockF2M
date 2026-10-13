@@ -429,6 +429,15 @@ local function getFeedStage(animal, milkMax)
 end
 
 
+--- Whether a pen is one the mode can feed: a cattle pen, or a pen of a species with a feed section of
+--- its own (sheep), with a trough. For reports and menus; RLFeed.evaluatePen says whether it runs.
+function RLFeed.isNutritionPen(placeable)
+    if placeable == nil or placeable.spec_husbandryFood == nil or placeable.getAnimalTypeIndex == nil or AnimalType == nil then return false end
+    if placeable:getAnimalTypeIndex() == AnimalType.COW then return true end
+    return RLFeed.getConfig(placeable) ~= RLFeedProfiles.getConfig()
+end
+
+
 --- Whether a pen runs the mode, and why (not).
 --- @param placeable table
 --- @return boolean active
@@ -1320,6 +1329,22 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
 end
 
 
+--- Young animals of a pen with nursing rules (sheep) still of an age for milk, not weaned early,
+--- whose dam is not here to nurse them: they drink nothing this hour.
+--- @return number
+function RLFeed.countUnnursed(placeable)
+    local count = 0
+    local dams = getPenDams(placeable)
+    for _, animal in ipairs(placeable:getClusters() or {}) do
+        if not animal.isDead and (animal.numAnimals or 1) > 0 and RLFeed.getNursingMilkMax(animal) > 0
+            and (animal.motherId == nil or dams[animal.motherId] == nil) and not RLFeed.isEarlyWeaned(animal) then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+
 --- A calf drank under half the milk it planned this hour (milk it was due: its allowance within its
 --- appetite, from its dam and the trough).
 RLFeed.MILK_SHORT_SHARE = 0.5
@@ -1405,6 +1430,9 @@ function RLFeed.endFeeding(placeable)
     end
     if hour.steps > 0 then placeable.rlBodyConditionStepped = tick end
     hour.calfMilk = hour.steps > 0 and isRearingPen(placeable) and RLFeed.getPenCalfMilkAlert(placeable, hour) or nil
+    -- Nursing rules (sheep): young still on milk with no dam here (moved, sold, or its dam moved
+    -- away) get no milk at all - the player is told, never stopped (S5 D4).
+    if hour.steps > 0 and getNursing(placeable) ~= nil then hour.unnursed = RLFeed.countUnnursed(placeable) end
 
     local water = spec.rlWaterCoverage
     hour.tick = tick
@@ -1421,6 +1449,10 @@ function RLFeed.endFeeding(placeable)
     if hour.calfMilk ~= nil and RLFeedInfoService ~= nil and g_currentMission ~= nil and g_currentMission.getIsClient ~= nil
         and g_currentMission:getIsClient() then
         RLFeedInfoService.notifyCalfMilk(placeable, hour.calfMilk)
+    end
+    if hour.unnursed ~= nil and RLFeedInfoService ~= nil and RLFeedInfoService.notifyUnnursed ~= nil and g_currentMission ~= nil
+        and g_currentMission.getIsClient ~= nil and g_currentMission:getIsClient() then
+        RLFeedInfoService.notifyUnnursed(placeable, hour.unnursed)
     end
     RLFeed.addToMonth(placeable, hour)
     if #observers > 0 then RLFeed.notify("HOUR", { placeable = placeable, tick = tick, hour = hour }) end

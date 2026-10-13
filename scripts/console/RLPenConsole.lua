@@ -27,6 +27,11 @@ function RLPenConsole.report(_, filter)
                 entry.overage = RLHusbandryProfiles.isOutgrown(placeable, animal)
                 if animal.animalTypeIndex == AnimalType.COW and (animal.age or 0) < 12 then
                     entry.stage = RLCalfRearing.getStage(animal)
+                elseif RLFeed.getNursing(animal) ~= nil and (animal.age or 0) < 12 then
+                    -- Sheep: its milk cap by age, whether it is weaned early, its fat class.
+                    entry.milkMax = RLFeed.getNursingMilkMax(animal)
+                    entry.earlyWeaned = RLFeed.isEarlyWeaned(animal)
+                    entry.fatClass = RLBodyCondition.getFatClass(animal)
                 end
                 local feed = animal.rlCalfFeed
                 if feed ~= nil then

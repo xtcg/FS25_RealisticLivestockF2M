@@ -27,14 +27,15 @@ local function out(text)
 end
 
 
---- Cattle pens the commands act on, optionally filtered by part of their name.
+--- Cattle and sheep pens the commands act on, optionally filtered by part of their name.
 local function getPens(filter)
     local pens = {}
     local husbandrySystem = g_currentMission.husbandrySystem
     filter = filter ~= nil and filter:lower() or nil
 
     for _, placeable in ipairs(husbandrySystem.placeables) do
-        if placeable.getAnimalTypeIndex ~= nil and placeable:getAnimalTypeIndex() == AnimalType.COW then
+        if placeable.getAnimalTypeIndex ~= nil and (placeable:getAnimalTypeIndex() == AnimalType.COW
+            or RLBodyCondition.getConfig(placeable) ~= RLBodyCondition.getConfig()) then
             local name = placeable.getName ~= nil and placeable:getName() or "?"
             if filter == nil or name:lower():find(filter, 1, true) ~= nil then
                 table.insert(pens, placeable)

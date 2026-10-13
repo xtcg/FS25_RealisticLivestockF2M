@@ -141,6 +141,10 @@
         <text name="rl_ui_penCowsThinFat" text="Cows thin / fat"/>
         <text name="rl_ui_penBullsReady" text="Bulls ready"/>
         <text name="rl_ui_penBullsOverfat" text="Bulls overfat"/>
+        <text name="rl_ui_fatClass" text="Fat class"/>
+        <text name="rl_ui_penEwesThinFat" text="Ewes thin / fat"/>
+        <text name="rl_ui_penLambsReady" text="Lambs ready"/>
+        <text name="rl_ui_penLambsOverfat" text="Lambs over-fat"/>
         <text name="rl_ui_penFeedEaten" text="Feed eaten"/>
         <text name="rl_ui_penRationEnergy" text="Ration energy"/>
         <text name="rl_ui_penWater" text="Water cover"/>
@@ -1049,11 +1053,13 @@
         <text name="rl_feed_limit_PROTEIN" text="Low protein"/>
         <text name="rl_feed_limit_UNKNOWN" text="Unknown limit"/>
         <text name="rl_feed_limit_NO_CALF_MILK" text="No calf milk"/>
+        <text name="rl_feed_limit_CREEP" text="Creep cap"/>
         <text name="rl_feed_penCalfMilk" text="Calves on milk"/>
         <text name="rl_feed_calfMilkNone" text="%d without calf milk"/>
         <text name="rl_feed_calfMilkLow" text="Calf milk for %s"/>
         <text name="rl_feed_calfMilkAlert" text="%s: %d calves on milk have no calf milk - they will lose health and may die"/>
         <text name="rl_feed_calfMilkLowAlert" text="%s: calf milk runs out in %s"/>
+        <text name="rl_feed_lambNoDam" text="%s: %d lambs on milk are away from their ewe - no milk for them; they lose health and may die"/>
         <text name="rl_feed_target_AUTO" text="Automatic"/>
         <text name="rl_feed_target_GROW" text="Growth"/>
         <text name="rl_feed_target_FINISH" text="Finishing"/>

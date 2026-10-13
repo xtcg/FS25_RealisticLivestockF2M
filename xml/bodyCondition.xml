@@ -219,13 +219,16 @@
         enters 4L at 1.15 (AHDB: lambs reach 3L at about half their mature weight); wethers read it
         at x + 0.09, ewe lambs at x + 0.18 (a ram can be 7.7 kg heavier at the same fatness). BCS
         does not change conception in this batch (S7). A newborn lamb is lean (birthReserve 0.25,
-        fat class 2: newborn lambs hold a few percent body fat) and lays fat down as it is finished. Sheep are covered only under the weight
+        fat class 2: newborn lambs hold a few percent body fat) and lays fat down as it is finished.
+        A lamb at its market weight is ready from fat class 2 and over-fat from 4L
+        (finishReadyReserve, finishOverfatReserve: the design's sellable 2-3H). Sheep are covered only under the weight
         model v2 with the real-equivalent nutrition model, from birth (calfLegacyUntilAgeMonth 0:
         a lamb finished at 3-5 months shows its fat class and its meat follows it).
     -->
     <species name="SHEEP" calfLegacyUntilAgeMonth="0" initialReserve="0.50" reserveCapacityRatio="0.48" referenceReserve="0.50" minReserve="0.05"
         gainRatePerMonth="0.30" lossRatePerMonth="0.25" heiferReserveCeiling="0.55" cowReserveCeiling="0.80"
-        steerFinishShift="0.09" femaleFinishShift="0.18" fertilityEffect="0" birthReserve="0.25">
+        steerFinishShift="0.09" femaleFinishShift="0.18" fertilityEffect="0" birthReserve="0.25"
+        finishReadyReserve="0.25" finishOverfatReserve="0.58">
         <finishingTarget>
             <point x="0.50" y="0.30"/>
             <point x="0.80" y="0.38"/>

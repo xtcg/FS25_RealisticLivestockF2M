@@ -45,8 +45,11 @@ RLBodyConditionConfig.DEFAULT_CURVES = {
 --- as the cattle rule). femaleFinishShift: a young female read on the finishing target curve at
 --- x + this (sheep: ewe lambs fatten at a lighter weight); fertilityEffect 0: body condition
 --- leaves conception as it is (sheep S5: BCS and reproduction are S7); birthReserve (-1: the
---- initialReserve) the reserve index a newborn starts with (sheep: lean, about fat class 2).
-RLBodyConditionConfig.SPECIES_DEFAULTS = { femaleFinishShift = 0, fertilityEffect = 1, birthReserve = -1 }
+--- initialReserve) the reserve index a newborn starts with (sheep: lean, about fat class 2);
+--- finishReadyReserve / finishOverfatReserve (-1: the finish score's 65 / 80) the reserve from which
+--- a grown young animal is ready, and over-fat (sheep: fat class 2 and 4L).
+RLBodyConditionConfig.SPECIES_DEFAULTS = { femaleFinishShift = 0, fertilityEffect = 1, birthReserve = -1, finishReadyReserve = -1,
+    finishOverfatReserve = -1 }
 
 
 --- A species section from its element: the root's values where it leaves one out, its own

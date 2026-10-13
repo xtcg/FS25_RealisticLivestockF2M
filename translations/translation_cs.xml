@@ -134,6 +134,10 @@
         <text name="rl_ui_penCowsThinFat" text="母牛 体况低/高"/>
         <text name="rl_ui_penBullsReady" text="可出栏公牛"/>
         <text name="rl_ui_penBullsOverfat" text="过肥公牛"/>
+        <text name="rl_ui_fatClass" text="肥度等级"/>
+        <text name="rl_ui_penEwesThinFat" text="母羊 体况低/高"/>
+        <text name="rl_ui_penLambsReady" text="可出栏小羊"/>
+        <text name="rl_ui_penLambsOverfat" text="过肥小羊"/>
         <text name="rl_ui_penFeedEaten" text="采食满足率"/>
         <text name="rl_ui_penRationEnergy" text="日粮能量"/>
         <text name="rl_ui_penWater" text="饮水满足率"/>
@@ -1009,11 +1013,13 @@
         <text name="rl_feed_limit_PROTEIN" text="蛋白不足"/>
         <text name="rl_feed_limit_UNKNOWN" text="限制未知"/>
         <text name="rl_feed_limit_NO_CALF_MILK" text="缺小牛奶"/>
+        <text name="rl_feed_limit_CREEP" text="小羊补饲上限"/>
         <text name="rl_feed_penCalfMilk" text="吃奶小牛"/>
         <text name="rl_feed_calfMilkNone" text="%d 头缺小牛奶"/>
         <text name="rl_feed_calfMilkLow" text="小牛奶还够 %s"/>
         <text name="rl_feed_calfMilkAlert" text="%s：%d 头吃奶小牛没有小牛奶，会掉健康甚至死亡"/>
         <text name="rl_feed_calfMilkLowAlert" text="%s：小牛奶约 %s 后用完"/>
+        <text name="rl_feed_lambNoDam" text="%s：%d 只仍需喝奶的小羊不在母羊身边，没有奶可喝，会掉健康甚至死亡"/>
         <text name="rl_feed_target_AUTO" text="自动"/>
         <text name="rl_feed_target_GROW" text="生长"/>
         <text name="rl_feed_target_FINISH" text="育肥"/>

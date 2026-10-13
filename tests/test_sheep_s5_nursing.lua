@@ -219,3 +219,50 @@ do
     check(string.format("month length: a lamb's and its ewe's first month the same at 1, 7 and 28 days (lamb %.2f / %.2f / %.2f kg)", l1, l7, l28),
         rel(l7, l1) < 0.01 and rel(l28, l1) < 0.01 and rel(e7, e1) < 0.01 and rel(e28, e1) < 0.01)
 end
+
+
+-- Display (S5b): fat class, verdict, pen rows, the lamb-without-ewe notification -------------------
+
+do
+    GrowthSim.setDaysPerPeriod(1)
+    local ram = SheepSim.grown("RAM_LANDRACE", "F1", 3.5)
+    local eweLamb = SheepSim.grown("SHEEP_LANDRACE", "F2", 3.5)
+    local ewe = SheepSim.ewe("SHEEP_LANDRACE", "F3")
+    local pen = SheepSim.makePen({ ram, eweLamb, ewe }, GRASS)
+    local function setReserve(animal, r)
+        RLGrowth.setReserveIndex(animal, r)
+        RLBodyCondition.ensureState(animal, "test").reserve = r
+    end
+    setReserve(ram, 0.42)
+    setReserve(eweLamb, 0.62)
+    check("display: a lamb shows its EUROP fat class (3L at reserve 0.42, 4L at 0.62), a ewe her BCS",
+        RLBodyCondition.getFatClass(ram) == "3L" and RLBodyCondition.getFatClass(eweLamb) == "4L" and RLBodyCondition.getFatClass(ewe) == nil
+        and RLBodyCondition.getInfoText(ram):sub(1, 2) == "3L")
+    check("display: a ewe lamb is read against her breed's ram lamb market weight, not a grown ewe's",
+        near(RLBodyCondition.getReferenceWeight(eweLamb), RLBodyCondition.getReferenceWeight(ram), 1e-6))
+    ram.weight = RLBodyCondition.getReferenceWeight(ram)
+    eweLamb.weight = ram.weight
+    check("display: a lamb at its market weight in 3L is ready, one in 4L over-fat",
+        RLBodyCondition.getFinishVerdict(ram) == "rl_ui_finishVerdictReady" and RLBodyCondition.getFinishVerdict(eweLamb) == "rl_ui_finishVerdictOverfat")
+    check("display: meat follows the class (3L 1.00, 4L 0.97)", RLBodyCondition.getYieldFactor(ram) == 1 and near(RLBodyCondition.getYieldFactor(eweLamb), 0.97, 1e-9))
+    local rows = RLBodyCondition.getPenInfo(pen)
+    local byKey = {}
+    for _, row in ipairs(rows or {}) do byKey[row.titleKey] = row.text end
+    check("display: a sheep pen lists its ewes' BCS and its lambs ready / over-fat",
+        byKey.rl_ui_penBcs ~= nil and byKey.rl_ui_penEwesThinFat ~= nil and byKey.rl_ui_penLambsReady == "1 / 2" and byKey.rl_ui_penLambsOverfat == "1")
+
+    local notes = {}
+    FSBaseMission = FSBaseMission or { INGAME_NOTIFICATION_CRITICAL = 1, INGAME_NOTIFICATION_INFO = 2 }
+    g_currentMission.addIngameNotification = function(_, kind, text) notes[#notes + 1] = text end
+    g_currentMission.getIsClient = function() return true end
+    local mother = SheepSim.ewe("SHEEP_LANDRACE", "N1")
+    local lamb = SheepSim.lamb("RAM_LANDRACE", "N1", "NL1")
+    local withEwe = SheepSim.makePen({ mother, lamb }, GRASS)
+    SheepSim.run(withEwe, 2, GRASS)
+    local before = #notes
+    local away = SheepSim.makePen({ lamb }, GRASS)
+    SheepSim.run(away, 3, GRASS)
+    check(string.format("display: a lamb on milk moved away from its ewe is told once (%d notification)", #notes - before),
+        #notes - before == 1 and notes[#notes]:find("rl_feed_lambNoDam") ~= nil)
+    g_currentMission.addIngameNotification, g_currentMission.getIsClient = nil, nil
+end

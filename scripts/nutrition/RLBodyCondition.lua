@@ -919,7 +919,9 @@ end
 --- @return string|nil key l10n key of the verdict, nil for a female or an animal not covered
 --- @return number|nil reference Slaughter reference weight
 function RLBodyCondition.getFinishVerdict(animal)
-    if animal.gender ~= "male" or not RLBodyCondition.isEligible(animal) then return nil end
+    if not RLBodyCondition.isEligible(animal) then return nil end
+    local config = RLBodyCondition.getConfig(animal)
+    if animal.gender ~= "male" and not finishesFemale(animal, config) then return nil end
 
     local reference = RLBodyCondition.getReferenceWeight(animal)
     if animal.getCanBeSold ~= nil and not animal:getCanBeSold() then return "rl_ui_finishVerdictBlocked", reference end
@@ -930,13 +932,19 @@ function RLBodyCondition.getFinishVerdict(animal)
         if minAge ~= nil and (animal.age or 0) < minAge then return "rl_ui_finishVerdictTooYoung", reference end
     end
 
+    -- A species with fat classes (sheep) reads its own reserve thresholds.
+    local readyMin, overfatMin = 65, 80
     local score = RLBodyCondition.getFinishScore(animal)
-    if score > 80 then return "rl_ui_finishVerdictOverfat", reference end
+    if (config.finishReadyReserve or -1) >= 0 then
+        readyMin, overfatMin = config.finishReadyReserve, config.finishOverfatReserve
+        score = RLBodyCondition.getReserve(animal)
+    end
+    if score > overfatMin or (overfatMin < 1 and score >= overfatMin) then return "rl_ui_finishVerdictOverfat", reference end
 
     local grown = reference ~= nil and animal.weight >= 0.95 * reference
-    if grown and score >= 65 then return "rl_ui_finishVerdictReady", reference end
+    if grown and score >= readyMin then return "rl_ui_finishVerdictReady", reference end
     if grown then return "rl_ui_finishVerdictNeedsFinish", reference end
-    if score >= 65 then return "rl_ui_finishVerdictGrowing", reference end
+    if score >= readyMin then return "rl_ui_finishVerdictGrowing", reference end
     return "rl_ui_finishVerdictStore", reference
 end
 
@@ -956,6 +964,10 @@ function RLBodyCondition.getInfoText(animal)
     local balance = state ~= nil and state.balanceEMA or 0
     local trend = balance > 0.03 and " +" or (balance < -0.03 and " -" or "")
 
+    -- A species with fat classes (sheep): a lamb shows its EUROP fat class, a grown animal its BCS.
+    local fatClass = RLBodyCondition.getFatClass(animal)
+    if fatClass ~= nil then return fatClass .. trend, RLBodyCondition.getReserve(animal) end
+
     if animal.gender == "male" then
         local score = RLBodyCondition.getFinishScore(animal)
         local band = score < 50 and "rl_ui_finishLean" or (score < 65 and "rl_ui_finishStore")
@@ -966,6 +978,24 @@ function RLBodyCondition.getInfoText(animal)
     local bcs = RLBodyCondition.getBCS(animal)
     local band = bcs < 2.5 and "rl_ui_bcsThin" or (bcs <= 3.25 and "rl_ui_bcsGood" or (bcs <= 4 and "rl_ui_bcsFleshy" or "rl_ui_bcsFat"))
     return string.format("%.1f (%s)%s", bcs, g_i18n:getText(band), trend), (bcs - 1) / 4
+end
+
+
+--- The fat class a young animal of a species with fat classes shows (sheep: EUROP 1..5, the last
+--- class whose minReserve its reserve reaches); nil for a grown animal (a mother, or past
+--- autoFinish age) and every other species.
+--- @param animal table
+--- @return string|nil
+function RLBodyCondition.getFatClass(animal)
+    local config = RLBodyCondition.getConfig(animal)
+    local classes = config.fatClasses
+    if classes == nil or #classes == 0 or animal.isParent or (animal.age or 0) >= 12 then return nil end
+    local reserve = RLBodyCondition.getReserve(animal)
+    local name = classes[1].name
+    for _, class in ipairs(classes) do
+        if reserve >= class.minReserve then name = class.name end
+    end
+    return name
 end
 
 
@@ -987,7 +1017,9 @@ function RLBodyCondition.addInfos(animal, infos)
     local text, ratio = RLBodyCondition.getInfoText(animal)
     if text == nil then return end
 
-    local row = infoRow(animal, "condition", animal.gender == "male" and "rl_ui_finish" or "rl_ui_bodyCondition")
+    local titleKey = animal.gender == "male" and "rl_ui_finish" or "rl_ui_bodyCondition"
+    if RLBodyCondition.getFatClass(animal) ~= nil then titleKey = "rl_ui_fatClass" end
+    local row = infoRow(animal, "condition", titleKey)
     row.ratio = math.clamp(ratio or 0, 0, 1)
     row.valueText = text
     table.insert(infos, row)
@@ -1039,7 +1071,9 @@ function RLBodyCondition.addInfos(animal, infos)
     end
 
     local subType = animal:getSubType()
-    if animal.gender == "female" and subType ~= nil and (animal.age or 0) >= (subType.reproductionMinAgeMonth or 0) then
+    -- Only where condition acts on conception (not sheep in S5: fertilityEffect 0).
+    if animal.gender == "female" and subType ~= nil and (animal.age or 0) >= (subType.reproductionMinAgeMonth or 0)
+        and RLBodyCondition.getConfig(animal).fertilityEffect ~= 0 then
         local factor = RLBodyCondition.getFertilityFactor(animal)
         row = infoRow(animal, "conception", "rl_ui_conceptionCondition")
         row.ratio = factor
@@ -1055,16 +1089,21 @@ end
 --- @param placeable table
 --- @return table|nil rows List of { titleKey, text }; cow rows only with cows, bull rows only with bulls
 function RLBodyCondition.getPenInfo(placeable)
-    if not RLBodyCondition.isEnabled() or placeable.getAnimalTypeIndex == nil or AnimalType == nil
-        or placeable:getAnimalTypeIndex() ~= AnimalType.COW then return nil end
+    if not RLBodyCondition.isEnabled() or placeable.getAnimalTypeIndex == nil or AnimalType == nil then return nil end
+    local sheep = RLBodyCondition.getConfig(placeable).fatClasses ~= nil
+    if placeable:getAnimalTypeIndex() ~= AnimalType.COW and not sheep then return nil end
 
     local cows, bcsSum, thin, fat, bulls, ready, overfat = 0, 0, 0, 0, 0, 0, 0
     for _, animal in ipairs(placeable:getClusters()) do
         if RLBodyCondition.isEligible(animal) then
-            if animal.gender == "male" then
+            -- Sheep: lambs (fat classes) are counted as the finished stock, grown animals by BCS.
+            local finished = animal.gender == "male"
+            if sheep then finished = RLBodyCondition.getFatClass(animal) ~= nil end
+            if finished then
                 bulls = bulls + 1
-                if RLBodyCondition.getFinishVerdict(animal) == "rl_ui_finishVerdictReady" then ready = ready + 1 end
-                if RLBodyCondition.getFinishScore(animal) > 80 then overfat = overfat + 1 end
+                local verdict = RLBodyCondition.getFinishVerdict(animal)
+                if verdict == "rl_ui_finishVerdictReady" then ready = ready + 1 end
+                if verdict == "rl_ui_finishVerdictOverfat" or (not sheep and RLBodyCondition.getFinishScore(animal) > 80) then overfat = overfat + 1 end
             else
                 local bcs = RLBodyCondition.getBCS(animal)
                 cows, bcsSum = cows + 1, bcsSum + bcs
@@ -1077,11 +1116,11 @@ function RLBodyCondition.getPenInfo(placeable)
     local rows = {}
     if cows > 0 then
         table.insert(rows, { titleKey = "rl_ui_penBcs", text = string.format("%.1f", bcsSum / cows) })
-        table.insert(rows, { titleKey = "rl_ui_penCowsThinFat", text = string.format("%d / %d", thin, fat) })
+        table.insert(rows, { titleKey = sheep and "rl_ui_penEwesThinFat" or "rl_ui_penCowsThinFat", text = string.format("%d / %d", thin, fat) })
     end
     if bulls > 0 then
-        table.insert(rows, { titleKey = "rl_ui_penBullsReady", text = string.format("%d / %d", ready, bulls) })
-        table.insert(rows, { titleKey = "rl_ui_penBullsOverfat", text = string.format("%d", overfat) })
+        table.insert(rows, { titleKey = sheep and "rl_ui_penLambsReady" or "rl_ui_penBullsReady", text = string.format("%d / %d", ready, bulls) })
+        table.insert(rows, { titleKey = sheep and "rl_ui_penLambsOverfat" or "rl_ui_penBullsOverfat", text = string.format("%d", overfat) })
     end
 
     local foodSpec = placeable.spec_husbandryFood
