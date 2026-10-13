@@ -84,6 +84,70 @@ do
 end
 
 
+-- Calves without a dam that can nurse them: weaned early from calfMilk earlyWeaningMonth (3) ------
+
+do
+    local function olderCalf(name, motherId, id, months)
+        local c = identify((GrowthSim.makeAnimal(name, { age = math.floor(months), motherId = motherId })), id)
+        if c.rlGrowth ~= nil then c.rlGrowth.ageMonths = months end
+        return c
+    end
+    local saved = config.calfMilk.earlyWeaningMonth
+    config.calfMilk.earlyWeaningMonth = 2
+    local changedHash = RLFeedProfiles.computeHash(config)
+    config.calfMilk.earlyWeaningMonth = saved
+    check("config: earlyWeaningMonth 3 by default, in the fingerprint", saved == 3 and changedHash ~= config.hash)
+
+    local orphan = olderCalf("BULL_ANGUS", "D90", "C90", 3.5)
+    local orphanPen = FeedSim.makePen({ orphan }, { FORAGE = 1e5 })
+    FeedSim.hour(orphanPen)
+    local young = olderCalf("BULL_ANGUS", "D91", "C91", 2.5)
+    local youngPen = FeedSim.makePen({ young }, { FORAGE = 1e5 })
+    FeedSim.hour(youngPen)
+    check("orphan 3.5 months (calf rearing still has milk for it until 4): weaned early, the pen runs the mode; at 2.5: SUCKLING_CALF",
+        orphanPen.spec_husbandryFood.rlFeedPen.active == true and RLFeed.isEarlyWeaned(orphan)
+        and RLFeed.getRationClass(orphan) == "GROWING" and RLFeed.getCalfMaintenanceFactor(orphan, 0) == 1
+        and youngPen.spec_husbandryFood.rlFeedPen.reason == "SUCKLING_CALF" and not RLFeed.isEarlyWeaned(young))
+
+    local cow = dam("COW_ANGUS", "D92")
+    local withDam = olderCalf("BULL_ANGUS", "D92", "C92", 3.5)
+    local pen = FeedSim.makePen({ cow, withDam }, { FORAGE = 1e5 })
+    FeedSim.hour(pen)
+    local drankBefore = withDam.rlFeedIntake ~= nil and withDam.rlFeedIntake.damMilkKg or 0
+    local classWithDam = RLFeed.getRationClass(withDam)
+    -- Her dam is sold: from the next hour the calf is weaned.
+    pen.animals = { withDam }
+    FeedSim.hour(pen)
+    check(string.format("with its dam at 3.5 months a calf still drinks (%.2f kg DM); once she is gone it is weaned and the pen keeps the mode",
+        drankBefore), classWithDam == "CALF" and drankBefore > 0 and pen.spec_husbandryFood.rlFeedPen.active == true
+        and RLFeed.getRationClass(withDam) == "GROWING")
+
+    local reared = olderCalf("BULL_HOLSTEIN", "D93", "C93", 3.5)
+    local rearingPen = FeedSim.makePen({ reared }, { FORAGE = 1e5, CALFMILK = 1e4 }, { rearing = true })
+    FeedSim.hour(rearingPen)
+    check("in a calf rearing pen the rearing rules hold: a 3.5-month calf there is still on milk",
+        not RLFeed.isEarlyWeaned(reared) and RLFeed.getRationClass(reared) == "CALF")
+end
+
+
+-- Grain for calves on milk (creep feeding): a calf at its dam eats the pen's grain within its solid
+-- capacity; sugar beet is not a calf feed.
+
+do
+    local cow = dam("COW_ANGUS", "D80")
+    local c = identify((GrowthSim.makeAnimal("BULL_ANGUS", { age = 2, motherId = "D80" })), "C80")
+    local pen = FeedSim.makePen({ cow, c }, { FORAGE = 1e5, BARLEY = 1e5, SUGARBEET_CUT = 1e5 })
+    for _ = 1, 6 do FeedSim.hour(pen) end
+    local byFill = c.rlFeedIntake ~= nil and c.rlFeedIntake.byFill or {}
+    local barley = byFill.BARLEY ~= nil and byFill.BARLEY.kg or 0
+    check(string.format("creep: a 2-month calf at its dam eats barley (%.3f kg DM the last hour), no sugar beet, still on milk (%s)",
+        barley, tostring(RLFeed.getRationClass(c))),
+        barley > 0 and byFill.SUGARBEET_CUT == nil and RLFeed.getRationClass(c) == "CALF"
+        and RLFeedProfiles.getUsableFeed("BARLEY").stages.PRE_WEANING == true
+        and RLFeedProfiles.getUsableFeed("SUGARBEET_CUT").stages.PRE_WEANING == nil)
+end
+
+
 -- A dairy dam and her calf ------------------------------------------------------------------------
 
 do

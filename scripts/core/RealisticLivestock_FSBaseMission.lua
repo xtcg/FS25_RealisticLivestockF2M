@@ -207,6 +207,9 @@ function RealisticLivestock_FSBaseMission:onStartMission()
 
     -- Map pen rules go in after the map has set its own husbandry filters at load.
     RLHusbandryProfiles.applyAll()
+    -- Butcher and slaughterhouse minimum ages from carcassYield.xml (facilityMinAgeMonth); placeables
+    -- added later get them in PlaceableSystem.addPlaceable.
+    RmSafeUtils.safeCall("RLFacilityAge.applyToAll", function() RLFacilityAge.applyToAll() end)
     -- Animals a pen's rules would no longer take in stay where they are; they are only logged.
     if g_currentMission:getIsServer() then
         RmSafeUtils.safeCall("RLHusbandryProfiles.checkAllResidents", function()

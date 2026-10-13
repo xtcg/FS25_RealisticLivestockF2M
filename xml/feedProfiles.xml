@@ -126,6 +126,12 @@
     DM ceiling is 2 x the old 10 L at 12.5% and the 6-month weights reach the curves again (FEED_CALF_MILK_CALIBRATION.md).
     nursingLitersPerDay: a calf that drinks from its dam keeps the real reference, 10 L/day of her
     whole milk (damMilk dm); only the trough's calf milk is at game volume and strength.
+    earlyWeaningMonth: a calf of an age for milk outside a calf rearing pen with no dam there that
+    can nurse it (sold, dead, in another pen, dry) is weaned early from this age (continuous
+    months; 3 - calves take to solid feed from about 2-3 months, and early weaning at 60-90 days
+    is a real practice): it eats as any weaned animal. A younger one still needs milk: its pen
+    stays on the old rules (SUCKLING_CALF) until it is in a calf rearing pen, back with its dam,
+    or old enough.
     Scale its DM allowance by breed/sex mean birth weight relative to a Holstein of the
     same sex to sizeExponent (0.75: feeding guides give a Jersey about three quarters of a
     Holstein's milk, more than her weight share) and by calfRearing milkMax, once. Total
@@ -160,7 +166,12 @@
     stages       Feeding stages it may be fed in (PRE_WEANING WEANING WEANED; calfRearing.xml).
                  A calf on milk eats concentrate its stage allows as a starter, with the forage
                  (CALF rules: fermentableMax), at the feed's own ME; the calf's solidEnergy
-                 (rumen development) discounts forage and complete rations only.
+                 (rumen development) discounts forage and complete rations only. Grains are open
+                 to calves on milk as to peas: calves nibble creep feed from about 3 weeks, eat it
+                 in earnest from 6-8 weeks, and a grain starter is what develops the rumen (its
+                 butyrate and propionate) - how much is held by the calf's solid capacity
+                 (solidMax), its rumen adaptation and the CALF rules. A pen's grain is shared by
+                 every animal there that may eat it (no creep gate). Sugar beet is not a calf feed.
     maxShare     Most of a ration's DM the feed may make (optional; wheat: the ration's
                  wheatMaxShare); the concentrate share is held there (limit FEED_CAP; WHEAT for wheat).
     capGroup     Feeds sharing one cap: together at most the cap (grain grist counts with wheat).
@@ -191,7 +202,7 @@
 
     <health extremeUnderweightRatio="0.45" shortageBufferDays="3"/>
 
-    <calfMilk realLitersPerDay="5" density="1.03" dm="0.50" sizeExponent="0.75" nursingLitersPerDay="10"/>
+    <calfMilk realLitersPerDay="5" density="1.03" dm="0.50" sizeExponent="0.75" nursingLitersPerDay="10" earlyWeaningMonth="3"/>
 
     <damMilk dm="0.125" me="22.5" cp="0.25"/>
 
@@ -271,19 +282,19 @@
     <!-- Concentrates -->
     <feed fillType="MAIZE" role="CONCENTRATE" status="TYPICAL" form="maize grain, whole (fed as harvested)"
         density="0.80" dm="0.88" tdn="88" meBasis="TDN_NRC2000" cp="0.09" ndf="0.10" peFactor="0.4"
-        starch="0.72" sugar="0.02" stages="WEANED"
+        starch="0.72" sugar="0.02" stages="PRE_WEANING WEANING WEANED"
         source="OSU Nutritive value of feeds (DM/CP/TDN); NDF/starch NRC 2001; density = engine massPerLiter" year="2026"/>
     <feed fillType="WHEAT" role="CONCENTRATE" status="TYPICAL" form="wheat grain (processing not tracked)"
         density="0.78" dm="0.89" tdn="84" meBasis="TDN_NRC2000" cp="0.14" ndf="0.12" peFactor="0.4"
-        starch="0.64" sugar="0.02" stages="WEANED"
+        starch="0.64" sugar="0.02" stages="PRE_WEANING WEANING WEANED"
         source="OSU Nutritive value of feeds (DM/CP/TDN); NDF/starch NRC 2001; limit OSU 2025" year="2026"/>
     <feed fillType="BARLEY" role="CONCENTRATE" status="TYPICAL" form="dry barley grain"
         density="0.68" dm="0.90" tdn="81" meBasis="TDN_NRC2000" cp="0.12" ndf="0.20" peFactor="0.4"
-        starch="0.56" sugar="0.02" stages="WEANED"
+        starch="0.56" sugar="0.02" stages="PRE_WEANING WEANING WEANED"
         source="OSU Nutritive value of feeds (DM/CP/TDN); NDF/starch NRC 2001" year="2026"/>
     <feed fillType="OAT" role="CONCENTRATE" status="TYPICAL" form="oat grain"
         density="0.50" dm="0.89" tdn="77" meBasis="TDN_NRC2000" cp="0.13" ndf="0.30" peFactor="0.4"
-        starch="0.42" sugar="0.02" stages="WEANED"
+        starch="0.42" sugar="0.02" stages="PRE_WEANING WEANING WEANED"
         source="NRC 2000 book value" year="2000"/>
     <feed fillType="SUGARBEET_CUT" role="CONCENTRATE" status="TYPICAL" form="sugar beet, chopped"
         density="0.70" dm="0.23" tdn="80" meBasis="TDN_NRC2000" cp="0.07" ndf="0.12" peFactor="0.3"
@@ -302,7 +313,7 @@
          all wheat, and ground grain ferments faster. -->
     <feed fillType="GRAINGRIST" role="CONCENTRATE" status="PROXY" form="ground small grain; proxy recipe 50% wheat + 50% barley (DM)"
         density="0.73" dm="0.895" tdn="82.5" meBasis="TDN_NRC2000" cp="0.13" ndf="0.16" peFactor="0.3"
-        starch="0.60" sugar="0.02" maxShare="0.30" capGroup="WHEAT" stages="WEANED"
+        starch="0.60" sugar="0.02" maxShare="0.30" capGroup="WHEAT" stages="PRE_WEANING WEANING WEANED"
         source="Proxy: mean of the WHEAT and BARLEY profiles (OSU / NRC 2001); Hof Bergmann grainMillSmall and contract mill GRAINFRUITS 1:1" year="2026"/>
 
     <!-- Milk: drunk by calves only (not rumen-fermented, so no starch or fibre counted). -->
