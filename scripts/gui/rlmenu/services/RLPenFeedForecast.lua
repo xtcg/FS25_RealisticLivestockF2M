@@ -167,7 +167,7 @@ local function tickBirths(scratch, simMonth, simYear, maxNumAnimals)
                 local newbornMetabolism = (s.metabolism + s.fatherMetabolism) / 2
                 local newbornIntake = newbornMetabolism
                 if RLGrowth ~= nil and RLGrowth.coversSubType(s.subTypeRef) then
-                    newbornIntake = select(3, RLGrowth.getGeneFactors(newbornMetabolism))
+                    newbornIntake = select(3, RLGrowth.getGeneFactors(newbornMetabolism, s.subTypeRef))
                 end
                 table.insert(scratch, {
                     age                  = 0,

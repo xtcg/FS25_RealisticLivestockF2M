@@ -517,7 +517,7 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
     local class = RLFeed.getRationClass(animal)
     local target = RLFeed.getAnimalTarget(animal, ration, class)
     local input, cfg = buildEnergyInput(animal, dtMonths)
-    local _, _, gene = RLGrowth.getGeneFactors(animal.genetics.metabolism)
+    local _, _, gene = RLGrowth.getGeneFactors(animal.genetics.metabolism, animal)
     local milkKg = 0
     if class == "LACTATING" then milkKg = RLFeed.getMilkBridge(animal, input.potentialMilk) end
     local milkCollect = class == "LACTATING" and RLBreedTraits.getMilkCollect(animal:getSubType()) or 1
@@ -1388,7 +1388,10 @@ end
 --- weight model's underweight threshold scaled to it), at the old penalty's per-month rate.
 function RLFeed.applyUnderweight(animal, dtMonths)
     local ratio = RLFeed.getConfig().health.extremeUnderweightRatio
-    local threshold = RLGrowth.getUnderweightThreshold(animal) * ratio / RLGrowth.getSettings().underweightRatio
+    local weightRatio = RLGrowth.getSettings(animal).underweightRatio
+    -- Zero is a valid setting: it disables this weight threshold. Do not turn 0/0 into health NaN.
+    if weightRatio <= 0 then return end
+    local threshold = RLGrowth.getUnderweightThreshold(animal) * ratio / weightRatio
     if threshold <= 0 or animal.weight >= threshold then return end
     RLFeed.addHealth(animal, -((threshold - animal.weight) / threshold) * 0.2 * 24 * dtMonths)
 end

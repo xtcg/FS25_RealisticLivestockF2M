@@ -43,6 +43,9 @@
                    rules (resolution TYPE_OFF; the report shows its curves, inactive). excludeBreeds lists
                    breeds of the type that get no curve (NOT_COVERED): goats share the SHEEP type. A
                    typeBinding for a listed type is ignored with a warning.
+                   Every numeric root setting may also be set on animalType, overriding it only for
+                   that type. Missing attributes inherit the root. Invalid type settings disable
+                   that type alone. Profiles' maleBirthFactor overrides the type setting.
 
     A breed that is neither a profile nor an alias is reported UNRESOLVED and keeps the old rules:
     it never falls into another breed's curve silently.
@@ -231,7 +234,9 @@
         Profiles of a type other than cattle are its own: SHEEP LANDRACE is not a cattle or a pig breed.
     -->
     <!-- Goats share the SHEEP type but are not sheep: no sheep curve, the old rules (excludeBreeds). -->
-    <animalType name="SHEEP" enabled="false" status="S4_CANDIDATE_OFF" excludeBreeds="GOAT"/>
+    <!-- S5 preparation: the approved wether speed is independent of cattle's steer speed.
+         Remaining physiology coefficients still need the complete feed/milk calibration. -->
+    <animalType name="SHEEP" enabled="false" status="S5_CALIBRATION_OFF" excludeBreeds="GOAT" castratedSpeed="0.86"/>
     <profile name="LANDRACE" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="6.4" maleBirthFactor="1.07">  <!-- Merinolandschaf (DE) (A) -->
         <female knots="6:56 15:74.8 24:83.6 36:88"/>
         <male knots="2.6:42.67 6:72 15:108 24:133.9 36:144"/>

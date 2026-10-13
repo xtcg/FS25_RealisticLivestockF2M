@@ -108,7 +108,7 @@ function G.restore(record,resolver)
         or not finite(sub.healthIncreaseHour) or sub.healthIncreaseHour<0 or not finite(sub.healthDecreaseHour) or sub.healthDecreaseHour<0 then return fail("OBSERVED_RULES",record) end
     local a=copy(record.animal);a.subTypeIndex,a.animalTypeIndex=index,sub.typeIndex
     a.getSubType=function() return sub end;setmetatable(a,{__index=Animal})
-    local binding=RLGrowth.getBinding(sub);local size=RLGrowth.getGeneFactors(a.genetics.metabolism)
+    local binding=RLGrowth.getBinding(sub);local size=RLGrowth.getGeneFactors(a.genetics.metabolism, a)
     local curve=RLGrowth.buildCurve(binding,a.rlGrowth.frameTargetKg,a.rlGrowth.birthWeightKg)
     if not near(a.rlGrowth.frameTargetKg,RLGrowth.getAdultReference(binding)*size)
         or a.rlGrowth.developmentMonths>curve.endMonth then return fail("OBSERVED_PHYSICAL_FRAME",record) end
