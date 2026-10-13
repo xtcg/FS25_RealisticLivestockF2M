@@ -140,21 +140,30 @@ function RLFeed.canRun()
 end
 
 
-function RLFeed.getConfig()
-    return RLFeedProfiles.getConfig()
+--- The feed config (subject: an animal or pen reads its species section, sheep; cattle and
+--- anything without one read the root).
+function RLFeed.getConfig(subject)
+    if subject == nil then return RLFeedProfiles.getConfig() end
+    return RLFeedProfiles.getConfigFor(subject)
 end
 
 
-local energyCache = { body = nil, feed = nil, cfg = nil }
+local energyCache = setmetatable({}, { __mode = "k" })
 
---- The budget step's config in ME (cached per pair of config tables).
-function RLFeed.getEnergyConfig()
-    local body, feed = RLBodyCondition.getConfig(), RLFeedProfiles.getConfig()
-    if energyCache.body ~= body or energyCache.feed ~= feed then
-        energyCache.body, energyCache.feed = body, feed
-        energyCache.cfg = RLFeedMath.getEnergyConfig(body, feed)
+--- The budget step's config in ME for a subject's species (cached per pair of config tables).
+function RLFeed.getEnergyConfig(subject)
+    local body, feed = RLBodyCondition.getConfig(subject), RLFeed.getConfig(subject)
+    local byBody = energyCache[feed]
+    if byBody == nil then
+        byBody = setmetatable({}, { __mode = "k" })
+        energyCache[feed] = byBody
     end
-    return energyCache.cfg
+    local cfg = byBody[body]
+    if cfg == nil then
+        cfg = RLFeedMath.getEnergyConfig(body, feed)
+        byBody[body] = cfg
+    end
+    return cfg
 end
 
 
@@ -293,7 +302,7 @@ function RLFeed.isEarlyWeaned(animal)
     local owner = getOwner(animal)
     if owner == nil or isRearingPen(owner) then return false end
     local age = (RLGrowth ~= nil and RLGrowth.covers(animal)) and RLGrowth.getContinuousAge(animal) or (animal.age or 0)
-    if age < RLFeed.getConfig().calfMilk.earlyWeaningMonth then return false end
+    if age < RLFeed.getConfig(animal).calfMilk.earlyWeaningMonth then return false end
     return animal.motherId == nil or getPenDams(owner)[animal.motherId] == nil
 end
 
@@ -430,7 +439,7 @@ end
 function RLFeed.getMilkBridge(animal, potentialPerPeriod)
     local realPerGameLiter, mePerKg = RLFeed.getMilkRealPerGameLiter(animal)
     if realPerGameLiter <= 0 then return 0, 0 end
-    return math.max(potentialPerPeriod or 0, 0) * realPerGameLiter / RLFeed.getConfig().realDaysPerPeriod,
+    return math.max(potentialPerPeriod or 0, 0) * realPerGameLiter / RLFeed.getConfig(animal).realDaysPerPeriod,
         realPerGameLiter * mePerKg
 end
 
@@ -445,9 +454,9 @@ function RLFeed.getMilkRealPerGameLiter(animal)
     local realKg, mePerKg = RLFeedProfiles.getMilkBridge(binding ~= nil and binding.profile or nil)
     local milkCurve = subType ~= nil and subType.output ~= nil and subType.output.milk or nil
     local mature = milkCurve ~= nil and milkCurve.get ~= nil and milkCurve:get(60) * RLBreedTraits.get(subType, "milkScale") or 0
-    local mean = mature * RLBodyCondition.getConfig().lactationMeanFactor
+    local mean = mature * RLBodyCondition.getConfig(animal).lactationMeanFactor
     if mean <= 0 then return 0, mePerKg end
-    return realKg * RLFeed.getConfig().realDaysPerPeriod / mean, mePerKg
+    return realKg * RLFeed.getConfig(animal).realDaysPerPeriod / mean, mePerKg
 end
 
 
@@ -461,7 +470,7 @@ end
 function RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
     local milkMax = getCalfCaps(animal, 0.5 * (dtMonths or 0))
     if milkMax <= 0 then return 1 end
-    local config = RLFeed.getConfig()
+    local config = RLFeed.getConfig(animal)
     local calf = config.calf.maintenanceMEPerKgMetabolic / config.requirements.maintenanceMEPerKgMetabolic
     return 1 + (calf - 1) * math.clamp(milkMax, 0, 1)
 end
@@ -474,7 +483,7 @@ end
 --- @param dtMonths number|nil
 --- @return number MJ ME per kg
 function RLFeed.getGrowthCost(animal, dtMonths)
-    local config = RLFeed.getConfig()
+    local config = RLFeed.getConfig(animal)
     local adult = RLFeedMath.getGrowthCost(animal.weight or 0, config.requirements)
     local milkMax = getCalfCaps(animal, 0.5 * (dtMonths or 0))
     if milkMax <= 0 then return adult end
@@ -496,12 +505,12 @@ end
 local function buildEnergyInput(animal, dtMonths)
     local state = RLGrowth.peekState(animal)
     local input = RLGrowth.buildStepInput(animal, state, 0, 1, dtMonths, true)
-    local config = RLFeed.getConfig()
+    local config = RLFeed.getConfig(animal)
     input.maintenanceFactor = (input.maintenanceFactor or 1) * RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
     input.growthCostPerKg = RLFeed.getGrowthCost(animal, dtMonths)
     local _, mePerLiter = RLFeed.getMilkBridge(animal, input.potentialMilk)
     input.milkCostPerLiter = mePerLiter
-    return input, RLFeed.getEnergyConfig()
+    return input, RLFeed.getEnergyConfig(animal)
 end
 
 
@@ -512,8 +521,8 @@ end
 --- @param dtDays number
 --- @return table descriptor
 function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
-    local config = RLFeed.getConfig()
-    local body = RLBodyCondition.getConfig()
+    local config = RLFeed.getConfig(animal)
+    local body = RLBodyCondition.getConfig(animal)
     local class = RLFeed.getRationClass(animal)
     local target = RLFeed.getAnimalTarget(animal, ration, class)
     local input, cfg = buildEnergyInput(animal, dtMonths)
@@ -693,7 +702,7 @@ function RLFeed.beginFeeding(placeable)
     spec.rlFeedPen = { tick = tick, active = active, reason = reason }
     spec.rlFeedWindow = active and { tick = tick } or nil
     if #observers > 0 then
-        local config = RLFeed.getConfig()
+        local config = RLFeed.getConfig(placeable)
         local environment = g_currentMission.environment
         RLFeed.notify("PEN_HOUR", { placeable = placeable, tick = tick, active = active, reason = reason, hash = config.hash,
             scale = config.resourceScale, stepDays = config.stepDays, realDaysPerPeriod = config.realDaysPerPeriod,
@@ -807,7 +816,7 @@ end
 --- of them, all when nil). Reads the animals only.
 --- @return table descriptors
 function RLFeed.describePen(placeable, ration, stepDays, include)
-    local dtMonths = stepDays / RLFeed.getConfig().realDaysPerPeriod
+    local dtMonths = stepDays / RLFeed.getConfig(placeable).realDaysPerPeriod
     local animals = {}
     for _, animal in ipairs(placeable:getClusters() or {}) do
         if not animal.isDead and (animal.numAnimals or 1) > 0 and (include == nil or include(animal)) then
@@ -828,13 +837,12 @@ end
 --- cow (milkCollect 1) is untouched.
 --- @param animals table The step's descriptors (after RLFeed.linkDams)
 function RLFeed.limitSucklerMilk(animals)
-    local config = RLFeed.getConfig()
     local wanted = {}
     for _, a in ipairs(animals) do
         local pool = a.damPool
         if pool ~= nil and a.milkMax ~= nil and a.milkMax > 0 then
             local allowance = math.min(math.max(a.nursingMaxKgPerDay or 0, 0), a.appetite or 0)
-            wanted[pool.dam] = (wanted[pool.dam] or 0) + allowance / config.damMilk.dm
+            wanted[pool.dam] = (wanted[pool.dam] or 0) + allowance / RLFeed.getConfig(pool.dam.animal).damMilk.dm
         end
     end
     for _, a in ipairs(animals) do
@@ -847,7 +855,8 @@ function RLFeed.limitSucklerMilk(animals)
             a.appetite = math.max(a.appetite - (a.appetitePerMilkKg or 0) * (milkKg - target), 0)
             a.milkKgPerDay = target
             a.needs.milk = a.needs.milk * factor
-            a.proteinNeed = RLFeedMath.getProteinNeed(a.class, RLGrowth.getContinuousAge(a.animal), config.protein, a.milkMax, target)
+            a.proteinNeed = RLFeedMath.getProteinNeed(a.class, RLGrowth.getContinuousAge(a.animal), RLFeed.getConfig(a.animal).protein,
+                a.milkMax, target)
             if a.nursing ~= nil then a.nursing.kg = a.nursing.kg * factor end
         end
     end
@@ -865,11 +874,11 @@ function RLFeed.linkDams(animals, stepDays)
         if RLFeed.canNurse(a.animal) then dams[a.animal:getIdentifiers()] = a end
     end
     if next(dams) == nil then return end
-    local damMilk = RLFeed.getConfig().damMilk
     for _, a in ipairs(animals) do
         local dam = a.class == "CALF" and a.animal.motherId ~= nil and dams[a.animal.motherId] or nil
         if dam ~= nil then
             if dam.nursing == nil then
+                local damMilk = RLFeed.getConfig(dam.animal).damMilk
                 local last = dam.animal.rlFeedLastMilk
                 local owner = dam.animal.clusterSystem ~= nil and dam.animal.clusterSystem.owner or nil
                 local share = 1
@@ -887,7 +896,7 @@ end
 --- give each animal. Takes nothing from the trough (RLFeed.runStep removes the plan's liters).
 --- @return table plan, table forage, table concentrate, table milk, table unconfigured
 function RLFeed.planPen(placeable, ration, animals, stepDays)
-    local config = RLFeed.getConfig()
+    local config = RLFeed.getConfig(placeable)
     local forage, concentrate, milk, unconfigured = RLFeed.getStockLists(placeable, ration)
     local plan = RLFeedRationPlanner.plan({
         animals = animals, forage = forage, concentrate = concentrate, milk = milk,
@@ -905,7 +914,7 @@ end
 --- @param stepDays number Model days
 function RLFeed.runStep(placeable, window, stepDays)
     local spec = placeable.spec_husbandryFood
-    local config = RLFeed.getConfig()
+    local config = RLFeed.getConfig(placeable)
     local ration = RLFeed.getRation(placeable)
     local dtMonths = stepDays / config.realDaysPerPeriod
     local tick = window.tick
@@ -1205,7 +1214,7 @@ function RLFeed.addToMonth(placeable, hour)
     local spec = placeable.spec_husbandryFood
     local key = getPeriodKey()
     local month = spec.rlFeedMonth
-    local config = RLFeed.getConfig()
+    local config = RLFeed.getConfig(placeable)
     -- A new game month, or feed data (scale, profiles) other than the month was counted under,
     -- starts a new month; the last one is kept as it was counted.
     if month == nil or month.key ~= key or month.hash ~= config.hash or month.scale ~= config.resourceScale then
@@ -1281,7 +1290,7 @@ function RLFeed.onPenDayChanged(placeable)
     end
     table.sort(animals, function(a, b) return tostring(a.key) < tostring(b.key) end)
     local ration = RLFeed.getRation(placeable)
-    local config = RLFeed.getConfig()
+    local config = RLFeed.getConfig(placeable)
     RLPenLog.emit("FEED_DAY", {
         pen = RLPenLog.pen(placeable), active = true, hours = day.hours, scale = config.resourceScale, hash = config.hash,
         ration = { target = ration.target, grain = ration.grain, share = ration.share, substitute = ration.substitute },
@@ -1316,7 +1325,7 @@ end
 --- @return table input
 --- @return table cfg
 function RLFeed.applyStepInput(animal, input, feed, dtMonths)
-    local config = RLFeed.getConfig()
+    local config = RLFeed.getConfig(animal)
     input.supplyPerPeriod = dtMonths > 0 and feed.me / dtMonths or 0
     input.maintenanceFactor = (input.maintenanceFactor or 1) * RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
     input.growthCostPerKg = RLFeed.getGrowthCost(animal, dtMonths)
@@ -1326,14 +1335,14 @@ function RLFeed.applyStepInput(animal, input, feed, dtMonths)
     input.speed = (input.speed or 1) * protein
     input.potentialMilk = (input.potentialMilk or 0) * RLFeedMath.getMilkProteinFactor(protein, config.protein.milkResponse) * (feed.milkDemandFactor or 1)
     if feed.target == "MAINTAIN" then input.milkMobilizeShare = 0 end
-    return input, RLFeed.getEnergyConfig()
+    return input, RLFeed.getEnergyConfig(animal)
 end
 
 
 --- After a step: the rumen's adaptation moves toward the concentrate share it ate (for the step's
 --- model days), and its live weight trend for the finishing forecast.
 function RLFeed.afterStep(animal, state, feed, result, weightBefore, dtMonths)
-    local config = RLFeed.getConfig()
+    local config = RLFeed.getConfig(animal)
     state.feedAdapted = RLFeedMath.adapt(state.feedAdapted or 0, feed.concShare or 0, feed.dtDays, config.ration)
     feed.result = result
     if weightBefore ~= nil and dtMonths ~= nil and dtMonths > 0 then
@@ -1353,8 +1362,8 @@ end
 --- @param result table The step's budget
 --- @param dtMonths number
 function RLFeed.applyHealth(animal, feed, result, dtMonths)
-    local body = RLBodyCondition.getConfig()
-    local config = RLFeed.getConfig()
+    local body = RLBodyCondition.getConfig(animal)
+    local config = RLFeed.getConfig(animal)
     local budget = { supply = result.supplyNU, maintenance = result.maintenanceNU, pregnancy = result.pregnancyNU,
         catabolism = result.catabolismNU, unpaid = (result.maintenanceDeficitNU or 0) + (result.pregnancyDeficitNU or 0),
         mobilized = result.mobilizedNU, reserve = result.reserve, lowReserve = body.minReserve + body.mobilizeEaseRange }
@@ -1387,7 +1396,7 @@ end
 --- The weight-only health check of the mode: below extremeUnderweightRatio of its curve (the
 --- weight model's underweight threshold scaled to it), at the old penalty's per-month rate.
 function RLFeed.applyUnderweight(animal, dtMonths)
-    local ratio = RLFeed.getConfig().health.extremeUnderweightRatio
+    local ratio = RLFeed.getConfig(animal).health.extremeUnderweightRatio
     local weightRatio = RLGrowth.getSettings(animal).underweightRatio
     -- Zero is a valid setting: it disables this weight threshold. Do not turn 0/0 into health NaN.
     if weightRatio <= 0 then return end
@@ -1577,9 +1586,9 @@ function RLFeed.loadPen(placeable, xmlFile, key)
     if factor ~= nil and factor == factor then spec.rlFeedFactor = math.clamp(factor, 0, 1) end
     -- A month counted under other feed data is history: the next hour starts a new one
     -- (RLFeed.addToMonth), and this one is kept as it was counted.
-    if spec.rlFeedMonth ~= nil and spec.rlFeedMonth.hash ~= RLFeed.getConfig().hash then
+    if spec.rlFeedMonth ~= nil and spec.rlFeedMonth.hash ~= RLFeed.getConfig(placeable).hash then
         Log:info("RLFeed: %s month was counted under feed data %s (now %s); kept as it was, the next hour starts a new one", base,
-            tostring(spec.rlFeedMonth.hash), RLFeed.getConfig().hash)
+            tostring(spec.rlFeedMonth.hash), RLFeed.getConfig(placeable).hash)
     end
 end
 

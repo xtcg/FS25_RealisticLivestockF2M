@@ -29,8 +29,11 @@ RLBodyCondition.OTHER_CATEGORY = "other"
 -- Config and coverage
 -- =============================================================================
 
-function RLBodyCondition.getConfig()
-    return RLBodyConditionConfig.get()
+--- The config (subject: an animal, pen, subtype or type name reads its species section, sheep;
+--- cattle and anything without one read the root).
+function RLBodyCondition.getConfig(subject)
+    if subject == nil then return RLBodyConditionConfig.get() end
+    return RLBodyConditionConfig.getFor(subject)
 end
 
 
@@ -55,7 +58,7 @@ end
 function RLBodyCondition.isEligible(animal)
     if not RLBodyCondition.isCoveredType(animal) or not RLBodyCondition.isEnabled() then return false end
     if animal.isDead then return false end
-    return (animal.age or 0) >= RLBodyCondition.getConfig().calfLegacyUntilAgeMonth
+    return (animal.age or 0) >= RLBodyCondition.getConfig(animal).calfLegacyUntilAgeMonth
 end
 
 
@@ -93,7 +96,7 @@ end
 --- @return number|nil
 function RLBodyCondition.getReserveTarget(animal, weight)
     if animal.gender ~= "male" then return nil end
-    local config = RLBodyCondition.getConfig()
+    local config = RLBodyCondition.getConfig(animal)
     local reference = RLBodyCondition.getReferenceWeight(animal)
     if reference == nil then return config.initialReserve end
     local x = (weight or animal.weight or 0) / reference
@@ -104,7 +107,7 @@ end
 
 --- Highest reserve a surplus fills: a bull's finishing target, a heifer's or a cow's ceiling.
 function RLBodyCondition.getReserveCeiling(animal, weight)
-    local config = RLBodyCondition.getConfig()
+    local config = RLBodyCondition.getConfig(animal)
     if animal.gender == "male" then return RLBodyCondition.getReserveTarget(animal, weight) end
     return animal.isParent and config.cowReserveCeiling or config.heiferReserveCeiling
 end
@@ -114,7 +117,7 @@ end
 --- animal (an old savegame's, a calf leaving the calf stage, a dealer's), the neutral point where
 --- the yield and price factors are 1, so setting up a condition never changes a value by itself.
 function RLBodyCondition.getInitialReserve(animal)
-    return RLBodyCondition.getConfig().initialReserve
+    return RLBodyCondition.getConfig(animal).initialReserve
 end
 
 
@@ -123,7 +126,7 @@ end
 --- @param source string
 --- @return table
 function RLBodyCondition.createState(animal, source)
-    local config = RLBodyCondition.getConfig()
+    local config = RLBodyCondition.getConfig(animal)
     local subType = animal.getSubType ~= nil and animal:getSubType() or nil
     local target = animal.targetWeight or (subType ~= nil and subType.targetWeight) or animal.weight or 0
 
@@ -172,7 +175,7 @@ end
 
 --- Finish score 0..100 of a reserve.
 function RLBodyCondition.getFinishScore(animal)
-    return RLNutritionMath.interpolate(RLBodyCondition.getConfig().curves.finishScore, RLBodyCondition.getReserve(animal))
+    return RLNutritionMath.interpolate(RLBodyCondition.getConfig(animal).curves.finishScore, RLBodyCondition.getReserve(animal))
 end
 
 
@@ -193,14 +196,14 @@ end
 --- and both slaughter routes see the same factor.
 function RLBodyCondition.getYieldFactor(animal)
     if not RLBodyCondition.appliesTo(animal) then return 1 end
-    return RLNutritionMath.interpolate(RLBodyCondition.getConfig().curves.yield, RLBodyCondition.getFinishScore(animal))
+    return RLNutritionMath.interpolate(RLBodyCondition.getConfig(animal).curves.yield, RLBodyCondition.getFinishScore(animal))
 end
 
 
 --- Factor on the weight part of a live price; 1 where the rules do not apply.
 function RLBodyCondition.getMarketFactor(animal)
     if not RLBodyCondition.appliesTo(animal) then return 1 end
-    return RLNutritionMath.interpolate(RLBodyCondition.getConfig().curves.market, RLBodyCondition.getFinishScore(animal))
+    return RLNutritionMath.interpolate(RLBodyCondition.getConfig(animal).curves.market, RLBodyCondition.getFinishScore(animal))
 end
 
 
@@ -208,7 +211,7 @@ end
 --- 1 where the rules do not apply.
 function RLBodyCondition.getFertilityFactor(animal)
     if not RLBodyCondition.appliesTo(animal) or animal.gender ~= "female" then return 1 end
-    local config = RLBodyCondition.getConfig()
+    local config = RLBodyCondition.getConfig(animal)
     local state = animal.bodyCondition
     local lossRate = state ~= nil and state.lossRateEMA or 0
     return math.clamp(RLNutritionMath.interpolate(config.curves.fertility, RLBodyCondition.getBCS(animal))
@@ -231,7 +234,7 @@ end
 --- between 1 and maxIntakeFactor. 1 for any other animal.
 function RLBodyCondition.getIntakeFactor(animal)
     if not animal.isLactating or not RLBodyCondition.isEligible(animal) then return 1 end
-    local config = RLBodyCondition.getConfig()
+    local config = RLBodyCondition.getConfig(animal)
     local productivity = animal.genetics ~= nil and animal.genetics.productivity or 1
     return math.clamp(1 + config.highYieldIntake * (productivity - 1), 1, config.maxIntakeFactor)
 end
@@ -239,7 +242,7 @@ end
 
 --- Intake capacity (kappa) for the animal's state, by subType, breed, type or the root value.
 function RLBodyCondition.getIntakeCapacity(animal)
-    local config = RLBodyCondition.getConfig()
+    local config = RLBodyCondition.getConfig(animal)
     local attr = "intakeGrowing"
     if animal.isLactating then
         attr = "intakeLactating"
@@ -436,7 +439,7 @@ function RLBodyCondition.getReferenceIntake(animal)
     local frame = animal.weight
     if state ~= nil then
         frame = frame - RLNutritionMath.getReserveWeightOffset(state.reserve, state.capacityKg,
-            RLBodyCondition.getConfig().referenceReserve)
+            RLBodyCondition.getConfig(animal).referenceReserve)
     end
     return getRequestAt(animal, frame)
 end
@@ -511,7 +514,7 @@ function RLBodyCondition.buildStepInput(animal, state, intakeLiters, waterCovera
         reserveCeiling = RLBodyCondition.getReserveCeiling(animal),
         balanceEMA = state.balanceEMA,
         lossRateEMA = state.lossRateEMA,
-        fixedPrice = RLBodyCondition.getConfig().fixedFeedPrice == true,
+        fixedPrice = RLBodyCondition.getConfig(animal).fixedFeedPrice == true,
     }
 
     if input.fixedPrice then
@@ -600,7 +603,7 @@ function RLBodyCondition.step(animal)
 
     local intakeStep, allocated = RLBodyCondition.getAllocatedIntake(animal, supply)
     local input, ownReference = RLBodyCondition.buildStepInput(animal, state, intakeStep / dtMonths, waterCoverage, dtMonths)
-    local result = RLNutritionMath.step(input, RLBodyCondition.getConfig())
+    local result = RLNutritionMath.step(input, RLBodyCondition.getConfig(animal))
 
     if result.weight ~= result.weight or result.reserve ~= result.reserve then
         Log:warning("RLBodyCondition: step for %s/%s gave NaN, nothing applied this hour",
@@ -679,7 +682,7 @@ function RLBodyCondition.applyMilk(animal, potentialPerPeriod, curvePerPeriod, d
         return potentialPerPeriod
     end
 
-    local average = math.max((curvePerPeriod or 0) * RLBodyCondition.getConfig().lactationMeanFactor, 0)
+    local average = math.max((curvePerPeriod or 0) * RLBodyCondition.getConfig(animal).lactationMeanFactor, 0)
     animal.rlMilk = {
         potential = potentialPerPeriod,
         anchor = potentialPerPeriod > 0 and average * (diseaseFactor or 1) or 0,

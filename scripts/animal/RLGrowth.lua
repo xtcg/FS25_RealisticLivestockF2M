@@ -313,9 +313,9 @@ function RLGrowth.getCurve(animal)
 end
 
 
---- Reserve capacity per kg of frame (kappa).
-function RLGrowth.getKappa()
-    local bc = RLBodyCondition.getConfig()
+--- Reserve capacity per kg of frame (kappa), of the subject's species (cattle without one).
+function RLGrowth.getKappa(subject)
+    local bc = RLBodyCondition.getConfig(subject)
     return RLGrowthMath.getKappa(bc.reserveCapacityRatio, bc.referenceReserve)
 end
 
@@ -568,9 +568,9 @@ end
 ---        grew under the model, so no anchor either)
 --- @return table state
 function RLGrowth.deriveState(animal, source)
-    local bc = RLBodyCondition.getConfig()
+    local bc = RLBodyCondition.getConfig(animal)
     local binding = RLGrowth.getBinding(animal:getSubType())
-    local kappa = RLGrowth.getKappa()
+    local kappa = RLGrowth.getKappa(animal)
     local reserve = animal.bodyCondition ~= nil and animal.bodyCondition.reserve or bc.initialReserve
     local frameTarget = RLGrowth.getFrameTarget(animal, binding)
     local birth = RLGrowth.getBirthWeight(animal, binding)
@@ -612,8 +612,8 @@ function RLGrowth.resync(animal, state)
         return false
     end
     if math.abs(weight - state.weightKg) <= RLGrowth.RESYNC_TOLERANCE_KG then return false end
-    local bc = RLBodyCondition.getConfig()
-    local kappa = RLGrowth.getKappa()
+    local bc = RLBodyCondition.getConfig(animal)
+    local kappa = RLGrowth.getKappa(animal)
     local gravid = RLGrowth.getCarriedGravid(animal, state)
     local reserve = animal.bodyCondition ~= nil and animal.bodyCondition.reserve or nil
     if reserve == nil then
@@ -689,10 +689,10 @@ function RLGrowth.getFrameAndReserve(animal)
         local reserve = math.min(math.max(state.reserveMassKg or 0, 0), body)
         return body - reserve, reserve
     end
-    local bc = RLBodyCondition.getConfig()
+    local bc = RLBodyCondition.getConfig(animal)
     local index = animal.bodyCondition ~= nil and animal.bodyCondition.reserve or bc.initialReserve
     local body = (animal.weight or 0) - math.min(RLGrowth.getGravidTarget(animal), animal.weight or 0)
-    return RLGrowthMath.split(math.max(body, 0), index, RLGrowth.getKappa())
+    return RLGrowthMath.split(math.max(body, 0), index, RLGrowth.getKappa(animal))
 end
 
 
@@ -762,7 +762,7 @@ function RLGrowth.getDamFactor(dam, subject)
     local state = dam ~= nil and dam.bodyCondition or nil
     if state == nil or state.reserve == nil then return 1 end
     local s = RLGrowth.getSettings(subject or dam)
-    local reference = RLBodyCondition.getConfig().referenceReserve
+    local reference = RLBodyCondition.getConfig(dam).referenceReserve
     return math.clamp(1 + s.damReserveEffect * (state.reserve - reference), s.damFactorMin, s.damFactorMax)
 end
 
@@ -853,8 +853,8 @@ function RLGrowth.createBirthState(child, weight)
     end
     local binding = RLGrowth.getBinding(child:getSubType())
     if binding == nil then return nil, "MODEL_COVERAGE" end
-    local bc = RLBodyCondition.getConfig()
-    local kappa = RLGrowth.getKappa()
+    local bc = RLBodyCondition.getConfig(child)
+    local kappa = RLGrowth.getKappa(child)
     local frame, reserveKg = RLGrowthMath.split(weight, bc.initialReserve, kappa)
     -- Do not read a previous individual's state through getFrameTarget.
     local size = RLGrowth.getGeneFactors(child.genetics.metabolism, child)
@@ -926,7 +926,7 @@ end
 --- @return number liters per period
 function RLGrowth.getReferenceIntake(animal)
     local frame = RLGrowth.getFrameAndReserve(animal)
-    return RLGrowth.getRequestAt(animal, frame * (1 + RLBodyCondition.getConfig().referenceReserve * RLGrowth.getKappa()))
+    return RLGrowth.getRequestAt(animal, frame * (1 + RLBodyCondition.getConfig(animal).referenceReserve * RLGrowth.getKappa(animal)))
 end
 
 
@@ -939,12 +939,12 @@ end
 --- @return number referenceWeight
 --- @return number referenceGrowthNU per period
 function RLGrowth.getSupplyReference(animal)
-    local bc = RLBodyCondition.getConfig()
+    local bc = RLBodyCondition.getConfig(animal)
     local subType = animal:getSubType()
     local curve = RLGrowth.getNominalCurve(RLGrowth.getBinding(subType))
     local age = math.max(animal.age or 0, 0)
     local weight = curve:value(age)
-    local kappa = RLGrowth.getKappa()
+    local kappa = RLGrowth.getKappa(animal)
     local scale = 1 + bc.referenceReserve * kappa
     local gain = curve:slope(age)
     local growthNU = gain / scale * bc.growthNUPerKg + gain * (bc.referenceReserve * kappa / scale) * bc.depositNUPerKg
@@ -1078,7 +1078,7 @@ end
 --- @param state table|nil
 --- @return number
 function RLGrowth.getMilkMobilizeShare(animal, state)
-    local base = RLBodyCondition.getConfig().milkMobilizeShare
+    local base = RLBodyCondition.getConfig(animal).milkMobilizeShare
     if not animal.isLactating then return base end
     local s = RLGrowth.getSettings(animal)
     local early = math.max(1 - RLGrowth.getLactationMonths(animal, state) / s.earlyMilkMobilizeMonths, 0)
@@ -1098,9 +1098,9 @@ end
 --- @return table input
 --- @return number ownReference Liters the animal itself requests on full feed
 function RLGrowth.buildStepInput(animal, state, intakeLiters, milkShare, dtMonths, noReference)
-    local bc = RLBodyCondition.getConfig()
+    local bc = RLBodyCondition.getConfig(animal)
     local s = RLGrowth.getSettings(animal)
-    local kappa = RLGrowth.getKappa()
+    local kappa = RLGrowth.getKappa(animal)
     local _, speedGene, maintenanceGene = RLGrowth.getGeneFactors(animal.genetics.metabolism, animal)
     local progress, fetuses = RLBodyCondition.getPregnancy(animal)
     local milk = getMilk(animal)
@@ -1157,7 +1157,7 @@ function RLGrowth.buildBudgetInput(animal, state, supply, dtMonths)
     local milkShare = feed ~= nil and (feed.water or 1) or (supply.milkShare or 1)
     local input, ownReference = RLGrowth.buildStepInput(animal, state,
         supply.intakeLiters or 0, milkShare, dtMonths, feed ~= nil)
-    local config = RLBodyCondition.getConfig()
+    local config = RLBodyCondition.getConfig(animal)
     if feed ~= nil then input, config = RLFeed.applyStepInput(animal, input, feed, dtMonths) end
     return input, config, ownReference
 end
@@ -1390,7 +1390,7 @@ function RLGrowth.setReserveIndex(animal, reserve)
     RLGrowth.resync(animal, state)
     local gravid = RLGrowth.getCarriedGravid(animal, state)
     local frame = math.max(animal.weight - gravid - state.reserveMassKg, 0)
-    state.reserveMassKg = math.max(reserve, 0) * frame * RLGrowth.getKappa()
+    state.reserveMassKg = math.max(reserve, 0) * frame * RLGrowth.getKappa(animal)
     animal.weight = frame + state.reserveMassKg + gravid
     state.weightKg = animal.weight
 end

@@ -113,9 +113,10 @@ check("report: excluded goats show cattle-compatible root settings", W.describe(
 local live = GrowthSim.makeAnimal("RAM_LANDRACE")
 live.isCastrated = true
 local result, input = G.advanceBudget(live, { intakeLiters = G.getReferenceIntake(live), milkShare = 1 }, 0.05, 1)
-check("live step: sheep stage transition and frame floor use sheep settings", result ~= nil
+check("live step: sheep stage transition and frame floor use sheep settings (and the sheep body condition section)", result ~= nil
     and near(live.rlGrowth.speedFactor, 0.81 + 0.19 * math.exp(-3 * 0.05 / 0.2), 1e-12)
-    and near(input.frameFloorKg, 0.2 * live.rlGrowth.birthWeightKg / (1 + RLBodyCondition.getConfig().referenceReserve * G.getKappa()), 1e-12))
+    and near(input.frameFloorKg, 0.2 * live.rlGrowth.birthWeightKg / (1 + RLBodyCondition.getConfig(live).referenceReserve * G.getKappa(live)), 1e-12)
+    and RLBodyCondition.getConfig(live).reserveCapacityRatio == 0.48)
 local healthCalls, oldHealth = 0, RLFeed.addHealth
 RLFeed.addHealth = function() healthCalls = healthCalls + 1 end
 s.underweightRatio = 0
