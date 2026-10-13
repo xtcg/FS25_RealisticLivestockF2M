@@ -96,6 +96,32 @@ function RLBodyConditionConfigEvent:writeStream(streamId, connection)
         streamWriteString(streamId, name)
         writeValues(streamId, layers.subTypes[name])
     end
+
+    -- Species sections (sheep): their values, curves and fat classes.
+    local species = sortedKeys(config.species or {})
+    streamWriteUInt8(streamId, #species)
+    for _, name in ipairs(species) do
+        local section = config.species[name]
+        streamWriteString(streamId, name)
+        local sectionValues = {}
+        for key, _ in pairs(RLBodyConditionConfig.DEFAULTS) do sectionValues[key] = section[key] end
+        for key, _ in pairs(RLBodyConditionConfig.SPECIES_DEFAULTS) do sectionValues[key] = section[key] end
+        writeValues(streamId, sectionValues)
+        for _, curveName in ipairs(RLBodyConditionConfig.CURVES) do
+            local points = section.curves[curveName]
+            streamWriteUInt8(streamId, #points)
+            for _, point in ipairs(points) do
+                streamWriteFloat32(streamId, point[1])
+                streamWriteFloat32(streamId, point[2])
+            end
+        end
+        local classes = section.fatClasses or {}
+        streamWriteUInt8(streamId, #classes)
+        for _, class in ipairs(classes) do
+            streamWriteString(streamId, class.name)
+            streamWriteFloat32(streamId, class.minReserve)
+        end
+    end
 end
 
 
@@ -133,6 +159,27 @@ function RLBodyConditionConfigEvent:readStream(streamId, connection)
         layers.subTypes[name] = readValues(streamId)
     end
     config.layers = layers
+
+    config.species = {}
+    for _ = 1, streamReadUInt8(streamId) do
+        local name = streamReadString(streamId)
+        local section = readValues(streamId)
+        section.curves = {}
+        for _, curveName in ipairs(RLBodyConditionConfig.CURVES) do
+            local points = {}
+            for _ = 1, streamReadUInt8(streamId) do
+                local x = streamReadFloat32(streamId)
+                table.insert(points, { x, streamReadFloat32(streamId) })
+            end
+            section.curves[curveName] = points
+        end
+        section.fatClasses = {}
+        for _ = 1, streamReadUInt8(streamId) do
+            local className = streamReadString(streamId)
+            table.insert(section.fatClasses, { name = className, minReserve = streamReadFloat32(streamId) })
+        end
+        config.species[name] = section
+    end
 
     self.config = config
     self:run(connection)

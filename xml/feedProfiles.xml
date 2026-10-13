@@ -183,6 +183,27 @@
     adaptation); Penn State "Total mixed rations for dairy cows" (dairy intake); NRC Beef 2000,
     NRC Dairy 2001 (book values for forages, NDF, starch, energy equations).
 
+    species: a section for one animal type (sheep). It is the root with the groups it sets
+    replaced - attributes it leaves out keep the root's - and its own physiology and nursing.
+    Feeds are the root's. Cattle, goats (the SHEEP type's excluded breed, weightProfiles.xml) and
+    every other type read the root. A section that fails a check keeps its species off the mode.
+    physiology (species only)
+    growthReferenceKg      The live weight requirements growthMEPerKgAt500 is given at (cattle 500).
+    youngMaintenance...    Maintenance ME per kg^0.75 of a young animal up to youngMaintenanceUntilMonth,
+                           moving to requirements' adult value by adultMaintenanceFromMonth (0: none).
+    calfGrowthCost         1: a young animal on milk pays NRC 2001's calf cost (cattle); 0: the growth cost.
+    nursing (species only): young animals that drink only from their dams - no rearing pen, no
+    trough milk. Curves at the young animal's age in months: milkMax (share of lambMilkKgPerDay it
+    may drink), solidMax (share of its appetite its rumen takes as solids), solidEnergy (what solid
+    forage is worth to it). weaningMonth: milk ends. A young animal whose dam is not in its pen
+    gets no milk (none is made for it): from earlyWeaningMonth, with an established solid intake
+    (readySolidKgDMPerDay as a readyTauDays average) it eats as a weaned animal; younger, it lives
+    on what it eats and its health and growth show the shortfall. creepMaxKgDMPerDay: most
+    concentrate DM a young animal at foot eats a day. lactation: a dam's milk (kg a day) in each
+    month after birth by her system and the young animals she suckles (single / twin; more share
+    the twin row, at most maxSuckled counted); breeds name their system, the rest use default.
+    Her milk is never sold or stored: she makes what her young drink from it, paid by her budget.
+
     Copy this file to modSettings/FS25_RealisticLivestockRM/feedProfiles.xml to change it; that
     copy replaces this file. A file that fails a check keeps the mode off and logs why; a single
     feed that fails is left uneaten and listed.
@@ -321,4 +342,79 @@
         density="1.03" dm="0.50" me="19.5" meBasis="ME_DIRECT" cp="0.22" ndf="0" peFactor="0"
         starch="0" sugar="0" stages="PRE_WEANING WEANING"
         source="NRC 2001 calf: milk replacer ME 4.65 Mcal/kg DM" year="2001"/>
+
+    <!--
+        Sheep (S5, 2026-10-13). Candidates for the offline calibration (gates V1-V10), not
+        calibrated values; the species stays off until the weight model's SHEEP type is enabled.
+        Sources: AHDB "Feeding the ewe" (older edition, AFRC 1993 tables): ewe maintenance about
+        12% of live weight in MJ ME (8.4 MJ for 70 kg housed, about 9 outdoors) = 0.35-0.37 MJ per
+        kg^0.75; pregnancy Table 8 (70 kg ewe one week before lambing: single 14.4, twins 18.3 MJ:
+        about 0.55 x maintenance per lamb); lactation Table 29 (about 8.3 MJ ME per kg of milk; a
+        ewe losing 50 g a day saves about 1.75 MJ: 35 MJ per kg; gaining 50 g costs 2.5 MJ: 50 MJ
+        per kg, Table 8 note); intake Table 2 (dry 1.5%, late pregnancy 2-2.5%, lactation 3-3.5% of
+        live weight); milk Table 28 (monthly means, kg a day; AFRC has hill and lowland only, a
+        triplet's dam is held at the twin row). Lamb maintenance 0.475 MJ per kg^0.75 (Awassi lamb
+        trial) taken as 0.45 to 6 months. Ewe milk: Sebek and Everts 1993 (GE = 41.94 fat + 15.85
+        protein + 21.41 lactose kJ/kg; their ranges 44-125, 32-53, 39-53 g/kg); a typical meat ewe's
+        milk (fat 75, protein 53, lactose 48 g/kg) gives about 5 MJ GE, 19% DM, CP 28% of DM: ME 25 MJ
+        per kg DM to the lamb (AHDB p50: about 6.5 MJ ME from milk a twin lamb at six weeks).
+        Concentrate adaptation 14 days (Teagasc: ad lib in 10 days; SRUC 2-3 weeks); an unadapted
+        lamb may eat up to 50% concentrate in its DM - a game rule (FAS's 50% is barley within the
+        concentrate mix). Creep 0.35 kg DM a day (about 0.4 kg fresh, range 0.3-0.5). Weaning at 3
+        months (AHDB: wean at 12 weeks, 90 days; lambs are not drinking significant milk by then);
+        an orphan from 2 months with 250 g fresh creep (0.22 kg DM) a day sustained (AHDB lambing
+        ewe lambs: 8-9 weeks, 250 g/day for 3-4 days).
+    -->
+    <species name="SHEEP">
+        <requirements maintenanceMEPerKgMetabolic="0.37" growthMEPerKgAt500="28" growthWeightExponent="0.75" growthMEPerKgMin="14"
+            reserveDepositMEPerKg="50" reserveMobilizeMEPerKg="35" catabolismMEPerKg="10" pregnancyFactor="0.55"/>
+        <physiology growthReferenceKg="40" youngMaintenanceMEPerKgMetabolic="0.45" youngMaintenanceUntilMonth="6"
+            adultMaintenanceFromMonth="12" calfGrowthCost="0"/>
+        <calf maintenanceMEPerKgMetabolic="0.37"/>
+        <intake growingPerKgMetabolic="0.095" dryPerKgMetabolic="0.055" lactatingPerKgMetabolic="0.050"
+            lactatingPerKgMilk="0.40" calfSolidPerKgMetabolic="0.095"
+            ndfFillGrowing="0.013" ndfFillDry="0.011" ndfFillLactating="0.016" ndfFillCalf="0.010"/>
+        <protein maintenance="0.07" calf="0.18" young="0.15" growing="0.13" finishing="0.12"
+            lactating="0.15" dry="0.10" youngUntilMonth="4" growingUntilMonth="8" lactatingAtKg="3.0" milkResponse="2"/>
+        <ration wheatMaxShare="0.30" adaptationDays="14" adaptationMaxShare="0.90" stepAllowance="0.50" unadaptedUtilisation="0.85">
+            <class name="CALF" peNdfMin="0" fermentableMax="0.45"/>
+            <class name="GROWING" peNdfMin="0.10" fermentableMax="0.58"/>
+            <class name="LACTATING" peNdfMin="0.18" fermentableMax="0.35"/>
+            <class name="DRY" peNdfMin="0.20" fermentableMax="0.30"/>
+        </ration>
+        <milk realKgPerDay="2.1" meMJPerKg="8.3"/>
+        <damMilk dm="0.19" me="25.0" cp="0.28"/>
+        <nursing weaningMonth="3" earlyWeaningMonth="2" readySolidKgDMPerDay="0.22" readyTauDays="3.5"
+            lambMilkKgPerDay="2.6" creepMaxKgDMPerDay="0.35" maxSuckled="2">
+            <milkMax>
+                <point x="0" y="1.00"/>
+                <point x="1" y="1.00"/>
+                <point x="2" y="0.80"/>
+                <point x="2.75" y="0.40"/>
+                <point x="3" y="0.00"/>
+            </milkMax>
+            <solidMax>
+                <point x="0" y="0.05"/>
+                <point x="0.5" y="0.20"/>
+                <point x="1" y="0.45"/>
+                <point x="1.5" y="0.70"/>
+                <point x="2" y="0.85"/>
+                <point x="3" y="1.00"/>
+            </solidMax>
+            <solidEnergy>
+                <point x="0" y="0.40"/>
+                <point x="1" y="0.65"/>
+                <point x="2" y="0.90"/>
+                <point x="3" y="1.00"/>
+            </solidEnergy>
+            <lactation default="LOWLAND">
+                <system name="LOWLAND" single="2.10 1.70 1.05" twin="3.00 2.25 1.50"/>
+                <system name="HILL" single="1.25 1.05 0.70" twin="1.90 1.60 1.10"/>
+                <breed name="STEINSCHAF" system="HILL"/>
+                <breed name="BLACK_WELSH" system="HILL"/>
+                <breed name="BLACKFACE" system="HILL"/>
+                <breed name="CHEVIOT" system="HILL"/>
+            </lactation>
+        </nursing>
+    </species>
 </feedProfiles>

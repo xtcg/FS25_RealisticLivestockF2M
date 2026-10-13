@@ -69,6 +69,28 @@ RLFeedProfiles.CALF_MILK = { realLitersPerDay = 5, density = 1.03, dm = 0.50, si
 -- A dam's own milk as her calf drinks it (whole milk, NRC 2001: 12.5% DM, ME 5.37 Mcal/kg DM).
 RLFeedProfiles.DAM_MILK = { dm = 0.125, me = 22.5, cp = 0.25 }
 
+-- Species sections only (<species name="SHEEP">): the root (cattle) has neither group, and
+-- every reader treats a missing group as the cattle rule.
+-- physiology: growthReferenceKg, the live weight growthMEPerKgAt500 is given at (500 for cattle);
+-- youngMaintenanceMEPerKgMetabolic (0: none), maintenance of a young animal, used to
+-- youngMaintenanceUntilMonth and moving to the adult value by adultMaintenanceFromMonth;
+-- calfGrowthCost 1: a young animal on milk pays NRC 2001's calf cost (calf), 0: the growth cost.
+RLFeedProfiles.PHYSIOLOGY = { growthReferenceKg = 500, youngMaintenanceMEPerKgMetabolic = 0, youngMaintenanceUntilMonth = 0,
+    adultMaintenanceFromMonth = 0, calfGrowthCost = 1 }
+
+-- nursing: young animals that drink only from their dams (sheep: no rearing pen, no trough milk).
+-- The milkMax / solidMax / solidEnergy curves are read at the young animal's age (months), not
+-- against a weaning month. weaningMonth: milk ends (milkMax 0 from here); earlyWeaningMonth: an
+-- orphan with established solid intake (readySolidKgDMPerDay, a readyTauDays average) eats as a
+-- weaned animal; younger or not ready it lives on what it eats, with no milk made for it.
+-- lambMilkKgPerDay: most whole milk (kg as drunk) one young animal takes from its dam a day at
+-- milkMax 1; creepMaxKgDMPerDay: most concentrate DM a young animal at foot eats a day (the
+-- creep gate the game has no building for). maxSuckled: young animals a dam's milk table counts.
+RLFeedProfiles.NURSING = { weaningMonth = 3, earlyWeaningMonth = 2, readySolidKgDMPerDay = 0.22, readyTauDays = 3.5,
+    lambMilkKgPerDay = 2.6, creepMaxKgDMPerDay = 0.35, maxSuckled = 2 }
+
+RLFeedProfiles.NURSING_CURVES = { "milkMax", "solidMax", "solidEnergy" }
+
 --- Numeric fields of a feed profile and the range each must be in.
 RLFeedProfiles.FEED_SHARES = { "dm", "cp", "ndf", "peFactor", "starch", "sugar" }
 
@@ -230,6 +252,162 @@ function RLFeedProfiles.validate(config)
 end
 
 
+--- Points of a curve element (x, y), or nil when it has none.
+local function readCurve(xmlFile, path)
+    local points = {}
+    xmlFile:iterate(path .. ".point", function(_, key)
+        local x, y = xmlFile:getFloat(key .. "#x"), xmlFile:getFloat(key .. "#y")
+        if x ~= nil and y ~= nil then points[#points + 1] = { x, y } end
+    end)
+    return #points > 0 and points or nil
+end
+
+
+--- Check a species section's own groups (physiology, nursing).
+--- @return boolean ok
+--- @return string|nil reason
+function RLFeedProfiles.validateSpecies(section)
+    local p = section.physiology
+    if p ~= nil then
+        for key, value in pairs(p) do
+            if not finite(value) or value < 0 then return false, "physiology " .. key .. " must be a number >= 0" end
+        end
+        if p.growthReferenceKg <= 0 then return false, "physiology growthReferenceKg must be > 0" end
+        if p.youngMaintenanceMEPerKgMetabolic > 0 and p.adultMaintenanceFromMonth < p.youngMaintenanceUntilMonth then
+            return false, "physiology adultMaintenanceFromMonth must not be before youngMaintenanceUntilMonth"
+        end
+    end
+    local n = section.nursing
+    if n ~= nil then
+        for key, value in pairs(n) do
+            if type(value) == "number" and (not finite(value) or value < 0) then return false, "nursing " .. key .. " must be a number >= 0" end
+        end
+        if n.weaningMonth <= 0 or n.earlyWeaningMonth > n.weaningMonth then
+            return false, "nursing needs weaningMonth > 0 and earlyWeaningMonth <= weaningMonth"
+        end
+        if n.readyTauDays <= 0 or n.lambMilkKgPerDay <= 0 or n.maxSuckled < 1 then
+            return false, "nursing readyTauDays, lambMilkKgPerDay must be > 0 and maxSuckled >= 1"
+        end
+        for _, name in ipairs(RLFeedProfiles.NURSING_CURVES) do
+            local points = n.curves[name]
+            if points == nil or #points == 0 then return false, "nursing curve " .. name .. " has no points" end
+            for i, point in ipairs(points) do
+                if not finite(point[1]) or not finite(point[2]) or point[2] < 0 or point[2] > 1 then
+                    return false, string.format("nursing curve %s point %d must have y in 0..1", name, i)
+                end
+                if i > 1 and point[1] < points[i - 1][1] then return false, "nursing curve " .. name .. " is not sorted by x" end
+            end
+        end
+        if RLFeedProfiles.interpolate(n.curves.milkMax, n.weaningMonth) > 0 then return false, "nursing milkMax must be 0 at weaningMonth" end
+        if RLFeedProfiles.interpolate(n.curves.solidMax, n.weaningMonth) < 1 then return false, "nursing solidMax must reach 1 at weaningMonth" end
+        if RLFeedProfiles.interpolate(n.curves.solidEnergy, n.weaningMonth) < 1 then return false, "nursing solidEnergy must reach 1 at weaningMonth" end
+        local lactation = n.lactation
+        if lactation == nil or next(lactation.systems) == nil then return false, "nursing has no lactation system" end
+        for name, system in pairs(lactation.systems) do
+            for _, row in ipairs({ "single", "twin" }) do
+                local months = system[row]
+                if months == nil or #months == 0 then return false, "lactation system " .. name .. " needs " .. row end
+                for _, kg in ipairs(months) do
+                    if not finite(kg) or kg < 0 then return false, "lactation system " .. name .. " " .. row .. " must be kg >= 0" end
+                end
+            end
+        end
+        if lactation.systems[lactation.default] == nil then return false, "lactation default system " .. tostring(lactation.default) .. " is not listed" end
+        for breed, system in pairs(lactation.breeds) do
+            if lactation.systems[system] == nil then return false, "lactation breed " .. breed .. " names an unknown system " .. system end
+        end
+    end
+    return true
+end
+
+
+--- Linear between points, flat outside.
+function RLFeedProfiles.interpolate(points, x)
+    if x <= points[1][1] then return points[1][2] end
+    for i = 2, #points do
+        local a, b = points[i - 1], points[i]
+        if x <= b[1] then
+            if b[1] == a[1] then return b[2] end
+            return a[2] + (b[2] - a[2]) * (x - a[1]) / (b[1] - a[1])
+        end
+    end
+    return points[#points][2]
+end
+
+
+--- Read the species sections: each is the root config with the groups its element sets replaced
+--- (the root's values where it leaves one out), plus its own physiology and nursing. Feeds are
+--- the root's. A section that fails a check is kept invalid (its species cannot run the mode);
+--- the root is never changed by one.
+local function parseSpecies(xmlFile, config)
+    config.species = {}
+    xmlFile:iterate("feedProfiles.species", function(_, key)
+        local name = (xmlFile:getString(key .. "#name") or ""):upper()
+        if name == "" or config.species[name] ~= nil then
+            Log:warning("RLFeedProfiles: a species section without a name, or listed twice (%s), is ignored", name)
+            return
+        end
+        local section = {}
+        for field, value in pairs(config) do
+            if field ~= "species" then section[field] = value end
+        end
+        section.speciesName = name
+        section.requirements = readGroup(xmlFile, key .. ".requirements", config.requirements)
+        section.intake = readGroup(xmlFile, key .. ".intake", config.intake)
+        section.protein = readGroup(xmlFile, key .. ".protein", config.protein)
+        section.health = readGroup(xmlFile, key .. ".health", config.health)
+        section.ration = readGroup(xmlFile, key .. ".ration", config.ration)
+        section.calfMilk = readGroup(xmlFile, key .. ".calfMilk", config.calfMilk)
+        section.calf = readGroup(xmlFile, key .. ".calf", config.calf)
+        section.damMilk = readGroup(xmlFile, key .. ".damMilk", config.damMilk)
+        local breeds = config.milk.breeds
+        section.milk = readGroup(xmlFile, key .. ".milk", { realKgPerDay = config.milk.realKgPerDay, meMJPerKg = config.milk.meMJPerKg })
+        section.milk.breeds = breeds
+        section.classes = {}
+        for class, rules in pairs(config.classes) do section.classes[class] = table.clone(rules) end
+        xmlFile:iterate(key .. ".ration.class", function(_, classKey)
+            local rules = section.classes[(xmlFile:getString(classKey .. "#name") or ""):upper()]
+            if rules == nil then return end
+            rules.peNdfMin = xmlFile:getFloat(classKey .. "#peNdfMin", rules.peNdfMin)
+            rules.fermentableMax = xmlFile:getFloat(classKey .. "#fermentableMax", rules.fermentableMax)
+        end)
+        section.physiology = readGroup(xmlFile, key .. ".physiology", RLFeedProfiles.PHYSIOLOGY)
+        if xmlFile:getString(key .. ".nursing#weaningMonth") ~= nil then
+            local nursing = readGroup(xmlFile, key .. ".nursing", RLFeedProfiles.NURSING)
+            nursing.curves = {}
+            for _, curveName in ipairs(RLFeedProfiles.NURSING_CURVES) do
+                nursing.curves[curveName] = readCurve(xmlFile, key .. ".nursing." .. curveName)
+            end
+            local lactation = { systems = {}, breeds = {},
+                default = (xmlFile:getString(key .. ".nursing.lactation#default") or ""):upper() }
+            xmlFile:iterate(key .. ".nursing.lactation.system", function(_, systemKey)
+                local systemName = (xmlFile:getString(systemKey .. "#name") or ""):upper()
+                local system = {}
+                for _, row in ipairs({ "single", "twin" }) do
+                    system[row] = {}
+                    for value in (xmlFile:getString(systemKey .. "#" .. row) or ""):gmatch("%S+") do
+                        system[row][#system[row] + 1] = tonumber(value) or (0 / 0)
+                    end
+                end
+                if systemName ~= "" then lactation.systems[systemName] = system end
+            end)
+            xmlFile:iterate(key .. ".nursing.lactation.breed", function(_, breedKey)
+                local breed = (xmlFile:getString(breedKey .. "#name") or ""):upper()
+                if breed ~= "" then lactation.breeds[breed] = (xmlFile:getString(breedKey .. "#system") or ""):upper() end
+            end)
+            nursing.lactation = lactation
+            section.nursing = nursing
+        end
+        local ok, reason = RLFeedProfiles.validate(section)
+        if ok then ok, reason = RLFeedProfiles.validateSpecies(section) end
+        section.valid, section.invalidReason = ok, reason
+        if not ok then Log:error("RLFeedProfiles: species %s: %s - its animals cannot run the real-equivalent nutrition mode", name, tostring(reason)) end
+        section.hash = RLFeedProfiles.computeHash(section)
+        config.species[name] = section
+    end)
+end
+
+
 --- Read a config.
 --- @param xmlFile table|nil XMLFile with a feedProfiles root; nil leaves the config invalid
 --- @return table config
@@ -302,6 +480,8 @@ function RLFeedProfiles.parse(xmlFile)
     config.invalidReason = reason
     if not ok then Log:error("RLFeedProfiles: %s - the real-equivalent nutrition mode cannot run", reason) end
     config.hash = RLFeedProfiles.computeHash(config)
+    -- After the root is complete (its hash too): a section copies the finished root.
+    parseSpecies(xmlFile, config)
     return config
 end
 
@@ -336,6 +516,32 @@ function RLFeedProfiles.computeHash(config)
     addGroup("calfMilk", config.calfMilk)
     addGroup("calf", config.calf)
     addGroup("damMilk", config.damMilk)
+    -- A species section's own groups (the root has none: its fingerprint is as before).
+    if config.speciesName ~= nil then
+        add("species", config.speciesName)
+        addGroup("physiology", config.physiology)
+        local nursing = config.nursing
+        if nursing ~= nil then
+            addGroup("nursing", nursing)
+            for _, name in ipairs(RLFeedProfiles.NURSING_CURVES) do
+                for i, point in ipairs(nursing.curves[name] or {}) do add("nursing." .. name .. "." .. i, point[1] .. ":" .. point[2]) end
+            end
+            local lactation = nursing.lactation or { systems = {}, breeds = {} }
+            add("lactation.default", lactation.default)
+            local names = {}
+            for systemName in pairs(lactation.systems) do names[#names + 1] = systemName end
+            table.sort(names)
+            for _, systemName in ipairs(names) do
+                local system = lactation.systems[systemName]
+                add("lactation." .. systemName .. ".single", table.concat(system.single or {}, " "))
+                add("lactation." .. systemName .. ".twin", table.concat(system.twin or {}, " "))
+            end
+            local breedNames = {}
+            for breed in pairs(lactation.breeds) do breedNames[#breedNames + 1] = breed end
+            table.sort(breedNames)
+            for _, breed in ipairs(breedNames) do add("lactation.breed." .. breed, lactation.breeds[breed]) end
+        end
+    end
     local breeds = {}
     for name in pairs(config.milk.breeds or {}) do breeds[#breeds + 1] = name end
     table.sort(breeds)
@@ -376,9 +582,20 @@ function RLFeedProfiles.getConfig()
 end
 
 
---- Whether the config can run the mode.
-function RLFeedProfiles.isValid()
-    return RLFeedProfiles.getConfig().valid == true
+--- The config an animal, pen, subtype or type name reads: its species section, else the root.
+--- @param subject any
+--- @return table
+function RLFeedProfiles.getConfigFor(subject)
+    return RLSpecies.select(RLFeedProfiles.getConfig(), subject)
+end
+
+
+--- Whether the config can run the mode (for a subject: its species section too).
+function RLFeedProfiles.isValid(subject)
+    local config = RLFeedProfiles.getConfig()
+    if config.valid ~= true then return false end
+    if subject == nil then return true end
+    return RLSpecies.select(config, subject).valid == true
 end
 
 

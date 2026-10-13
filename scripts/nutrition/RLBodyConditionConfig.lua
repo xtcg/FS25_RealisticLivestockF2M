@@ -41,6 +41,76 @@ RLBodyConditionConfig.DEFAULT_CURVES = {
 }
 
 
+--- Values only a species section has (the root, cattle, has none: a reader treats a missing one
+--- as the cattle rule). femaleFinishShift: a young female read on the finishing target curve at
+--- x + this (sheep: ewe lambs fatten at a lighter weight); fertilityEffect 0: body condition
+--- leaves conception as it is (sheep S5: BCS and reproduction are S7).
+RLBodyConditionConfig.SPECIES_DEFAULTS = { femaleFinishShift = 0, fertilityEffect = 1 }
+
+
+--- A species section from its element: the root's values where it leaves one out, its own
+--- attributes, curves and fat classes (`<fatClass name="3L" minReserve="0.38"/>`, ascending: the
+--- class of a reserve is the last whose minReserve it reaches).
+local function parseSpecies(xmlFile, key, root)
+    local section = {}
+    for field, value in pairs(root) do
+        if field ~= "species" then section[field] = value end
+    end
+    section.speciesName = (xmlFile:getString(key .. "#name") or ""):upper()
+    for field, default in pairs(RLBodyConditionConfig.DEFAULTS) do
+        section[field] = xmlFile:getFloat(key .. "#" .. field, root[field] or default)
+    end
+    for field, default in pairs(RLBodyConditionConfig.SPECIES_DEFAULTS) do
+        section[field] = xmlFile:getFloat(key .. "#" .. field, default)
+    end
+    section.curves = {}
+    for name, points in pairs(root.curves) do section.curves[name] = points end
+    for _, curve in ipairs(RLBodyConditionConfig.CURVES) do
+        local points = {}
+        xmlFile:iterate(key .. "." .. curve .. ".point", function(_, pointKey)
+            local x, y = xmlFile:getFloat(pointKey .. "#x"), xmlFile:getFloat(pointKey .. "#y")
+            if x ~= nil and y ~= nil then table.insert(points, { x, y }) end
+        end)
+        if #points > 0 then section.curves[curve] = points end
+    end
+    section.fatClasses = {}
+    xmlFile:iterate(key .. ".fatClass", function(_, classKey)
+        local name, minReserve = xmlFile:getString(classKey .. "#name"), xmlFile:getFloat(classKey .. "#minReserve")
+        if name ~= nil and minReserve ~= nil then table.insert(section.fatClasses, { name = name, minReserve = minReserve }) end
+    end)
+    section.enabled = root.enabled
+    local ok, reason = RLBodyConditionConfig.validate(section)
+    if ok then ok, reason = RLBodyConditionConfig.validateSpecies(section) end
+    if not ok then
+        Log:error("RLBodyConditionConfig: species %s: %s - its body condition is off", section.speciesName, reason)
+        section.enabled = false
+        section.invalidReason = reason
+    end
+    return section
+end
+
+
+--- Check a species section's own values.
+--- @return boolean ok
+--- @return string|nil reason
+function RLBodyConditionConfig.validateSpecies(section)
+    if section.fertilityEffect ~= 0 and section.fertilityEffect ~= 1 then return false, "fertilityEffect must be 0 or 1" end
+    for i, class in ipairs(section.fatClasses or {}) do
+        if class.minReserve ~= class.minReserve or class.minReserve < 0 or class.minReserve > 1 then
+            return false, "fat class " .. tostring(class.name) .. " minReserve must be 0..1"
+        end
+        if i > 1 and class.minReserve <= section.fatClasses[i - 1].minReserve then return false, "fat classes must rise in minReserve" end
+    end
+    return true
+end
+
+
+--- The section an animal, pen, subtype or type name reads: its species', else the root.
+function RLBodyConditionConfig.getFor(subject)
+    return RLSpecies.select(RLBodyConditionConfig.get(), subject)
+end
+
+
 --- Read a config.
 --- @param xmlFile table|nil XMLFile with a bodyCondition root; nil gives the defaults
 --- @return table config Values, curves, feedEnergy (fill type name -> energy), enabled
@@ -84,6 +154,16 @@ function RLBodyConditionConfig.parse(xmlFile)
         Log:error("RLBodyConditionConfig: %s - body condition switched off", reason)
         config.enabled = false
         config.invalidReason = reason
+    end
+
+    config.species = {}
+    if xmlFile ~= nil then
+        xmlFile:iterate("bodyCondition.species", function(_, key)
+            local section = parseSpecies(xmlFile, key, config)
+            if section.speciesName ~= "" and config.species[section.speciesName] == nil then
+                config.species[section.speciesName] = section
+            end
+        end)
     end
 
     return config
@@ -194,6 +274,27 @@ function RLBodyConditionConfig.applyServerConfig(received)
         Log:error("RLBodyConditionConfig: the server's config fails a check (%s) - body condition switched off", reason)
         config.enabled = false
         config.invalidReason = reason
+    end
+
+    config.species = {}
+    for name, sent in pairs(received.species or {}) do
+        local section = {}
+        for field, value in pairs(config) do
+            if field ~= "species" then section[field] = value end
+        end
+        section.speciesName = name
+        for field, _ in pairs(RLBodyConditionConfig.DEFAULTS) do
+            if sent[field] ~= nil then section[field] = sent[field] end
+        end
+        for field, default in pairs(RLBodyConditionConfig.SPECIES_DEFAULTS) do section[field] = sent[field] or default end
+        section.curves = {}
+        for curveName, points in pairs(config.curves) do section.curves[curveName] = (sent.curves or {})[curveName] or points end
+        section.fatClasses = sent.fatClasses or {}
+        section.enabled = config.enabled
+        local sectionOk, sectionReason = RLBodyConditionConfig.validate(section)
+        if sectionOk then sectionOk, sectionReason = RLBodyConditionConfig.validateSpecies(section) end
+        if not sectionOk then section.enabled, section.invalidReason = false, sectionReason end
+        config.species[name] = section
     end
 
     RLBodyConditionConfig.config = config
