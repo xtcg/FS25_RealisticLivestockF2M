@@ -101,14 +101,44 @@ function RLBodyCondition.getReferenceWeight(animal)
 end
 
 
---- Whether a female of a species with femaleFinishShift (sheep: ewe lambs are finished too) reads
---- the finishing target: never a mother, and younger than the section's youngUntilMonth (a maiden
---- ewe past it keeps the heifer's rules).
-local function finishesFemale(animal, config)
-    if animal.gender ~= "female" or animal.isParent or (config.femaleFinishShift or 0) <= 0 then return false end
-    local untilMonth = config.youngUntilMonth or 0
-    return untilMonth <= 0 or (animal.age or 0) < untilMonth
+--- An animal's age for the young-stock rules: its continuous age (the weight model's clock: it
+--- crosses youngUntilMonth in the hour it reaches it, not at the next month change), else whole
+--- months.
+local function getYoungAge(animal)
+    if RLGrowth ~= nil and RLGrowth.getContinuousAge ~= nil then return RLGrowth.getContinuousAge(animal) end
+    return animal.age or 0
 end
+
+
+--- Whether an animal is young stock under its section's rules: never a parent, and younger than
+--- youngUntilMonth (continuous age; 0: no limit). Sheep: a lamb (fat class shown), not a grown
+--- ewe, ram or ewe hogg (BCS shown).
+--- @param animal table
+--- @param config table|nil Its body condition config (looked up when nil)
+--- @return boolean
+function RLBodyCondition.isYoungStock(animal, config)
+    if animal == nil or animal.isParent then return false end
+    config = config or RLBodyCondition.getConfig(animal)
+    local untilMonth = config.youngUntilMonth or 0
+    return untilMonth <= 0 or getYoungAge(animal) < untilMonth
+end
+
+
+--- Whether a female is finished as young stock (a species with femaleFinishShift - sheep: a ewe
+--- lamb): female, never a mother, continuous age under youngUntilMonth. The one rule the finishing
+--- target, its market reference, the reserve ceiling, the verdict and AUTO's FINISH
+--- (RLFeed.getAnimalTarget) read. From youngUntilMonth a maiden ewe is grown: the section's
+--- heiferReserveCeiling, no femaleFinishShift, BCS shown. Crossing it changes no weight or reserve
+--- by itself, only what later steps aim for and what is shown.
+--- @param animal table
+--- @return boolean
+function RLBodyCondition.isFinishingYoungFemale(animal)
+    if animal == nil or animal.gender ~= "female" then return false end
+    local config = RLBodyCondition.getConfig(animal)
+    if (config.femaleFinishShift or 0) <= 0 then return false end
+    return RLBodyCondition.isYoungStock(animal, config)
+end
+local finishesFemale = RLBodyCondition.isFinishingYoungFemale
 
 
 local maleOfBreed = setmetatable({}, { __mode = "k" })
@@ -137,8 +167,7 @@ end
 --- any other animal, or when her breed has no ram.
 function RLBodyCondition.getYoungFemaleReference(animal)
     if animal == nil or animal.getSubType == nil then return nil end
-    local config = RLBodyCondition.getConfig(animal)
-    if not finishesFemale(animal, config) or RLGrowth == nil or AnimalMoveEvent.getCarcassParams == nil then return nil end
+    if not finishesFemale(animal) or RLGrowth == nil or AnimalMoveEvent.getCarcassParams == nil then return nil end
     local subType = animal:getSubType()
     local male = subType ~= nil and getMaleSubType(subType) or nil
     if male == nil or (male.targetWeight or 0) <= 0 then return nil end
@@ -158,7 +187,7 @@ end
 --- @return number|nil
 function RLBodyCondition.getReserveTarget(animal, weight)
     local config = RLBodyCondition.getConfig(animal)
-    local female = finishesFemale(animal, config)
+    local female = finishesFemale(animal)
     if animal.gender ~= "male" and not female then return nil end
     local reference = RLBodyCondition.getReferenceWeight(animal)
     if reference == nil then return config.initialReserve end
@@ -173,7 +202,7 @@ end
 --- heifer's or a cow's ceiling.
 function RLBodyCondition.getReserveCeiling(animal, weight)
     local config = RLBodyCondition.getConfig(animal)
-    if animal.gender == "male" or finishesFemale(animal, config) then return RLBodyCondition.getReserveTarget(animal, weight) end
+    if animal.gender == "male" or finishesFemale(animal) then return RLBodyCondition.getReserveTarget(animal, weight) end
     return animal.isParent and config.cowReserveCeiling or config.heiferReserveCeiling
 end
 
@@ -924,7 +953,7 @@ end
 function RLBodyCondition.getFinishVerdict(animal)
     if not RLBodyCondition.isEligible(animal) then return nil end
     local config = RLBodyCondition.getConfig(animal)
-    if animal.gender ~= "male" and not finishesFemale(animal, config) then return nil end
+    if animal.gender ~= "male" and not finishesFemale(animal) then return nil end
 
     local reference = RLBodyCondition.getReferenceWeight(animal)
     if animal.getCanBeSold ~= nil and not animal:getCanBeSold() then return "rl_ui_finishVerdictBlocked", reference end
@@ -987,13 +1016,14 @@ end
 
 --- The fat class a young animal of a species with fat classes shows (sheep: EUROP 1..5, the last
 --- class whose minReserve its reserve reaches); nil for a grown animal (a mother, or from the
---- section's youngUntilMonth) and every other species.
+--- section's youngUntilMonth by its continuous age: RLBodyCondition.isYoungStock) and every other
+--- species.
 --- @param animal table
 --- @return string|nil
 function RLBodyCondition.getFatClass(animal)
     local config = RLBodyCondition.getConfig(animal)
     local classes = config.fatClasses
-    if classes == nil or #classes == 0 or animal.isParent or (animal.age or 0) >= config.youngUntilMonth then return nil end
+    if classes == nil or #classes == 0 or not RLBodyCondition.isYoungStock(animal, config) then return nil end
     local reserve = RLBodyCondition.getReserve(animal)
     local name = classes[1].name
     for _, class in ipairs(classes) do

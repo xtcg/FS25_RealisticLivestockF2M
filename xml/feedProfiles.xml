@@ -373,7 +373,7 @@
         <requirements maintenanceMEPerKgMetabolic="0.37" growthMEPerKgAt500="33" growthWeightExponent="1.0" growthMEPerKgMin="14"
             reserveDepositMEPerKg="50" reserveMobilizeMEPerKg="35" catabolismMEPerKg="10" pregnancyFactor="0.55"/>
         <physiology growthReferenceKg="40" youngMaintenanceMEPerKgMetabolic="0.475" youngMaintenanceUntilMonth="6"
-            adultMaintenanceFromMonth="12" calfGrowthCost="0" autoFinishYoungUntilMonth="12"
+            adultMaintenanceFromMonth="12" calfGrowthCost="0"
             growthCostMale="0.80" growthCostCastrate="1.0" growthCostFemale="1.25"/>
         <calf maintenanceMEPerKgMetabolic="0.37"/>
         <intake growingPerKgMetabolic="0.092" dryPerKgMetabolic="0.060" lactatingPerKgMetabolic="0.050"

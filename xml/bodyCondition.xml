@@ -99,8 +99,9 @@
 
     species: a section for one animal type (sheep): the root with the attributes and curves it
     sets replaced, plus femaleFinishShift (a young female reads finishingTarget at x + this),
-    youngUntilMonth (from this age an animal that never had young is grown: no fat class, and a
-    female leaves the finishing target for the heifer's rules), fertilityEffect (0: condition
+    youngUntilMonth (from this continuous age an animal that never had young is grown: no fat
+    class, and a female leaves the finishing target - and femaleFinishShift - for
+    heiferReserveCeiling, the section's maiden-female ceiling), fertilityEffect (0: condition
     leaves conception as it is) and fatClass elements (the class a reserve shows: the last whose
     minReserve it reaches). Goats and every other type read the root.
 
@@ -223,7 +224,11 @@
         does not change conception in this batch (S7). A newborn lamb is lean (birthReserve 0.25,
         fat class 2: newborn lambs hold a few percent body fat) and lays fat down as it is finished.
         A lamb at its market weight is ready from fat class 2 and over-fat from 4L
-        (finishReadyReserve, finishOverfatReserve: the design's sellable 2-3H). Sheep are covered only under the weight
+        (finishReadyReserve, finishOverfatReserve: the design's sellable 2-3H). Lambs are the
+        never-lambed under 12 months (youngUntilMonth, continuous age); a maiden ewe from 12 months
+        is a ewe hogg: BCS shown, no finishing target, her reserve capped at heiferReserveCeiling
+        0.55 (BCS 3.2; a model cap, not a mating or flushing target). A ewe that has lambed is
+        capped at cowReserveCeiling 0.80 (BCS 4.2). Sheep are covered only under the weight
         model v2 with the real-equivalent nutrition model, from birth (calfLegacyUntilAgeMonth 0:
         a lamb finished at 3-5 months shows its fat class and its meat follows it).
     -->

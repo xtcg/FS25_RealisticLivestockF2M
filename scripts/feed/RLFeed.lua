@@ -573,9 +573,9 @@ function RLFeed.getAnimalTarget(animal, ration, class)
     local target = ration.target or "AUTO"
     if target == "AUTO" then
         if animal.gender == "male" then return "FINISH" end
-        -- A species whose young females are finished too (sheep: ewe lambs).
-        local physiology = RLFeed.getConfig(animal).physiology
-        if physiology ~= nil and not animal.isParent and getFeedAge(animal) < physiology.autoFinishYoungUntilMonth then return "FINISH" end
+        -- A species whose young females are finished too (sheep: ewe lambs, by the body
+        -- condition's one rule; a maiden ewe from youngUntilMonth grows as a ewe hogg).
+        if RLBodyCondition.isFinishingYoungFemale(animal) then return "FINISH" end
         return "GROW"
     end
     return target

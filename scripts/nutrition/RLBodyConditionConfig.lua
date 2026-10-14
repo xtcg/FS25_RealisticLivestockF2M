@@ -48,9 +48,9 @@ RLBodyConditionConfig.DEFAULT_CURVES = {
 --- initialReserve) the reserve index a newborn starts with (sheep: lean, about fat class 2);
 --- finishReadyReserve / finishOverfatReserve (-1: the finish score's 65 / 80) the reserve from which
 --- a grown young animal is ready, and over-fat (sheep: fat class 2 and 4L); youngUntilMonth (0: no
---- limit) the age (months) from which an animal that never had young is grown: no fat class, and a
---- female no longer on the finishing target (sheep 12: a maiden ewe past it is a ewe hogg kept on
---- the heifer's rules, not a ewe lamb fattened).
+--- limit) the continuous age (months) from which an animal that never had young is grown: no fat
+--- class, and a female no longer on the finishing target (sheep 12: a maiden ewe past it is a ewe
+--- hogg on heiferReserveCeiling, not a ewe lamb fattened; RLBodyCondition.isFinishingYoungFemale).
 RLBodyConditionConfig.SPECIES_DEFAULTS = { femaleFinishShift = 0, fertilityEffect = 1, birthReserve = -1, finishReadyReserve = -1,
     finishOverfatReserve = -1, youngUntilMonth = 0 }
 
