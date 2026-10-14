@@ -4,6 +4,8 @@ Status: **written for a build that nobody has run in the game yet.** Every resul
 session produces the evidence listed on its card. The offline suite proves the modules; it does not prove
 the installed map, the engine's save pass, or any GUI.
 
+Run order and time-saving: [`DEALER_V2_T6_TEST_PLAN.md`](DEALER_V2_T6_TEST_PLAN.md) (3 loads, overlapped waits). The cards below stay the pass criteria.
+
 ## Before any card
 
 1. Work on a COPY of the savegame (never the only copy). Note the code SHA of the package, its SHA-256, the map and mod list,
