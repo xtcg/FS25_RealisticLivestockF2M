@@ -36,7 +36,8 @@
         anchorElapsedMonths (an old savegame's animal, below), feedAdapted (the concentrate share its
         rumen is adapted to), feedShortDays (model days of maintenance shortfall built up) and
         creepDays (model days in a row a young animal has eaten creep feed in earnest: an orphan
-        lamb's readiness to wean), all real-equivalent nutrition (RLFeed), source ("birth", "generated",
+        lamb's readiness to wean) and weanedEarly (true once an orphan lamb was weaned early: it
+        never goes back on milk), all real-equivalent nutrition (RLFeed), source ("birth", "generated",
         "derived", "resync", "stream"), lastTick (game hour of the last step), version.
     The body condition state (animal.bodyCondition) mirrors the reserve as its index r = R / K
     after every step, so BCS, finish score and their factors read it as before.
@@ -188,6 +189,20 @@ function RLGrowth.needsRealNutrition(subType)
     if binding == nil or binding.typeName == nil then return false end
     local entry = RLWeightProfiles.getTypeEntry(binding.typeName)
     return entry ~= nil and entry.nutrition == "REAL"
+end
+
+
+--- Whether a sheep (a type stepped only by its pen's nutrition mode, RLGrowth.needsRealNutrition)
+--- was already settled this hour by a pen that runs the mode, and has moved since: the hour is
+--- settled once, so the pen it is in now takes neither its health nor the old weight rule. Its
+--- profile coverage (RLGrowth.covers) says nothing of this; this is its run this hour.
+--- @param animal table
+--- @return boolean
+function RLGrowth.isSettledThisHour(animal)
+    if not RLGrowth.covers(animal) or not RLGrowth.needsRealNutrition(animal:getSubType()) then return false end
+    local tick = RLBodyCondition.getTickId()
+    local state = animal.rlGrowth
+    return tick ~= nil and state ~= nil and state.lastTick == tick
 end
 
 
@@ -521,6 +536,7 @@ function RLGrowth.newState(fields)
         feedAdapted = fields.feedAdapted,
         feedShortDays = fields.feedShortDays,
         creepDays = fields.creepDays,
+        weanedEarly = fields.weanedEarly,
         gravidKg = fields.gravidKg,
         lactationMonths = fields.lactationMonths,
         source = fields.source or "derived",
@@ -1354,10 +1370,16 @@ end
 ---         rules
 function RLGrowth.step(animal, foodFactor)
     if animal == nil or animal.isDead or not RLGrowth.covers(animal) then return false end
-    -- A sheep's budget is calibrated on what its pen's mode feeds it (ME), never on the old food
-    -- factor: out of such a pen it takes the old weight rule (AnimalHealth.updateHealth).
-    if RLGrowth.needsRealNutrition(animal:getSubType()) then return false end
     local tick = RLBodyCondition.getTickId()
+    -- A sheep's budget is calibrated on what its pen's mode feeds it (ME), never on the old food
+    -- factor: out of such a pen it takes the old weight rule this hour (AnimalHealth.updateHealth),
+    -- its state kept as it is (the next step in the mode splits the weight it leaves again,
+    -- RLGrowth.resync). The hour is marked, so a pen in the mode it moves to does not step it
+    -- again this hour (RLFeed.runStep).
+    if RLGrowth.needsRealNutrition(animal:getSubType()) then
+        animal.rlLegacyHourTick = tick
+        return false
+    end
     if tick == nil then return false end
 
     local state = RLGrowth.ensureState(animal)
@@ -1479,6 +1501,7 @@ function RLGrowth.loadFromXMLFile(xmlFile, key)
         feedAdapted = xmlFile:getFloat(base .. "#feedAdapted"),
         feedShortDays = xmlFile:getFloat(base .. "#feedShortDays"),
         creepDays = xmlFile:getFloat(base .. "#creepDays"),
+        weanedEarly = xmlFile:getBool(base .. "#weanedEarly") == true or nil,
         gravidKg = xmlFile:getFloat(base .. "#gravidKg"),
         lactationMonths = xmlFile:getFloat(base .. "#lactationMonths"),
         source = xmlFile:getString(base .. "#source", "derived"),
@@ -1564,7 +1587,7 @@ function RLGrowth.isUsable(state)
         and (state.legacyAnchor == nil or (finite(state.legacyAnchor) and state.legacyAnchor > 0))
         and (state.feedAdapted == nil or (finite(state.feedAdapted) and state.feedAdapted >= 0 and state.feedAdapted <= 1))
         and optional(state.feedShortDays) and optional(state.gravidKg) and optional(state.lactationMonths)
-        and optional(state.creepDays)
+        and optional(state.creepDays) and (state.weanedEarly == nil or state.weanedEarly == true)
 end
 
 
@@ -1587,6 +1610,7 @@ function RLGrowth.saveToXMLFile(state, xmlFile, key)
     if state.feedAdapted ~= nil then xmlFile:setFloat(base .. "#feedAdapted", state.feedAdapted) end
     if state.feedShortDays ~= nil then xmlFile:setFloat(base .. "#feedShortDays", state.feedShortDays) end
     if state.creepDays ~= nil then xmlFile:setFloat(base .. "#creepDays", state.creepDays) end
+    if state.weanedEarly then xmlFile:setBool(base .. "#weanedEarly", true) end
     if state.gravidKg ~= nil then xmlFile:setFloat(base .. "#gravidKg", state.gravidKg) end
     if state.lactationMonths ~= nil then xmlFile:setFloat(base .. "#lactationMonths", state.lactationMonths) end
     xmlFile:setString(base .. "#source", state.source or "derived")
@@ -1613,6 +1637,7 @@ function RLGrowth.writeStream(state, streamId)
     streamWriteFloat32(streamId, state.gravidKg or -1)
     streamWriteFloat32(streamId, state.lactationMonths or -1)
     streamWriteFloat32(streamId, state.creepDays or -1)
+    streamWriteBool(streamId, state.weanedEarly == true)
 end
 
 
@@ -1638,6 +1663,7 @@ function RLGrowth.readStream(streamId)
         gravidKg = optional(streamReadFloat32(streamId)),
         lactationMonths = optional(streamReadFloat32(streamId)),
         creepDays = optional(streamReadFloat32(streamId)),
+        weanedEarly = streamReadBool(streamId) or nil,
         source = "stream",
     })
     if not RLGrowth.isUsable(state) then return nil end

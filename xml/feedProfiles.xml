@@ -197,9 +197,11 @@
     may drink), solidMax (share of its appetite its rumen takes as solids), solidEnergy (what solid
     forage is worth to it). weaningMonth: milk ends. A young animal whose dam is not in its pen
     gets no milk (none is made for it): from earlyWeaningMonth, once it has eaten creep feed in
-    earnest (readyCreepKgDMPerDay of concentrate DM a day for readyDays in a row; grass does not
-    count) it eats as a weaned animal; younger or not ready, it lives on what it eats and its
-    health and growth show the shortfall. creepMaxKgDMPerDay: most
+    earnest (readyCreepKgPerDay of concentrate a day as fed - fresh weight, each feed's own DM
+    share converts the DM it ate - for readyDays model days in a row; grass does not count) it is
+    weaned early and stays weaned: later shortages leave it underfed, never back on milk, and it
+    does not suckle again when it is put back with its dam. Younger or not ready, it lives on what
+    it eats and its health and growth show the shortfall. creepMaxKgDMPerDay: most
     concentrate DM a young animal at foot eats a day. lactation: a dam's milk (kg a day) in each
     month after birth by her system and the young animals she suckles (single / twin; more share
     the twin row, at most maxSuckled counted); breeds name their system, the rest use default.
@@ -363,8 +365,9 @@
         lamb may eat up to 50% concentrate in its DM - a game rule (FAS's 50% is barley within the
         concentrate mix). Creep 0.35 kg DM a day (about 0.4 kg fresh, range 0.3-0.5). Weaning at 3
         months (AHDB: wean at 12 weeks, 90 days; lambs are not drinking significant milk by then);
-        an orphan from 2 months with 250 g fresh creep (0.22 kg DM) a day sustained (AHDB lambing
-        ewe lambs: 8-9 weeks, 250 g/day for 3-4 days).
+        an orphan from 2 months with 250 g of creep a day as fed (fresh weight, converted by each
+        feed's DM; 0.22 kg DM only for a feed of about 88% DM) for 3.5 model days in a row (AHDB
+        lambing ewe lambs: 8-9 weeks, 250 g/day for 3-4 days; 3.5 is the range's midpoint).
     -->
     <species name="SHEEP">
         <requirements maintenanceMEPerKgMetabolic="0.37" growthMEPerKgAt500="33" growthWeightExponent="1.0" growthMEPerKgMin="14"
@@ -386,7 +389,7 @@
         </ration>
         <milk realKgPerDay="2.1" meMJPerKg="8.3"/>
         <damMilk dm="0.19" me="25.0" cp="0.28"/>
-        <nursing weaningMonth="3" earlyWeaningMonth="2" readyCreepKgDMPerDay="0.22" readyDays="3.5"
+        <nursing weaningMonth="3" earlyWeaningMonth="2" readyCreepKgPerDay="0.25" readyDays="3.5"
             lambMilkKgPerDay="2.6" creepMaxKgDMPerDay="0.35" maxSuckled="2">
             <milkMax>
                 <point x="0" y="1.00"/>

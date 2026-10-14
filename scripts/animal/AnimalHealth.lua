@@ -41,6 +41,8 @@ function AnimalHealth.updateHealth(animal, foodFactor)
     -- Real-equivalent nutrition (RLFeed): its pen's model-time steps already settled its budget and
     -- its health from what the budget paid for (RLFeed.runStep) - nothing more this hour.
     if RLFeed ~= nil and RLFeed.runsFor(animal) then return end
+    -- A sheep a pen in the mode settled this hour before it moved here: once an hour.
+    if RLGrowth.isSettledThisHour(animal) then return end
 
     -- In a calf rearing pen each animal has its own factor from what it could eat at its age.
     foodFactor = RLCalfRearing.getFoodFactor(animal, foodFactor)

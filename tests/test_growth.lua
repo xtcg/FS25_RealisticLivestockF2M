@@ -777,6 +777,8 @@ do
         getFloat = function(_, k, d) local v = store[k]; if v == nil then return d end return v end,
         getInt = function(_, k, d) local v = store[k]; if v == nil then return d end return v end,
         getString = function(_, k, d) local v = store[k]; if v == nil then return d end return v end,
+        setBool = function(_, k, v) store[k] = v end,
+        getBool = function(_, k, d) local v = store[k]; if v == nil then return d end return v end,
     }
     local state = G.newState({ birthWeightKg = 41.2, frameTargetKg = 1043.5, developmentMonths = 13.25, reserveMassKg = 41.7,
         speedFactor = 0.95, intakeFactor = 1.07, weightKg = 512.25, ageMonths = 14.5, legacyAnchor = 1.25,

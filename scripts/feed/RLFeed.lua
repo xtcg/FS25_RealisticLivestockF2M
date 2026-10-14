@@ -286,6 +286,14 @@ end
 local getNursing = RLFeed.getNursing
 
 
+--- Whether a young animal was weaned early (nursing rules): kept on its state once it was
+--- (RLFeed.afterStep), so a later shortage or a move back to its dam never puts it on milk again.
+local function isWeanedEarly(animal)
+    local state = animal.rlGrowth
+    return state ~= nil and state.weanedEarly == true
+end
+
+
 --- An animal's age for the feeding curves: continuous under the weight model v2, else whole months.
 local function getFeedAge(animal)
     if RLGrowth ~= nil and RLGrowth.covers(animal) then return RLGrowth.getContinuousAge(animal) end
@@ -376,9 +384,11 @@ function RLFeed.isEarlyWeaned(animal)
     local owner = getOwner(animal)
     local nursing = getNursing(animal)
     if nursing ~= nil then
-        -- Nursing rules (sheep): an orphan from earlyWeaningMonth once it has eaten creep feed in
-        -- earnest, readyCreepKgDMPerDay of concentrate for readyDays in a row (AHDB: 250 g a head
-        -- a day for 3-4 days); age alone, or grass, does not make it ready.
+        -- Nursing rules (sheep): once weaned early, weaned for good (its state keeps it). Else an
+        -- orphan from earlyWeaningMonth once it has eaten creep feed in earnest, readyCreepKgPerDay
+        -- as fed for readyDays model days in a row (AHDB: 250 g a head a day for 3-4 days); age
+        -- alone, or grass, does not make it ready. A lamb with its dam suckles to weaningMonth.
+        if isWeanedEarly(animal) then return true end
         if owner == nil or getFeedAge(animal) < nursing.earlyWeaningMonth then return false end
         if animal.motherId ~= nil and getPenDams(owner)[animal.motherId] ~= nil then return false end
         local state = animal.rlGrowth
@@ -513,7 +523,7 @@ function RLFeed.getNursingDams(animals)
         local motherId = animal.motherId
         local dam = motherId ~= nil and byId[motherId] or nil
         if dam ~= nil and dam ~= animal and dam.gender == "female" and not animal.isDead and (animal.numAnimals or 1) > 0
-            and RLFeed.getNursingMilkMax(animal) > 0 then
+            and RLFeed.getNursingMilkMax(animal) > 0 and not isWeanedEarly(animal) then
             dams[motherId] = dam
             local info = suckling[dam]
             if info == nil then
@@ -1161,6 +1171,9 @@ function RLFeed.runStep(placeable, window, stepDays)
 
     local hourDays = RLFeed.getHourDays()
     local animals = RLFeed.describePen(placeable, ration, stepDays, function(animal)
+        -- A sheep that took the old weight rule this hour in a pen out of the mode (moved here
+        -- since): the hour is settled (RLGrowth.step).
+        if animal.rlLegacyHourTick == tick then return false end
         local last = animal.rlFeedStepTick
         if last == nil or animal.rlFeedStepOwner == placeable then return true end
         -- Moved in from another pen: not twice in an hour, and not again before a step's model time
@@ -1610,22 +1623,24 @@ function RLFeed.afterStep(animal, state, feed, result, weightBefore, dtMonths)
     state.feedAdapted = RLFeedMath.adapt(state.feedAdapted or 0, feed.concShare or 0, feed.dtDays, config.ration)
     local nursing = config.nursing
     if nursing ~= nil and (feed.dtDays or 0) > 0 then
-        -- A young animal's days in a row on creep feed: each step it eats at least
-        -- readyCreepKgDMPerDay of concentrate (DM, a day's rate) adds its model days, any other
-        -- step starts the count again. Once it reaches readyDays it is kept: the lamb has taken to
-        -- solid feed, and an orphan is weaned early (RLFeed.isEarlyWeaned).
+        -- A young animal's days in a row on creep feed: each step in which it ate at least
+        -- readyCreepKgPerDay of concentrate as fed (what it got from the trough, DM back to fresh
+        -- weight by each feed's own DM; a day's rate) adds its model days, any other step starts
+        -- the count again. An orphan whose count reaches readyDays from earlyWeaningMonth is
+        -- weaned early (RLFeed.isEarlyWeaned), and that is kept: from then on it is a weaned lamb.
         if getFeedAge(animal) < nursing.weaningMonth + 1 then
-            if (state.creepDays or 0) < nursing.readyDays - 1e-9 then
-                local conc = 0
+            if not state.weanedEarly then
+                local fresh = 0
                 for name, fill in pairs(feed.byFill or {}) do
                     local profile = RLFeedProfiles.getUsableFeed(name)
-                    if profile ~= nil and profile.role == "CONCENTRATE" then conc = conc + fill.kg end
+                    if profile ~= nil and profile.role == "CONCENTRATE" and profile.dm > 0 then fresh = fresh + fill.kg / profile.dm end
                 end
-                local onCreep = conc / feed.dtDays >= nursing.readyCreepKgDMPerDay - 1e-9
+                local onCreep = fresh / feed.dtDays >= nursing.readyCreepKgPerDay - 1e-9
                 state.creepDays = onCreep and (state.creepDays or 0) + feed.dtDays or 0
+                if RLFeed.isEarlyWeaned(animal) then state.weanedEarly = true end
             end
         else
-            state.creepDays = nil
+            state.creepDays, state.weanedEarly = nil, nil
         end
     end
     feed.result = result

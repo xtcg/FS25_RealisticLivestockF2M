@@ -86,13 +86,14 @@ RLFeedProfiles.PHYSIOLOGY = { growthReferenceKg = 500, youngMaintenanceMEPerKgMe
 -- nursing: young animals that drink only from their dams (sheep: no rearing pen, no trough milk).
 -- The milkMax / solidMax / solidEnergy curves are read at the young animal's age (months), not
 -- against a weaning month. weaningMonth: milk ends (milkMax 0 from here); earlyWeaningMonth: an
--- orphan that has eaten creep feed in earnest (readyCreepKgDMPerDay of concentrate, readyDays in
--- a row) eats as a weaned animal; younger or not ready it lives on what it eats, with no milk made
--- for it.
+-- orphan that has eaten creep feed in earnest (readyCreepKgPerDay of concentrate as fed - fresh
+-- weight, each feed's DM share converts what it ate - readyDays in a row) is weaned early, and
+-- stays weaned (rlGrowth.weanedEarly); younger or not ready it lives on what it eats, with no milk
+-- made for it.
 -- lambMilkKgPerDay: most whole milk (kg as drunk) one young animal takes from its dam a day at
 -- milkMax 1; creepMaxKgDMPerDay: most concentrate DM a young animal at foot eats a day (the
 -- creep gate the game has no building for). maxSuckled: young animals a dam's milk table counts.
-RLFeedProfiles.NURSING = { weaningMonth = 3, earlyWeaningMonth = 2, readyCreepKgDMPerDay = 0.22, readyDays = 3.5,
+RLFeedProfiles.NURSING = { weaningMonth = 3, earlyWeaningMonth = 2, readyCreepKgPerDay = 0.25, readyDays = 3.5,
     lambMilkKgPerDay = 2.6, creepMaxKgDMPerDay = 0.35, maxSuckled = 2 }
 
 RLFeedProfiles.NURSING_CURVES = { "milkMax", "solidMax", "solidEnergy" }
@@ -291,8 +292,8 @@ function RLFeedProfiles.validateSpecies(section)
         if n.weaningMonth <= 0 or n.earlyWeaningMonth > n.weaningMonth then
             return false, "nursing needs weaningMonth > 0 and earlyWeaningMonth <= weaningMonth"
         end
-        if n.readyDays <= 0 or n.lambMilkKgPerDay <= 0 or n.maxSuckled < 1 then
-            return false, "nursing readyDays, lambMilkKgPerDay must be > 0 and maxSuckled >= 1"
+        if n.readyDays <= 0 or n.readyCreepKgPerDay <= 0 or n.lambMilkKgPerDay <= 0 or n.maxSuckled < 1 then
+            return false, "nursing readyDays, readyCreepKgPerDay, lambMilkKgPerDay must be > 0 and maxSuckled >= 1"
         end
         for _, name in ipairs(RLFeedProfiles.NURSING_CURVES) do
             local points = n.curves[name]

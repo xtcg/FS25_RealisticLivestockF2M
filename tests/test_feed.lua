@@ -434,6 +434,8 @@ do
         setString = function(_, k, v) saved[k] = v end, setFloat = function(_, k, v) saved[k] = v end,
         setInt = function(_, k, v) saved[k] = v end, setBool = function(_, k, v) saved[k] = v end,
         getString = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
+        setBool = function(_, k, v) saved[k] = v end,
+        getBool = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
         getFloat = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
         getInt = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
         getBool = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
@@ -461,6 +463,8 @@ do
         getFloat = function(_, k, d) local v = written[k]; if v == nil then return d end return v end,
         getInt = function(_, k, d) local v = written[k]; if v == nil then return d end return v end,
         getString = function(_, k, d) local v = written[k]; if v == nil then return d end return v end,
+        setBool = function(_, k, v) written[k] = v end,
+        getBool = function(_, k, d) local v = written[k]; if v == nil then return d end return v end,
     }
     RLGrowth.saveToXMLFile(state, stateXml, "a")
     local loaded = RLGrowth.loadFromXMLFile(stateXml, "a")
@@ -873,6 +877,8 @@ do
         setString = function(_, k, v) saved[k] = v end, setFloat = function(_, k, v) saved[k] = v end,
         setInt = function(_, k, v) saved[k] = v end, setBool = function(_, k, v) saved[k] = v end,
         getString = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
+        setBool = function(_, k, v) saved[k] = v end,
+        getBool = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
         getFloat = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
         getInt = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
         getBool = function(_, k, d) local v = saved[k]; if v == nil then return d end return v end,
