@@ -188,7 +188,7 @@ end
 --- missing parts: `partial` lists what could not be read. Returns { records, counters, partial }.
 function W.scan(mission)
     mission = mission or g_currentMission
-    local records, counters, partial, uncovered = {}, {}, {}, {}
+    local records, counters, partial, uncovered, herdNext = {}, {}, {}, {}, {}
     local function try(name, fn)
         local ok, err = pcall(fn)
         if not ok then partial[#partial + 1] = name .. ":" .. tostring(err) end
@@ -244,12 +244,11 @@ function W.scan(mission)
                 local named = {}
                 for _, field in ipairs(COUNTER_FIELDS) do named[#named + 1] = { field, number(s[field]) or 0 } end
                 for name, nextId in pairs(s.typeIds or {}) do named[#named + 1] = { name, number(nextId) or 0 } end
-                if next(countriesOf[herd] or {}) == nil and #named > 0 then
-                    local highest = 0
-                    for _, entry in ipairs(named) do highest = math.max(highest, entry[2]) end
-                    -- A herd that used counters but holds no animal now: its history is unknown too.
-                    if highest > 0 then uncovered[#uncovered + 1] = "*/" .. herd end
-                end
+                local highest = 0
+                for _, entry in ipairs(named) do highest = math.max(highest, entry[2]) end
+                herdNext[herd] = highest + 1
+                -- A herd that used counters but holds no animal now: its history is unknown too.
+                if next(countriesOf[herd] or {}) == nil and highest > 0 then uncovered[#uncovered + 1] = "*/" .. herd end
                 for country in pairs(countriesOf[herd] or {}) do
                     for _, entry in ipairs(named) do
                         counters[#counters + 1] = { country = country, farmId = herd, type = entry[1], nextRaw = entry[2] + 1 }
@@ -258,5 +257,6 @@ function W.scan(mission)
             end
         end
     end)
-    return { records = records, counters = counters, partial = partial, uncoveredHerds = uncovered }
+    -- herdNext[herd] = the herd's highest counter of any species + 1, also for a herd that holds no animal now.
+    return { records = records, counters = counters, partial = partial, uncoveredHerds = uncovered, herdNext = herdNext }
 end

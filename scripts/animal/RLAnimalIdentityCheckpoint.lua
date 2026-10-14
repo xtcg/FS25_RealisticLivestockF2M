@@ -23,7 +23,8 @@
 
     RECOVERY_REQUIRED (damaged or mixed evidence) keeps the ledger for the report, makes the runtime
     answer from the old counters again (the behaviour before this module), logs an error, and is
-    carried by every later save until rlIdentityRecoveryClear. A save never launders it.
+    carried by every later save until rlIdentityRecoveryClear. A save never launders it. The clear
+    reconciles the ledger with a complete world scan first (the old counters ran in the meantime).
 ]]
 
 RLAnimalIdentityCheckpoint = {}
@@ -406,9 +407,16 @@ function C.arm()
 end
 
 
---- User decision after looking at the evidence: carry on with the ledger as loaded.
-function C.recoveryClear()
+--- User decision after looking at the evidence: carry on with the ledger as loaded. `scan` = a complete
+--- RLAnimalIdentityWorld.scan of now. In recovery the old counters numbered every new animal, so the ledger
+--- first takes in the live keys and moves past those counters (R.reconcile); a partial scan or a failed
+--- reconciliation leaves recovery, the ledger and the old counters exactly as they were.
+function C.recoveryClear(scan)
     if C.state ~= C.RECOVERY_REQUIRED then return nil, "NOT_IN_RECOVERY" end
+    if R.ledger ~= nil then
+        local ok, why = R.reconcile(scan)
+        if not ok then return nil, why end
+    end
     C.recovery = nil
     C.state, C.reason = C.READY, "RECOVERY_CLEARED"
     if R.ledger ~= nil then

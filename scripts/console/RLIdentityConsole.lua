@@ -101,9 +101,11 @@ end
 
 function C.recoveryClear()
     if not RLAnimalIdentityRuntime.server then return "RLIDENTITY: server only" end
-    local ok, why = RLAnimalIdentityCheckpoint.recoveryClear()
-    if not ok then return say("RLIDENTITY: " .. tostring(why)) end
-    return say("RLIDENTITY: recovery cleared; the ledger as loaded is in use")
+    local scan = RLAnimalIdentityWorld.scan(g_currentMission)
+    if #scan.partial > 0 then return say("RLIDENTITY: world scan partial, recovery kept: " .. table.concat(scan.partial, "; ")) end
+    local ok, why = RLAnimalIdentityCheckpoint.recoveryClear(scan)
+    if not ok then return say("RLIDENTITY: recovery kept: " .. tostring(why)) end
+    return say(string.format("RLIDENTITY: recovery cleared; the ledger took in %d live record(s) and moved past the old counters", #scan.records))
 end
 
 

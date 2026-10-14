@@ -24,7 +24,9 @@ function E:readStream(s, connection)
     self.kind, self.direction, self.requestId, self.payload = message.kind, message.direction, message.requestId, message.payload
     self:run(connection)
 end
-local function send(connection, kind, requestId, payload)
+local function send(connection, kind, requestId, payload, request)
+    -- An order-status answer always names the order it was asked about, whatever produced it.
+    if kind == RLDealerCatalogProtocol.ORDER and type(request) == "table" then payload.orderId = request.orderId end
     local reply = E.new(kind, RLDealerCatalogProtocol.REPLY, requestId, payload)
     if reply ~= nil and type(connection.sendEvent) == "function" then connection:sendEvent(reply) end
 end
@@ -36,13 +38,13 @@ function E:run(connection)
     if E.isServer() then
         if remoteServer or self.direction ~= P.REQUEST then return nil, "WRONG_DIRECTION" end
         if type(service) ~= "table" or type(service.browse) ~= "function" then
-            send(connection, self.kind, self.requestId, { status = "REJECTED", reason = "DEALER_V2_DISABLED" })
+            send(connection, self.kind, self.requestId, { status = "REJECTED", reason = "DEALER_V2_DISABLED" }, self.payload)
             return nil, "DEALER_V2_DISABLED"
         end
         local ok, payload = pcall(service.browse, connection, self.kind, self.payload)
         if not ok or type(payload) ~= "table" then payload = { status = "REJECTED", reason = "SERVICE_ERROR" } end
         if not P.validate(self.kind, P.REPLY, payload) then payload = { status = "REJECTED", reason = "INVALID_SERVICE_RESULT" } end
-        send(connection, self.kind, self.requestId, payload)
+        send(connection, self.kind, self.requestId, payload, self.payload)
         return payload
     end
     if not remoteServer or self.direction ~= P.REPLY then return nil, "WRONG_DIRECTION" end

@@ -14,7 +14,10 @@
     ON is entered only by R.activate (console rlIdentityActivate), on a READY server, after the world
     scan: every live key is imported as CONSUMED, every domain is registered. A domain whose counter
     history cannot be proven needs the user to accept the weaker MIGRATION_POINT guarantee
-    (activate with accept); without it activation is refused and the domains are listed.
+    (activate with accept); without it activation is refused and the domains are listed. While the ledger is
+    not the allocator (OFF, SHADOW, RECOVERY_REQUIRED) the native counters keep numbering; a re-activation and
+    rlIdentityRecoveryClear (R.reconcile) therefore import the live keys and move every known domain past those
+    counters, blocking the raws of animals that are gone since.
 
     Births. A birth cannot be refused halfway, so R.beginBirth runs before the engine touches the
     pregnancy: it reserves one key per fetus for this birth event (idempotent per event id, so a held
@@ -359,13 +362,84 @@ function R.report(scan)
 end
 
 
+-- The scan's live records whose full key the ledger does not hold yet.
+local function freshRecords(ledger, records)
+    local fresh = {}
+    for _, r in ipairs(records) do
+        if not (r.farmId ~= nil and r.uniqueId ~= nil and r.country ~= nil and ledger.keys[I.keyString(r.farmId, r.uniqueId, r.country)] ~= nil) then
+            fresh[#fresh + 1] = r
+        end
+    end
+    return fresh
+end
+
+
+-- Move every domain in `only` (all when nil) past what the native counters and the live animals show now:
+-- the highest counter of any species in the domain (or of its herd, when the herd holds no animal in the
+-- scan) and the highest live raw. Everything below is blocked, including raws whose animals are gone.
+local function raiseDomains(ledger, report, scan, only)
+    for dk, domain in pairs(ledger.domains) do
+        if only == nil or only[dk] then
+            local d = report.domains[dk]
+            local high = (scan.herdNext ~= nil and scan.herdNext[domain.farmId]) or 0
+            if d ~= nil then high = math.max(high, d.maxNext or 0, (d.maxLiveRaw or 0) + 1) end
+            if high > 1 then assert(I.raiseHighWater(ledger, domain.country, domain.farmId, high)) end
+        end
+    end
+end
+
+
+local function copy(v)
+    if type(v) ~= "table" then return v end
+    local out = {}
+    for k, x in pairs(v) do out[k] = copy(x) end
+    return out
+end
+
+
+local function checkScan(scan)
+    if type(scan) ~= "table" or type(scan.records) ~= "table" or type(scan.counters) ~= "table" then return "BAD_SCAN" end
+    if type(scan.partial) == "table" and #scan.partial > 0 then return "SCAN_PARTIAL" end
+    return nil
+end
+
+
+--- Before a ledger that was out of service (RECOVERY_REQUIRED) hands out keys again: take in every live key
+--- the world holds now and move every domain past the native counters, which numbered the animals in the
+--- meantime. All or nothing: works on a copy, swaps it in only when the whole scan was read and the result is
+--- a valid ledger. Returns true and the report, or nil and why (the ledger unchanged).
+function R.reconcile(scan)
+    if R.ledger == nil then return nil, "NO_LEDGER" end
+    if R.authoritative() then return nil, "ALREADY_AUTHORITATIVE" end
+    local bad = checkScan(scan)
+    if bad ~= nil then return nil, bad end
+    local work = copy(R.ledger)
+    local report = R.report(scan)
+    local ok, err = pcall(function()
+        for _, r in ipairs(freshRecords(work, scan.records)) do
+            if r.country ~= nil and r.farmId ~= nil and r.uniqueId ~= nil and not (tostring(r.farmId) == "1" and tostring(r.uniqueId) == "1") then
+                I.importLiveKey(work, r.farmId, r.uniqueId, r.country, "legacy")
+            end
+        end
+        raiseDomains(work, report, scan, nil)
+    end)
+    if not ok then return nil, "RECONCILE_FAILED:" .. tostring(err) end
+    local why = I.validate(work)
+    if why ~= nil then return nil, "RECONCILE_INVALID:" .. why end
+    R.ledger = work
+    R.setLive(scan.records)
+    log("info", "IDENTITY: ledger reconciled with the world (%d live record(s))", #scan.records)
+    return true, report
+end
+
+
 --- Switch to ON. scan = { records, counters }; options.accept = the user accepts MIGRATION_POINT for
 --- every domain whose history cannot be proven. Returns true, or nil and why (with the unproven list).
 function R.activate(scan, options)
     options = options or {}
     if not R.server or R.state ~= "READY" then return nil, "NOT_READY:" .. tostring(R.state) end
     if R.mode == R.ON then return nil, "ALREADY_ON" end
-    if type(scan) ~= "table" or type(scan.records) ~= "table" or type(scan.counters) ~= "table" then return nil, "BAD_SCAN" end
+    if checkScan(scan) == "BAD_SCAN" then return nil, "BAD_SCAN" end
     local ledger = R.ledger
     if ledger == nil then
         if type(R.lineage) ~= "string" then return nil, "NO_LINEAGE" end
@@ -378,22 +452,20 @@ function R.activate(scan, options)
         if d.status ~= I.VERIFIED and not (known ~= nil and known.status == I.VERIFIED) then unproven[#unproven + 1] = dk end
     end
     -- Herds whose counters were used but that hold no animal now have no domain in the scan: they need the
-    -- same acceptance, or a later key in that herd would be refused (DOMAIN_UNPROVEN).
+    -- same acceptance, or a later key in that herd would be refused (DOMAIN_UNPROVEN). A herd the ledger
+    -- already holds a verified domain of is reconciled below instead.
+    local knownHerds = {}
+    for _, d in pairs(ledger.domains) do if d.status == I.VERIFIED then knownHerds[d.farmId] = true end end
     for _, herd in ipairs(scan.uncoveredHerds or {}) do
-        if ledger.policy.acceptWeak ~= true then unproven[#unproven + 1] = herd end
+        if ledger.policy.acceptWeak ~= true and not knownHerds[herd:match("^%*/(.+)$") or herd] then unproven[#unproven + 1] = herd end
     end
     table.sort(unproven)
     if #unproven > 0 and options.accept ~= true then return nil, "UNPROVEN_DOMAINS", unproven, report end
-    -- Keys the ledger already holds (a re-activation after OFF / SHADOW) are not imported again.
-    local fresh = {}
-    for _, r in ipairs(scan.records) do
-        if r.farmId ~= nil and r.uniqueId ~= nil and r.country ~= nil and ledger.keys[I.keyString(r.farmId, r.uniqueId, r.country)] ~= nil then
-            -- already known
-        else
-            fresh[#fresh + 1] = r
-        end
-    end
-    I.applyMigration(ledger, report, fresh)
+    -- Domains the ledger held before (a re-activation after OFF / SHADOW): their keys are not imported again,
+    -- but the native counters ran while the ledger was off, so they are reconciled after the import.
+    local existing = {}
+    for dk in pairs(ledger.domains) do existing[dk] = true end
+    I.applyMigration(ledger, report, freshRecords(ledger, scan.records))
     for _, dk in ipairs(unproven) do
         local d = report.domains[dk]
         if d ~= nil and ledger.domains[dk] ~= nil and ledger.domains[dk].status ~= I.VERIFIED then
@@ -403,6 +475,7 @@ function R.activate(scan, options)
             I.promoteDomain(ledger, d.country, d.farmId, math.min(start, I.MAX_RAW + 1), true)
         end
     end
+    raiseDomains(ledger, report, scan, existing)
     ledger.policy.mode = R.ON
     ledger.policy.acceptWeak = (options.accept == true or ledger.policy.acceptWeak == true) or nil
     ledger.policy.activatedGeneration = ledger.generation

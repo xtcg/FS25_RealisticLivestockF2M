@@ -353,6 +353,10 @@ do
     check("T4 another principal sees nothing of the order", select(2, RLDealerPurchase.lookup(stock.purchase, "svc-order", "farm:2:user:other")) == "UNKNOWN_REQUEST"
         and select(2, service.lookup(connection, "never-sent")) == "UNKNOWN_REQUEST")
     check("T4 the connection is not left on the shared purchase context", parts.purchaseContext.connection == nil)
+    local st1 = service.browse(connection, RLDealerCatalogProtocol.ORDER, { orderId = "svc-order" })
+    local st2 = service.browse(connection, RLDealerCatalogProtocol.ORDER, { orderId = "never-sent" })
+    check("R7 the service's order status names the order it answers", st1.orderId == "svc-order" and st1.status == "COMMITTED" and st1.amount == 210
+        and st2.orderId == "never-sent" and st2.status == "UNKNOWN_REQUEST")
     open = false
     check("T4 a closed gate refuses authorize, quote and execute with its reason", select(2, service.authorize(connection, "net:17")) == "DEALER_V2_DISABLED"
         and select(2, service.quote({ destination = "net:17", items = items }, who, connection)) == "DEALER_V2_DISABLED"

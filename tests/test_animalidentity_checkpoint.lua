@@ -142,7 +142,9 @@ check("recovery is carried by the next save (a save does not launder it)", C.las
 end)())
 w:load()
 check("reload of a carried recovery stays in recovery", C.state == C.RECOVERY_REQUIRED and C.reason:find("RECOVERY_CARRIED", 1, true) ~= nil)
-check("recoveryClear is the user's decision and returns to READY", C.recoveryClear() == true and C.state == C.READY and R.authoritative() and select(2, C.recoveryClear()) == "NOT_IN_RECOVERY")
+check("recoveryClear without a world scan keeps the recovery", select(2, C.recoveryClear()) == "BAD_SCAN" and C.state == C.RECOVERY_REQUIRED and not R.authoritative())
+check("recoveryClear is the user's decision and returns to READY", C.recoveryClear({ records = {}, counters = {}, herdNext = { ["123456"] = 22 } }) == true
+    and C.state == C.READY and R.authoritative() and select(2, C.recoveryClear()) == "NOT_IN_RECOVERY")
 w:save()
 
 -- 5 unsaved session: journal burns on the same generation
@@ -269,4 +271,50 @@ do
     check("R3 an uncovered herd (counters used, no animal) needs the acceptance too", refused == "UNPROVEN_DOMAINS")
     check("R3 with the acceptance a later key in it is served", R.activate({ records = {}, counters = {}, uncoveredHerds = { "*/555555" } }, { accept = true })
         and W.nextStatsRaw("t", (function() local f = herdFarm(555555, 30); return f end)(), AnimalType.COW, 2, "auto") == 31)
+end
+
+-- PR #58 review P1: rlIdentityRecoveryClear must not resume a stale allocator
+do
+    local wp = world()
+    wp:load()
+    local farmP = herdFarm(246810, 0)
+    activate(farmP)
+    local first = alloc(farmP)                      -- ON: raw 1
+    wp:save()
+    wp.skip.farms = true
+    wp:save()                                        -- a mixed save
+    wp:load()
+    check("R9 setup: the mixed save loads in recovery", C.state == C.RECOVERY_REQUIRED and not R.authoritative() and first == 1)
+    local born = alloc(farmP)                        -- recovery: the old counter numbers raw 2 (alive)
+    local sold = alloc(farmP)                        -- raw 3, sold before the clear
+    local liveRecords = { { farmId = "246810", uniqueId = U.generateUniqueId(246810, 1), country = 2, type = "1" },
+        { farmId = "246810", uniqueId = U.generateUniqueId(246810, born), country = 2, type = "1" } }
+    local function scanNow(partial)
+        return { records = liveRecords, counters = { { country = 2, farmId = "246810", type = "cowId", nextRaw = farmP.stats.statistics.cowId + 1 } },
+            herdNext = { ["246810"] = farmP.stats.statistics.cowId + 1 }, partial = partial or {} }
+    end
+    local seq = R.ledger.writerSequence
+    local ok, why = C.recoveryClear(scanNow({ "vehicles:boom" }))
+    check("R9 a partial scan keeps the recovery and changes nothing", ok == nil and why == "SCAN_PARTIAL" and C.state == C.RECOVERY_REQUIRED
+        and not R.authoritative() and R.ledger.writerSequence == seq)
+    check("R9 a clear with a complete scan returns to ON", C.recoveryClear(scanNow()) == true and C.state == C.READY and R.authoritative())
+    check("R9 the animal born in recovery is in the ledger", R.ledger.keys[I.keyString("246810", U.generateUniqueId(246810, born), 2)].state == I.CONSUMED)
+    local next1 = alloc(farmP)
+    check("R9 the next key is above every raw the old counter used (not the born 2, not the sold 3)", born == 2 and sold == 3 and next1 == 4)
+    wp:save()
+    check("R9 the reconciled ledger saves and commits, the recovery is gone", C.last.status == "COMMITTED")
+    wp:load()
+    check("R9 after a reload the clear holds and the next key continues", C.state == C.READY and R.authoritative() and alloc(farmP) == 5
+        and R.ledger.domains["2/246810"].blocked[1][2] >= 3)
+    -- a recovery in which the old counters ran past the 9999 alias boundary is blocked through the alias
+    wp.skip.farms = true
+    wp:save()
+    wp:load()
+    farmP.stats.statistics.cowId = 10000
+    local aliasRaw = alloc(farmP)                    -- raw 10001: the same full key as raw 1
+    check("R9 setup: recovery after a reload is entered again", C.state == C.RECOVERY_REQUIRED and aliasRaw == 10001)
+    assert(C.recoveryClear({ records = liveRecords, counters = {}, herdNext = { ["246810"] = 10002 } }))
+    local after = W.nextStatsRaw("t", farmP, AnimalType.COW, 2, "auto")
+    -- raws 10002..19999 alias 2..9999, all used by the counter: the ledger refuses rather than reissue one
+    check("R9 past the alias boundary no key of a used raw is handed out again", C.state == C.READY and (after == nil or after >= 20000))
 end

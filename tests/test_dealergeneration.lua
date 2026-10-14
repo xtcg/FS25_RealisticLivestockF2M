@@ -396,7 +396,7 @@ do
     check("T5 protocol: detail, destinations and order messages round trip",
         roundtrip(CP.DETAIL, CP.REQUEST, { saleId = "a", revision = 2 }) ~= nil and roundtrip(CP.DESTINATIONS, CP.REQUEST, { saleIds = { "a", "b" } }) ~= nil
         and roundtrip(CP.DESTINATIONS, CP.REPLY, { status = "OK", destinations = { { ref = "net:5", name = "Barn", freeSlots = 3, usable = true } } }) ~= nil
-        and roundtrip(CP.ORDER, CP.REQUEST, { orderId = "x" }) ~= nil and roundtrip(CP.ORDER, CP.REPLY, { status = "COMMITTED", amount = 210, transferIds = { "t" } }) ~= nil)
+        and roundtrip(CP.ORDER, CP.REQUEST, { orderId = "x" }) ~= nil and roundtrip(CP.ORDER, CP.REPLY, { orderId = "x", status = "COMMITTED", amount = 210, transferIds = { "t" } }) ~= nil)
     local bad = {
         { "an unknown key", CP.PAGE, CP.REQUEST, { price = 1 } },
         { "a client farm id", CP.PAGE, CP.REQUEST, { filter = { farmId = "1" } } },
@@ -439,6 +439,18 @@ do
     E.service = { browse = function() error("boom") end }
     request:run(connection)
     check("T5 event: a throwing service becomes SERVICE_ERROR", sent[4].payload.reason == "SERVICE_ERROR")
+    -- PR #58 review P2-3: every order-status answer names the order it was asked about
+    local order = E.new(CP.ORDER, CP.REQUEST, "q1", { orderId = "order-B" })
+    E.service = { browse = function() return { orderId = "order-A", status = "COMMITTED", amount = 105 } end }
+    order:run(connection)
+    local fromService = sent[5].payload.orderId
+    E.service = { browse = function() error("boom") end }
+    order:run(connection)
+    local fromError = sent[6].payload.orderId
+    E.service = nil
+    order:run(connection)
+    check("R7 an ORDER reply always carries the asked order id (service, error and disabled answers)", fromService == "order-B" and fromError == "order-B"
+        and sent[7].payload.orderId == "order-B" and sent[7].payload.reason == "DEALER_V2_DISABLED")
     E.service = nil
 end
 

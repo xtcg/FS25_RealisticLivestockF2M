@@ -89,8 +89,9 @@ validators[P.DESTINATIONS .. ":" .. P.REPLY] = function(v)
     end }, { "status" })
 end
 validators[P.ORDER .. ":" .. P.REQUEST] = function(v) return shape(v, { orderId = isString }, { "orderId" }) end
+-- The reply names the order it answers (echoed from the request): the client settles only that order.
 validators[P.ORDER .. ":" .. P.REPLY] = function(v)
-    return shape(v, { status = isString, reason = isString, amount = isNumber,
+    return shape(v, { orderId = isString, status = isString, reason = isString, amount = isNumber,
         transferIds = function(l) return list(l, P.MAX_SELECTION, isString) end }, { "status" })
 end
 

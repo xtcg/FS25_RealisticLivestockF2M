@@ -120,10 +120,14 @@ function C.statusQuery(client)
     return {orderId=client.unresolved.requestId}
 end
 -- The server's answer to that question. COMMITTED / ROLLED_BACK settle it; PENDING / UNCERTAIN keep it open.
+-- Only an answer that names the unresolved order counts: a late or repeated answer about an earlier order
+-- (or one of another session, whose ids carry another epoch) never touches the current one.
 function C.receiveOrderStatus(client,reply)
     local un=client.unresolved
     if un==nil then return nil,"NOTHING_UNRESOLVED" end
     if type(reply)~="table" then return nil,"MALFORMED_ORDER_STATUS" end
+    if type(reply.orderId)~="string" then return nil,"ORDER_ID_MISSING" end
+    if reply.orderId~=un.requestId then return nil,"STALE_REPLY" end
     if reply.status=="UNKNOWN_REQUEST" then
         -- The channel is ordered: the status query follows the purchase on the same connection, so a server
         -- that has no such order never received it. Nothing was bought.

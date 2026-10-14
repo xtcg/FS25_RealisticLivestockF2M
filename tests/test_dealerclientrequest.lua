@@ -67,11 +67,11 @@ client,a,w=fixture(); id=C.begin(client,selection()); C.receiveQuote(client,quot
 check("dealer client: an unanswered purchase is UNCERTAIN, never a refusal, and keeps the order id for a status query",
     not client.pending and w.completions[1].status=="UNCERTAIN" and w.completions[1].reason=="PURCHASE_TIMEOUT"
     and C.statusQuery(client).orderId==id and #w.purchases==1)
-local answer=C.receiveOrderStatus(client,{status="PENDING"})
+local answer=C.receiveOrderStatus(client,{orderId=id,status="PENDING"})
 check("dealer client: PENDING keeps the query open; the same id is asked again",answer.status=="PENDING" and C.statusQuery(client).orderId==id)
-answer=C.receiveOrderStatus(client,{status="COMMITTED",amount=210,transferIds={"t1"}})
+answer=C.receiveOrderStatus(client,{orderId=id,status="COMMITTED",amount=210,transferIds={"t1"}})
 check("dealer client: a COMMITTED status settles it once and clears the query",answer.status=="COMMITTED" and C.statusQuery(client)==nil
-    and w.completions[2].status=="COMMITTED" and #w.purchases==1 and select(2,C.receiveOrderStatus(client,{status="COMMITTED"}))=="NOTHING_UNRESOLVED")
+    and w.completions[2].status=="COMMITTED" and #w.purchases==1 and select(2,C.receiveOrderStatus(client,{orderId=id,status="COMMITTED"}))=="NOTHING_UNRESOLVED")
 client,a,w=fixture(); id=C.begin(client,selection()); w.ms=9; C.tick(client)
 check("dealer client: monotonic regression closes pending safely",not client.pending and w.completions[1].reason=="BAD_LOCAL_CLOCK")
 client,a,w=fixture(); a.sendQuote=function() return false end
@@ -117,11 +117,43 @@ do
     local client2, a2, w2 = fixture(); local id2 = C.begin(client2, selection()); C.receiveQuote(client2, quoted(id2)); w2.confirmations[1].respond(true)
     w2.ms = client2.pending.deadline; C.tick(client2)
     check("R4 a new order cannot start while a purchase is unresolved", select(2, C.begin(client2, selection())) == "ORDER_UNRESOLVED")
-    local answer = C.receiveOrderStatus(client2, { status = "UNKNOWN_REQUEST" })
+    local answer = C.receiveOrderStatus(client2, { orderId = id2, status = "UNKNOWN_REQUEST" })
     check("R4 a server that has no such order means it was never received: settled as a refusal, nothing bought", answer.status == "REJECTED"
         and answer.reason == "NOT_RECEIVED" and C.statusQuery(client2) == nil and C.begin(client2, selection()) ~= nil)
     local client3, a3, w3 = fixture(); local id3 = C.begin(client3, selection()); C.receiveQuote(client3, quoted(id3)); w3.confirmations[1].respond(true)
     w3.ms = 1
     C.tick(client3)
     check("R4 a local clock fault after dispatch is UNCERTAIN, not a refusal", client3.unresolved ~= nil and w3.completions[1].status == "UNCERTAIN")
+end
+
+-- PR #58 review P2-3: an order-status answer settles only the order it names
+do
+    local function timeout(c, ww)
+        local oid = C.begin(c, selection()); C.receiveQuote(c, quoted(oid)); ww.confirmations[#ww.confirmations].respond(true)
+        ww.ms = c.pending.deadline; C.tick(c)
+        return oid
+    end
+    local c, _, ww = fixture()
+    local idA = timeout(c, ww)
+    local settledA = C.receiveOrderStatus(c, { orderId = idA, status = "COMMITTED", amount = 105, transferIds = { "a1" } })
+    local idB = timeout(c, ww)
+    local done = #ww.completions
+    local _, whyA = C.receiveOrderStatus(c, { orderId = idA, status = "COMMITTED", amount = 105, transferIds = { "a1" } })
+    check("R5 a repeated COMMITTED for the settled order A cannot settle the unresolved order B", settledA.requestId == idA and whyA == "STALE_REPLY"
+        and C.statusQuery(c).orderId == idB and #ww.completions == done and c.lastResult.requestId == idB and c.lastResult.status == "UNCERTAIN")
+    for _, status in ipairs({ "ROLLED_BACK", "UNKNOWN_REQUEST" }) do
+        local _, w2 = C.receiveOrderStatus(c, { orderId = idA, status = status })
+        check("R5 a late " .. status .. " about A leaves B unresolved", w2 == "STALE_REPLY" and C.statusQuery(c).orderId == idB and #ww.completions == done)
+    end
+    local _, whyMissing = C.receiveOrderStatus(c, { status = "COMMITTED", amount = 999 })
+    check("R5 an answer without an order id changes nothing", whyMissing == "ORDER_ID_MISSING" and C.statusQuery(c).orderId == idB and #ww.completions == done)
+    local other, _, wo = fixture()
+    local idOther = timeout(other, wo)
+    local _, whyOld = C.receiveOrderStatus(c, { orderId = idOther, status = "COMMITTED", amount = 1 })
+    check("R5 an answer about another session's order (other epoch) changes nothing", idOther ~= idB and whyOld == "STALE_REPLY" and C.statusQuery(c).orderId == idB)
+    local pendingB = C.receiveOrderStatus(c, { orderId = idB, status = "PENDING" })
+    local settledB = C.receiveOrderStatus(c, { orderId = idB, status = "COMMITTED", amount = 210, transferIds = { "b1" } })
+    check("R5 B is settled by its own answer, with its own amount, once", pendingB.status == "PENDING" and settledB.requestId == idB and settledB.amount == 210
+        and C.statusQuery(c) == nil and ww.completions[#ww.completions].requestId == idB
+        and select(2, C.receiveOrderStatus(c, { orderId = idB, status = "COMMITTED", amount = 210 })) == "NOTHING_UNRESOLVED")
 end

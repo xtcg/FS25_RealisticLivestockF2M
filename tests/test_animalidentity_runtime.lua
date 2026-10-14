@@ -171,6 +171,10 @@ do
             end
             return sys and herd
         end)())
+    g_farmManager.farmIdToFarm[2] = playerFarm(222222, 0)
+    g_farmManager.farmIdToFarm[2].stats.statistics.pigId = 8
+    local scan2 = W.scan(mission)
+    check("scan: herdNext = highest counter of any species + 1, also for a herd without animals", scan2.herdNext["123456"] == 7 and scan2.herdNext["222222"] == 9)
     mission.vehicleSystem = nil
     check("scan: an unreadable part is reported as partial, the rest still scanned", #W.scan(mission).partial == 1)
 end
@@ -215,4 +219,52 @@ do
     assert(P.writeJournal(bad, { lineage = "Ltest-2", generation = 4, sequence = 3, keys = { "not a key" } }))
     check("journal with a malformed key is refused whole", select(2, P.readJournal(bad)) == "BAD_JOURNAL_KEY:1")
     check("journal over the limit is not written", select(2, P.writeJournal(xml(), { lineage = "Ltest-2", generation = 1, keys = (function() local k = {}; for i = 1, P.MAX_JOURNAL_KEYS + 1 do k[i] = "1 1 1" end; return k end)() })) == "BAD_JOURNAL")
+end
+
+-- ---- PR #58 review P2-2: re-activation reconciles domains the ledger already held -------------------
+do
+    local function cycle(offMode)
+        ready(R.SHADOW)
+        local farm = playerFarm(135790, 0)
+        R.activate({ records = {}, counters = {} }, {})          -- a never-used herd needs no acceptance
+        local first = W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto")
+        R.setMode(offMode)
+        local legacy = W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto")   -- the old counter numbers it; then it is sold
+        -- the herd now holds no animal: no counter for its country domain, only the herd's high-water mark
+        local ok, why = R.activate({ records = {}, counters = {}, uncoveredHerds = { "*/135790" }, herdNext = { ["135790"] = farm.stats.statistics.cowId + 1 } }, {})
+        local again = W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto")
+        return first, legacy, ok, why, again
+    end
+    local first, legacy, ok, why, again = cycle(R.OFF)
+    check("R8 ON 1, OFF 2 sold, ON again: the known domain needs no acceptance and the next key is 3, not 2", first == 1 and legacy == 2 and ok == true
+        and again == 3, string.format("first=%s legacy=%s ok=%s why=%s again=%s", tostring(first), tostring(legacy), tostring(ok), tostring(why), tostring(again)))
+    check("R8 the raws the old counter used are blocked (aliases too) and the consumed key stays", R.ledger.domains["2/135790"].blocked[1][1] == 1
+        and R.ledger.domains["2/135790"].blocked[1][2] == 2 and R.ledger.keys[key(135790, 1, 2)].state == I.CONSUMED
+        and I.reserveBatch(I.import(I.export(R.ledger)), "probe", { country = 2, farmId = "135790", items = { { role = "auto", type = "1" } } }).keys[1].raw == 4)
+    first, legacy, ok, why, again = cycle(R.SHADOW)
+    check("R8 the same through SHADOW", first == 1 and legacy == 2 and ok == true and again == 3)
+
+    -- another species' counter ran while the ledger was off: keys carry no species, so it bounds the domain too
+    ready(R.SHADOW)
+    local farm = playerFarm(246800, 0)
+    R.activate({ records = {}, counters = {} }, {})
+    W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto")
+    R.setMode(R.OFF)
+    farm.stats.statistics.pigId = 9       -- pigs 1..9 numbered by the old counter, some still alive
+    local live = { { farmId = "246800", uniqueId = U.generateUniqueId(246800, 9), country = 2, type = "2" } }
+    assert(R.activate({ records = live, counters = { { country = 2, farmId = "246800", type = "pigId", nextRaw = 10 }, { country = 2, farmId = "246800", type = "cowId", nextRaw = 2 } } }, {}))
+    check("R8 cross species: the next cow continues above the pig counter, the live pig is imported", W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto") == 10
+        and R.ledger.keys[key(246800, 9, 2)].state == I.CONSUMED)
+
+    -- a sale farm (system domain) the ledger already held
+    ready(R.SHADOW)
+    local sys = { countries = { [3] = { index = 3, farms = { { id = 9, ids = { [1] = 0 } } } } } }
+    local sf = sys.countries[3].farms[1]
+    R.activate({ records = {}, counters = { { country = 3, farmId = "9", type = "T1", nextRaw = 1 } } }, { accept = true })
+    local s1 = W.nextSystemRaw("sale-animal", sys, 3, sf, 1, "sale", function() error("legacy must not run") end)
+    R.setMode(R.OFF)
+    local s2 = W.nextSystemRaw("sale-animal", sys, 3, sf, 1, "sale", function() sf.ids[1] = sf.ids[1] + 1; return sf.ids[1] end)
+    assert(R.activate({ records = {}, counters = { { country = 3, farmId = "9", type = "T1", nextRaw = sf.ids[1] + 1 } } }, {}))
+    local s3 = W.nextSystemRaw("sale-animal", sys, 3, sf, 1, "sale", function() error("legacy must not run") end)
+    check("R8 a sale-farm domain is reconciled with its counter too", s1 == 1 and s2 == 2 and s3 == 3)
 end

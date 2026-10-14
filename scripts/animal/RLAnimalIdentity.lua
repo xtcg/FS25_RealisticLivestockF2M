@@ -334,6 +334,36 @@ function I.promoteDomain(ledger, country, farmId, startRaw, userAccepted)
 end
 
 
+--- While the ledger was not the allocator (OFF, SHADOW, RECOVERY_REQUIRED) the native counters handed out raws
+--- it never saw, and those animals may be gone (sold, dead): only the counters remember them. Block raws
+--- 1..nextRaw-1 (every full-key preimage, as COUNTER_HISTORY does) and move the cursor to nextRaw. Never lowers
+--- anything. Returns the domain and whether it changed, or nil and why.
+function I.raiseHighWater(ledger, country, farmId, nextRaw)
+    local domain = ledger.domains[I.domainKey(country, farmId)]
+    if domain == nil then return nil, "DOMAIN_UNKNOWN" end
+    if not int(nextRaw) or nextRaw < 1 then return nil, "BAD_RAW" end
+    nextRaw = math.min(nextRaw, I.MAX_RAW + 1)
+    local changed = false
+    if nextRaw > 1 then
+        local head
+        for _, range in ipairs(domain.blocked) do if range[1] == 1 then head = range break end end
+        if head == nil then
+            table.insert(domain.blocked, 1, { 1, nextRaw - 1 })
+            changed = true
+        elseif head[2] < nextRaw - 1 then
+            head[2] = nextRaw - 1
+            changed = true
+        end
+    end
+    if domain.next < nextRaw then
+        domain.next = nextRaw
+        changed = true
+    end
+    if changed then bump(ledger) end
+    return domain, changed
+end
+
+
 --- Burn one key that has not become an animal (a fetus that was lost, a stillborn). A CONSUMED key stays.
 --- Returns true, or nil and why. Other keys of the same request are not touched.
 function I.burnKey(ledger, key, reason)

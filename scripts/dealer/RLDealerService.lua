@@ -96,8 +96,10 @@ function S.new(parts)
             return parts.destinations(connection, payload.saleIds)
         elseif kind == P.ORDER then
             local result, failure = RLDealerPurchase.lookup(parts.stock.purchase, payload.orderId, principal)
-            if result == nil then return { status = failure == "UNKNOWN_REQUEST" and "UNKNOWN_REQUEST" or "REJECTED", reason = failure } end
-            return { status = result.status, amount = result.amount, transferIds = result.transferIds }
+            if result == nil then
+                return { orderId = payload.orderId, status = failure == "UNKNOWN_REQUEST" and "UNKNOWN_REQUEST" or "REJECTED", reason = failure }
+            end
+            return { orderId = payload.orderId, status = result.status, amount = result.amount, transferIds = result.transferIds }
         end
         return { status = "REJECTED", reason = "UNKNOWN_CATALOG_MESSAGE" }
     end
