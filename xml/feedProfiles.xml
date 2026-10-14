@@ -347,20 +347,39 @@
         source="NRC 2001 calf: milk replacer ME 4.65 Mcal/kg DM" year="2001"/>
 
     <!--
-        Sheep (S5, 2026-10-13). Candidates for the offline calibration (gates V1-V10), not
-        calibrated values; the species stays off until the weight model's SHEEP type is enabled.
-        Sources: AHDB "Feeding the ewe" (older edition, AFRC 1993 tables): ewe maintenance about
-        12% of live weight in MJ ME (8.4 MJ for 70 kg housed, about 9 outdoors) = 0.35-0.37 MJ per
-        kg^0.75; pregnancy Table 8 (70 kg ewe one week before lambing: single 14.4, twins 18.3 MJ:
-        about 0.55 x maintenance per lamb); lactation Table 29 (about 8.3 MJ ME per kg of milk; a
-        ewe losing 50 g a day saves about 1.75 MJ: 35 MJ per kg; gaining 50 g costs 2.5 MJ: 50 MJ
-        per kg, Table 8 note); intake Table 2 (dry 1.5%, late pregnancy 2-2.5%, lactation 3-3.5% of
-        live weight); milk Table 28 (monthly means, kg a day; AFRC has hill and lowland only, a
-        triplet's dam is held at the twin row). Lamb maintenance 0.475 MJ per kg^0.75 (Awassi lamb
-        trial) taken as 0.45 to 6 months. Ewe milk: Sebek and Everts 1993 (GE = 41.94 fat + 15.85
-        protein + 21.41 lactose kJ/kg; their ranges 44-125, 32-53, 39-53 g/kg); a typical meat ewe's
-        milk (fat 75, protein 53, lactose 48 g/kg) gives about 5 MJ GE, 19% DM, CP 28% of DM: ME 25 MJ
-        per kg DM to the lamb (AHDB p50: about 6.5 MJ ME from milk a twin lamb at six weeks).
+        Sheep (S5, 2026-10-13; sources reviewed 2026-10-14). The species stays off until the weight
+        model's SHEEP type is enabled. Each value is a sourced figure, a model approximation of a
+        table, a PROXY or a calibration value; tests/sheepcalib.py reports each against its table.
+        AHDB "Feeding the ewe" (older edition, AFRC 1993 tables):
+        - maintenanceMEPerKgMetabolic 0.37: model approximation. AHDB puts maintenance at about 12%
+          of live weight in MJ ME (70 kg: 8.4 housed, about 9 outdoors) = 0.35-0.37 per kg^0.75.
+          Against Table 29 extrapolated to no milk the model is 5-6% high.
+        - pregnancyFactor 0.55 a lamb x maintenance, rising linearly over the last 40% of the
+          pregnancy (pregnancyRampStart 0.6): model approximation of Table 8 (70 kg, one week
+          before lambing: single 14.4, twins 18.3 MJ). Over Table 8's 40 cells (50-80 kg, 1-3
+          lambs, 7/5/3/1 weeks) singles and twins are within -8%..+0%, triplets up to +11% (a
+          linear lamb count overstates a third lamb).
+        - milk meMJPerKg 8.3: the slope of Table 29 (housed ewes, 11.5 MJ/kg DM diet), an
+          approximation for those diets, not a constant across diets. Table 29's 18 cells are within
+          +2%..+6% of maintenance + 8.3 x milk - 35 x loss.
+        - reserveMobilizeMEPerKg 35 (Table 29: 50 g a day lost saves about 1.75 MJ) and
+          reserveDepositMEPerKg 50 (Table 8 note: 50 g a day gained costs 2.5 MJ).
+        - intake: Table 2 (dry 1.5%, late pregnancy 2-2.5%, lactation 3-3.5% of live weight).
+        - lactation (nursing): Table 28, a ewe's monthly mean milk (kg a day) in months 1-3 by
+          system and lambs suckled; one step a month, so each month's integral is the table's
+          (AFRC has hill and lowland only; a triplet's dam is held at the twin row).
+        Lambs: youngMaintenanceMEPerKgMetabolic 0.475, a candidate between the Awassi lamb trial's
+        0.466 and 0.482 (C-grade summary); using it to 6 months and moving to the ewe's 0.37 by 12
+        is a model assumption.
+        Growth: growthMEPerKgAt500 33 at growthReferenceKg 40 (linear in weight, floor 14) and the
+        sex factors growthCostMale / Castrate / Female 0.80 / 1.00 / 1.25 are calibration values
+        (set on routes R1 / R4 and the trial's ADG ratio, SHEEP-C11), not verified physiology.
+        damMilk dm 0.19, me 25, cp 0.28: PROXY. Sebek and Everts 1993 give GE = 41.94 fat + 15.85
+        protein + 21.41 lactose kJ/kg (ranges 44-125, 32-53, 39-53 g/kg); a typical meat ewe's milk
+        (75, 53, 48 g/kg) is about 5.013 MJ GE a kg as drunk, 19% DM, CP 28% of DM. ME 25 MJ/kg DM
+        (4.75 a kg as drunk) assumes ME/GE 0.9475: no source gives it (AHDB p50: about 6.5 MJ ME
+        from milk a twin lamb at six weeks is consistent). The calibration reports the routes at
+        other values.
         Concentrate adaptation 14 days (Teagasc: ad lib in 10 days; SRUC 2-3 weeks); an unadapted
         lamb may eat up to 50% concentrate in its DM - a game rule (FAS's 50% is barley within the
         concentrate mix). Creep 0.35 kg DM a day (about 0.4 kg fresh, range 0.3-0.5). Weaning at 3

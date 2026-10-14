@@ -631,7 +631,7 @@ function RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
     local config = RLFeed.getConfig(animal)
     local physiology = config.physiology
     if physiology ~= nil and physiology.youngMaintenanceMEPerKgMetabolic > 0 then
-        -- A species with a young animal's maintenance of its own (sheep: lambs about 0.45 MJ per
+        -- A species with a young animal's maintenance of its own (sheep: lambs 0.475 MJ per
         -- kg^0.75 against 0.37 for ewes): that value to youngMaintenanceUntilMonth, moving to the
         -- adult one by adultMaintenanceFromMonth, at its age halfway through the step.
         local age = getFeedAge(animal) + 0.5 * (dtMonths or 0)

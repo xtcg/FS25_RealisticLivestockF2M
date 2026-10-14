@@ -1,7 +1,10 @@
 """Sheep S5 offline calibration: run tests/sheepcalib.lua on the real modules and print each
-route's metrics against the design's gates (sheep-finishing-design-v1 §5). No game, no network.
+route's metrics against the design's gates (sheep-finishing-design-v1 §5, S5 checklist D6) and the
+AHDB/AFRC energy tables. No game, no network. Every item is PASS, FAIL or UNVERIFIED (no
+independent reference, or not run here); the summary lists the failures and the unverified items,
+and the exit code is 1 when anything failed (or the Lua run logged an error).
 
-    python tests/sheepcalib.py [--json out.json]
+    python tests/sheepcalib.py [--json out.json] [--ab cattle-legacy=a.json --ab cattle-real=b.json --ab species=c.json]
 """
 import argparse
 import glob
@@ -40,40 +43,93 @@ def fmt(v):
     return f"{v:.3f}" if isinstance(v, float) else str(v)
 
 
+# Every judged or reported item: (status, name, detail). PASS / FAIL against a stated target;
+# UNVERIFIED where there is no independent reference or the check was not run here (it is never
+# counted as a pass).
+RESULTS = []
+
+
 def gate(name, ok, detail):
-    print(f"{'PASS' if ok else 'FAIL'} {name}: {detail}")
+    status = "PASS" if ok else "FAIL"
+    RESULTS.append((status, name, detail))
+    print(f"{status} {name}: {detail}")
     return ok
 
 
-def judge(c):
-    """The design's gates (sheep-finishing-design-v1 §5) on the measured routes."""
+def unverified(name, detail):
+    RESULTS.append(("UNVERIFIED", name, detail))
+    print(f"UNVERIFIED {name}: {detail}")
+
+
+def info(text):
+    print(f"INFO {text}")
+
+
+# AHDB Feeding the ewe (older edition), AFRC 1993 tables, as printed.
+# Table 8: ME (MJ/day) of housed pregnant ewes, 11 MJ/kg DM diet, no weight loss; (live weight,
+# lambs) -> 7, 5, 3, 1 weeks to lambing.
+TABLE8_WEEKS = (7, 5, 3, 1)
+TABLE8 = {(50, 1): (7.9, 8.7, 9.8, 11.2), (50, 2): (8.8, 10.1, 11.9, 14.2), (60, 1): (9.1, 10.0, 11.2, 12.8),
+          (60, 2): (10.1, 11.6, 13.7, 16.3), (70, 1): (10.2, 11.2, 12.6, 14.4), (70, 2): (11.4, 13.1, 15.3, 18.3),
+          (70, 3): (12.0, 14.0, 16.7, 20.3), (80, 1): (11.3, 12.4, 13.9, 15.9), (80, 2): (12.6, 14.4, 17.0, 20.2),
+          (80, 3): (13.3, 15.5, 18.5, 22.5)}
+# Table 29: ME (MJ/day) of housed lactating ewes, 11.5 MJ/kg DM diet; (live weight, weight change
+# g/day) -> milk 1, 2, 3 kg/day.
+TABLE29 = {(60, 0): (15.6, 23.7, 32.2), (60, -50): (13.8, 22.0, 30.3), (60, -100): (12.1, 20.2, 28.5),
+           (80, 0): (17.5, 25.6, 33.9), (80, -50): (15.8, 23.8, 32.0), (80, -100): (14.0, 22.0, 30.2)}
+# Table 28: milk (kg/day, a ewe's monthly mean) by system and lambs suckled, months 1-3.
+TABLE28 = {("LOWLAND", 1): (2.10, 1.70, 1.05), ("LOWLAND", 2): (3.00, 2.25, 1.50),
+           ("HILL", 1): (1.25, 1.05, 0.70), ("HILL", 2): (1.90, 1.60, 1.10)}
+# Tolerance for the energy anchors, set before the check: the model is ME-direct on any diet, the
+# tables are AFRC at one diet's M/D, so a tenth either way.
+ENERGY_TOL = 0.10
+# Lambs reared a ewe in the V2 flock mix: scenario assumptions, not sourced figures (S0 evidence
+# has only Teagasc Belclare crosses weaning 1.65-1.70 for a prolific lowland flock; nothing for hill).
+FLOCK_LAMBS_PER_EWE = {"LOWLAND": 1.7, "HILL": 1.3}
+
+
+def lamb_weights(n):
+    """Shares of a flock's lambs born single and twin, by lambs (not ewes), when ewes rear only
+    singles and twins and n lambs a ewe on average (1 <= n <= 2): singles (2 - n) / n, twins
+    2 (n - 1) / n."""
+    return (2 - n) / n, 2 * (n - 1) / n
+
+
+def judge(c, ab_files):
+    """The design's gates (sheep-finishing-design-v1 §5, S5 checklist D6) on the measured routes."""
     print("\n== gates")
     fat_order = ["1", "2", "3L", "3H", "4L", "4H", "5"]
+
     def near_fat(f, target, slack=1):
         return f in fat_order and abs(fat_order.index(f) - fat_order.index(target)) <= slack
+
     for breed in ("LANDRACE", "TEXEL", "SUFFOLK", "SWISS_MOUNTAIN"):
         lamb = c[f"R1/{breed}/1"]["lambs"][0]
         a = lamb.get("ageAtRef")
         gate(f"V1 R1 {breed} single ram lamb 2.8-3.3 months to its market weight, 3L+-1",
              a is not None and 2.8 <= a <= 3.3 and near_fat(lamb.get("fatAtRef"), "3L"), f"{a} months, {lamb.get('fatAtRef')}")
-        # Creep feed conversion: reported both ways until the source's denominator is settled
-        # (S5 checklist V1): creep per kg of all live gain to weaning, and per kg of gain over the
-        # same lamb on milk and grass alone (R2 single).
         grass = c.get(f"R2/{breed}/1")
         extra = lamb["at3"] - grass["lambs"][0]["at3"] if grass is not None else None
         marginal = lamb["preWeanConc"] / extra if extra and extra > 0 else None
-        print(f"INFO V1 R1 {breed} creep {lamb['preWeanConc']:.1f} kg fresh to weaning: {lamb['creepFCR']:.2f} kg per kg of all gain, "
-              f"{marginal if marginal is None else round(marginal, 2)} per kg of extra gain over grass alone (candidate 2-4)")
-    # A typical flock's lamb, weighted by lambs (not ewes): lowland flocks rear about 1.7 lambs a
-    # ewe (30% of ewes with a single, 70% with twins: singles 0.3 / 1.7 = 17.6% of the lambs),
-    # hill flocks about 1.3 (70% / 30% of ewes: singles 0.7 / 1.3 = 53.8% of the lambs).
-    for breed, lo, hi, single_ewes in (("LANDRACE", 4.3, 5.5, 0.3), ("TEXEL", 4.3, 5.5, 0.3), ("STEINSCHAF", 5.1, 5.5, 0.7),
-                                       ("BLACK_WELSH", 5.1, 5.5, 0.7), ("BLACKFACE", 5.1, 5.5, 0.7)):
-        single = single_ewes / (single_ewes + 2 * (1 - single_ewes))
+        unverified(f"V1 R1 {breed} creep feed conversion (the source's denominator is not settled; candidate 2-4)",
+                   f"{lamb['preWeanConc']:.1f} kg fresh to weaning: {lamb['creepFCR']:.2f} per kg of all gain, "
+                   f"{marginal if marginal is None else round(marginal, 2)} per kg of gain over grass alone")
+
+    # V2: single and twin ram lambs are the results; the flock mean is a supplement on an assumed n.
+    for n in (1.0, 2.0, FLOCK_LAMBS_PER_EWE["LOWLAND"], FLOCK_LAMBS_PER_EWE["HILL"]):
+        s1, s2 = lamb_weights(n)
+        assert abs(s1 + s2 - 1) < 1e-12 and s1 >= 0 and s2 >= 0
+    assert lamb_weights(1.0) == (1.0, 0.0) and lamb_weights(2.0) == (0.0, 1.0)
+    for breed, system, lo, hi in (("LANDRACE", "LOWLAND", 4.3, 5.5), ("TEXEL", "LOWLAND", 4.3, 5.5), ("STEINSCHAF", "HILL", 5.1, 5.5),
+                                  ("BLACK_WELSH", "HILL", 5.1, 5.5), ("BLACKFACE", "HILL", 5.1, 5.5)):
         ages = [l.get("ageAtRef") for k in (1, 2) for l in c[f"R2/{breed}/{k}"]["lambs"] if l["sex"] == "male"]
-        mean = single * ages[0] + (1 - single) * ages[1] if all(ages) else None
-        gate(f"V2 R2 {breed} ram lambs, flock mix ({single_ewes:.0%} of ewes with singles = {single:.1%} of lambs) {lo}-{hi} months +-0.5",
-             mean is not None and lo - 0.5 <= mean <= hi + 0.5, f"single {ages[0]:.2f}, twin {ages[1]:.2f}, flock {mean:.2f}")
+        info(f"V2 R2 {breed} ram lamb on milk and grass: single {ages[0]:.2f} months, twin {ages[1]:.2f} months")
+        n = FLOCK_LAMBS_PER_EWE[system]
+        s1, s2 = lamb_weights(n)
+        mean = s1 * ages[0] + s2 * ages[1] if all(ages) else None
+        gate(f"V2 R2 {breed} flock mean {lo}-{hi} months +-0.5 (scenario: {n} lambs a ewe = {s1:.1%} singles, {s2:.1%} twins by lambs)",
+             mean is not None and lo - 0.5 <= mean <= hi + 0.5, f"{mean:.2f}")
+
     base = c["R3/0"]["lambs"][0]["adg"]
     for kg, lo, hi in ((0.25, 1.5, 1.8), (0.5, 1.8, 2.2)):
         r = c[f"R3/{kg}"]["lambs"][0]["adg"] / base if base > 0 else 0
@@ -82,44 +138,141 @@ def judge(c):
     gate("V4 R4 ram ADG 220-280 g", 0.22 <= ram["adg"] <= 0.28, f"{ram['adg']*1000:.0f} g, {ram['dmPerDay']:.2f} kg DM ({ram['dmPctBW']:.1f}% BW)")
     gate("V4 R4 9-12.5 kg concentrate per kg carcass gain (kill-out 0.49)", 9 <= ram["concPerCarcassKg"] <= 12.5, f"{ram['concPerCarcassKg']:.2f}")
     wether, ewe = c["R4"]["lambs"][1], c["R4"]["lambs"][2]
-    gate("V6 R4 ADG ram : wether : ewe lamb 1 : 0.86 : 0.76 (+-0.05)",
-         abs(wether["adg"] / ram["adg"] - 0.86) <= 0.05 and abs(ewe["adg"] / ram["adg"] - 0.76) <= 0.05,
-         f"1 : {wether['adg']/ram['adg']:.2f} : {ewe['adg']/ram['adg']:.2f}")
+    unverified("V6 R4 ADG ram : wether : ewe lamb 1 : 0.86 : 0.76 (the sex growth costs were calibrated on this ratio, SHEEP-C11: not an independent check)",
+               f"1 : {wether['adg']/ram['adg']:.2f} : {ewe['adg']/ram['adg']:.2f}")
+    for key in sorted(k for k in c if k.startswith("V6PARTS/")):
+        l = c[key]["lambs"]
+        info(f"V6 parts, {key[8:]}: ram {l[0]['adg']*1000:.0f} g, wether {l[1]['adg']/l[0]['adg']:.2f}, ewe lamb {l[2]['adg']/l[0]['adg']:.2f}")
     v5 = c["V5"]["lambs"]
     gate("V5 ad lib past the reference: 4L or fatter, saleable meat <= 0.97", all(l["yield"] <= 0.97 and l["fat"] in ("4L", "4H", "5") for l in v5),
          ", ".join(f"{l['sex']} {l['fat']} {l['yield']:.3f}" for l in v5))
-    # The ewe's year against the S5 checklist's D6 (FAS lowland targets: weaning 2.5, mating 3-3.5,
-    # lambing 3), one ewe without a break. Weaning is a floor (no thinner than 2.5), mating the
-    # band, lambing 3 +- 0.25 (a quarter score).
-    cycle = c["EWE/cycle/twins"]
-    gate("EWE year, lowland twins: weaning BCS >= 2.5 (D6)", cycle["weaningBcs"] >= 2.5 - 1e-9, f"{cycle['weaningBcs']:.2f}")
-    gate("EWE year, lowland twins: mating BCS 3.0-3.5 (D6)", 3.0 - 1e-9 <= cycle["matingBcs"] <= 3.5 + 1e-9, f"{cycle['matingBcs']:.2f}")
-    gate("EWE year, lowland twins: lambing BCS 3 +-0.25 (D6), housed on silage the last 2 months", 2.75 <= cycle["lambingBcs"] <= 3.25,
-         f"{cycle['lambingBcs']:.2f}, gravid {cycle['gravidKg']:.1f} kg")
-    print("INFO EWE year (month, BCS, kg): " + " ".join(f"({m:.0f},{b:.2f},{w:.1f})" for m, b, w in cycle["ewe"]))
-    ewe = c["EWE/grass/twins"]["ewe"]
-    print("INFO EWE lambs left with her after weaning (month, BCS): " + " ".join(f"({m:.0f},{b:.2f})" for m, b, w in ewe))
-    for feed in ("silage", "silageBarley"):
-        twin = c[f"PREG/{feed}/2"]
-        gate(f"EWE twins, late pregnancy on {feed} (from BCS 3): lambing BCS 3 +-0.25 (D6)",
-             2.75 <= twin["bcsAtTerm"] <= 3.25, f"BCS {twin['bcsAtTerm']:.2f}, gravid {twin['gravidKg']:.1f} kg")
-        # Energy is reported, not judged: AHDB Table 8's 18.3 MJ is for a 70 kg ewe at term.
-        print(f"INFO EWE twins on {feed} at term: {twin['dmPerDay']:.2f} kg DM, {twin['mePerDay']:.1f} MJ ME a day (AHDB Table 8: 18.3 MJ for a 70 kg ewe)")
-    hay = c["PREG/hay/2"]
-    print(f"INFO EWE twins, late pregnancy on hay alone: BCS {hay['bcsAtTerm']:.2f} at lambing (forage-only twin ewes lose condition)")
+
+    # The milk pool: Table 28's row at full feed over three months, what the ewe paid, what her lambs took.
+    for key, system, k in (("R2/LANDRACE/1", "LOWLAND", 1), ("R2/LANDRACE/2", "LOWLAND", 2), ("R2/STEINSCHAF/2", "HILL", 2),
+                           ("R1/LANDRACE/2", "LOWLAND", 2)):
+        pool = c[key]["milkPool"]
+        table = [v * 30 for v in TABLE28[(system, k)]]
+        potential = [m["potential"] for m in pool]
+        ok = all(abs(p - t) <= 0.01 * t for p, t in zip(potential, table))
+        gate(f"MILK {key} potential = Table 28 {system} {'single' if k == 1 else 'twins'} x 30 days each month (within 1%)", ok,
+             " / ".join(f"{p:.1f} vs {t:.1f}" for p, t in zip(potential, table)) + " kg")
+        gate(f"MILK {key} the lambs took no more than the ewe paid", all(m["taken"] <= m["paid"] + 1e-6 for m in pool),
+             "paid " + " / ".join(f"{m['paid']:.1f}" for m in pool) + " kg, took " + " / ".join(f"{m['taken']:.1f}" for m in pool) + " kg")
+
+    # The ewe's year from mating to mating, one ewe (D6, FAS lowland: lambing 3, weaning 2.5, mating 3-3.5).
+    year = c["EWE/year/twins"]
+    info(f"EWE year: starts at mating at BCS {year['startBcs']:.2f} (the setup, not judged)")
+    gate("EWE year, lowland twins: lambing BCS 3 +-0.25 (D6), the last 2 months housed on silage", 2.75 <= year["lambingBcs"] <= 3.25,
+         f"{year['lambingBcs']:.2f}, gravid {year['gravidKg']:.1f} kg")
+    gate("EWE year, lowland twins: weaning BCS >= 2.5 (D6)", year["weaningBcs"] >= 2.5 - 1e-9, f"{year['weaningBcs']:.2f}")
+    gate("EWE year, lowland twins: next mating BCS 3.0-3.5 (D6)", 3.0 - 1e-9 <= year["matingBcs"] <= 3.5 + 1e-9, f"{year['matingBcs']:.2f}")
+    print("INFO EWE year by month: month BCS weight gravid | ate kgDM/d MJ/d | milk potential paid took kg/d | requirement MJ/d")
+    for r in year["log"]:
+        if r["month"] == 0:
+            print(f"     0  {r['bcs']:.2f} {r['weight']:6.1f} {r['gravid']:5.1f}")
+            continue
+        need = r.get("need")
+        print(f"    {r['month']:2d}  {r['bcs']:.2f} {r['weight']:6.1f} {r['gravid']:5.1f} | {r['dmPerDay']:.2f} {r['mePerDay']:5.1f} | "
+              f"{r['milkPotential']:.2f} {r['milkPaid']:.2f} {r['lambsTook']:.2f} | {need if need is None else round(need, 1)}")
+
+    # Energy anchors, judged on their own (never read off the BCS gates).
+    energy = c["ENERGY"]
+    errors = []
+    for cell in energy["table8"]:
+        table = TABLE8.get((cell["w"], cell["n"]))
+        if table is None:
+            continue
+        t = table[TABLE8_WEEKS.index(cell["weeks"])]
+        errors.append(((cell["model"] - t) / t, cell, t))
+    worst = max(errors, key=lambda e: abs(e[0]))
+    mean_abs = sum(abs(e[0]) for e in errors) / len(errors)
+    gate(f"ENERGY late pregnancy against AHDB Table 8, all {len(errors)} cells within +-{ENERGY_TOL:.0%} (maintenance 0.37 x W^0.75, pregnancy 0.55 a lamb, ramp from 60%)",
+         all(abs(e[0]) <= ENERGY_TOL for e in errors),
+         f"mean |error| {mean_abs:.1%}, worst {worst[0]:+.1%} ({worst[1]['w']} kg, {worst[1]['n']} lambs, {worst[1]['weeks']} weeks: "
+         f"{worst[1]['model']:.1f} vs {worst[2]})")
+    for n in (1, 2, 3):
+        rows = []
+        for (w, k), _ in sorted(TABLE8.items()):
+            if k != n:
+                continue
+            cells = [e for e in errors if e[1]["w"] == w and e[1]["n"] == n]
+            rows.append(f"{w} kg " + " ".join(f"{e[1]['model']:.1f}/{e[2]}({e[0]:+.0%})" for e in sorted(cells, key=lambda e: -e[1]["weeks"])))
+        info(f"ENERGY Table 8, {n} lamb(s), model/table at 7/5/3/1 weeks: " + "; ".join(rows))
+    m, milk_me, mob = energy["maintenancePerKgMetabolic"], energy["milkMePerKg"], energy["mobilizePerKg"]
+    nursing = energy["nursing70"]
+    formula = m * nursing["weight"] ** 0.75 + milk_me * nursing["milk"]
+    gate("ENERGY Table 29's sum is the model's (a 70 kg ewe nursing twins: describeAnimal maintenance + milk)",
+         abs(formula - nursing["model"]) < 1e-6, f"{nursing['model']:.3f} vs {formula:.3f} MJ at {nursing['milk']:.2f} kg milk")
+    errors29 = []
+    for (w, loss), row in sorted(TABLE29.items()):
+        for y, t in zip((1, 2, 3), row):
+            model = m * w ** 0.75 + milk_me * y + mob * loss / 1000
+            errors29.append(((model - t) / t, w, loss, y, model, t))
+    worst29 = max(errors29, key=lambda e: abs(e[0]))
+    gate(f"ENERGY lactation against AHDB Table 29, all {len(errors29)} cells within +-{ENERGY_TOL:.0%} (8.3 MJ a kg of milk, 35 MJ a kg of reserve lost)",
+         all(abs(e[0]) <= ENERGY_TOL for e in errors29),
+         f"mean |error| {sum(abs(e[0]) for e in errors29)/len(errors29):.1%}, worst {worst29[0]:+.1%} "
+         f"({worst29[1]} kg, {worst29[2]} g/d, {worst29[3]} kg milk: {worst29[4]:.1f} vs {worst29[5]})")
+    info("ENERGY Table 29 model/table: " + "; ".join(f"{w}kg {loss}g {y}kg {mo:.1f}/{t}({e:+.0%})" for e, w, loss, y, mo, t in errors29))
+    info(f"ENERGY the year's ewe ({year['lateNeedWeight']:.0f} kg without her lambs, past Table 8's 80 kg): one week before lambing she needs "
+         f"{year['lateNeed']:.1f} MJ (Table 8 at 80 kg, twins: 20.2); in her first month of milk {year['lactNeed']:.1f} MJ at "
+         f"{year['lactMilk']:.2f} kg milk (Table 29 at 80 kg, 3 kg, no loss: 33.9). Requirement, not what she ate")
+
     one = c["R1/LANDRACE/2"]["lambs"][0]["ageAtRef"]
-    for d in (7, 28):
+    for d in (3, 7, 28):
         other = c[f"R1/LANDRACE/2/days{d}"]["lambs"][0]["ageAtRef"]
         gate(f"V8 month length 1 vs {d} days: same route within 1%", other is not None and abs(other - one) / one <= 0.01, f"{one} vs {other}")
+
+    names = {"cattle-legacy": "V9 cattle, legacy budget (tests/sheep_s5_ab.py)", "cattle-real": "V9 cattle, real-equivalent mode (tests/feed_ab.py)",
+             "species": "V9 pigs, goats, horses, chickens, sheep v2 off (tests/species_ab.py)"}
+    for key, name in names.items():
+        path = ab_files.get(key)
+        if path is None:
+            unverified(name, "not run with this calibration (pass --ab " + key + "=result.json)")
+            continue
+        with open(path, encoding="utf-8") as f:
+            r = json.load(f)
+        diffs = r.get("differenceCount", len(r.get("differences", [])))
+        extra = f", {r['expectedDifferences']} expected ({r.get('expectedNote')})" if r.get("expectedDifferences") else ""
+        gate(name + f" against {r['baseline'][:7]}", r.get("passed") is True,
+             f"{r['cases']} cases, {r.get('scalarComparisons')} values, {diffs} unexpected differences{extra}")
+
     v10 = c["V10"]
     gate("V10 300 sheep pen runs the mode, under 60 ms a game hour (cattle reference about 60 ms / 100 head)", v10["active"] and v10["msPerHour"] < 60,
          f"{v10['msPerHour']:.1f} ms")
+
+    print("\n== sensitivity (reported, not judged)")
+    for key in sorted(k for k in c if k.startswith("SENS/")):
+        r = c[key]
+        print(f"   {key[5:]:40s} R2 twin ram {r['r2RamAge']:.2f} months (at 3: {r['r2RamAt3']:.1f} kg); "
+              f"R1 single ram {r['r1RamAge']:.2f} months (at 3: {r['r1RamAt3']:.1f} kg); R4 ram {r['r4Adg']*1000:.0f} g")
+    unverified("Ewe milk DM 19%, ME 25 MJ/kg DM, CP 28% DM (PROXY: GE from Sebek & Everts, ME/GE 0.9475 assumed)", "sensitivity above, no source")
+    print("\n== growth cost beyond R4 (reported; no trial data for these)")
+    for key in sorted(k for k in c if k.startswith("GROWTH/")):
+        r = c[key]
+        print(f"   {key[7:]:14s} ad lib {r['adlib']['adg']*1000:.0f} g on {r['adlib']['dmPerDay']:.2f} kg DM; "
+              f"silage + 0.5 kg barley {r['limited']['adg']*1000:.0f} g on {r['limited']['dmPerDay']:.2f} kg DM")
+    unverified("Growth cost 33 MJ/kg at 40 kg (calibration value, set on R1/R4)", "other breeds, weights and diets above have no reference to judge")
+    unverified("Game test (single player short test, S5 checklist F)", "not done")
+
+
+def summary():
+    counts = {s: sum(1 for r in RESULTS if r[0] == s) for s in ("PASS", "FAIL", "UNVERIFIED")}
+    print(f"\n== summary: {counts['PASS']} PASS, {counts['FAIL']} FAIL, {counts['UNVERIFIED']} UNVERIFIED")
+    for status in ("FAIL", "UNVERIFIED"):
+        for s, name, detail in RESULTS:
+            if s == status:
+                print(f"   {status} {name}: {detail}")
+    return counts
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json")
+    parser.add_argument("--ab", action="append", default=[], metavar="KIND=FILE",
+                        help="an A/B result to judge as V9: cattle-legacy, cattle-real or species")
     args = parser.parse_args()
+    ab_files = dict(item.split("=", 1) for item in args.ab)
     calib, log = run()
     for line in log:
         print("LOG", line)
@@ -131,13 +284,16 @@ def main():
         if "ewe" in row:
             print("   ewe (month, BCS, kg): " + " ".join(f"({m:.1f},{b:.2f},{w:.1f})" for m, b, w in row["ewe"]))
         for k, v in row.items():
-            if k not in ("lambs", "ewe"):
+            if k not in ("lambs", "ewe", "log", "table8", "milkPool"):
                 print(f"   {k}={fmt(v)}")
-    judge(calib)
+    judge(calib, ab_files)
+    counts = summary()
     if args.json:
         with open(args.json, "w", encoding="utf-8") as f:
-            json.dump(calib, f, indent=1, ensure_ascii=False)
+            json.dump({"results": [{"status": s, "name": n, "detail": d} for s, n, d in RESULTS], "counts": counts,
+                       "calibration": calib}, f, indent=1, ensure_ascii=False)
+    return 1 if counts["FAIL"] > 0 or log else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -1,6 +1,8 @@
 -- Sheep S5 offline calibration (FS25_SheepBreeds_离线准备 sheep-finishing-design-v1 §5, S5 checklist
--- §C8): the routes R1-R4 and the gates V1-V6 on the real modules, a ewe's lactation and recovery,
--- and the cost of a 300-sheep pen. Fills CALIB (scenario -> metrics); tests/sheepcalib.py prints it
+-- §C8): the routes R1-R4 and the gates V1-V6 on the real modules, a ewe's year from mating to the
+-- next mating, her energy against AHDB Tables 8 and 29, the milk pool (Table 28 potential, what
+-- the ewe paid, what the lambs took), sensitivity runs for the proxy and calibration values, and
+-- the cost of a 300-sheep pen. Fills CALIB (scenario -> metrics); tests/sheepcalib.py prints it
 -- and judges the gates. Real-world targets are in the design; this file only measures.
 
 loadMod("tests/sheepsim.lua")
@@ -74,6 +76,30 @@ local function concRecorder(names)
 end
 
 
+--- A recorder of a ewe's milk pool from the STEP events, by month of her lambs' life (1-based):
+--- potential (her Table 28 row at full feed, kg as drunk), paid (what her budget paid, kg as drunk)
+--- and taken (what her lambs drank of it, kg as drunk).
+local function milkRecorder(ewe, perMonthDays)
+    local months = {}
+    local elapsed = 0
+    local fn = function(kind, data)
+        if kind ~= "STEP" then return end
+        local m = math.floor(elapsed / perMonthDays + 1e-9) + 1
+        local row = months[m] or { potential = 0, paid = 0, taken = 0 }
+        months[m] = row
+        for _, e in ipairs(data.animals) do
+            if e.animal == ewe then row.potential = row.potential + RLFeed.getDamMilk(ewe) * data.stepDays end
+        end
+        for _, d in ipairs(data.dams or {}) do
+            if d.animal == ewe then row.paid, row.taken = row.paid + d.paidLiters, row.taken + d.allocatedLiters end
+        end
+        elapsed = elapsed + data.stepDays
+    end
+    RLFeed.addObserver(fn)
+    return months, function() RLFeed.removeObserver(fn) end
+end
+
+
 --- Raise lambs with their ewe from birth on a stock until each reaches its reference (or maxMonths).
 --- @return table per lamb: { sex, ageAtRef, fatAtRef, reserveAtRef, adg, refKg, weightAt3, preWeanConc, preWeanGain }
 local function raiseWithDam(breed, litter, stock, opts)
@@ -92,6 +118,7 @@ local function raiseWithDam(breed, litter, stock, opts)
     local pen = SheepSim.makePen(animals)
     if opts.ration ~= nil then RLFeed.setRation(pen, opts.ration) end
     local eaten, stop = concRecorder({ "BARLEY", "PEA", "WHEAT", "MAIZE", "OAT" })
+    local milk, stopMilk = milkRecorder(ewe, RLFeed.getConfig(ewe).realDaysPerPeriod)
     local perMonth = 24 * GrowthSim.env.daysPerPeriod
     local results = {}
     for _, lamb in ipairs(lambs) do results[lamb] = { sex = lamb.rlSex, birth = lamb.weight } end
@@ -124,6 +151,7 @@ local function raiseWithDam(breed, litter, stock, opts)
         if done and months >= 3 then break end
     end
     stop()
+    stopMilk()
     local out = {}
     for _, lamb in ipairs(lambs) do
         local r = results[lamb]
@@ -133,7 +161,9 @@ local function raiseWithDam(breed, litter, stock, opts)
         r.adg0to2 = r.at2 ~= nil and (r.at2 - r.birth) / 60 or nil
         out[#out + 1] = r
     end
-    return out, eweLog
+    local pool = {}
+    for m = 1, 3 do pool[m] = milk[m] or { potential = 0, paid = 0, taken = 0 } end
+    return out, eweLog, pool
 end
 
 
@@ -188,15 +218,15 @@ local HOUSED = { SILAGE = 4000, BARLEY = 4000, PEA = 1000 }
 -- R1 / V1: early lambs, creep then ad lib concentrate; lowland and terminal breeds; singles and twins.
 for _, breed in ipairs({ "LANDRACE", "TEXEL", "SUFFOLK", "SWISS_MOUNTAIN" }) do
     for _, litter in ipairs({ 1, 2 }) do
-        local lambs, ewe = raiseWithDam(breed, litter, INTENSIVE, { maxMonths = 6 })
-        CALIB["R1/" .. breed .. "/" .. litter] = { lambs = lambs, ewe = ewe }
+        local lambs, ewe, pool = raiseWithDam(breed, litter, INTENSIVE, { maxMonths = 6 })
+        CALIB["R1/" .. breed .. "/" .. litter] = { lambs = lambs, ewe = ewe, milkPool = pool }
     end
 end
 -- R2 / V2: grass and milk only.
 for _, breed in ipairs({ "LANDRACE", "TEXEL", "STEINSCHAF", "BLACK_WELSH", "BLACKFACE" }) do
     for _, litter in ipairs({ 1, 2 }) do
-        local lambs, ewe = raiseWithDam(breed, litter, GRASS, { maxMonths = 9 })
-        CALIB["R2/" .. breed .. "/" .. litter] = { lambs = lambs, ewe = ewe }
+        local lambs, ewe, pool = raiseWithDam(breed, litter, GRASS, { maxMonths = 9 })
+        CALIB["R2/" .. breed .. "/" .. litter] = { lambs = lambs, ewe = ewe, milkPool = pool }
     end
 end
 -- R3 / V3: weaned ram lambs on a fixed grass allowance (Teagasc's autumn grazing: the sward, not
@@ -222,40 +252,133 @@ do
     CALIB["EWE/grass/twins"] = { ewe = eweLog }
 end
 
--- Ewe year, one ewe without a break (lowland, March lambing): twins on grass to weaning at 3
--- months, the lambs then leave; dry on grass to mating at month 7; pregnant with twins on grass,
--- the last two of the five months housed on silage; lambing at month 12. BCS at weaning, mating
--- and lambing against the S5 checklist's D6 (FAS lowland: weaning 2.5, mating 3-3.5, lambing 3).
+-- Ewe year, one ewe without a break, from mating to the next mating (lowland Landrace, twins).
+-- Month 0: mated, at the reference reserve (BCS 3: the setup, not judged). Five months pregnant
+-- on grass, the last two housed on silage (gestation 5 months, Hof Bergmann animals.xml); at
+-- month 5 the twins are born as the game does it (pregnancy over, monthsSinceLastBirth 0, a
+-- parent; a ewe is never isLactating, RLLactation.startsAtBirth); three months on grass with her
+-- lambs; at month 8 they leave (weaning); dry on grass to the next mating at month 12. The same
+-- ewe throughout: never rebuilt, her condition never reset. Each month: weight, BCS, gravid mass,
+-- what she ate (kg DM, MJ ME a day), her milk at full feed (Table 28), what her budget paid and
+-- what her lambs took (kg a day as drunk), and her requirement at the month's middle.
 do
     GrowthSim.setDaysPerPeriod(1)
     local perMonth = 24 * GrowthSim.env.daysPerPeriod
+    local days = RLFeedProfiles.getConfig().realDaysPerPeriod
     local _, ramSub = Economics.find("RAM_LANDRACE")
     local ewe = SheepSim.ewe("SHEEP_LANDRACE", "CY")
-    local pen = SheepSim.makePen({ ewe, SheepSim.lamb("RAM_LANDRACE", "CY", "CY1"), SheepSim.lamb("SHEEP_LANDRACE", "CY", "CY2") })
-    local log = { { 0, RLBodyCondition.getBCS(ewe), ewe.weight } }
-    local marks = {}
-    local function month(m, stock)
-        SheepSim.run(pen, perMonth, stock)
-        log[#log + 1] = { m, RLBodyCondition.getBCS(ewe), ewe.weight }
+    RLGrowth.setReserveIndex(ewe, RLBodyCondition.getConfig(ewe).referenceReserve)
+    RLBodyCondition.ensureState(ewe, "calib").reserve = RLBodyCondition.getConfig(ewe).referenceReserve
+    local pen = SheepSim.makePen({ ewe })
+    local lambs = {}
+    local month = { kg = 0, me = 0, days = 0, potential = 0, paid = 0, taken = 0 }
+    local fn = function(kind, data)
+        if kind ~= "STEP" then return end
+        for _, e in ipairs(data.animals) do
+            if e.animal == ewe then
+                month.kg, month.me, month.days = month.kg + e.feed.kg, month.me + e.feed.me, month.days + e.feed.dtDays
+                month.potential = month.potential + RLFeed.getDamMilk(ewe) * data.stepDays
+            end
+        end
+        for _, d in ipairs(data.dams or {}) do
+            if d.animal == ewe then month.paid, month.taken = month.paid + d.paidLiters, month.taken + d.allocatedLiters end
+        end
     end
-    for m = 1, 3 do month(m, GRASS) end
-    marks.weaning = RLBodyCondition.getBCS(ewe)
-    pen = SheepSim.makePen({ ewe })
-    for m = 4, 7 do month(m, GRASS) end
-    marks.mating = RLBodyCondition.getBCS(ewe)
+    RLFeed.addObserver(fn)
+    local log, marks, needs = {}, {}, {}
+    local function requirement()
+        local dtMonths = 0.25 / days
+        local a = RLFeed.describeAnimal(ewe, { target = "AUTO" }, dtMonths, 0.25)
+        return a.needs.maintenance + a.needs.pregnancy + a.needs.milk, a.needs
+    end
+    local function row(m)
+        local d = math.max(month.days, 1e-9)
+        log[#log + 1] = { month = m, bcs = RLBodyCondition.getBCS(ewe), weight = ewe.weight, gravid = ewe.rlGrowth.gravidKg or 0,
+            dmPerDay = month.kg / d, mePerDay = month.me / d, milkPotential = month.potential / d, milkPaid = month.paid / d,
+            lambsTook = month.taken / d, need = needs[m] }
+        month = { kg = 0, me = 0, days = 0, potential = 0, paid = 0, taken = 0 }
+    end
+    log[1] = { month = 0, bcs = RLBodyCondition.getBCS(ewe), weight = ewe.weight, gravid = 0 }
     ewe.isPregnant, ewe.pregnancy, ewe.reproduction = true, { pregnancies = { { getSubType = function() return ramSub end },
         { getSubType = function() return ramSub end } } }, 0
-    for m = 8, 12 do
-        local stock = m > 10 and { SILAGE = 4000 } or GRASS
-        for h = 1, perMonth do
-            ewe.reproduction = 100 * ((m - 8) * perMonth + h) / (5 * perMonth)
-            SheepSim.run(pen, 1, stock)
+    for m = 1, 12 do
+        local stock = (m == 4 or m == 5) and { SILAGE = 4000 } or GRASS
+        if m == 6 then
+            -- Lambing, as AnimalReproduction does it for a ewe.
+            ewe.isPregnant, ewe.pregnancy, ewe.reproduction = false, nil, 0
+            ewe.monthsSinceLastBirth, ewe.isParent, ewe.birthCount = 0, true, (ewe.birthCount or 1) + 1
+            lambs = { SheepSim.lamb("RAM_LANDRACE", "CY", "CY1"), SheepSim.lamb("SHEEP_LANDRACE", "CY", "CY2") }
+            pen = SheepSim.makePen({ ewe, lambs[1], lambs[2] })
+        elseif m == 9 then
+            pen = SheepSim.makePen({ ewe })
         end
-        log[#log + 1] = { m, RLBodyCondition.getBCS(ewe), ewe.weight }
+        for h = 1, perMonth do
+            if m <= 5 then ewe.reproduction = 100 * ((m - 1) * perMonth + h) / (5 * perMonth) end
+            SheepSim.run(pen, 1, stock)
+            if h == math.floor(perMonth / 2) then needs[m] = requirement() end
+            -- Her requirement one week before lambing (Table 8's last column).
+            if m == 5 and h == perMonth - math.floor(perMonth * 7 / days + 0.5) then
+                local total, n = requirement()
+                marks.lateNeed, marks.lateNeedWeight = n.maintenance + n.pregnancy, ewe.weight - (ewe.rlGrowth.gravidKg or 0)
+            end
+            if m == 6 and h == math.floor(perMonth / 2) then
+                local _, n = requirement()
+                marks.lactNeed, marks.lactMilk, marks.lactWeight = n.maintenance + n.milk, RLFeed.getDamMilk(ewe), ewe.weight
+            end
+        end
+        if ewe.monthsSinceLastBirth ~= nil and m >= 6 then ewe.monthsSinceLastBirth = ewe.monthsSinceLastBirth + 1 end
+        row(m)
+        if m == 5 then marks.lambing, marks.gravidAtTerm = RLBodyCondition.getBCS(ewe), ewe.rlGrowth.gravidKg or 0 end
+        if m == 8 then marks.weaning = RLBodyCondition.getBCS(ewe) end
+        if m == 12 then marks.mating = RLBodyCondition.getBCS(ewe) end
     end
-    marks.lambing = RLBodyCondition.getBCS(ewe)
-    CALIB["EWE/cycle/twins"] = { ewe = log, weaningBcs = marks.weaning, matingBcs = marks.mating, lambingBcs = marks.lambing,
-        gravidKg = ewe.rlGrowth.gravidKg or 0 }
+    RLFeed.removeObserver(fn)
+    CALIB["EWE/year/twins"] = { log = log, lambingBcs = marks.lambing, weaningBcs = marks.weaning, matingBcs = marks.mating,
+        gravidKg = marks.gravidAtTerm, lateNeed = marks.lateNeed, lateNeedWeight = marks.lateNeedWeight, lactNeed = marks.lactNeed,
+        lactMilk = marks.lactMilk, lactWeight = marks.lactWeight, startBcs = log[1].bcs,
+        lambWeights = { lambs[1].weight, lambs[2].weight } }
+end
+
+-- Energy against AHDB Feeding the ewe (AFRC 1993), at the tables' own weights. Table 8: housed
+-- pregnant ewes, ME MJ a day, by live weight, litter and weeks to lambing (a diet of 11 MJ/kg DM,
+-- no weight loss). The model's requirement: maintenance + pregnancy of RLFeed.describeAnimal for a
+-- Landrace ewe of that weight without her gravid mass, at the pregnancy's progress 1 - weeks x 7 /
+-- 150 days. Table 29's lactation rows are a linear sum in the model (maintenance x W^0.75 +
+-- meMJPerKg x milk - reserveMobilizeMEPerKg x loss), so they are worked out in the judge from the
+-- config values printed here; one nursing ewe checks that sum against describeAnimal.
+do
+    GrowthSim.setDaysPerPeriod(1)
+    local days = RLFeed.getConfig().realDaysPerPeriod
+    local _, ramSub = Economics.find("RAM_LANDRACE")
+    local cells = {}
+    for _, w in ipairs({ 50, 60, 70, 80 }) do
+        for _, n in ipairs({ 1, 2, 3 }) do
+            for _, weeks in ipairs({ 7, 5, 3, 1 }) do
+                local ewe = SheepSim.ewe("SHEEP_LANDRACE", "T8")
+                SheepSim.makePen({ ewe })
+                local pregnancies = {}
+                for i = 1, n do pregnancies[i] = { getSubType = function() return ramSub end } end
+                ewe.isPregnant, ewe.pregnancy, ewe.reproduction = true, { pregnancies = pregnancies }, 100 * (1 - weeks * 7 / 150)
+                ewe.rlGrowth, ewe.rlGrowthPeek = nil, nil
+                ewe.weight = w + RLGrowth.getGravidTarget(ewe)
+                local a = RLFeed.describeAnimal(ewe, { target = "AUTO" }, 0.25 / days, 0.25)
+                cells[#cells + 1] = { w = w, n = n, weeks = weeks, model = a.needs.maintenance + a.needs.pregnancy,
+                    maintenance = a.needs.maintenance }
+            end
+        end
+    end
+    local sheep = RLFeedProfiles.getConfig().species.SHEEP
+    -- One nursing ewe (twins, first month: Table 28's 3.0 kg): describeAnimal's maintenance + milk.
+    local ewe = SheepSim.ewe("SHEEP_LANDRACE", "T29")
+    local pen = SheepSim.makePen({ ewe, SheepSim.lamb("RAM_LANDRACE", "T29", "T29a"), SheepSim.lamb("SHEEP_LANDRACE", "T29", "T29b") })
+    FeedSim.hour(pen)
+    ewe.rlGrowth, ewe.rlGrowthPeek = nil, nil
+    ewe.weight = 70
+    local a = RLFeed.describeAnimal(ewe, { target = "AUTO" }, 0.25 / days, 0.25)
+    CALIB["ENERGY"] = { table8 = cells, maintenancePerKgMetabolic = sheep.requirements.maintenanceMEPerKgMetabolic,
+        pregnancyFactor = sheep.requirements.pregnancyFactor, milkMePerKg = sheep.milk.meMJPerKg,
+        mobilizePerKg = sheep.requirements.reserveMobilizeMEPerKg, depositPerKg = sheep.requirements.reserveDepositMEPerKg,
+        nursing70 = { weight = 70, milk = RLFeed.getDamMilk(ewe), model = a.needs.maintenance + a.needs.milk } }
 end
 
 -- Ewe late pregnancy: the last two of five months on hay, silage, silage and barley; single, twins.
@@ -281,8 +404,91 @@ do
     end
 end
 
--- Month length: R1 Landrace twins at 1, 7 and 28 days.
-for _, days in ipairs({ 7, 28 }) do
+-- Sensitivity (reported, never judged): one value at a time, the rest as shipped. The ewe milk
+-- proxies (damMilk dm / me / cp: no source gives them for this milk; GE 5.013 MJ a kg as drunk is
+-- Sebek & Everts 1993 on fat 75, protein 53, lactose 48 g/kg, so me 25 x dm 0.19 = 4.75 MJ is ME/GE
+-- 0.9475, an assumption), the lamb maintenance candidate (0.466 / 0.482 in the trial) and the
+-- growth cost calibration value: R2 Landrace twins on grass (milk matters most there), R1 Landrace
+-- single on creep, R4 ram.
+do
+    local sheep = RLFeedProfiles.getConfig().species.SHEEP
+    local milk, physiology, requirements = sheep.damMilk, sheep.physiology, sheep.requirements
+    local base = { dm = milk.dm, me = milk.me, cp = milk.cp, young = physiology.youngMaintenanceMEPerKgMetabolic,
+        growth = requirements.growthMEPerKgAt500 }
+    local GE = 5.013
+    local function setMilk(v)
+        milk.dm, milk.me, milk.cp = v.dm or base.dm, v.me or base.me, v.cp or base.cp
+        physiology.youngMaintenanceMEPerKgMetabolic = v.young or base.young
+        requirements.growthMEPerKgAt500 = v.growth or base.growth
+    end
+    local variants = {
+        { "shipped", {} },
+        { "milk ME/GE 0.85", { me = 0.85 * GE / base.dm } }, { "milk ME/GE 0.90", { me = 0.90 * GE / base.dm } },
+        { "milk ME/GE 1.00", { me = 1.00 * GE / base.dm } },
+        { "milk DM 0.17 (same ME a kg as drunk)", { dm = 0.17, me = base.me * base.dm / 0.17 } },
+        { "milk DM 0.21 (same ME a kg as drunk)", { dm = 0.21, me = base.me * base.dm / 0.21 } },
+        { "milk CP 0.24", { cp = 0.24 } }, { "milk CP 0.32", { cp = 0.32 } },
+        { "lamb maintenance 0.466", { young = 0.466 } }, { "lamb maintenance 0.482", { young = 0.482 } },
+        { "growth cost 30", { growth = 30 } }, { "growth cost 36", { growth = 36 } },
+    }
+    for _, v in ipairs(variants) do
+        setMilk(v[2])
+        local r2 = raiseWithDam("LANDRACE", 2, GRASS, { maxMonths = 9 })
+        local r1 = raiseWithDam("LANDRACE", 1, INTENSIVE, { maxMonths = 6 })
+        local r4 = storeLambs("LANDRACE", { "male" }, HOUSED, 60, { age = 5, weight = 32 })
+        CALIB["SENS/" .. v[1]] = { r2RamAge = r2[1].ageAtRef, r2RamAt3 = r2[1].at3, r1RamAge = r1[1].ageAtRef, r1RamAt3 = r1[1].at3,
+            r4Adg = r4[1].adg }
+    end
+    setMilk({})
+end
+
+-- The ram : wether : ewe lamb ratio (V6) taken apart: the ewe lamb's own curve (S4: her gain is
+-- 0.76 of the ram's), the growth cost by sex (0.80 / 1.00 / 1.25, a calibration value) and the
+-- fat offset of the finishing target (wether +0.09, ewe lamb +0.18), each switched off alone and
+-- all together, on R4.
+do
+    local sheep = RLFeedProfiles.getConfig().species.SHEEP
+    local physiology = sheep.physiology
+    local body = RLBodyConditionConfig.get().species.SHEEP
+    -- Her curve: the Landrace profile's female knots swapped for the male ones (birth knot included).
+    local knots = RLGrowth.getConfig().profiles["SHEEP:LANDRACE"].knots
+    local base = { male = physiology.growthCostMale, castrate = physiology.growthCostCastrate, female = physiology.growthCostFemale,
+        steer = body.steerFinishShift, femaleShift = body.femaleFinishShift, femaleKnots = knots.female }
+    local function set(v)
+        physiology.growthCostMale = v.noCost and 1 or base.male
+        physiology.growthCostCastrate = v.noCost and 1 or base.castrate
+        physiology.growthCostFemale = v.noCost and 1 or base.female
+        body.steerFinishShift = v.noShift and 0 or base.steer
+        -- A tiny shift keeps her on the finishing rules (0 would take her off them).
+        body.femaleFinishShift = v.noShift and 1e-9 or base.femaleShift
+        knots.female = v.ramCurve and knots.male or base.femaleKnots
+        RLGrowth.resetCaches()
+    end
+    for _, v in ipairs({ { "shipped", {} }, { "no sex growth cost", { noCost = true } }, { "no fat offset", { noShift = true } },
+        { "ewe lamb on the ram's curve", { ramCurve = true } }, { "none of the three", { noCost = true, noShift = true, ramCurve = true } } }) do
+        set(v[2])
+        local lambs = storeLambs("LANDRACE", { "male", "wether", "female" }, HOUSED, 60, { age = 5, weight = 32 })
+        CALIB["V6PARTS/" .. v[1]] = { lambs = lambs }
+    end
+    set({})
+end
+
+-- Growth cost beyond R4 (reported; no trial data to judge it against): store lambs of four breeds
+-- from 25 and 40 kg, housed on ad lib concentrate and on silage with 0.5 kg barley a day.
+do
+    for _, breed in ipairs({ "LANDRACE", "TEXEL", "SUFFOLK", "BLACKFACE" }) do
+        for _, start in ipairs({ { 25, 4 }, { 40, 6 } }) do
+            local adlib = storeLambs(breed, { "male" }, HOUSED, 60, { age = start[2], weight = start[1] })
+            local barley = 0.5 * litersPerKgFresh("BARLEY") * 1.25
+            local refill = function(pen) pen:add("BARLEY", barley * #pen.animals) end
+            local limited = storeLambs(breed, { "male" }, { SILAGE = 4000 }, 60, { age = start[2], weight = start[1], refill = refill })
+            CALIB["GROWTH/" .. breed .. "/" .. start[1]] = { adlib = adlib[1], limited = limited[1] }
+        end
+    end
+end
+
+-- Month length: R1 Landrace twins at 1, 3, 7 and 28 days.
+for _, days in ipairs({ 3, 7, 28 }) do
     local lambs = raiseWithDam("LANDRACE", 2, INTENSIVE, { maxMonths = 6, days = days })
     CALIB["R1/LANDRACE/2/days" .. days] = { lambs = lambs }
 end

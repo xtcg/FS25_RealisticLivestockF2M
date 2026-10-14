@@ -209,7 +209,10 @@
         Sheep (S5, 2026-10-13): candidates for the offline calibration, off until the weight
         model's SHEEP type is enabled. One BCS point is 10-13% of a ewe's live weight (FAS; AHDB
         Table 4 uses about 10%): with BCS = 1 + 4r, reserveCapacityRatio 0.48 is 12% of the
-        reference weight a point (cattle 0.20: 5%). Ewes gain a BCS point in 6-8 weeks on good
+        reference weight a point (cattle 0.20: 5%) - of the frame's reference weight, not of any
+        current weight. The reserve index r is a model state, not a body fat percentage; the EUROP
+        mapping below and the meat factors are game design (the AHDB price gap they follow is a
+        price, not a measured meat loss). Ewes gain a BCS point in 6-8 weeks on good
         grass (AHDB) - the energy they eat sets that; gainRatePerMonth 0.30 (1.2 BCS) only caps a
         lamb finished on concentrate - and lose condition fast in early lactation. The
         reference ewe is at BCS 3 (referenceReserve 0.5). Fat classes: EUROP 1 / 2 / 3L / 3H / 4L /
