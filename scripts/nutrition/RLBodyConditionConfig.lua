@@ -47,9 +47,12 @@ RLBodyConditionConfig.DEFAULT_CURVES = {
 --- leaves conception as it is (sheep S5: BCS and reproduction are S7); birthReserve (-1: the
 --- initialReserve) the reserve index a newborn starts with (sheep: lean, about fat class 2);
 --- finishReadyReserve / finishOverfatReserve (-1: the finish score's 65 / 80) the reserve from which
---- a grown young animal is ready, and over-fat (sheep: fat class 2 and 4L).
+--- a grown young animal is ready, and over-fat (sheep: fat class 2 and 4L); youngUntilMonth (0: no
+--- limit) the age (months) from which an animal that never had young is grown: no fat class, and a
+--- female no longer on the finishing target (sheep 12: a maiden ewe past it is a ewe hogg kept on
+--- the heifer's rules, not a ewe lamb fattened).
 RLBodyConditionConfig.SPECIES_DEFAULTS = { femaleFinishShift = 0, fertilityEffect = 1, birthReserve = -1, finishReadyReserve = -1,
-    finishOverfatReserve = -1 }
+    finishOverfatReserve = -1, youngUntilMonth = 0 }
 
 
 --- A species section from its element: the root's values where it leaves one out, its own
@@ -101,6 +104,10 @@ function RLBodyConditionConfig.validateSpecies(section)
     if section.fertilityEffect ~= 0 and section.fertilityEffect ~= 1 then return false, "fertilityEffect must be 0 or 1" end
     if section.birthReserve ~= -1 and not (section.birthReserve >= section.minReserve and section.birthReserve <= 1) then
         return false, "birthReserve must be -1 or between minReserve and 1"
+    end
+    if section.youngUntilMonth < 0 then return false, "youngUntilMonth must be >= 0" end
+    if #(section.fatClasses or {}) > 0 and section.youngUntilMonth <= 0 then
+        return false, "a section with fat classes needs youngUntilMonth > 0"
     end
     for i, class in ipairs(section.fatClasses or {}) do
         if class.minReserve ~= class.minReserve or class.minReserve < 0 or class.minReserve > 1 then

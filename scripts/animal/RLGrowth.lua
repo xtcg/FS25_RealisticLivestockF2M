@@ -35,8 +35,8 @@
         weight the state was last set for), ageMonths (a continuous age clock), legacyAnchor and
         anchorElapsedMonths (an old savegame's animal, below), feedAdapted (the concentrate share its
         rumen is adapted to), feedShortDays (model days of maintenance shortfall built up) and
-        solidIntakeKg (a young animal's recent solid feed, kg DM a day: an orphan lamb's readiness
-        to wean), all real-equivalent nutrition (RLFeed), source ("birth", "generated",
+        creepDays (model days in a row a young animal has eaten creep feed in earnest: an orphan
+        lamb's readiness to wean), all real-equivalent nutrition (RLFeed), source ("birth", "generated",
         "derived", "resync", "stream"), lastTick (game hour of the last step), version.
     The body condition state (animal.bodyCondition) mirrors the reserve as its index r = R / K
     after every step, so BCS, finish score and their factors read it as before.
@@ -172,11 +172,22 @@ function RLGrowth.coversSubType(subType)
     if not RLGrowth.isEnabled() then return false end
     local binding = RLGrowth.getBinding(subType)
     if binding == nil then return false end
-    if binding.typeName ~= nil then
-        local entry = RLWeightProfiles.getTypeEntry(binding.typeName)
-        if entry ~= nil and entry.nutrition == "REAL" then return RLGrowth.speciesNutritionReady(binding.typeName) end
-    end
+    if RLGrowth.needsRealNutrition(subType) then return RLGrowth.speciesNutritionReady(binding.typeName) end
     return true
+end
+
+
+--- Whether the subtype's type grows on the model only under the real-equivalent nutrition mode
+--- (weightProfiles.xml nutrition="REAL": sheep). Such an animal is stepped by its pen alone; in a
+--- pen that does not run the mode this hour (a goat in it, no trough) it keeps the old weight rule
+--- (RLGrowth.step declines it), never the budget on the old feeding.
+--- @param subType table|nil
+--- @return boolean
+function RLGrowth.needsRealNutrition(subType)
+    local binding = RLGrowth.getBinding(subType)
+    if binding == nil or binding.typeName == nil then return false end
+    local entry = RLWeightProfiles.getTypeEntry(binding.typeName)
+    return entry ~= nil and entry.nutrition == "REAL"
 end
 
 
@@ -509,7 +520,7 @@ function RLGrowth.newState(fields)
         anchorElapsedMonths = fields.anchorElapsedMonths,
         feedAdapted = fields.feedAdapted,
         feedShortDays = fields.feedShortDays,
-        solidIntakeKg = fields.solidIntakeKg,
+        creepDays = fields.creepDays,
         gravidKg = fields.gravidKg,
         lactationMonths = fields.lactationMonths,
         source = fields.source or "derived",
@@ -1338,10 +1349,14 @@ end
 --- (RLGrowth.stepFeed, from RLFeed's model-time steps).
 --- @param animal table
 --- @param foodFactor number The pen's (or the rearing pen's own) food factor
---- @return boolean handled False: not covered or no game hour to count it in; the caller runs
----         the old rules
+--- @return boolean handled False: not covered, a type stepped only by its pen's nutrition mode
+---         (RLGrowth.needsRealNutrition) or no game hour to count it in; the caller runs the old
+---         rules
 function RLGrowth.step(animal, foodFactor)
     if animal == nil or animal.isDead or not RLGrowth.covers(animal) then return false end
+    -- A sheep's budget is calibrated on what its pen's mode feeds it (ME), never on the old food
+    -- factor: out of such a pen it takes the old weight rule (AnimalHealth.updateHealth).
+    if RLGrowth.needsRealNutrition(animal:getSubType()) then return false end
     local tick = RLBodyCondition.getTickId()
     if tick == nil then return false end
 
@@ -1463,7 +1478,7 @@ function RLGrowth.loadFromXMLFile(xmlFile, key)
         anchorElapsedMonths = xmlFile:getFloat(base .. "#anchorElapsedMonths"),
         feedAdapted = xmlFile:getFloat(base .. "#feedAdapted"),
         feedShortDays = xmlFile:getFloat(base .. "#feedShortDays"),
-        solidIntakeKg = xmlFile:getFloat(base .. "#solidIntakeKg"),
+        creepDays = xmlFile:getFloat(base .. "#creepDays"),
         gravidKg = xmlFile:getFloat(base .. "#gravidKg"),
         lactationMonths = xmlFile:getFloat(base .. "#lactationMonths"),
         source = xmlFile:getString(base .. "#source", "derived"),
@@ -1549,7 +1564,7 @@ function RLGrowth.isUsable(state)
         and (state.legacyAnchor == nil or (finite(state.legacyAnchor) and state.legacyAnchor > 0))
         and (state.feedAdapted == nil or (finite(state.feedAdapted) and state.feedAdapted >= 0 and state.feedAdapted <= 1))
         and optional(state.feedShortDays) and optional(state.gravidKg) and optional(state.lactationMonths)
-        and optional(state.solidIntakeKg)
+        and optional(state.creepDays)
 end
 
 
@@ -1571,7 +1586,7 @@ function RLGrowth.saveToXMLFile(state, xmlFile, key)
     end
     if state.feedAdapted ~= nil then xmlFile:setFloat(base .. "#feedAdapted", state.feedAdapted) end
     if state.feedShortDays ~= nil then xmlFile:setFloat(base .. "#feedShortDays", state.feedShortDays) end
-    if state.solidIntakeKg ~= nil then xmlFile:setFloat(base .. "#solidIntakeKg", state.solidIntakeKg) end
+    if state.creepDays ~= nil then xmlFile:setFloat(base .. "#creepDays", state.creepDays) end
     if state.gravidKg ~= nil then xmlFile:setFloat(base .. "#gravidKg", state.gravidKg) end
     if state.lactationMonths ~= nil then xmlFile:setFloat(base .. "#lactationMonths", state.lactationMonths) end
     xmlFile:setString(base .. "#source", state.source or "derived")
@@ -1597,7 +1612,7 @@ function RLGrowth.writeStream(state, streamId)
     streamWriteFloat32(streamId, state.feedShortDays or -1)
     streamWriteFloat32(streamId, state.gravidKg or -1)
     streamWriteFloat32(streamId, state.lactationMonths or -1)
-    streamWriteFloat32(streamId, state.solidIntakeKg or -1)
+    streamWriteFloat32(streamId, state.creepDays or -1)
 end
 
 
@@ -1622,7 +1637,7 @@ function RLGrowth.readStream(streamId)
         feedShortDays = optional(streamReadFloat32(streamId)),
         gravidKg = optional(streamReadFloat32(streamId)),
         lactationMonths = optional(streamReadFloat32(streamId)),
-        solidIntakeKg = optional(streamReadFloat32(streamId)),
+        creepDays = optional(streamReadFloat32(streamId)),
         source = "stream",
     })
     if not RLGrowth.isUsable(state) then return nil end

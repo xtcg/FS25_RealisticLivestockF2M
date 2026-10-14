@@ -102,9 +102,12 @@ end
 
 
 --- Whether a female of a species with femaleFinishShift (sheep: ewe lambs are finished too) reads
---- the finishing target: young, never a mother.
+--- the finishing target: never a mother, and younger than the section's youngUntilMonth (a maiden
+--- ewe past it keeps the heifer's rules).
 local function finishesFemale(animal, config)
-    return animal.gender == "female" and not animal.isParent and (config.femaleFinishShift or 0) > 0
+    if animal.gender ~= "female" or animal.isParent or (config.femaleFinishShift or 0) <= 0 then return false end
+    local untilMonth = config.youngUntilMonth or 0
+    return untilMonth <= 0 or (animal.age or 0) < untilMonth
 end
 
 
@@ -983,14 +986,14 @@ end
 
 
 --- The fat class a young animal of a species with fat classes shows (sheep: EUROP 1..5, the last
---- class whose minReserve its reserve reaches); nil for a grown animal (a mother, or past
---- autoFinish age) and every other species.
+--- class whose minReserve its reserve reaches); nil for a grown animal (a mother, or from the
+--- section's youngUntilMonth) and every other species.
 --- @param animal table
 --- @return string|nil
 function RLBodyCondition.getFatClass(animal)
     local config = RLBodyCondition.getConfig(animal)
     local classes = config.fatClasses
-    if classes == nil or #classes == 0 or animal.isParent or (animal.age or 0) >= 12 then return nil end
+    if classes == nil or #classes == 0 or animal.isParent or (animal.age or 0) >= config.youngUntilMonth then return nil end
     local reserve = RLBodyCondition.getReserve(animal)
     local name = classes[1].name
     for _, class in ipairs(classes) do

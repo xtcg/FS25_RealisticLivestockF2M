@@ -1,7 +1,7 @@
 -- Sheep S5 nursing rules (feedProfiles.xml species SHEEP nursing) in the real-equivalent mode:
 -- ewes nurse their own lambs from one finite pool on AHDB Table 28's rows, the pool is paid by the
 -- ewe's budget and never stored or sold, lambs wean by age, an orphan gets no milk and is weaned
--- early only with an established solid intake, lambs at foot eat at most the creep allowance, and
+-- early only after days in a row on creep feed, lambs at foot eat at most the creep allowance, and
 -- the feeds added for sheep are taken only by pens that eat them. Behaviour, not calibration.
 
 loadMod("tests/sheepsim.lua")
@@ -130,21 +130,46 @@ do
     local ready = SheepSim.grown("RAM_LANDRACE", "O2", 2.2, { motherId = "GONE" })
     local notReady = SheepSim.grown("RAM_LANDRACE", "O3", 2.2, { motherId = "GONE" })
     SheepSim.makePen({ ready, notReady }, GRASS)
-    ready.rlGrowth.solidIntakeKg, notReady.rlGrowth.solidIntakeKg = 0.30, 0.10
-    check("orphan: from 2 months an orphan eating 0.30 kg DM of solids a day is weaned; one eating 0.10 is not",
+    ready.rlGrowth.creepDays, notReady.rlGrowth.creepDays = 3.5, 3.0
+    check("orphan: from 2 months an orphan 3.5 days in a row on creep is weaned; one 3 days on it is not",
         RLFeed.isEarlyWeaned(ready) and RLFeed.getRationClass(ready) == "GROWING"
         and not RLFeed.isEarlyWeaned(notReady) and RLFeed.getRationClass(notReady) == "CALF")
     local withDam = SheepSim.grown("RAM_LANDRACE", "O4", 2.2, { motherId = "M4" })
-    withDam.rlGrowth.solidIntakeKg = 0.5
+    withDam.rlGrowth.creepDays = 10
     SheepSim.makePen({ SheepSim.ewe("SHEEP_LANDRACE", "M4"), withDam }, GRASS)
     check("orphan: a lamb with its ewe is never weaned early", not RLFeed.isEarlyWeaned(withDam) and RLFeed.getRationClass(withDam) == "CALF")
 
-    -- The solid intake average follows what it eats.
-    local lamb = SheepSim.grown("RAM_LANDRACE", "O5", 1.9, { motherId = "GONE" })
+    -- Grass alone never makes an orphan ready, however long it eats it.
+    local onGrass = SheepSim.grown("RAM_LANDRACE", "O6", 2.1, { motherId = "GONE" })
+    local grassPen = SheepSim.makePen({ onGrass })
+    local steps = stepEvents(grassPen, 6, GRASS)
+    local grassKg = 0
+    for _, data in ipairs(steps) do for _, e in ipairs(data.animals) do grassKg = grassKg + e.feed.kg end end
+    check(string.format("orphan: on grass alone (%.2f kg DM eaten) it is never ready (creep days %s)", grassKg, tostring(onGrass.rlGrowth.creepDays)),
+        grassKg > 0 and (onGrass.rlGrowth.creepDays or 0) == 0 and not RLFeed.isEarlyWeaned(onGrass))
+
+    -- Creep days count model days in a row on creep; one step without it starts again.
+    local lamb = SheepSim.grown("RAM_LANDRACE", "O5", 2.1, { motherId = "GONE" })
     local lambPen = SheepSim.makePen({ lamb })
-    SheepSim.run(lambPen, 6, { GRASS_WINDROW = 3000, BARLEY = 500 })
-    check(string.format("orphan: its solid intake is tracked (%.3f kg DM a day)", lamb.rlGrowth.solidIntakeKg or -1),
-        (lamb.rlGrowth.solidIntakeKg or 0) > 0)
+    local creep = { GRASS_WINDROW = 3000, BARLEY = 500 }
+    SheepSim.run(lambPen, 1, creep)
+    local first = lamb.rlGrowth.creepDays or 0
+    check(string.format("orphan: one hour (1.25 model days) on creep is not enough (%.2f days)", first),
+        first > 0 and first < 3.5 and not RLFeed.isEarlyWeaned(lamb))
+    lamb.rlGrowth.creepDays = 2.5
+    lambPen.spec_husbandryFood.fillLevels[FILL.BARLEY] = 0
+    SheepSim.run(lambPen, 1, GRASS)
+    check("orphan: a step without creep starts the count again", (lamb.rlGrowth.creepDays or -1) == 0)
+    local hours = 0
+    while not RLFeed.isEarlyWeaned(lamb) and hours < 10 do
+        SheepSim.run(lambPen, 1, creep)
+        hours = hours + 1
+    end
+    check(string.format("orphan: weaned after %d hours in a row on creep (%.2f model days)", hours, lamb.rlGrowth.creepDays or -1),
+        hours == 3 and lamb.rlGrowth.creepDays >= 3.5)
+    lambPen.spec_husbandryFood.fillLevels[FILL.BARLEY] = 0
+    SheepSim.run(lambPen, 1, GRASS)
+    check("orphan: once ready it stays weaned when the creep runs out", RLFeed.isEarlyWeaned(lamb))
 end
 
 
@@ -185,6 +210,17 @@ do
     check("troughs: a pen with a goat (never in the mode) takes no silage or grain; its pen keeps the old rules",
         not RLFeed.acceptsFill(mixed, silage) and not RLFeed.acceptsFill(mixed, barley) and RLFeed.acceptsFill(mixed, grass)
         and mixed.spec_husbandryFood.rlFeedPen.reason == "UNCOVERED_ANIMAL")
+    -- A sheep in that pen keeps the old weight rule: no budget on the old feeding (its ME
+    -- calibration needs the mode), so its development clock stands still.
+    local mixedLamb = SheepSim.grown("RAM_LANDRACE", "T3", 2.0)
+    local mixedPen = SheepSim.makePen({ mixedLamb, goat }, GRASS)
+    local development, ageClock, weight = mixedLamb.rlGrowth.developmentMonths, mixedLamb.rlGrowth.ageMonths, mixedLamb.weight
+    local lastTick = mixedLamb.rlGrowth.lastTick
+    SheepSim.run(mixedPen, 6, GRASS)
+    check(string.format("mixed pen: a lamb with a goat takes the old weight rule (development %.4f -> %.4f, age clock %.4f -> %.4f, last step %s, weight %.2f -> %.2f)",
+        development, mixedLamb.rlGrowth.developmentMonths, ageClock, mixedLamb.rlGrowth.ageMonths, tostring(mixedLamb.rlGrowth.lastTick), weight, mixedLamb.weight),
+        not mixedPen.spec_husbandryFood.rlFeedPen.active and mixedLamb.rlGrowth.developmentMonths == development
+        and mixedLamb.rlGrowth.ageMonths == ageClock and mixedLamb.rlGrowth.lastTick == lastTick and mixedLamb.weight > weight)
     FeedSim.setMode(false)
     GrowthSim.advanceHour()
     check("troughs: under the old model the sheep pen takes neither", not RLFeed.acceptsFill(pen, silage) and not RLFeed.acceptsFill(pen, barley))
@@ -243,6 +279,21 @@ do
         and RLBodyCondition.getInfoText(tup):find("rl_ui_bcs") ~= nil)
     check("display: a ewe lamb is read against her breed's ram lamb market weight, not a grown ewe's",
         near(RLBodyCondition.getReferenceWeight(eweLamb), RLBodyCondition.getReferenceWeight(ram), 1e-6))
+    -- A maiden ewe past 12 months is a ewe hogg: no fat class, the heifer's ceiling, no verdict.
+    local hogg = SheepSim.grown("SHEEP_LANDRACE", "F6", 24)
+    SheepSim.makePen({ hogg }, GRASS)
+    local config = RLBodyCondition.getConfig(hogg)
+    check(string.format("display: a 24-month maiden ewe keeps the heifer's rules (ceiling %s, target %s, verdict %s)",
+        tostring(RLBodyCondition.getReserveCeiling(hogg)), tostring(RLBodyCondition.getReserveTarget(hogg)), tostring(RLBodyCondition.getFinishVerdict(hogg))),
+        RLBodyCondition.getFatClass(hogg) == nil and RLBodyCondition.getReserveTarget(hogg) == nil
+        and RLBodyCondition.getReserveCeiling(hogg) == config.heiferReserveCeiling and RLBodyCondition.getFinishVerdict(hogg) == nil
+        and RLBodyCondition.getInfoText(hogg):find("rl_ui_bcs") ~= nil
+        and RLFeed.getAnimalTarget(hogg, { target = "AUTO" }, RLFeed.getRationClass(hogg)) == "GROW")
+    local older = SheepSim.grown("SHEEP_LANDRACE", "F7", 11.5)
+    SheepSim.makePen({ older }, GRASS)
+    local lambCeiling = RLBodyCondition.getReserveCeiling(older, RLBodyCondition.getReferenceWeight(older))
+    check(string.format("display: an 11-month ewe lamb still reads the finishing target (ceiling %.3f at her market weight)", lambCeiling or -1),
+        lambCeiling ~= nil and lambCeiling > config.heiferReserveCeiling and RLBodyCondition.getFatClass(older) ~= nil)
     ram.weight = RLBodyCondition.getReferenceWeight(ram)
     eweLamb.weight = ram.weight
     check("display: a lamb at its market weight in 3L is ready, one in 4L over-fat",
@@ -271,11 +322,11 @@ do
 end
 
 
--- Saving: a lamb's solid intake (an orphan's readiness) is kept with its state ---------------------
+-- Saving: a lamb's creep days (an orphan's readiness) are kept with its state ---------------------
 
 do
     local lamb = SheepSim.grown("RAM_LANDRACE", "SV1", 1.5, { motherId = "GONE" })
-    lamb.rlGrowth.solidIntakeKg = 0.31
+    lamb.rlGrowth.creepDays = 2.75
     local stored = {}
     local xml = {
         setInt = function(_, k, v) stored[k] = v end, setFloat = function(_, k, v) stored[k] = v end,
@@ -285,7 +336,7 @@ do
     }
     RLGrowth.saveToXMLFile(lamb.rlGrowth, xml, "a")
     local loaded = RLGrowth.loadFromXMLFile(xml, "a")
-    check("saving: a lamb's solid intake survives a save and load", loaded ~= nil and near(loaded.solidIntakeKg, 0.31, 1e-9))
-    stored["a.growth#solidIntakeKg"] = -1
-    check("saving: a negative solid intake makes the state unusable (derived again), never trusted", RLGrowth.loadFromXMLFile(xml, "a") == nil)
+    check("saving: a lamb's creep days survive a save and load", loaded ~= nil and near(loaded.creepDays, 2.75, 1e-9))
+    stored["a.growth#creepDays"] = -1
+    check("saving: negative creep days make the state unusable (derived again), never trusted", RLGrowth.loadFromXMLFile(xml, "a") == nil)
 end

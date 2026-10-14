@@ -376,12 +376,13 @@ function RLFeed.isEarlyWeaned(animal)
     local owner = getOwner(animal)
     local nursing = getNursing(animal)
     if nursing ~= nil then
-        -- Nursing rules (sheep): an orphan from earlyWeaningMonth once it eats solid feed in earnest
-        -- (its recent solids at least readySolidKgDMPerDay); age alone does not make it ready.
+        -- Nursing rules (sheep): an orphan from earlyWeaningMonth once it has eaten creep feed in
+        -- earnest, readyCreepKgDMPerDay of concentrate for readyDays in a row (AHDB: 250 g a head
+        -- a day for 3-4 days); age alone, or grass, does not make it ready.
         if owner == nil or getFeedAge(animal) < nursing.earlyWeaningMonth then return false end
         if animal.motherId ~= nil and getPenDams(owner)[animal.motherId] ~= nil then return false end
         local state = animal.rlGrowth
-        return state ~= nil and (state.solidIntakeKg or 0) >= nursing.readySolidKgDMPerDay
+        return state ~= nil and (state.creepDays or 0) >= nursing.readyDays - 1e-9
     end
     if owner == nil or isRearingPen(owner) then return false end
     local age = (RLGrowth ~= nil and RLGrowth.covers(animal)) and RLGrowth.getContinuousAge(animal) or (animal.age or 0)
@@ -1609,15 +1610,22 @@ function RLFeed.afterStep(animal, state, feed, result, weightBefore, dtMonths)
     state.feedAdapted = RLFeedMath.adapt(state.feedAdapted or 0, feed.concShare or 0, feed.dtDays, config.ration)
     local nursing = config.nursing
     if nursing ~= nil and (feed.dtDays or 0) > 0 then
-        -- A young animal's solid feed (all it ate but its dam's milk), kg DM a day, averaged over
-        -- readyTauDays: an orphan is ready to wean once this is established (RLFeed.isEarlyWeaned).
+        -- A young animal's days in a row on creep feed: each step it eats at least
+        -- readyCreepKgDMPerDay of concentrate (DM, a day's rate) adds its model days, any other
+        -- step starts the count again. Once it reaches readyDays it is kept: the lamb has taken to
+        -- solid feed, and an orphan is weaned early (RLFeed.isEarlyWeaned).
         if getFeedAge(animal) < nursing.weaningMonth + 1 then
-            local milk = feed.damMilk ~= nil and feed.damMilk.kg or 0
-            local solid = math.max((feed.kg or 0) - milk, 0) / feed.dtDays
-            local alpha = 1 - math.exp(-feed.dtDays / nursing.readyTauDays)
-            state.solidIntakeKg = state.solidIntakeKg == nil and solid or state.solidIntakeKg + alpha * (solid - state.solidIntakeKg)
+            if (state.creepDays or 0) < nursing.readyDays - 1e-9 then
+                local conc = 0
+                for name, fill in pairs(feed.byFill or {}) do
+                    local profile = RLFeedProfiles.getUsableFeed(name)
+                    if profile ~= nil and profile.role == "CONCENTRATE" then conc = conc + fill.kg end
+                end
+                local onCreep = conc / feed.dtDays >= nursing.readyCreepKgDMPerDay - 1e-9
+                state.creepDays = onCreep and (state.creepDays or 0) + feed.dtDays or 0
+            end
         else
-            state.solidIntakeKg = nil
+            state.creepDays = nil
         end
     end
     feed.result = result

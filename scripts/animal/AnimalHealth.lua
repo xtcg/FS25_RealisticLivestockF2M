@@ -47,8 +47,9 @@ function AnimalHealth.updateHealth(animal, foodFactor)
     AnimalHealth.updateHealthOnly(animal, foodFactor)
 
     if RLGrowth.covers(animal) then
-        -- No game hour to count the step in: the old rule for this hour, to its old target (the
-        -- next step takes the weight it leaves as it is).
+        -- No game hour to count the step in, or a sheep in a pen that does not run the nutrition
+        -- mode this hour (a goat in it): the old rule for this hour, to its old target (the next
+        -- step takes the weight it leaves as it is).
         if RLGrowth.step(animal, foodFactor) then
             animal:applyUnderweightPenalty()
         else

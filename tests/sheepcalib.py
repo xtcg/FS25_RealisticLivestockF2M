@@ -64,14 +64,16 @@ def judge(c):
         marginal = lamb["preWeanConc"] / extra if extra and extra > 0 else None
         print(f"INFO V1 R1 {breed} creep {lamb['preWeanConc']:.1f} kg fresh to weaning: {lamb['creepFCR']:.2f} kg per kg of all gain, "
               f"{marginal if marginal is None else round(marginal, 2)} per kg of extra gain over grass alone (candidate 2-4)")
-    # A typical flock's lamb: lowland flocks rear about 1.7 lambs a ewe (singles 0.3, twins 0.7 of
-    # lambs), hill flocks about 1.3 (singles 0.7, twins 0.3).
-    for breed, lo, hi, single in (("LANDRACE", 4.3, 5.5, 0.3), ("TEXEL", 4.3, 5.5, 0.3), ("STEINSCHAF", 5.1, 5.5, 0.7),
-                                  ("BLACK_WELSH", 5.1, 5.5, 0.7), ("BLACKFACE", 5.1, 5.5, 0.7)):
+    # A typical flock's lamb, weighted by lambs (not ewes): lowland flocks rear about 1.7 lambs a
+    # ewe (30% of ewes with a single, 70% with twins: singles 0.3 / 1.7 = 17.6% of the lambs),
+    # hill flocks about 1.3 (70% / 30% of ewes: singles 0.7 / 1.3 = 53.8% of the lambs).
+    for breed, lo, hi, single_ewes in (("LANDRACE", 4.3, 5.5, 0.3), ("TEXEL", 4.3, 5.5, 0.3), ("STEINSCHAF", 5.1, 5.5, 0.7),
+                                       ("BLACK_WELSH", 5.1, 5.5, 0.7), ("BLACKFACE", 5.1, 5.5, 0.7)):
+        single = single_ewes / (single_ewes + 2 * (1 - single_ewes))
         ages = [l.get("ageAtRef") for k in (1, 2) for l in c[f"R2/{breed}/{k}"]["lambs"] if l["sex"] == "male"]
         mean = single * ages[0] + (1 - single) * ages[1] if all(ages) else None
-        gate(f"V2 R2 {breed} ram lambs, flock mix ({single:.0%} singles) {lo}-{hi} months +-0.5", mean is not None and lo - 0.5 <= mean <= hi + 0.5,
-             f"single {ages[0]:.2f}, twin {ages[1]:.2f}, flock {mean:.2f}")
+        gate(f"V2 R2 {breed} ram lambs, flock mix ({single_ewes:.0%} of ewes with singles = {single:.1%} of lambs) {lo}-{hi} months +-0.5",
+             mean is not None and lo - 0.5 <= mean <= hi + 0.5, f"single {ages[0]:.2f}, twin {ages[1]:.2f}, flock {mean:.2f}")
     base = c["R3/0"]["lambs"][0]["adg"]
     for kg, lo, hi in ((0.25, 1.5, 1.8), (0.5, 1.8, 2.2)):
         r = c[f"R3/{kg}"]["lambs"][0]["adg"] / base if base > 0 else 0
@@ -86,15 +88,23 @@ def judge(c):
     v5 = c["V5"]["lambs"]
     gate("V5 ad lib past the reference: 4L or fatter, saleable meat <= 0.97", all(l["yield"] <= 0.97 and l["fat"] in ("4L", "4H", "5") for l in v5),
          ", ".join(f"{l['sex']} {l['fat']} {l['yield']:.3f}" for l in v5))
+    # The ewe's year against the S5 checklist's D6 (FAS lowland targets: weaning 2.5, mating 3-3.5,
+    # lambing 3), one ewe without a break. Weaning is a floor (no thinner than 2.5), mating the
+    # band, lambing 3 +- 0.25 (a quarter score).
+    cycle = c["EWE/cycle/twins"]
+    gate("EWE year, lowland twins: weaning BCS >= 2.5 (D6)", cycle["weaningBcs"] >= 2.5 - 1e-9, f"{cycle['weaningBcs']:.2f}")
+    gate("EWE year, lowland twins: mating BCS 3.0-3.5 (D6)", 3.0 - 1e-9 <= cycle["matingBcs"] <= 3.5 + 1e-9, f"{cycle['matingBcs']:.2f}")
+    gate("EWE year, lowland twins: lambing BCS 3 +-0.25 (D6), housed on silage the last 2 months", 2.75 <= cycle["lambingBcs"] <= 3.25,
+         f"{cycle['lambingBcs']:.2f}, gravid {cycle['gravidKg']:.1f} kg")
+    print("INFO EWE year (month, BCS, kg): " + " ".join(f"({m:.0f},{b:.2f},{w:.1f})" for m, b, w in cycle["ewe"]))
     ewe = c["EWE/grass/twins"]["ewe"]
-    at3 = [b for m, b, w in ewe if abs(m - 3) < 1e-6][0]
-    last = ewe[-1][1]
-    gate("EWE lowland twins on grass: weaning BCS about 2.5 (2.25-2.75), back to 3+ before mating", 2.25 <= at3 <= 2.75 and last >= 2.9,
-         f"weaning {at3:.2f}, month {ewe[-1][0]:.0f} {last:.2f}")
+    print("INFO EWE lambs left with her after weaning (month, BCS): " + " ".join(f"({m:.0f},{b:.2f})" for m, b, w in ewe))
     for feed in ("silage", "silageBarley"):
         twin = c[f"PREG/{feed}/2"]
-        gate(f"EWE twins, late pregnancy on {feed}: lambing BCS 3 +-0.25 (lowland target), ME about AHDB's 18 MJ at term",
-             2.75 <= twin["bcsAtTerm"] <= 3.25, f"BCS {twin['bcsAtTerm']:.2f}, {twin['dmPerDay']:.2f} kg DM, {twin['mePerDay']:.1f} MJ, gravid {twin['gravidKg']:.1f} kg")
+        gate(f"EWE twins, late pregnancy on {feed} (from BCS 3): lambing BCS 3 +-0.25 (D6)",
+             2.75 <= twin["bcsAtTerm"] <= 3.25, f"BCS {twin['bcsAtTerm']:.2f}, gravid {twin['gravidKg']:.1f} kg")
+        # Energy is reported, not judged: AHDB Table 8's 18.3 MJ is for a 70 kg ewe at term.
+        print(f"INFO EWE twins on {feed} at term: {twin['dmPerDay']:.2f} kg DM, {twin['mePerDay']:.1f} MJ ME a day (AHDB Table 8: 18.3 MJ for a 70 kg ewe)")
     hay = c["PREG/hay/2"]
     print(f"INFO EWE twins, late pregnancy on hay alone: BCS {hay['bcsAtTerm']:.2f} at lambing (forage-only twin ewes lose condition)")
     one = c["R1/LANDRACE/2"]["lambs"][0]["ageAtRef"]

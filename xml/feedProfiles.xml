@@ -196,9 +196,10 @@
     trough milk. Curves at the young animal's age in months: milkMax (share of lambMilkKgPerDay it
     may drink), solidMax (share of its appetite its rumen takes as solids), solidEnergy (what solid
     forage is worth to it). weaningMonth: milk ends. A young animal whose dam is not in its pen
-    gets no milk (none is made for it): from earlyWeaningMonth, with an established solid intake
-    (readySolidKgDMPerDay as a readyTauDays average) it eats as a weaned animal; younger, it lives
-    on what it eats and its health and growth show the shortfall. creepMaxKgDMPerDay: most
+    gets no milk (none is made for it): from earlyWeaningMonth, once it has eaten creep feed in
+    earnest (readyCreepKgDMPerDay of concentrate DM a day for readyDays in a row; grass does not
+    count) it eats as a weaned animal; younger or not ready, it lives on what it eats and its
+    health and growth show the shortfall. creepMaxKgDMPerDay: most
     concentrate DM a young animal at foot eats a day. lactation: a dam's milk (kg a day) in each
     month after birth by her system and the young animals she suckles (single / twin; more share
     the twin row, at most maxSuckled counted); breeds name their system, the rest use default.
@@ -385,7 +386,7 @@
         </ration>
         <milk realKgPerDay="2.1" meMJPerKg="8.3"/>
         <damMilk dm="0.19" me="25.0" cp="0.28"/>
-        <nursing weaningMonth="3" earlyWeaningMonth="2" readySolidKgDMPerDay="0.22" readyTauDays="3.5"
+        <nursing weaningMonth="3" earlyWeaningMonth="2" readyCreepKgDMPerDay="0.22" readyDays="3.5"
             lambMilkKgPerDay="2.6" creepMaxKgDMPerDay="0.35" maxSuckled="2">
             <milkMax>
                 <point x="0" y="1.00"/>

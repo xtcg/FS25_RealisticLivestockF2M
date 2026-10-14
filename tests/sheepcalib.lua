@@ -222,6 +222,42 @@ do
     CALIB["EWE/grass/twins"] = { ewe = eweLog }
 end
 
+-- Ewe year, one ewe without a break (lowland, March lambing): twins on grass to weaning at 3
+-- months, the lambs then leave; dry on grass to mating at month 7; pregnant with twins on grass,
+-- the last two of the five months housed on silage; lambing at month 12. BCS at weaning, mating
+-- and lambing against the S5 checklist's D6 (FAS lowland: weaning 2.5, mating 3-3.5, lambing 3).
+do
+    GrowthSim.setDaysPerPeriod(1)
+    local perMonth = 24 * GrowthSim.env.daysPerPeriod
+    local _, ramSub = Economics.find("RAM_LANDRACE")
+    local ewe = SheepSim.ewe("SHEEP_LANDRACE", "CY")
+    local pen = SheepSim.makePen({ ewe, SheepSim.lamb("RAM_LANDRACE", "CY", "CY1"), SheepSim.lamb("SHEEP_LANDRACE", "CY", "CY2") })
+    local log = { { 0, RLBodyCondition.getBCS(ewe), ewe.weight } }
+    local marks = {}
+    local function month(m, stock)
+        SheepSim.run(pen, perMonth, stock)
+        log[#log + 1] = { m, RLBodyCondition.getBCS(ewe), ewe.weight }
+    end
+    for m = 1, 3 do month(m, GRASS) end
+    marks.weaning = RLBodyCondition.getBCS(ewe)
+    pen = SheepSim.makePen({ ewe })
+    for m = 4, 7 do month(m, GRASS) end
+    marks.mating = RLBodyCondition.getBCS(ewe)
+    ewe.isPregnant, ewe.pregnancy, ewe.reproduction = true, { pregnancies = { { getSubType = function() return ramSub end },
+        { getSubType = function() return ramSub end } } }, 0
+    for m = 8, 12 do
+        local stock = m > 10 and { SILAGE = 4000 } or GRASS
+        for h = 1, perMonth do
+            ewe.reproduction = 100 * ((m - 8) * perMonth + h) / (5 * perMonth)
+            SheepSim.run(pen, 1, stock)
+        end
+        log[#log + 1] = { m, RLBodyCondition.getBCS(ewe), ewe.weight }
+    end
+    marks.lambing = RLBodyCondition.getBCS(ewe)
+    CALIB["EWE/cycle/twins"] = { ewe = log, weaningBcs = marks.weaning, matingBcs = marks.mating, lambingBcs = marks.lambing,
+        gravidKg = ewe.rlGrowth.gravidKg or 0 }
+end
+
 -- Ewe late pregnancy: the last two of five months on hay, silage, silage and barley; single, twins.
 do
     GrowthSim.setDaysPerPeriod(1)

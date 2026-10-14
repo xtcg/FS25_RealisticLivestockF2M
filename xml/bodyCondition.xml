@@ -99,8 +99,10 @@
 
     species: a section for one animal type (sheep): the root with the attributes and curves it
     sets replaced, plus femaleFinishShift (a young female reads finishingTarget at x + this),
-    fertilityEffect (0: condition leaves conception as it is) and fatClass elements (the class a
-    reserve shows: the last whose minReserve it reaches). Goats and every other type read the root.
+    youngUntilMonth (from this age an animal that never had young is grown: no fat class, and a
+    female leaves the finishing target for the heifer's rules), fertilityEffect (0: condition
+    leaves conception as it is) and fatClass elements (the class a reserve shows: the last whose
+    minReserve it reaches). Goats and every other type read the root.
 
     To change these without editing the mod, copy this file to
     modSettings/FS25_RealisticLivestockRM/bodyCondition.xml; that copy then replaces this file
@@ -227,7 +229,7 @@
     -->
     <species name="SHEEP" calfLegacyUntilAgeMonth="0" initialReserve="0.50" reserveCapacityRatio="0.48" referenceReserve="0.50" minReserve="0.05"
         gainRatePerMonth="0.30" lossRatePerMonth="0.25" heiferReserveCeiling="0.55" cowReserveCeiling="0.80"
-        steerFinishShift="0.09" femaleFinishShift="0.18" fertilityEffect="0" birthReserve="0.25"
+        steerFinishShift="0.09" femaleFinishShift="0.18" youngUntilMonth="12" fertilityEffect="0" birthReserve="0.25"
         finishReadyReserve="0.25" finishOverfatReserve="0.58">
         <finishingTarget>
             <point x="0.50" y="0.30"/>
