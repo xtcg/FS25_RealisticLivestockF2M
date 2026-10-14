@@ -1,6 +1,6 @@
 # Dealer v2: development status, T1-T6 (branch `feat/dealer-identity-t1`)
 
-2026-10-14. Base: origin/dev `bbb4573` (PR #56) merged into the branch. Nothing is pushed, merged, packaged or deployed.
+2026-10-14. Base: origin/dev `bbb4573` (PR #56) merged into the branch. Published as draft PR #58; not merged, packaged or deployed.
 `RLDealerRuntime.CHANNEL_ENABLED` is false at every map load. **No line of this has run in the game.**
 
 ## What exists, by batch
@@ -56,3 +56,15 @@ herds with used counters but no animal needed no acceptance (now they do); birth
 `enable` failing half way left the checkpoint armed (now armed last); re-activation re-imported every key (now only new ones);
 the price memo dropped in-flight figures on overflow (two generations); two analyzer false FAILs.
 Not covered by a test: the memo rotation itself.
+
+## Independent PR review (2026-10-14)
+
+Reviewed implementation `afc8f59`. Independently rerun: Lua 5.4 **4099/4099**, analyzer **13/13**. The default interpreter run was interrupted by sandbox access to `os.tmpname()`; a Lua 5.1 attempt stopped at the test-only `load(string)` call. These attempts are not business-test failures or proof of Lua 5.1 compatibility.
+
+Three additional findings remain open; no code fixes were made in this review:
+
+1. **P1 — recovery clear resumes a stale allocator.** Allocate raw 1 in ON; recovery falls back to native counters and creates live raw 2; `recoveryClear()` resumes the old ledger and assigns raw 2 again. Rescan/import live identities and reconcile native counter high-water marks before ON; preserve recovery on incomplete evidence.
+2. **P2 — OFF/SHADOW reactivation ignores advanced counters of already VERIFIED domains.** Allocate raw 1 in ON, raw 2 in OFF, sell that animal, then activate with counter nextRaw=3: the next allocation is raw 2 again. Reconcile existing domains too, retaining the consumed range even for animals no longer present.
+3. **P2 — order-status replies are not bound to an order.** After settling timed-out order A, let order B time out; a duplicate COMMITTED answer for A passed to `receiveOrderStatus` clears B and reports A's amount under B's ID. Carry and validate order ID / query correlation through the catalog protocol and client transition; stale or mismatched replies must leave B unresolved.
+
+The first two were reproduced against the real runtime/ledger modules; the third against the real client state machine. Existing regression tests do not cover these sequences. Keep this PR draft until fixes and targeted regressions are reviewed. In-game acceptance remains PENDING.
