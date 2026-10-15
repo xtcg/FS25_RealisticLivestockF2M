@@ -26,16 +26,20 @@ def lua_to_py(value):
     return value
 
 
-def run():
+def run(group="main"):
     lua = lupa.LuaRuntime(unpack_returned_tuples=True)
     lua.globals().REPO = REPO + "/"
     lua.globals().listRepoLua = lambda sub: lua.table_from(sorted(
         os.path.relpath(p, REPO) for p in glob.glob(os.path.join(REPO, sub, "**", "*.lua"), recursive=True)))
     with open(os.path.join(TESTS, "stubs.lua"), encoding="utf-8") as f:
         lua.execute(f.read())
-    with open(os.path.join(TESTS, "sheepcalib.lua"), encoding="utf-8") as f:
-        lua.execute(f.read())
-    log = [v for v in lua.globals().LOG.values() if v.startswith(("error", "safeCall"))]
+    for name in ("sheepcalib.lua", "sheepcalib_scenarios.lua"):
+        with open(os.path.join(TESTS, name), encoding="utf-8") as f:
+            lua.execute(f.read())
+    lua.globals().SheepCalibScenarios.run(group)
+    # An observer that fails is only a warning in the game (RLFeed.notify): here it is an error,
+    # since the measurements would miss what it should have recorded.
+    log = [v for v in lua.globals().LOG.values() if v.startswith(("error", "safeCall")) or "observer failed" in v]
     return lua_to_py(lua.globals().CALIB), log
 
 
@@ -47,17 +51,26 @@ def fmt(v):
 # UNVERIFIED where there is no independent reference or the check was not run here (it is never
 # counted as a pass).
 RESULTS = []
+# The report's four parts (S5 checklist F.5): every item belongs to the part it was judged in.
+SECTIONS = ("1 history: the original baseline and earlier results", "2 checks matched to a reference",
+            "3 management controls", "4 unmatched sources, proxies and what the game has not verified")
+SECTION = [SECTIONS[0]]
+
+
+def section(index):
+    SECTION[0] = SECTIONS[index - 1]
+    print(f"\n=== {SECTION[0]}")
 
 
 def gate(name, ok, detail):
     status = "PASS" if ok else "FAIL"
-    RESULTS.append((status, name, detail))
+    RESULTS.append((status, name, detail, SECTION[0]))
     print(f"{status} {name}: {detail}")
     return ok
 
 
 def unverified(name, detail):
-    RESULTS.append(("UNVERIFIED", name, detail))
+    RESULTS.append(("UNVERIFIED", name, detail, SECTION[0]))
     print(f"UNVERIFIED {name}: {detail}")
 
 
@@ -96,8 +109,9 @@ def lamb_weights(n):
 
 
 def judge(c, ab_files):
-    """The design's gates (sheep-finishing-design-v1 §5, S5 checklist D6) on the measured routes."""
-    print("\n== gates")
+    """The design's gates (sheep-finishing-design-v1 §5, S5 checklist D6) on the measured routes, as
+    they have been judged so far (part 1), then parts 2-4."""
+    section(1)
     fat_order = ["1", "2", "3L", "3H", "4L", "4H", "5"]
 
     def near_fat(f, target, slack=1):
@@ -166,14 +180,7 @@ def judge(c, ab_files):
          f"{year['lambingBcs']:.2f}, gravid {year['gravidKg']:.1f} kg")
     gate("EWE year, lowland twins: weaning BCS >= 2.5 (D6)", year["weaningBcs"] >= 2.5 - 1e-9, f"{year['weaningBcs']:.2f}")
     gate("EWE year, lowland twins: next mating BCS 3.0-3.5 (D6)", 3.0 - 1e-9 <= year["matingBcs"] <= 3.5 + 1e-9, f"{year['matingBcs']:.2f}")
-    print("INFO EWE year by month: month BCS weight gravid | ate kgDM/d MJ/d | milk potential paid took kg/d | requirement MJ/d")
-    for r in year["log"]:
-        if r["month"] == 0:
-            print(f"     0  {r['bcs']:.2f} {r['weight']:6.1f} {r['gravid']:5.1f}")
-            continue
-        need = r.get("need")
-        print(f"    {r['month']:2d}  {r['bcs']:.2f} {r['weight']:6.1f} {r['gravid']:5.1f} | {r['dmPerDay']:.2f} {r['mePerDay']:5.1f} | "
-              f"{r['milkPotential']:.2f} {r['milkPaid']:.2f} {r['lambsTook']:.2f} | {need if need is None else round(need, 1)}")
+    print_ewe_months("EWE year", year)
 
     # Feeding control (cause diagnosis, not gates; plans fixed in sheepcalib.lua before they ran).
     # Rule, fixed with the plans: a control explains a D6 failure when it meets that target while
@@ -189,14 +196,7 @@ def judge(c, ab_files):
         print(f"     {name:28s} | {r['lambingBcs']:.2f} {r['weaningBcs']:.2f} {r['matingBcs']:.2f} | {r['lambsAtWeaningKg']:.1f} "
               f"({r['lambAdgToWeaning']*1000:.0f}) | {r['milkPaidKg']:.1f} / {r['milkPotentialKg']:.1f} | {ewe_c:.2f} / {lamb_c:.2f}")
     for name, r in controls[1:]:
-        print(f"INFO EWE control {name} by month: month BCS reserveKg | ate MJ/d need balance | milk paid lambs took | lamb kg")
-        for x in r["log"]:
-            if x["month"] == 0:
-                continue
-            bal = x.get("balance")
-            print(f"    {x['month']:2d} {x['bcs']:.2f} {x['reserveKg']:5.1f} | {x['mePerDay']:5.1f} {x['need']:5.1f} "
-                  f"{'' if bal is None else format(bal, '+.1f')} | {x['milkPaid']:.2f} {x['lambsTook']:.2f} | "
-                  f"{'' if x.get('lambKg') is None else format(x['lambKg'], '.1f')}")
+        print_ewe_months(f"EWE control {name}", r)
 
     def verdict(target, ok_of, key):
         values = ", ".join(f"{n} {r[key]:.2f}" for n, r in controls)
@@ -211,6 +211,289 @@ def judge(c, ab_files):
     info("EWE diagnosis " + verdict("weaning BCS >= 2.5", lambda r: r["weaningBcs"] >= 2.5 - 1e-9, "weaningBcs"))
     info("EWE diagnosis " + verdict("mating BCS 3.0-3.5", lambda r: 3.0 - 1e-9 <= r["matingBcs"] <= 3.5 + 1e-9, "matingBcs"))
 
+    one = c["R1/LANDRACE/2"]["lambs"][0]["ageAtRef"]
+    for d in (3, 7, 28):
+        other = c[f"R1/LANDRACE/2/days{d}"]["lambs"][0]["ageAtRef"]
+        gate(f"V8 month length 1 vs {d} days: same route within 1%", other is not None and abs(other - one) / one <= 0.01, f"{one} vs {other}")
+
+    names = {"cattle-legacy": "V9 cattle, legacy budget (tests/sheep_s5_ab.py)", "cattle-real": "V9 cattle, real-equivalent mode (tests/feed_ab.py)",
+             "species": "V9 pigs, goats, horses, chickens, sheep v2 off (tests/species_ab.py)"}
+    for key, name in names.items():
+        path = ab_files.get(key)
+        if path is None:
+            unverified(name, "not run with this calibration (pass --ab " + key + "=result.json)")
+            continue
+        with open(path, encoding="utf-8") as f:
+            r = json.load(f)
+        diffs = r.get("differenceCount", len(r.get("differences", [])))
+        extra = f", {r['expectedDifferences']} expected ({r.get('expectedNote')})" if r.get("expectedDifferences") else ""
+        gate(name + f" against {r['baseline'][:7]}", r.get("passed") is True,
+             f"{r['cases']} cases, {r.get('scalarComparisons')} values, {diffs} unexpected differences{extra}")
+
+    v10 = c["V10"]
+    gate("V10 300 sheep pen runs the mode, under 60 ms a game hour (cattle reference about 60 ms / 100 head)", v10["active"] and v10["msPerHour"] < 60,
+         f"{v10['msPerHour']:.1f} ms")
+
+    section(2)
+    judge_energy(c, year)
+    judge_matched(c)
+    section(3)
+    judge_management(c, year)
+    section(4)
+    judge_unmatched_history(c)
+    judge_candidates(c)
+    production_guard()
+
+
+
+EPS_DAYS = 1e-9
+CONVERGED_DAYS = 0.05   # engineering precision: two finer steps' crossing estimates this close
+STRADDLED = []          # verdicts that had to fall back to a finer step's estimate
+
+
+def crossing_verdict(name, lo, hi, interval, estimates, unit="days", extra_ok=True, extra=""):
+    """Judge a crossing on the step-end interval it happened in (lastBelow, firstAtOrAbove] at the
+    production step; only an interval across a bound falls back to the finer steps' estimate, and
+    only when those two agree within CONVERGED_DAYS (otherwise numerical resolution is unresolved).
+    estimates: (0.25, 0.125, 0.0625) interpolated estimates, same unit."""
+    below, above = interval
+    scale = 30 if unit == "months" else 1
+    e25, e125, e0625 = estimates
+    fmt_e = lambda e: "-" if e is None else f"{e:.3f}"
+    detail = (f"interval ({below:.3f}, {above:.3f}] {unit} at 0.25 d; estimates {fmt_e(e25)} / {fmt_e(e125)} / {fmt_e(e0625)} "
+              f"at 0.25 / 0.125 / 0.0625 d{extra}")
+    eps = EPS_DAYS / scale
+    if lo - eps <= below and above <= hi + eps:
+        return gate(name, extra_ok, detail + " (inside the window)")
+    if above < lo - eps or below > hi + eps:
+        return gate(name, False, detail + " (outside the window)")
+    STRADDLED.append(name)
+    if e125 is not None and e0625 is not None and abs(e125 - e0625) * scale <= CONVERGED_DAYS + EPS_DAYS:
+        return gate(name, extra_ok and lo - eps <= e0625 <= hi + eps, detail + " (across a bound: judged on the converged estimate)")
+    unverified(name, detail + " - numerical resolution unresolved")
+    return None
+
+
+def lamb_of(c, key, sex="male", group=None):
+    rows = c if group is None else c["groups"][group]
+    r = rows.get(key)
+    if r is None:
+        return None
+    return [l for l in r["lambs"] if l["sex"] == sex][0]
+
+
+def judge_matched(c):
+    """Part 2: the measurements on the lambs' own model time, judged on step intervals."""
+    fat_order = ["1", "2", "3L", "3H", "4L", "4H", "5"]
+
+    def near_fat(f, target, slack=1):
+        return f in fat_order and abs(fat_order.index(f) - fat_order.index(target)) <= slack
+
+    est = lambda l: None if l is None else l["model"].get("crossingEstimateDays")
+    conv = {}   # route -> [(lamb, e25, e125, e0625)]
+    for breed in ("LANDRACE", "TEXEL", "SUFFOLK", "SWISS_MOUNTAIN"):
+        key = f"R1/{breed}/1"
+        l = lamb_of(c, key)
+        m = l["model"]
+        fine, finer = est(lamb_of(c, key, group="step:0.125")), est(lamb_of(c, key, group="step:0.0625"))
+        conv.setdefault("R1 (about 3 months)", []).append((key, m["crossingEstimateDays"], fine, finer))
+        crossing_verdict(f"V1 R1 {breed} single ram lamb 84-99 model days to its market weight, 3L+-1 (model time)", 84, 99,
+                         (m["lastBelow"]["days"], m["firstAtOrAbove"]["days"]), (m["crossingEstimateDays"], fine, finer),
+                         extra_ok=near_fat(l.get("fatAtRef"), "3L"),
+                         extra=f"; game-hour end {l['ageAtRefGameHour'] * 30:.2f} d; fat {l.get('fatAtRef')}")
+    for breed, system, lo, hi in (("LANDRACE", "LOWLAND", 4.3, 5.5), ("TEXEL", "LOWLAND", 4.3, 5.5), ("STEINSCHAF", "HILL", 5.1, 5.5),
+                                  ("BLACK_WELSH", "HILL", 5.1, 5.5), ("BLACKFACE", "HILL", 5.1, 5.5)):
+        s1, s2 = lamb_weights(FLOCK_LAMBS_PER_EWE[system])
+        lambs = [lamb_of(c, f"R2/{breed}/{k}") for k in (1, 2)]
+        ests = []
+        for group in ("step:0.125", "step:0.0625"):
+            g = [est(lamb_of(c, f"R2/{breed}/{k}", group=group)) for k in (1, 2)]
+            ests.append((s1 * g[0] + s2 * g[1]) / 30)
+        for k, l in zip((1, 2), lambs):
+            a, b = est(lamb_of(c, f"R2/{breed}/{k}", group="step:0.125")), est(lamb_of(c, f"R2/{breed}/{k}", group="step:0.0625"))
+            conv.setdefault("R2 (4-7 months)", []).append((f"R2/{breed}/{k}", l["model"]["crossingEstimateDays"], a, b))
+            info(f"V2 R2 {breed} {'single' if k == 1 else 'twin'} ram lamb (model time): crossing ({l['model']['lastBelow']['days']:.2f}, "
+                 f"{l['model']['firstAtOrAbove']['days']:.2f}] d, estimate {l['model']['crossingEstimateDays'] / 30:.3f} months; "
+                 f"game-hour end {l['ageAtRefGameHour']:.3f}")
+        interval = tuple((s1 * lambs[0]["model"][k]["days"] + s2 * lambs[1]["model"][k]["days"]) / 30 for k in ("lastBelow", "firstAtOrAbove"))
+        e25 = (s1 * lambs[0]["model"]["crossingEstimateDays"] + s2 * lambs[1]["model"]["crossingEstimateDays"]) / 30
+        crossing_verdict(f"V2 R2 {breed} flock mean {lo}-{hi} months +-0.5 (model time; scenario n = {FLOCK_LAMBS_PER_EWE[system]})",
+                         lo - 0.5, hi + 0.5, interval, (e25, ests[0], ests[1]), unit="months")
+    # Convergence: the 0.125 / 0.0625 d estimates within CONVERGED_DAYS, per route. The ratio of the
+    # successive differences (about 2: first order) and the extrapolated limit 2 x e0625 - e125 are
+    # reported; no verdict above needed a finer step unless STRADDLED lists it.
+    for route, rows in conv.items():
+        worst = max(rows, key=lambda r: abs(r[2] - r[3]))
+        ratios = [abs(r[1] - r[2]) / abs(r[2] - r[3]) for r in rows if abs(r[2] - r[3]) > 1e-12]
+        gate(f"NUMERICS {route}: crossing estimates at 0.125 and 0.0625 d agree within {CONVERGED_DAYS} d (engineering precision)",
+             all(abs(r[2] - r[3]) <= CONVERGED_DAYS + EPS_DAYS for r in rows),
+             f"worst {worst[0]} {abs(worst[2] - worst[3]):.3f} d ({worst[1]:.3f} / {worst[2]:.3f} / {worst[3]:.3f} at 0.25 / 0.125 / 0.0625, "
+             f"extrapolated {2 * worst[3] - worst[2]:.3f}); difference ratio 0.25-0.125 : 0.125-0.0625 = "
+             f"{min(ratios):.2f}-{max(ratios):.2f} (first order); verdicts that needed a finer step: {len(STRADDLED)}")
+    # Month length: the same route at 1 / 3 / 7 / 28-day months, on model time.
+    one = lamb_of(c, "R1/LANDRACE/2")
+    parts, ok = [], True
+    for d in (3, 7, 28):
+        other = lamb_of(c, f"R1/LANDRACE/2/days{d}")
+        a, b = one["model"]["crossingEstimateDays"], other["model"]["crossingEstimateDays"]
+        w1, w2 = one["at3"], other["at3"]
+        ok = ok and abs(b - a) / a <= 0.01 and abs(w2 - w1) / w1 <= 0.01
+        parts.append(f"{d} d: crossing {b:.2f} vs {a:.2f} d, at 3 months {w2:.2f} vs {w1:.2f} kg, model days run {other['model']['elapsedModelDays']:.2f}")
+    gate("V8 month length on model time: R1 Landrace twin ram lamb's crossing and weight at 3 months within 1% at 3 / 7 / 28 vs 1-day months",
+         ok, "; ".join(parts))
+    # The budget's ledger closes step by step: supply + mobilised + catabolism = paid + deposit + lost.
+    worst_c, n = 0, 0
+    for key, r in c.items():
+        if not isinstance(r, dict):
+            continue
+        models = [l.get("model") for l in r.get("lambs", []) or []] + [r.get("eweModel")] + list(r.get("lambModels") or [])
+        for m in models:
+            if m is not None and m.get("ledgerTotal"):
+                n += 1
+                worst_c = max(worst_c, abs(m["ledgerClosureNU"]) / max(abs(m["ledgerTotal"].get("supplyNU", 0)), 1))
+    gate("LEDGER the budget's energy closes on every tracked animal (|residual| / supply <= 1e-9)", worst_c <= 1e-9,
+         f"{n} animals, worst {worst_c:.2e}")
+    # R4 rebuilt on the study's conditions (Suffolk proxy, castrates, 39 kg, 54 model days).
+    for diet in ("game diet", "study recipe"):
+        l = lamb_of(c, f"R4STUDY/wether/{diet}", sex="wether")
+        info(f"R4 study design, castrates, {diet}: {l['actualDays']:.2f} model days ({l['hours']} hours at a {l['daysPerPeriod']}-day month); "
+             f"ADG {l['adg'] * 1000:.0f} g; intake {l['dmPerDay']:.2f} kg DM a day, concentrate {l['conc'] / l['actualDays']:.2f} kg fresh a day; "
+             f"FCR live x 0.49 {l['fcrLive049']:.2f}, x 0.491 {l['fcrLive0491']:.2f} (proxies); game saleable meat {l['fcrMeat']:.2f}")
+    for sex in ("male", "female"):
+        for diet in ("game diet", "study recipe"):
+            l = lamb_of(c, f"R4STUDY/{sex}/{diet}", sex=sex)
+            info(f"R4 study design supplement, {'ram' if sex == 'male' else 'ewe'} lambs, {diet} (reported only): ADG {l['adg'] * 1000:.0f} g, "
+                 f"{l['dmPerDay']:.2f} kg DM, FCR x 0.491 {l['fcrLive0491']:.2f}")
+    l = lamb_of(c, "R4STUDY/wether/study recipe", sex="wether")
+    unverified("R4 study design against Teagasc (248 g a day, about 1.5 kg concentrate, 10.7 kg concentrate a kg carcass gain at 49.1% kill-out)",
+               f"castrates on the study recipe proxy: {l['adg'] * 1000:.0f} g, {l['conc'] / l['actualDays']:.2f} kg concentrate, "
+               f"{l['fcrLive0491']:.2f}. The summary's figures are not yet traced to the castrate / 39 kg / 54 day treatment, and the "
+               "recipe is a proxy (barley ad lib, peas <= 0.5 kg, silage 0.5 kg fresh)")
+    rows = lamb_of(c, "R4", sex="male")
+    info(f"R4 original (Landrace, 32 kg, three sexes in one pen): {rows['actualDays']:.2f} model days; ram ADG {rows['adg'] * 1000:.0f} g "
+         f"(nominal {rows['adgNominal'] * 1000:.0f} g); FCR x 0.49 {rows['fcrLive049']:.2f}, x 0.491 {rows['fcrLive0491']:.2f}, meat {rows['fcrMeat']:.2f}")
+
+
+def judge_management(c, year):
+    """Part 3: management controls (S5 checklist F.5). A met target supports a management
+    explanation of a failure; it does not verify the energy model."""
+    s1, s2 = lamb_weights(FLOCK_LAMBS_PER_EWE["HILL"])
+    for breed in ("STEINSCHAF", "BLACK_WELSH", "BLACKFACE"):
+        lambs = [lamb_of(c, f"MGMT/R2clover/{breed}/{k}") for k in (1, 2)]
+        for k, l in zip((1, 2), lambs):
+            info(f"MGMT hill on clover, {breed} {'single' if k == 1 else 'twin'} ram lamb: game-hour end {l['ageAtRefGameHour']:.3f} months, "
+                 f"model estimate {l['model']['crossingEstimateDays'] / 30:.3f}")
+        interval = tuple((s1 * lambs[0]["model"][k]["days"] + s2 * lambs[1]["model"][k]["days"]) / 30 for k in ("lastBelow", "firstAtOrAbove"))
+        e25 = (s1 * lambs[0]["model"]["crossingEstimateDays"] + s2 * lambs[1]["model"]["crossingEstimateDays"]) / 30
+        hour = s1 * lambs[0]["ageAtRefGameHour"] + s2 * lambs[1]["ageAtRefGameHour"]
+        crossing_verdict(f"MGMT hill lambs on clover, {breed} flock mean 5.1-5.5 months +-0.5 (the original window; n = 1.3 assumed)",
+                         4.6, 6.0, interval, (e25, None, None), unit="months", extra=f"; game-hour end {hour:.3f}")
+    base = year
+    for key, checks in (("MGMT/EWE/lactation intensified", ("weaning",)), ("MGMT/EWE/controlled recovery", ("mating",)),
+                        ("MGMT/EWE/joint", ("weaning", "mating"))):
+        r = c[key]
+        name = key[9:]
+        if "weaning" in checks:
+            gate(f"MGMT ewe {name}: weaning BCS >= 2.5", r["weaningBcs"] >= 2.5 - 1e-9, f"{r['weaningBcs']:.3f} (baseline {base['weaningBcs']:.3f})")
+        if "mating" in checks:
+            sw = r.get("capSwitch")
+            gate(f"MGMT ewe {name}: next mating BCS 3.0-3.5", 3.0 - 1e-9 <= r["matingBcs"] <= 3.5 + 1e-9,
+                 f"{r['matingBcs']:.3f} (baseline {base['matingBcs']:.3f}); FINISH -> MAINTAIN at month "
+                 f"{'-' if sw is None else format(sw['month'], '.2f')}, BCS {'-' if sw is None else format(sw['bcs'], '.3f')}")
+        gate(f"MGMT ewe {name}: lambs at weaning and milk paid at least 98% of the baseline",
+             r["lambsAtWeaningKg"] >= 0.98 * base["lambsAtWeaningKg"] and r["milkPaidKg"] >= 0.98 * base["milkPaidKg"],
+             f"lambs {r['lambsAtWeaningKg']:.2f} vs {base['lambsAtWeaningKg']:.2f} kg (ADG {r['lambAdgToWeaning'] * 1000:.0f} vs "
+             f"{base['lambAdgToWeaning'] * 1000:.0f} g); milk {r['milkPaidKg']:.1f} vs {base['milkPaidKg']:.1f} kg of {r['milkPotentialKg']:.1f}")
+        print_ewe_months(f"MGMT ewe {name}", r)
+    info("MGMT a control that meets its target supports a management explanation of the baseline's failure only; "
+         "it is not an independent check of the energy model")
+
+
+def judge_candidates(c):
+    """Part 4: candidate parameters, each in its own Lua state against candidate:base on the same
+    scenarios. Adoption needs diet, time, sex and measurement matched to a traced reference, and
+    ADG, intake and FCR improved together; the study's figures are not traced, so none is adopted."""
+    groups = c["groups"]
+    base = groups["candidate:base"]
+
+    def row(g):
+        st = lamb_of(g, "R4STUDY/wether/game diet", sex="wether")
+        rc = lamb_of(g, "R4STUDY/wether/study recipe", sex="wether")
+        r4 = lamb_of(g, "R4", sex="male")
+        tx = lamb_of(g, "R1/TEXEL/1")["model"]["crossingEstimateDays"]
+        return (f"study castrates game {st['adg'] * 1000:.0f} g / {st['dmPerDay']:.2f} kg DM / FCR {st['fcrLive0491']:.2f}, recipe "
+                f"{rc['adg'] * 1000:.0f} g / {rc['dmPerDay']:.2f} / {rc['fcrLive0491']:.2f}; R4 ram {r4['adg'] * 1000:.0f} g / FCR "
+                f"{r4['fcrLive049']:.2f}; Texel R1 {tx:.2f} d")
+    info("CANDIDATE base (shipped values, own state): " + row(base))
+    for name in ("growth cost 30", "growth cost 36", "growing intake 0.087", "ewe reserve deposit 100"):
+        g = groups[f"candidate:{name}"]
+        line = row(g)
+        if "EWE/year/twins" in g:
+            line += "; ewe year weaning / mating " + ", ".join(
+                f"{k.split('/')[-1]} {g[k]['weaningBcs']:.3f} / {g[k]['matingBcs']:.3f} (base {base[k]['weaningBcs']:.3f} / {base[k]['matingBcs']:.3f})"
+                for k in ("EWE/year/twins", "MGMT/EWE/lactation intensified", "MGMT/EWE/controlled recovery", "MGMT/EWE/joint"))
+        info(f"CANDIDATE {name}: " + line)
+    unverified("Candidate parameters (growth cost 30 / 36, growing intake 0.087, ewe reserve deposit 100)",
+               "none adopted: the reference conditions are not matched (study recipe a proxy, the 248 g / 10.7 not traced to the treatment); "
+               "production keeps 33, 0.092, 50")
+    unverified("Concentrate adaptation 14 days (game) against the trial's build-up to ad lib within 10 days", "recorded, not matched")
+
+
+# Production values that must not change in this round (S5 checklist F.5).
+PRODUCTION = (
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/physiology", "pregnancyThirdLambFactor", "0.50"),
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/physiology", "youngMaintenanceMEPerKgMetabolic", "0.475"),
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/physiology", "growthCostMale", "0.80"),
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/physiology", "growthCostCastrate", "1.0"),
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/physiology", "growthCostFemale", "1.25"),
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/requirements", "growthMEPerKgAt500", "33"),
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/requirements", "reserveDepositMEPerKg", "50"),
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/requirements", "reserveMobilizeMEPerKg", "35"),
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/intake", "growingPerKgMetabolic", "0.092"),
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/intake", "lactatingPerKgMetabolic", "0.050"),
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/intake", "lactatingPerKgMilk", "0.50"),
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/intake", "ndfFillLactating", "0.018"),
+    ("xml/feedProfiles.xml", "species[@name='SHEEP']/ration", "adaptationDays", "14"),
+    ("xml/bodyCondition.xml", "species[@name='SHEEP']", "reserveCapacityRatio", "0.48"),
+    ("xml/bodyCondition.xml", "species[@name='SHEEP']", "referenceReserve", "0.50"),
+    ("xml/weightProfiles.xml", "animalType[@name='SHEEP']", "enabled", "false"),
+)
+
+
+def production_guard():
+    import xml.etree.ElementTree as ET
+    bad = []
+    for path, xpath, attr, want in PRODUCTION:
+        node = ET.parse(os.path.join(REPO, path)).getroot().find(xpath)
+        got = node.get(attr) if node is not None else None
+        if got != want:
+            bad.append(f"{path} {xpath}@{attr} = {got} (want {want})")
+    gate(f"PRODUCTION the {len(PRODUCTION)} kept values are as shipped (third lamb 0.50, lamb maintenance 0.475, lactation intake "
+         "0.050 / 0.50 / 0.018, reserve 0.48 / 0.50, growth 33 and 0.80 / 1.00 / 1.25, intake 0.092, adaptation 14, deposit 50, "
+         "mobilise 35, sheep v2 off)", not bad, "; ".join(bad) or "all equal")
+
+
+def print_ewe_months(title, r):
+    """A ewe year by month: condition, what she ate, the budget's ledger (per day, summed step by
+    step: supply, demand, paid, unmet, deposited, mobilised), her milk and her lambs."""
+    print(f"INFO {title} by month: month BCS weight gravid reserveKg | ewe ate fresh/DM kg, ME MJ a day | ledger MJ a day: "
+          "supply demand paid unmet deposit mobilised | milk potential/paid/lambs took kg a day | lambs ate fresh/DM kg, ME MJ a day (each) | lamb kg | target")
+    for x in r["log"]:
+        if x["month"] == 0:
+            print(f"     0  {x['bcs']:.2f} {x['weight']:6.1f} {x['gravid']:5.1f} {x['reserveKg']:5.1f}")
+            continue
+        led, ei, li = x.get("ledger") or {}, x.get("eweIntake") or {}, x.get("lambIntake")
+        def v(d, k, f=".1f"):
+            return "-" if d is None or d.get(k) is None else format(d[k], f)
+        lamb = "-" if li is None else f"{v(li, 'freshKg', '.2f')}/{v(li, 'dmKg', '.2f')} {v(li, 'meMJ')}"
+        print(f"    {x['month']:2d}  {x['bcs']:.2f} {x['weight']:6.1f} {x['gravid']:5.1f} {x['reserveKg']:5.1f} | "
+              f"{v(ei, 'freshKg', '.2f')}/{v(ei, 'dmKg', '.2f')} {v(ei, 'meMJ')} | {v(led, 'supplyNU')} {v(led, 'demandNU')} {v(led, 'paidNU')} "
+              f"{v(led, 'unmetNU')} {v(led, 'depositNU')} {v(led, 'mobilizedNU')} | {x['milkPotential']:.2f}/{x['milkPaid']:.2f}/{x['lambsTook']:.2f} | "
+              f"{lamb} | {'-' if x.get('lambKg') is None else format(x['lambKg'], '.1f')} | {x.get('target')}")
+
+
+def judge_energy(c, year):
+    """Energy against AHDB Tables 8 and 29 (part 2)."""
     # Energy anchors, judged on their own (never read off the BCS gates).
     energy = c["ENERGY"]
 
@@ -318,29 +601,10 @@ def judge(c, ab_files):
          f"{year['lateNeed']:.1f} MJ (Table 8 at 80 kg, twins: 20.2); in her first month of milk {year['lactNeed']:.1f} MJ at "
          f"{year['lactMilk']:.2f} kg milk (Table 29 at 80 kg, 3 kg, no loss: 33.9). Requirement, not what she ate")
 
-    one = c["R1/LANDRACE/2"]["lambs"][0]["ageAtRef"]
-    for d in (3, 7, 28):
-        other = c[f"R1/LANDRACE/2/days{d}"]["lambs"][0]["ageAtRef"]
-        gate(f"V8 month length 1 vs {d} days: same route within 1%", other is not None and abs(other - one) / one <= 0.01, f"{one} vs {other}")
 
-    names = {"cattle-legacy": "V9 cattle, legacy budget (tests/sheep_s5_ab.py)", "cattle-real": "V9 cattle, real-equivalent mode (tests/feed_ab.py)",
-             "species": "V9 pigs, goats, horses, chickens, sheep v2 off (tests/species_ab.py)"}
-    for key, name in names.items():
-        path = ab_files.get(key)
-        if path is None:
-            unverified(name, "not run with this calibration (pass --ab " + key + "=result.json)")
-            continue
-        with open(path, encoding="utf-8") as f:
-            r = json.load(f)
-        diffs = r.get("differenceCount", len(r.get("differences", [])))
-        extra = f", {r['expectedDifferences']} expected ({r.get('expectedNote')})" if r.get("expectedDifferences") else ""
-        gate(name + f" against {r['baseline'][:7]}", r.get("passed") is True,
-             f"{r['cases']} cases, {r.get('scalarComparisons')} values, {diffs} unexpected differences{extra}")
 
-    v10 = c["V10"]
-    gate("V10 300 sheep pen runs the mode, under 60 ms a game hour (cattle reference about 60 ms / 100 head)", v10["active"] and v10["msPerHour"] < 60,
-         f"{v10['msPerHour']:.1f} ms")
-
+def judge_unmatched_history(c):
+    """Sensitivity and the calibration values beyond their routes (part 4)."""
     print("\n== sensitivity (reported, not judged)")
     for key in sorted(k for k in c if k.startswith("SENS/")):
         r = c[key]
@@ -353,16 +617,21 @@ def judge(c, ab_files):
         print(f"   {key[7:]:14s} ad lib {r['adlib']['adg']*1000:.0f} g on {r['adlib']['dmPerDay']:.2f} kg DM; "
               f"silage + 0.5 kg barley {r['limited']['adg']*1000:.0f} g on {r['limited']['dmPerDay']:.2f} kg DM")
     unverified("Growth cost 33 MJ/kg at 40 kg (calibration value, set on R1/R4)", "other breeds, weights and diets above have no reference to judge")
-    unverified("Game test (single player short test, S5 checklist F)", "not done")
+    unverified("Game short test (docs/SHEEP_S5_GAME_TEST.md: feed supply, ewe and lamb allocation, weaning, mixed-pen fallback, "
+               "save and load, BCS recovery by hand, 300 sheep)", "not done")
+
 
 
 def summary():
     counts = {s: sum(1 for r in RESULTS if r[0] == s) for s in ("PASS", "FAIL", "UNVERIFIED")}
     print(f"\n== summary: {counts['PASS']} PASS, {counts['FAIL']} FAIL, {counts['UNVERIFIED']} UNVERIFIED")
+    for part in SECTIONS:
+        n = {s: sum(1 for r in RESULTS if r[0] == s and r[3] == part) for s in ("PASS", "FAIL", "UNVERIFIED")}
+        print(f"   part {part}: {n['PASS']} PASS, {n['FAIL']} FAIL, {n['UNVERIFIED']} UNVERIFIED")
     for status in ("FAIL", "UNVERIFIED"):
-        for s, name, detail in RESULTS:
+        for s, name, detail, part in RESULTS:
             if s == status:
-                print(f"   {status} {name}: {detail}")
+                print(f"   {status} [{part[0]}] {name}: {detail}")
     return counts
 
 
@@ -373,10 +642,17 @@ def main():
                         help="an A/B result to judge as V9: cattle-legacy, cattle-real or species")
     args = parser.parse_args()
     ab_files = dict(item.split("=", 1) for item in args.ab)
-    calib, log = run()
+    calib, log = run("main")
+    # The other groups, each in a Lua state of its own (tests/sheepcalib_scenarios.lua).
+    groups = {}
+    for group in ("step:0.125", "step:0.0625", "candidate:base", "candidate:growth cost 30", "candidate:growth cost 36",
+                  "candidate:growing intake 0.087", "candidate:ewe reserve deposit 100"):
+        groups[group], glog = run(group)
+        log = log + [f"{group}: {line}" for line in glog]
+    calib["groups"] = groups
     for line in log:
         print("LOG", line)
-    for key in sorted(calib):
+    for key in sorted(k for k in calib if k != "groups"):
         row = calib[key]
         print(f"== {key}")
         for lamb in row.get("lambs", []) or []:
@@ -390,7 +666,7 @@ def main():
     counts = summary()
     if args.json:
         with open(args.json, "w", encoding="utf-8") as f:
-            json.dump({"results": [{"status": s, "name": n, "detail": d} for s, n, d in RESULTS], "counts": counts,
+            json.dump({"results": [{"status": s, "name": n, "detail": d, "part": p} for s, n, d, p in RESULTS], "counts": counts,
                        "calibration": calib}, f, indent=1, ensure_ascii=False)
     return 1 if counts["FAIL"] > 0 or log else 0
 
