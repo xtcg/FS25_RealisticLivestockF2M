@@ -1300,6 +1300,8 @@ end
 --- One animal's step: its growth budget on what it ate, its rumen's adaptation, its health, the
 --- milk the budget paid, all added to the hour's record of it.
 function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
+    -- Its last step in the mode before this one (the state's lastTick: only these steps move it).
+    feed.previousTick = animal.rlGrowth ~= nil and animal.rlGrowth.lastTick or nil
     local result, input, weightBefore = RLGrowth.stepFeed(animal, feed, dtMonths, tick)
     animal.rlFeedStepTick, animal.rlFeedStepOwner = tick, placeable
     local record = hour.animals[animal]
@@ -1626,10 +1628,15 @@ function RLFeed.afterStep(animal, state, feed, result, weightBefore, dtMonths)
         -- A young animal's days in a row on creep feed: each step in which it ate at least
         -- readyCreepKgPerDay of concentrate as fed (what it got from the trough, DM back to fresh
         -- weight by each feed's own DM; a day's rate) adds its model days, any other step starts
-        -- the count again. An orphan whose count reaches readyDays from earlyWeaningMonth is
-        -- weaned early (RLFeed.isEarlyWeaned), and that is kept: from then on it is a weaned lamb.
+        -- the count again. So does a gap: model time that passed without a step in the mode (a
+        -- pen out of it, no trough, the mode off, its config invalid) shows as a previous step
+        -- older than the steps' spacing (RLFeed.isFresh: a long month's hours between steps are
+        -- no gap), and what it ate then is not known. An orphan whose count reaches readyDays
+        -- from earlyWeaningMonth is weaned early (RLFeed.isEarlyWeaned), and that is kept: from
+        -- then on it is a weaned lamb.
         if getFeedAge(animal) < nursing.weaningMonth + 1 then
             if not state.weanedEarly then
+                if (state.creepDays or 0) > 0 and not RLFeed.isFresh(feed.previousTick, feed.tick) then state.creepDays = 0 end
                 local fresh = 0
                 for name, fill in pairs(feed.byFill or {}) do
                     local profile = RLFeedProfiles.getUsableFeed(name)

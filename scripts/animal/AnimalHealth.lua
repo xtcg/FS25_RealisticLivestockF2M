@@ -56,11 +56,14 @@ function AnimalHealth.updateHealth(animal, foodFactor)
             animal:applyUnderweightPenalty()
         else
             animal:updateWeight(foodFactor, RLGrowth.getLegacyTarget(animal:getSubType(), animal.genetics.metabolism))
+            RLGrowth.markLegacyHour(animal)
         end
     elseif RLBodyCondition.step(animal) then
         animal:applyUnderweightPenalty()
     else
         animal:updateWeight(foodFactor)
+        -- A sheep out of the model this hour (the mode off, its config invalid): marked too.
+        RLGrowth.markLegacyHour(animal)
     end
 end
 

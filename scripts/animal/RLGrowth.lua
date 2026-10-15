@@ -193,16 +193,26 @@ end
 
 
 --- Whether a sheep (a type stepped only by its pen's nutrition mode, RLGrowth.needsRealNutrition)
---- was already settled this hour by a pen that runs the mode, and has moved since: the hour is
---- settled once, so the pen it is in now takes neither its health nor the old weight rule. Its
---- profile coverage (RLGrowth.covers) says nothing of this; this is its run this hour.
+--- was already settled this hour by a pen that runs the mode (RLFeed.stepAnimal marks the hour),
+--- and has since moved, or the mode or its config changed: the hour is settled once, so neither
+--- its health nor the old weight rule runs again. Read off the hour's mark alone, never off what
+--- covers it now (switching the mode off within the hour must not hide a step already taken).
 --- @param animal table
 --- @return boolean
 function RLGrowth.isSettledThisHour(animal)
-    if not RLGrowth.covers(animal) or not RLGrowth.needsRealNutrition(animal:getSubType()) then return false end
+    if animal == nil or animal.getSubType == nil or not RLGrowth.needsRealNutrition(animal:getSubType()) then return false end
     local tick = RLBodyCondition.getTickId()
-    local state = animal.rlGrowth
-    return tick ~= nil and state ~= nil and state.lastTick == tick
+    return tick ~= nil and animal.rlFeedStepTick == tick
+end
+
+
+--- Mark the hour a sheep took the old weight rule (whatever covered it then: a pen out of the
+--- mode, the mode off, its config invalid), so a pen in the mode does not step it again this hour
+--- (RLFeed.runStep). Other types are left alone.
+--- @param animal table
+function RLGrowth.markLegacyHour(animal)
+    if animal == nil or animal.getSubType == nil or not RLGrowth.needsRealNutrition(animal:getSubType()) then return end
+    animal.rlLegacyHourTick = RLBodyCondition.getTickId()
 end
 
 
@@ -1370,16 +1380,12 @@ end
 ---         rules
 function RLGrowth.step(animal, foodFactor)
     if animal == nil or animal.isDead or not RLGrowth.covers(animal) then return false end
-    local tick = RLBodyCondition.getTickId()
     -- A sheep's budget is calibrated on what its pen's mode feeds it (ME), never on the old food
-    -- factor: out of such a pen it takes the old weight rule this hour (AnimalHealth.updateHealth),
-    -- its state kept as it is (the next step in the mode splits the weight it leaves again,
-    -- RLGrowth.resync). The hour is marked, so a pen in the mode it moves to does not step it
-    -- again this hour (RLFeed.runStep).
-    if RLGrowth.needsRealNutrition(animal:getSubType()) then
-        animal.rlLegacyHourTick = tick
-        return false
-    end
+    -- factor: out of such a pen it takes the old weight rule this hour (AnimalHealth.updateHealth,
+    -- which marks the hour: RLGrowth.markLegacyHour), its state kept as it is (the next step in
+    -- the mode splits the weight it leaves again, RLGrowth.resync).
+    if RLGrowth.needsRealNutrition(animal:getSubType()) then return false end
+    local tick = RLBodyCondition.getTickId()
     if tick == nil then return false end
 
     local state = RLGrowth.ensureState(animal)

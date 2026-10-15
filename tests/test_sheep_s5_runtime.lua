@@ -210,8 +210,11 @@ do
     local lamb = SheepSim.grown("RAM_LANDRACE", "W1", 2.2, { motherId = "GONE" })
     SheepSim.makePen({ lamb }, GRASS)
     local result = { weight = lamb.weight }
+    -- Steps in this hour, its previous step this hour too (no gap).
+    local function now() return RLBodyCondition.getTickId() end
     local function creepStep(kgDM, days)
-        local feed = { dtDays = days or 0.25, concShare = 0.2, byFill = { BARLEY = { kg = kgDM * (days or 0.25) } } }
+        local feed = { dtDays = days or 0.25, concShare = 0.2, byFill = { BARLEY = { kg = kgDM * (days or 0.25) } }, tick = now(),
+            previousTick = now() }
         RLFeed.afterStep(lamb, lamb.rlGrowth, feed, result, nil, nil)
     end
     creepStep(0.222)
@@ -220,7 +223,7 @@ do
     creepStep(0.226)
     check(string.format("weaning: 0.226 kg DM of barley a day is 0.251 kg as fed: one step counted (%.2f days)", lamb.rlGrowth.creepDays or -1),
         near(lamb.rlGrowth.creepDays, 0.25) and not RLFeed.isEarlyWeaned(lamb))
-    local grassOnly = { dtDays = 0.25, concShare = 0, byFill = { GRASS_WINDROW = { kg = 0.5 } } }
+    local grassOnly = { dtDays = 0.25, concShare = 0, byFill = { GRASS_WINDROW = { kg = 0.5 } }, tick = now(), previousTick = now() }
     RLFeed.afterStep(lamb, lamb.rlGrowth, grassOnly, result, nil, nil)
     check("weaning: a step on grass alone starts the count again", (lamb.rlGrowth.creepDays or -1) == 0)
     for _ = 1, 13 do creepStep(0.3) end
@@ -312,4 +315,174 @@ do
     older.rlGrowth.creepDays, older.rlGrowth.weanedEarly = 4, true
     RLFeed.afterStep(older, older.rlGrowth, grassOnly, { weight = older.weight }, nil, nil)
     check("weaning: past milk age both are cleared", older.rlGrowth.creepDays == nil and older.rlGrowth.weanedEarly == nil)
+end
+
+
+-- Switching the mode or the config within an hour: the hour is still settled once ---------------
+
+do
+    local function penState(pen, animal)
+        local levels = {}
+        for index, level in pairs(pen.spec_husbandryFood.fillLevels) do levels[index] = level end
+        return { weight = animal.weight, health = animal.health, levels = levels }
+    end
+    -- The animal's settlement (weight, health) and, with trough = true, the trough too. Re-running a
+    -- pen's hour in the old rules makes the engine's pen feeding eat again (the game feeds a pen
+    -- once an hour, so only a test can do that); in the mode nothing is withdrawn for an animal
+    -- the pen does not step.
+    local function same(a, b, trough)
+        if a.weight ~= b.weight or a.health ~= b.health then return false end
+        if trough then for index, level in pairs(a.levels) do if b.levels[index] ~= level then return false end end end
+        return true
+    end
+    local section = RLFeedProfiles.getConfig().species.SHEEP
+    local switches = {
+        { "the mode", function() FeedSim.setMode(false) end, function() FeedSim.setMode(true) end },
+        { "the species config", function() section.valid = false end, function() section.valid = true end },
+    }
+    for _, sw in ipairs(switches) do
+        local name, off, on = sw[1], sw[2], sw[3]
+        -- In the mode, then switched off within the hour: no old rule on top.
+        local lamb = SheepSim.grown("RAM_LANDRACE", "MS1", 4.0)
+        lamb.health = 90
+        local pen = SheepSim.makePen({ lamb }, GRASS)
+        local counts = watch(lamb)
+        SheepSim.run(pen, 1, GRASS)
+        counts.reset()
+        local before = penState(pen, lamb)
+        off()
+        sameHour(pen)
+        check(string.format("same hour, %s switched off after the step: no old weight rule, no health on top (weight %.4f -> %.4f)",
+            name, before.weight, lamb.weight), counts.legacy == 0 and counts.steps == 0 and same(before, penState(pen, lamb), false)
+            and RLGrowth.isSettledThisHour(lamb))
+        counts.reset()
+        SheepSim.run(pen, 1, GRASS)
+        check("same hour, " .. name .. " off: the next hour takes the old weight rule once", counts.legacy == 1 and counts.steps == 0)
+        -- Old rule this hour, then switched on within the hour: no step on top.
+        counts.reset()
+        before = penState(pen, lamb)
+        on()
+        sameHour(pen)
+        check(string.format("same hour, %s switched on after the old rule: no step, no health, nothing taken from the trough (weight %.4f -> %.4f)",
+            name, before.weight, lamb.weight), counts.legacy == 0 and counts.steps == 0 and same(before, penState(pen, lamb), true)
+            and lamb.rlLegacyHourTick == RLBodyCondition.getTickId())
+        counts.reset()
+        SheepSim.run(pen, 1, GRASS)
+        check("same hour, " .. name .. " on: the next hour is stepped by the pen (several sub-steps in one settlement)",
+            counts.steps >= 2 and counts.legacy == 0)
+        counts.stop()
+    end
+    FeedSim.setMode(true)
+    section.valid = true
+end
+
+
+-- Creep days only count verified feeding in a row: a gap restarts them -------------------------
+
+do
+    local CREEP = { GRASS_WINDROW = 3000, BARLEY = 500 }
+    local function orphan(id)
+        local lamb = SheepSim.grown("RAM_LANDRACE", id, 2.1, { motherId = "GONE" })
+        local pen = SheepSim.makePen({ lamb })
+        -- 1-day month: an hour is 1.25 model days; two hours on creep = 2.5 days.
+        SheepSim.run(pen, 2, CREEP)
+        return lamb, pen
+    end
+    local section = RLFeedProfiles.getConfig().species.SHEEP
+    local gaps = {
+        { "a goat in the pen (grass only)", function(lamb, pen)
+            local goat = SheepSim.identify((GrowthSim.makeAnimal("GOAT", { age = 24 })), "CG")
+            table.insert(pen.animals, goat)
+            setOwner(goat, pen)
+            SheepSim.run(pen, 8, GRASS)
+            table.remove(pen.animals)
+        end },
+        { "no trough", function(lamb, pen)
+            setOwner(lamb, { isServer = true, getClusters = function() return { lamb } end, getAnimalTypeIndex = function() return SheepSim.TYPE end })
+            for _ = 1, 8 do GrowthSim.advanceHour(); AnimalHealth.updateHealth(lamb, 0.8) end
+            setOwner(lamb, pen)
+        end },
+        { "the mode off", function(lamb, pen)
+            FeedSim.setMode(false); SheepSim.run(pen, 8, GRASS); FeedSim.setMode(true)
+        end },
+        { "the config invalid", function(lamb, pen)
+            section.valid = false; SheepSim.run(pen, 8, GRASS); section.valid = true
+        end },
+    }
+    for _, gap in ipairs(gaps) do
+        local lamb, pen = orphan("CR" .. gap[1])
+        local held = lamb.rlGrowth.creepDays
+        gap[2](lamb, pen)
+        local kept = lamb.rlGrowth.creepDays
+        SheepSim.run(pen, 1, CREEP)
+        check(string.format("creep gap, %s: %.2f days before, %.2f held through the gap, %.2f after one hour back on creep (restarted, not weaned)",
+            gap[1], held, kept or -1, lamb.rlGrowth.creepDays or -1),
+            near(held, 2.5) and near(lamb.rlGrowth.creepDays, 1.25) and not lamb.rlGrowth.weanedEarly)
+    end
+
+    -- A weaned lamb stays weaned through a gap.
+    local weaned, wpen = orphan("CRW")
+    SheepSim.run(wpen, 1, CREEP)
+    local goat = SheepSim.identify((GrowthSim.makeAnimal("GOAT", { age = 24 })), "CGW")
+    table.insert(wpen.animals, goat); setOwner(goat, wpen)
+    SheepSim.run(wpen, 8, GRASS)
+    table.remove(wpen.animals)
+    SheepSim.run(wpen, 1, GRASS)
+    check("creep gap: a lamb already weaned early stays weaned through a gap and on grass after it", weaned.rlGrowth.weanedEarly == true
+        and RLFeed.isEarlyWeaned(weaned))
+
+    -- Moving between two pens in the mode, and a save and load without lost time: no gap.
+    local moved, mpen = orphan("CRM")
+    local other = SheepSim.makePen({ moved })
+    for i, a in ipairs(mpen.animals) do if a == moved then table.remove(mpen.animals, i) end end
+    SheepSim.run(other, 1, CREEP)
+    check(string.format("creep: moved to another pen in the mode, the count runs on (%.2f days, weaned %s)", moved.rlGrowth.creepDays,
+        tostring(moved.rlGrowth.weanedEarly)), moved.rlGrowth.weanedEarly == true)
+
+    local stored = {}
+    local xml = {
+        setInt = function(_, k, v) stored[k] = v end, setFloat = function(_, k, v) stored[k] = v end,
+        setString = function(_, k, v) stored[k] = v end, setBool = function(_, k, v) stored[k] = v end,
+        getInt = function(_, k, d) local v = stored[k] if v == nil then return d end return v end,
+        getFloat = function(_, k, d) local v = stored[k] if v == nil then return d end return v end,
+        getString = function(_, k, d) local v = stored[k] if v == nil then return d end return v end,
+        getBool = function(_, k, d) local v = stored[k] if v == nil then return d end return v end,
+    }
+    local saved, spen = orphan("CRS")
+    RLGrowth.saveToXMLFile(saved.rlGrowth, xml, "s")
+    saved.rlGrowth = RLGrowth.loadFromXMLFile(xml, "s")
+    SheepSim.run(spen, 1, CREEP)
+    check(string.format("creep: saved and loaded with no time lost, the count runs on (weaned %s)", tostring(saved.rlGrowth.weanedEarly)),
+        saved.rlGrowth.weanedEarly == true)
+    local late, lpen = orphan("CRL")
+    stored = {}
+    RLGrowth.saveToXMLFile(late.rlGrowth, xml, "l")
+    for _ = 1, 8 do GrowthSim.advanceHour() end
+    late.rlGrowth = RLGrowth.loadFromXMLFile(xml, "l")
+    SheepSim.run(lpen, 1, CREEP)
+    check(string.format("creep: loaded after 8 hours that ran no step (a save from before), the count restarts (%.2f days)",
+        late.rlGrowth.creepDays or -1), near(late.rlGrowth.creepDays, 1.25) and not late.rlGrowth.weanedEarly)
+
+    -- A 28-day month: hours between steps are no gap.
+    GrowthSim.setDaysPerPeriod(28)
+    local slow = SheepSim.grown("RAM_LANDRACE", "CR28", 2.1, { motherId = "GONE" })
+    local slowPen = SheepSim.makePen({ slow })
+    local steps, worst, last = 0, 0, nil
+    local function observe(kind, data)
+        if kind ~= "STEP" then return end
+        for _, e in ipairs(data.animals) do
+            if e.animal == slow then
+                steps = steps + 1
+                if last ~= nil then worst = math.max(worst, data.tick - last) end
+                last = data.tick
+            end
+        end
+    end
+    RLFeed.addObserver(observe)
+    local hours = 0
+    while not slow.rlGrowth.weanedEarly and hours < 200 do SheepSim.run(slowPen, 1, CREEP); hours = hours + 1 end
+    RLFeed.removeObserver(observe)
+    GrowthSim.setDaysPerPeriod(1)
+    check(string.format("creep: a 28-day month (a step every %d hours at most) counts on without a reset: weaned after %d steps",
+        worst, steps), slow.rlGrowth.weanedEarly == true and steps == 14)
 end

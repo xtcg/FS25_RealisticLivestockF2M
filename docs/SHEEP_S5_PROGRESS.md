@@ -84,7 +84,9 @@ None of them is closed by widening a tolerance or fitting a parameter (user rule
 3. **Texel R1 3.33.** The breed's own S4 potential is 2.9 months, plus the same milk/creep lag as the other breeds.
 4. **Ewe weaning BCS 2.29.** Twins on grass take her from 2.92 to 2.29 in three months; she pays 95%, 83% and 79% of her Table 28 milk. FAS's lowland target is 2.5.
 5. **Ewe mating BCS 2.98.** A dry ewe on GROW returns to the reference reserve (BCS 3.0) and no further. Per the user's rule, no flushing or dry-ewe target is added; the gate is reported, not met.
-6. **Table 8 triplets +8..+11%.** The pregnancy cost is linear in lambs (0.55 each). AFRC's third lamb costs less than the second. The game's sheep litters are set in S7; until then this shows only in triplet ewes.
+6. **Table 8 triplets +8..+11%.** The pregnancy cost is linear in lambs (0.55 each), but AFRC's third lamb costs less than the second. Triplets can already happen: `xml/animals.xml` gives sheep `pregnancy average="2" max="3"`, and `AnimalReproduction.generateRandomOffspring` uses it. So this must be fixed before sheep v2 is enabled. The independent review proposes per-litter values fitted to or interpolated from Table 8 for single, twin and triplet ewes, with regression by litter, weight and week so the single and twin cells stay as they are. Not done yet.
+
+The ewe BCS gates (4, 5) remain a nutrition assessment, not a fertility gate, and no dry-ewe or flushing mechanism is added. The 3–3.5 mating band is the scenario's target; FAS's mating targets are 3.5 lowland, 3 upland and 2.5 hill. One feeding plan that misses the target does not prove the model wrong. A run with adjusted feeding is still needed to tell a diet shortfall from a model bias.
 
 ## Review 2026-10-14 (PR #57 at `b8b07c6`)
 
@@ -125,15 +127,26 @@ Three commits, in the review's order: run gate and weaning state (`3fafeb4`), li
 | Growth cost 33, sex factors 0.80 / 1.00 / 1.25 | Calibration values (R1 / R4 and the trial ADG ratio) | V6 UNVERIFIED and taken apart; breed/weight/diet matrix without reference |
 | BCS 12% of reference weight a point; reserve index; EUROP map and meat factors | BCS–weight relation sourced (FAS 10–13%, AHDB ≈10%). The reserve index is not body fat. The fat class map and meat factors are game design | – |
 
+## Independent review 2026-10-15 (PR #57 at `3169507`)
+
+`s5-logs/independent-review-2026-10-15/REVIEW.md` found two P2 edge cases. Both are fixed here, with tests that fail without the fix; the reviewer's figures reproduce exactly.
+
+| Finding | Change | Verification |
+|---|---|---|
+| Switching the mode or the species config within an hour could settle a sheep twice: the "already settled" check read the current coverage, and the old-rule path for an uncovered sheep left no mark | Both marks no longer depend on the mode, config or pen. `RLGrowth.isSettledThisHour` reads the hour mark a pen in the mode set (`rlFeedStepTick`). `RLGrowth.markLegacyHour` marks every old-weight-rule hour of a sheep, covered or not (`AnimalHealth.updateHealth`). Several sub-steps in one pen settlement still run | `test_sheep_s5_runtime`: the mode and the config, each switched off after a step (no old rule, no health on top) and on after the old rule (no step, no health, nothing taken from the trough), then the next hour normal |
+| Creep days survived a gap: 3.25 days, then 10 model days grass-only in a mixed pen, then one 0.25-day step weaned the lamb | The count needs its previous step in the mode within the steps' spacing (`RLFeed.isFresh` on the state's `lastTick`, which only steps in the mode move; saved with the state). Otherwise it restarts. A lamb already weaned stays weaned | Gaps from a goat, no trough, the mode off and the config invalid each restart the count (2.5 → 1.25 days, not weaned). A save from 8 hours before restarts it. No time lost across a save, a move between two pens in the mode, or a 28-day month (a step every 6 hours, weaned after 14 steps) |
+
+Re-run (`s5-logs/review3-2026-10-15/`): full suite 3973/3973; Lua 5.1 sheep tests 150 / 150; A/B against `bbb4573` 396 / 640 / 2,040 cases, 0 unexpected differences; calibration unchanged, 27 PASS, 8 FAIL, 8 UNVERIFIED (exit 1).
+
 ## Game compromises added in S5 (four columns in the finishing design §4)
 
 SHEEP-C09 to C17 are recorded in the finishing design §4 (2026-10-14 addendum): monthly milk steps; lean newborn reserve; growth cost by sex; AUTO finishing young females; goat pens stay on the old rules; creep gate; the notification comes the hour after a separation, not at the move; ewe milk composition is a proxy; the hill gap.
 
 ## Verification
 
-- Full suite: 3956/3956 (`python tests/run.py`; log `s5-logs/review2-2026-10-14/tests-full.log`). The sheep files are `test_sheep_s5_config` (19 checks), `test_sheep_s5_nursing` (40), `test_sheep_s5_settings` (24), `test_sheep_s5_runtime` (34) and `test_sheep_s5_lifecycle` (16).
+- Full suite: 3973/3973 (`python tests/run.py`; log `s5-logs/review3-2026-10-15/tests-full.log`). The sheep files are `test_sheep_s5_config` (19 checks), `test_sheep_s5_nursing` (40), `test_sheep_s5_settings` (24), `test_sheep_s5_runtime` (51) and `test_sheep_s5_lifecycle` (16).
 - A/B against `bbb4573` (run from `tests/`): `python sheep_s5_ab.py` (cattle legacy budget), `python feed_ab.py` (cattle real-equivalent mode), `python species_ab.py` (every other type). Each takes `--baseline bbb4573 --out …`. Results are in `s5-logs/review2-2026-10-14/`, with 0 unexpected differences.
-- The five sheep test files also pass under Lua 5.1: 133 / 133 (`sheep-tests-lua51.txt`).
+- The five sheep test files also pass under Lua 5.1: 150 / 150 (`s5-logs/review3-2026-10-15/sheep-tests-lua51.txt`).
 - Not done: game test, W-DEBUG/TestDiagnostics sheep scenario (separate mod), multiplayer.
 
 ## Before sheep v2 may be enabled
