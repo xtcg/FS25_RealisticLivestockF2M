@@ -125,3 +125,24 @@ do
         check("crossing: afterwards AUTO grows her (GROW), no fat class", auto(lamb) == "GROW" and B.getFatClass(lamb) == nil)
     end
 end
+
+
+-- Pregnancy cost by litter: a third and further lamb at physiology pregnancyThirdLambFactor ---------
+
+do
+    local M = RLGrowthMath
+    local half = { pregnancyThirdLambFactor = 0.5 }
+    check("pregnancy load: 1 / 2 / 3 / 4 lambs count 1 / 2 / 2.5 / 3 at a third-lamb factor of 0.5",
+        M.getPregnancyLoad(1, half) == 1 and M.getPregnancyLoad(2, half) == 2 and M.getPregnancyLoad(3, half) == 2.5
+        and M.getPregnancyLoad(4, half) == 3 and M.getPregnancyLoad(nil, half) == 0)
+    check("pregnancy load: without a factor (cattle, the body condition config) every fetus counts 1",
+        M.getPregnancyLoad(3, {}) == 3 and M.getPregnancyLoad(2, {}) == 2)
+    local ewe = SheepSim.ewe("SHEEP_LANDRACE", "PL1")
+    local cow = GrowthSim.makeAnimal("COW_ANGUS", { age = 30 })
+    SheepSim.makePen({ ewe })
+    FeedSim.makePen({ cow })
+    local sheepCfg, cowCfg = RLFeed.getEnergyConfig(ewe), RLFeed.getEnergyConfig(cow)
+    check(string.format("pregnancy load: sheep read 0.50 from their physiology, cattle count every fetus (%s, %s)",
+        tostring(sheepCfg.pregnancyThirdLambFactor), tostring(cowCfg.pregnancyThirdLambFactor)),
+        sheepCfg.pregnancyThirdLambFactor == 0.5 and M.getPregnancyLoad(3, cowCfg) == 3)
+end

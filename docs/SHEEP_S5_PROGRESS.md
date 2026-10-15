@@ -2,7 +2,7 @@
 
 Status 2026-10-14. Branch `feat/sheep-s5-nutrition` (worktree `rlrm-sheep5`), rebased on `origin/dev` `bbb4573` (S3 #53, S4 #54, dealer #55, breeding value #56). Decisions: [S5 checklist](../../FS25_SheepBreeds_离线准备_2026-10-11/S5_待设计与决策清单.md) D1–D9 and the [finishing design](../../FS25_SheepBreeds_离线准备_2026-10-11/sheep-finishing-design-v1.md) F-D1–F-D5, all approved by the user. The user asked on 2026-10-13 to develop from the checklist.
 
-**Four states:** code committed — yes; in a run package — no; automated checks — pass (see Verification); game test — not done. **Sheep v2 stays OFF** (`weightProfiles.xml` SHEEP `enabled="false"`). After the second review (below) the calibration has 27 PASS, 8 FAIL and 8 UNVERIFIED items, and it exits with code 1. Nothing has been tried in game.
+**Four states:** code committed — yes; in a run package — no; automated checks — pass (see Verification); game test — not done. **Sheep v2 stays OFF** (`weightProfiles.xml` SHEEP `enabled="false"`). After the triplet pregnancy fix and the BCS feeding control (2026-10-15, below) the calibration has 32 PASS, 7 FAIL and 8 UNVERIFIED items, and it exits with code 1. Nothing has been tried in game.
 
 ## What the code does
 
@@ -36,7 +36,7 @@ Run: `python tests/sheepcalib.py --json out.json --ab cattle-legacy=… --ab cat
 | V6 ram : wether : ewe lamb ADG | 1 : 0.88 : 0.76, **UNVERIFIED**: the sex growth costs were calibrated on this ratio (SHEEP-C11). Taken apart on R4: without the sex growth costs 1 : 0.99 : 0.97; without the fat offsets 1 : 0.86 : 0.75; the ewe lamb on the ram's curve 1 : 0.88 : 0.76 (her curve does not bind on R4: energy does); without all three 1 : 0.97 : 1.00. The ratio comes from the sex growth costs alone |
 | Milk pool (Table 28) | Potential = Table 28 × 30 days each month, exactly: lowland single 63.0 / 51.0 / 31.5 kg, twins 90.0 / 67.5 / 45.0, hill twins 57.0 / 48.0 / 33.0 PASS. The lambs never take more than the ewe paid PASS. Paid (= taken) on grass, twins: 87.5 / 57.1 / 35.9 kg (lowland), 52.5 / 39.0 / 26.2 (hill) |
 | Ewe year, one Landrace ewe from mating to the next mating (twins; the last two months of pregnancy housed on silage; lambs leave at 3 months; never rebuilt or reset) | Start at BCS 3.00 (setup, not judged). Lambing 2.92 PASS (3 ± 0.25); **weaning 2.29 FAIL** (≥ 2.5); **next mating 2.98 FAIL** (3.0–3.5). Monthly table below |
-| Energy, AHDB Table 8 (late pregnancy, 40 cells) | **FAIL**: mean error 4.1%. Singles −2..−8%, twins −6..+0%, **triplets −3..+11%** (70 kg, 3 lambs, 3 weeks: 18.6 vs 16.7 MJ). A linear 0.55 a lamb overstates a third lamb |
+| Energy, AHDB Table 8 (late pregnancy, 40 cells) | 2026-10-14: **FAIL**, triplets −3..+11% (a linear 0.55 a lamb overstated the third lamb). 2026-10-15, with the third lamb at 0.50: PASS, all cells −8..+2% (see the triplet section below) |
 | Energy, AHDB Table 29 (lactation, 18 cells) | PASS: +2..+6% (maintenance + 8.3 × milk − 35 × loss); the model's describeAnimal equals that sum exactly (a 70 kg ewe nursing twins, 33.854 MJ) PASS |
 | V8 month length | 1 vs 3 / 7 / 28 days within 0.8% PASS |
 | V9 A/B against dev `bbb4573` | Cattle legacy budget 396 cases / 50,688 values, 0 differences PASS. Cattle real mode 640 cases, 0 differences PASS. Pigs, goats, horses, chickens and sheep on the shipped config (v2 off), every subtype × ages 1/6/30 × food 0.3/1.0 × both modes: 2,040 cases / 11,424 values, 0 unexpected differences PASS. 60 expected: a SHEEP-type pen now reports `UNCOVERED_ANIMAL` instead of `NOT_CATTLE`, inactive either way |
@@ -84,7 +84,7 @@ None of them is closed by widening a tolerance or fitting a parameter (user rule
 3. **Texel R1 3.33.** The breed's own S4 potential is 2.9 months, plus the same milk/creep lag as the other breeds.
 4. **Ewe weaning BCS 2.29.** Twins on grass take her from 2.92 to 2.29 in three months; she pays 95%, 83% and 79% of her Table 28 milk. FAS's lowland target is 2.5.
 5. **Ewe mating BCS 2.98.** A dry ewe on GROW returns to the reference reserve (BCS 3.0) and no further. Per the user's rule, no flushing or dry-ewe target is added; the gate is reported, not met.
-6. **Table 8 triplets +8..+11%.** The pregnancy cost is linear in lambs (0.55 each), but AFRC's third lamb costs less than the second. Triplets can already happen: `xml/animals.xml` gives sheep `pregnancy average="2" max="3"`, and `AnimalReproduction.generateRandomOffspring` uses it. So this must be fixed before sheep v2 is enabled. The independent review proposes per-litter values fitted to or interpolated from Table 8 for single, twin and triplet ewes, with regression by litter, weight and week so the single and twin cells stay as they are. Not done yet.
+6. **Table 8 triplets (closed 2026-10-15).** The cost was linear in lambs, and triplets can already happen (`xml/animals.xml` sheep `pregnancy average="2" max="3"`). Fixed with a third-lamb factor taken from the table's own 70 kg row and checked on the held-out 80 kg row and on new in-between points (below).
 
 The ewe BCS gates (4, 5) remain a nutrition assessment, not a fertility gate, and no dry-ewe or flushing mechanism is added. The 3–3.5 mating band is the scenario's target; FAS's mating targets are 3.5 lowland, 3 upland and 2.5 hill. One feeding plan that misses the target does not prove the model wrong. A run with adjusted feeding is still needed to tell a diet shortfall from a model bias.
 
@@ -138,20 +138,62 @@ Three commits, in the review's order: run gate and weaning state (`3fafeb4`), li
 
 Re-run (`s5-logs/review3-2026-10-15/`): full suite 3973/3973; Lua 5.1 sheep tests 150 / 150; A/B against `bbb4573` 396 / 640 / 2,040 cases, 0 unexpected differences; calibration unchanged, 27 PASS, 8 FAIL, 8 UNVERIFIED (exit 1).
 
+## Triplet pregnancy energy and the BCS feeding control (2026-10-15)
+
+The user asked for both before the next review. Evidence is in `s5-logs/review4-2026-10-15/`: full suite 3976/3976, Lua 5.1 sheep tests 153/153, A/B against `bbb4573` 396 / 640 / 2,040 cases with 0 unexpected differences (cattle count every fetus at 1, bit-identical). Calibration: **32 PASS, 7 FAIL, 8 UNVERIFIED** (exit 1). Only the energy items changed; every other result is identical to `review3`.
+
+### Triplets (Table 8)
+
+Triplets are possible now (`animals.xml` sheep `pregnancy average="2" max="3"`). The pregnancy cost was linear in lambs (0.55 x maintenance each). Now the third lamb, and any further one, counts at the feed physiology's `pregnancyThirdLambFactor` 0.50 (`RLGrowthMath.getPregnancyLoad`). The first two lambs are unchanged.
+
+The value comes from Table 8 itself, not from the model's error. In the 70 kg row the triplet − twin increment is 0.47–0.52 of the twin − single one at 7/5/3/1 weeks (mean 0.50). The 80 kg row (0.48–0.55) was held out. It is a species-only setting (cattle count every fetus at 1, and the root config's fingerprint is unchanged).
+
+| Check | Before | Now |
+|---|---|---|
+| Table 8, 40 cells | FAIL (triplets −3..+11%) | PASS. Singles −8..−2%, twins −6..+1%, triplets −7..+2%; mean 3.1% |
+| Singles and twins | – | Bit-identical to before (32 cells) PASS |
+| Held out: 80 kg triplets | +8..+11% at 5/3/1 weeks | −7%, +0%, +1%, −3% PASS |
+| New points between the table's (55/65/75 kg × 6/4/2 weeks; triplets at 75 kg; table interpolated) | triplets +3%, +10%, +10% | 21 points within −6..+1%; triplets −3%, +1%, −1% PASS |
+| Through the pregnancy (70 kg, every 1%) | – | Never falling, never negative, triplets ≥ twins ≥ single, largest 1% step 0.31 MJ PASS |
+
+Maintenance and pregnancy are reported apart: at 70 kg, maintenance is 8.95 MJ and pregnancy at 1 week is 4.35 / 8.70 / 10.88 MJ for 1 / 2 / 3 lambs. The second and third lambs' increments are reported against the table's, at 70 and 80 kg. The model's second-lamb increment is 0.15–0.51 MJ above the table's at 5/3/1 weeks and 0.3 MJ below at 7 weeks: the linear ramp from 60% of the pregnancy is steeper than AFRC's curve. This is within the tolerance and left as it is (singles and twins unchanged).
+
+### BCS feeding control (cause diagnosis, not gates)
+
+The baseline year and its two D6 failures stay as they were. Three adjusted years run on the same code and the same ewe. Their plans and the diagnosis rule were written into `tests/sheepcalib.lua` / `sheepcalib.py` before the first run and were not changed after it:
+
+- **L, lactation supplement.** AHDB Table 32 (a 70 kg ewe rearing twins at three weeks) gets 1 kg of an 18% CP compound a day where grass is short. Here that is 0.5 kg barley + 0.5 kg peas a day in the trough for the first two months of lactation, with grass ad lib.
+- **R, recovery free intake.** From weaning to mating the pen's target is FINISH on the same grass. AUTO grows a dry ewe back to the reference reserve (BCS 3) and no further.
+- **L+R**: both.
+
+The rule: a control explains a failure only if it meets the D6 target while the lambs' weaning weight and the milk paid stay within 2% of the baseline.
+
+| Plan | Lambing / weaning / mating BCS | Lambs at weaning (ADG) | Milk paid / Table 28 potential | Concentrate, ewe / lambs, kg a day |
+|---|---|---|---|---|
+| Baseline | 2.92 / 2.29 / 2.98 | 26.5 kg (220 g) | 177.6 / 202.5 kg | 0 / 0 |
+| L | 2.92 / 2.30 / 2.98 | 28.0 kg (238 g) | 179.9 / 202.5 | 0.75 / 0.25 |
+| R | 2.92 / 2.29 / 3.66 | 26.5 kg (220 g) | 177.6 / 202.5 | 0 / 0 |
+| L+R | 2.92 / 2.30 / 3.68 | 28.0 kg (238 g) | 179.9 / 202.5 | 0.75 / 0.25 |
+
+By the rule, **neither failure is explained; both stay open**. What the records show:
+
+- **Weaning 2.29.** In the first month of milk the ewe needs 35.2 MJ. She eats 28.0 MJ on grass and 29.2 MJ with the supplement: the concentrate mostly replaced grass, because her intake is fill-limited at about 3.3% of live weight. The lambs took a quarter of the trough as creep and gained 1.5 kg more. Her condition barely moved. AHDB's own Table 32 ration also leaves a deficit (30.0 against 33.4 MJ, losing 200 g a day). So the loss comes from appetite against twin milk, not from too little feed. Whether the loss is too large (0.63 BCS from lambing, against AHDB's expected 0.5) is not settled by this control. Part of it is the 88 kg Landrace ewe giving the full Table 28 lowland twin row.
+- **Mating 2.98.** Free intake from weaning raises her from 2.29 to 3.66 in four months: the energy model can rebuild condition, and overshoots the 3–3.5 band. The baseline's 2.98 is AUTO's GROW rule, which aims a dry ewe at the reference reserve (BCS 3.0) and no further, not a lack of energy. The band lies between the two management settings the game has. Whether AUTO's dry-ewe target should be BCS 3.0 is a game rule to decide. No fertility, flushing or dry-ewe mechanism was added, and no further plan was tried after seeing these results.
+
 ## Game compromises added in S5 (four columns in the finishing design §4)
 
 SHEEP-C09 to C17 are recorded in the finishing design §4 (2026-10-14 addendum): monthly milk steps; lean newborn reserve; growth cost by sex; AUTO finishing young females; goat pens stay on the old rules; creep gate; the notification comes the hour after a separation, not at the move; ewe milk composition is a proxy; the hill gap.
 
 ## Verification
 
-- Full suite: 3973/3973 (`python tests/run.py`; log `s5-logs/review3-2026-10-15/tests-full.log`). The sheep files are `test_sheep_s5_config` (19 checks), `test_sheep_s5_nursing` (40), `test_sheep_s5_settings` (24), `test_sheep_s5_runtime` (51) and `test_sheep_s5_lifecycle` (16).
+- Full suite: 3976/3976 (`python tests/run.py`; log `s5-logs/review4-2026-10-15/tests-full.log`). The sheep files are `test_sheep_s5_config` (19 checks), `test_sheep_s5_nursing` (40), `test_sheep_s5_settings` (24), `test_sheep_s5_runtime` (51) and `test_sheep_s5_lifecycle` (19).
 - A/B against `bbb4573` (run from `tests/`): `python sheep_s5_ab.py` (cattle legacy budget), `python feed_ab.py` (cattle real-equivalent mode), `python species_ab.py` (every other type). Each takes `--baseline bbb4573 --out …`. Results are in `s5-logs/review2-2026-10-14/`, with 0 unexpected differences.
-- The five sheep test files also pass under Lua 5.1: 150 / 150 (`s5-logs/review3-2026-10-15/sheep-tests-lua51.txt`).
+- The five sheep test files also pass under Lua 5.1: 153 / 153 (`s5-logs/review4-2026-10-15/sheep-tests-lua51.txt`).
 - Not done: game test, W-DEBUG/TestDiagnostics sheep scenario (separate mod), multiplayer.
 
 ## Before sheep v2 may be enabled
 
-1. Decide the eight failures (above). They are not to be closed by widening tolerances.
+1. Decide the seven failures (above). They are not to be closed by widening tolerances. The feeding control (below) leaves both BCS failures open, and records what drives each.
 2. Dealer: sheep listings under v2 (dealerStock SHEEP is still LEGACY_WEIGHT) — not wired.
 3. In-game short test (single player): an R1 group and an R4 group; check fat classes, the notification, butcher meat, saving and loading, troughs accepting silage and grain, and that a goat pen stays on the old rules.
 4. S7 (reproduction: BCS effects, litter size, seasonality) is untouched.

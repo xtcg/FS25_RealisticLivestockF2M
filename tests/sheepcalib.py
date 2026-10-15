@@ -175,29 +175,129 @@ def judge(c, ab_files):
         print(f"    {r['month']:2d}  {r['bcs']:.2f} {r['weight']:6.1f} {r['gravid']:5.1f} | {r['dmPerDay']:.2f} {r['mePerDay']:5.1f} | "
               f"{r['milkPotential']:.2f} {r['milkPaid']:.2f} {r['lambsTook']:.2f} | {need if need is None else round(need, 1)}")
 
+    # Feeding control (cause diagnosis, not gates; plans fixed in sheepcalib.lua before they ran).
+    # Rule, fixed with the plans: a control explains a D6 failure when it meets that target while
+    # the lambs at weaning and the milk the ewe paid stay within 2% of the baseline; met only with
+    # the lambs worse off is "met at the lambs' expense"; not met leaves the cause unresolved.
+    print("INFO EWE feeding control: plan | lambing weaning mating BCS | lambs at weaning kg (ADG g) | milk paid / potential kg "
+          "| ewe / lamb concentrate kg a day in lactation months 1-2")
+    controls = [("baseline (as fed)", year)] + [(k[12:], c[k]) for k in sorted(c) if k.startswith("EWE/control/")]
+    for name, r in controls:
+        lact = [x for x in r["log"] if x["month"] in (6, 7)]
+        ewe_c = sum(x["eweConcPerDay"] for x in lact) / len(lact)
+        lamb_c = sum(x["lambConcPerDay"] for x in lact) / len(lact)
+        print(f"     {name:28s} | {r['lambingBcs']:.2f} {r['weaningBcs']:.2f} {r['matingBcs']:.2f} | {r['lambsAtWeaningKg']:.1f} "
+              f"({r['lambAdgToWeaning']*1000:.0f}) | {r['milkPaidKg']:.1f} / {r['milkPotentialKg']:.1f} | {ewe_c:.2f} / {lamb_c:.2f}")
+    for name, r in controls[1:]:
+        print(f"INFO EWE control {name} by month: month BCS reserveKg | ate MJ/d need balance | milk paid lambs took | lamb kg")
+        for x in r["log"]:
+            if x["month"] == 0:
+                continue
+            bal = x.get("balance")
+            print(f"    {x['month']:2d} {x['bcs']:.2f} {x['reserveKg']:5.1f} | {x['mePerDay']:5.1f} {x['need']:5.1f} "
+                  f"{'' if bal is None else format(bal, '+.1f')} | {x['milkPaid']:.2f} {x['lambsTook']:.2f} | "
+                  f"{'' if x.get('lambKg') is None else format(x['lambKg'], '.1f')}")
+
+    def verdict(target, ok_of, key):
+        values = ", ".join(f"{n} {r[key]:.2f}" for n, r in controls)
+        met = [(n, r) for n, r in controls[1:] if ok_of(r)]
+        clean = [(n, r) for n, r in met if r["lambsAtWeaningKg"] >= 0.98 * year["lambsAtWeaningKg"]
+                 and r["milkPaidKg"] >= 0.98 * year["milkPaidKg"]]
+        if clean:
+            return f"{target} ({values}): met by {', '.join(n for n, _ in clean)} without the lambs or the milk worse off -> the baseline's miss is the feeding plan, not the energy model"
+        if met:
+            return f"{target} ({values}): met by {', '.join(n for n, _ in met)} only with the lambs or the milk worse off -> unresolved"
+        return f"{target} ({values}): not met by any control -> unresolved (these plans do not explain it)"
+    info("EWE diagnosis " + verdict("weaning BCS >= 2.5", lambda r: r["weaningBcs"] >= 2.5 - 1e-9, "weaningBcs"))
+    info("EWE diagnosis " + verdict("mating BCS 3.0-3.5", lambda r: 3.0 - 1e-9 <= r["matingBcs"] <= 3.5 + 1e-9, "matingBcs"))
+
     # Energy anchors, judged on their own (never read off the BCS gates).
     energy = c["ENERGY"]
-    errors = []
-    for cell in energy["table8"]:
-        table = TABLE8.get((cell["w"], cell["n"]))
-        if table is None:
-            continue
-        t = table[TABLE8_WEEKS.index(cell["weeks"])]
-        errors.append(((cell["model"] - t) / t, cell, t))
+
+    def table8_errors(cells):
+        out = []
+        for cell in cells:
+            table = TABLE8.get((cell["w"], cell["n"]))
+            if table is not None:
+                t = table[TABLE8_WEEKS.index(cell["weeks"])]
+                out.append(((cell["model"] - t) / t, cell, t))
+        return out
+
+    errors, old_errors = table8_errors(energy["table8"]), table8_errors(energy["table8Old"])
+    for label, errs in (("now", errors), ("before (every lamb 0.55)", old_errors)):
+        parts = []
+        for n in (1, 2, 3):
+            e = [abs(x[0]) for x in errs if x[1]["n"] == n]
+            signed = [x[0] for x in errs if x[1]["n"] == n]
+            parts.append(f"{n} lamb(s) {min(signed):+.1%}..{max(signed):+.1%} (mean |{sum(e)/len(e):.1%}|)")
+        info(f"ENERGY Table 8 by litter, {label}: " + "; ".join(parts))
     worst = max(errors, key=lambda e: abs(e[0]))
-    mean_abs = sum(abs(e[0]) for e in errors) / len(errors)
-    gate(f"ENERGY late pregnancy against AHDB Table 8, all {len(errors)} cells within +-{ENERGY_TOL:.0%} (maintenance 0.37 x W^0.75, pregnancy 0.55 a lamb, ramp from 60%)",
+    gate(f"ENERGY late pregnancy against AHDB Table 8, all {len(errors)} cells within +-{ENERGY_TOL:.0%} "
+         f"(maintenance 0.37 x W^0.75, pregnancy 0.55 a lamb, a third lamb x {energy['thirdLambFactor']}, ramp from 60%)",
          all(abs(e[0]) <= ENERGY_TOL for e in errors),
-         f"mean |error| {mean_abs:.1%}, worst {worst[0]:+.1%} ({worst[1]['w']} kg, {worst[1]['n']} lambs, {worst[1]['weeks']} weeks: "
-         f"{worst[1]['model']:.1f} vs {worst[2]})")
+         f"mean |error| {sum(abs(e[0]) for e in errors) / len(errors):.1%}, worst {worst[0]:+.1%} ({worst[1]['w']} kg, {worst[1]['n']} lambs, "
+         f"{worst[1]['weeks']} weeks: {worst[1]['model']:.1f} vs {worst[2]})")
+    same = all(a[1]["model"] == b[1]["model"] for a, b in zip(errors, old_errors) if a[1]["n"] <= 2)
+    gate("ENERGY singles and twins exactly as before the third-lamb factor (only the third lamb changed)", same,
+         f"{sum(1 for e in errors if e[1]['n'] <= 2)} cells compared")
+    held = [e for e in errors if e[1]["n"] == 3 and e[1]["w"] == 80]
+    gate("ENERGY held out: Table 8's 80 kg triplet row (the factor was taken from the 70 kg row) within +-10%",
+         all(abs(e[0]) <= ENERGY_TOL for e in held), " ".join(f"{e[1]['weeks']}w {e[1]['model']:.1f}/{e[2]}({e[0]:+.1%})" for e in held))
+
+    def table8_at(w, n, weeks):
+        """Table 8 interpolated linearly in weight and in weeks to lambing (between its rows and columns)."""
+        ws = sorted(k[0] for k in TABLE8 if k[1] == n)
+        lo = max(x for x in ws if x <= w)
+        hi = min(x for x in ws if x >= w)
+
+        def row_at(weight):
+            row = TABLE8[(weight, n)]
+            cols = list(TABLE8_WEEKS)
+            for i in range(len(cols) - 1):
+                if cols[i] >= weeks >= cols[i + 1]:
+                    f = (cols[i] - weeks) / (cols[i] - cols[i + 1])
+                    return row[i] + f * (row[i + 1] - row[i])
+            raise ValueError(weeks)
+        if lo == hi:
+            return row_at(lo)
+        f = (w - lo) / (hi - lo)
+        return row_at(lo) + f * (row_at(hi) - row_at(lo))
+
+    between = [((b["model"] - table8_at(b["w"], b["n"], b["weeks"])) / table8_at(b["w"], b["n"], b["weeks"]), b) for b in energy["between"]]
+    between_old = [((b["model"] - table8_at(b["w"], b["n"], b["weeks"])) / table8_at(b["w"], b["n"], b["weeks"]), b) for b in energy["betweenOld"]]
+    worst_b = max(between, key=lambda e: abs(e[0]))
+    gate(f"ENERGY new check points between Table 8's ({len(between)}: 55 / 65 / 75 kg x 6 / 4 / 2 weeks, triplets at 75 kg) within +-10% of the table interpolated",
+         all(abs(e[0]) <= ENERGY_TOL for e in between),
+         f"worst {worst_b[0]:+.1%} ({worst_b[1]['w']} kg, {worst_b[1]['n']} lambs, {worst_b[1]['weeks']} weeks); triplets now "
+         + " ".join(f"{e[1]['weeks']}w {e[0]:+.1%}" for e in between if e[1]["n"] == 3)
+         + "; before " + " ".join(f"{e[1]['weeks']}w {e[0]:+.1%}" for e in between_old if e[1]["n"] == 3))
+    series = energy["series"]
+    rows = {int(k): v for k, v in series.items()} if isinstance(series, dict) else {i + 1: v for i, v in enumerate(series)}
+    rising = all(rows[n][i + 1][0] >= rows[n][i][0] - 1e-9 for n in rows for i in range(len(rows[n]) - 1))
+    nonneg = all(p >= 0 for n in rows for _, p in rows[n])
+    ordered = all(rows[3][i][0] >= rows[2][i][0] - 1e-9 and rows[2][i][0] >= rows[1][i][0] - 1e-9 for i in range(len(rows[1])))
+    jump = max(abs(rows[n][i + 1][0] - rows[n][i][0]) for n in rows for i in range(len(rows[n]) - 1))
+    gate("ENERGY through the pregnancy (70 kg, every 1%): never falling, pregnancy cost never negative, triplets >= twins >= single, no jump over 0.5 MJ",
+         rising and nonneg and ordered and jump <= 0.5, f"rising {rising}, non-negative {nonneg}, ordered {ordered}, largest 1% step {jump:.3f} MJ")
+    info(f"ENERGY maintenance and pregnancy apart (70 kg; a dry ewe {energy['nonPregnant70']:.2f} MJ): "
+         + "; ".join(f"{e[1]['n']} lamb(s) {e[1]['weeks']}w {e[1]['maintenance']:.2f} + {e[1]['pregnancy']:.2f}"
+                     for e in errors if e[1]["w"] == 70))
+    for w in (70, 80):
+        parts = []
+        for weeks in TABLE8_WEEKS:
+            i = TABLE8_WEEKS.index(weeks)
+            model = {e[1]["n"]: e[1]["model"] for e in errors if e[1]["w"] == w and e[1]["weeks"] == weeks}
+            t1, t2, t3 = TABLE8[(w, 1)][i], TABLE8[(w, 2)][i], TABLE8[(w, 3)][i]
+            parts.append(f"{weeks}w 2nd {model[2]-model[1]:.2f}/{t2-t1:.1f} 3rd {model[3]-model[2]:.2f}/{t3-t2:.1f}")
+        info(f"ENERGY a lamb's increment, model/table, {w} kg: " + "; ".join(parts))
     for n in (1, 2, 3):
-        rows = []
+        rows_txt = []
         for (w, k), _ in sorted(TABLE8.items()):
             if k != n:
                 continue
             cells = [e for e in errors if e[1]["w"] == w and e[1]["n"] == n]
-            rows.append(f"{w} kg " + " ".join(f"{e[1]['model']:.1f}/{e[2]}({e[0]:+.0%})" for e in sorted(cells, key=lambda e: -e[1]["weeks"])))
-        info(f"ENERGY Table 8, {n} lamb(s), model/table at 7/5/3/1 weeks: " + "; ".join(rows))
+            rows_txt.append(f"{w} kg " + " ".join(f"{e[1]['model']:.1f}/{e[2]}({e[0]:+.0%})" for e in sorted(cells, key=lambda e: -e[1]["weeks"])))
+        info(f"ENERGY Table 8, {n} lamb(s), model/table at 7/5/3/1 weeks: " + "; ".join(rows_txt))
     m, milk_me, mob = energy["maintenancePerKgMetabolic"], energy["milkMePerKg"], energy["mobilizePerKg"]
     nursing = energy["nursing70"]
     formula = m * nursing["weight"] ** 0.75 + milk_me * nursing["milk"]

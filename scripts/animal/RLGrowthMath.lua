@@ -120,9 +120,23 @@ function RLGrowthMath.getPotentialGrowth(curve, u, frameKg, speed, dt, kappa, re
 end
 
 
+--- The fetuses a pregnancy's cost counts: the first two at 1 each, every further one at
+--- cfg.pregnancyThirdLambFactor (a species' own: sheep 0.50, AHDB Table 8's third lamb costs about
+--- half the second; without one, every fetus at 1).
+--- @param numFetuses number|nil
+--- @param cfg table
+--- @return number
+function RLGrowthMath.getPregnancyLoad(numFetuses, cfg)
+    local n = numFetuses or 0
+    local extra = cfg.pregnancyThirdLambFactor
+    if extra == nil or n <= 2 then return n end
+    return 2 + (n - 2) * extra
+end
+
+
 --- Maintenance and pregnancy demand (per period) of an animal of weight W: maintenance x W^0.75
---- x the maintenance gene; a pregnancy adds pregnancyFactor of the maintenance per fetus, rising
---- from pregnancyRampStart of the pregnancy to term.
+--- x the maintenance gene; a pregnancy adds pregnancyFactor of the maintenance per fetus counted
+--- (RLGrowthMath.getPregnancyLoad), rising from pregnancyRampStart of the pregnancy to term.
 --- @return number maintenance
 --- @return number pregnancy
 --- @return number ramp 0..1
@@ -130,7 +144,7 @@ local function getMaintenanceAndPregnancy(W, input, cfg)
     local metabolic = math.max(W, 1) ^ 0.75
     local maintenance = cfg.maintenancePerKgMetabolic * metabolic * (input.maintenanceFactor or 1)
     local ramp = math.clamp(((input.pregnancyProgress or 0) - cfg.pregnancyRampStart) / (1 - cfg.pregnancyRampStart), 0, 1)
-    local pregnancy = cfg.maintenancePerKgMetabolic * metabolic * cfg.pregnancyFactor * (input.numFetuses or 0) * ramp
+    local pregnancy = cfg.maintenancePerKgMetabolic * metabolic * cfg.pregnancyFactor * RLGrowthMath.getPregnancyLoad(input.numFetuses, cfg) * ramp
     return maintenance, pregnancy, ramp
 end
 
@@ -237,7 +251,7 @@ function RLGrowthMath.step(input, cfg)
         local anchor
         if fixedPrice then
             local referenceMetabolic = math.max(input.referenceWeight or W, 1) ^ 0.75
-            anchor = cfg.maintenancePerKgMetabolic * referenceMetabolic * (1 + cfg.pregnancyFactor * (input.numFetuses or 0) * ramp)
+            anchor = cfg.maintenancePerKgMetabolic * referenceMetabolic * (1 + cfg.pregnancyFactor * RLGrowthMath.getPregnancyLoad(input.numFetuses, cfg) * ramp)
                 + math.max(input.referenceGrowthNU or 0, 0)
         else
             anchor = maintenance + pregnancy + growthNeed

@@ -77,10 +77,11 @@ RLFeedProfiles.DAM_MILK = { dm = 0.125, me = 22.5, cp = 0.25 }
 -- calfGrowthCost 1: a young animal on milk pays NRC 2001's calf cost (calf), 0: the growth cost
 -- (under AUTO a ewe lamb eats freely as a ram lamb does: RLBodyCondition.isFinishingYoungFemale);
 -- growthCostMale / Castrate / Female: the growth cost of a kg of frame by sex (an entire male's
--- gain is leaner, a female's fatter at the same weight).
+-- gain is leaner, a female's fatter at the same weight); pregnancyThirdLambFactor: the pregnancy
+-- cost of a third and every further fetus against one of the first two (1: the same).
 RLFeedProfiles.PHYSIOLOGY = { growthReferenceKg = 500, youngMaintenanceMEPerKgMetabolic = 0, youngMaintenanceUntilMonth = 0,
     adultMaintenanceFromMonth = 0, calfGrowthCost = 1,
-    growthCostMale = 1, growthCostCastrate = 1, growthCostFemale = 1 }
+    growthCostMale = 1, growthCostCastrate = 1, growthCostFemale = 1, pregnancyThirdLambFactor = 1 }
 
 -- nursing: young animals that drink only from their dams (sheep: no rearing pen, no trough milk).
 -- The milkMax / solidMax / solidEnergy curves are read at the young animal's age (months), not

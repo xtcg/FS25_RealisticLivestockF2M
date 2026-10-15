@@ -356,9 +356,12 @@
           Against Table 29 extrapolated to no milk the model is 5-6% high.
         - pregnancyFactor 0.55 a lamb x maintenance, rising linearly over the last 40% of the
           pregnancy (pregnancyRampStart 0.6): model approximation of Table 8 (70 kg, one week
-          before lambing: single 14.4, twins 18.3 MJ). Over Table 8's 40 cells (50-80 kg, 1-3
-          lambs, 7/5/3/1 weeks) singles and twins are within -8%..+0%, triplets up to +11% (a
-          linear lamb count overstates a third lamb).
+          before lambing: single 14.4, twins 18.3 MJ). Over Table 8's cells singles and twins are
+          within -8%..+0%. physiology pregnancyThirdLambFactor 0.50: a third lamb (and any
+          further) costs half of one of the first two - Table 8's own 70 kg row, where the
+          triplet - twin increment is 0.47-0.52 of the twin - single one at 7/5/3/1 weeks (mean
+          0.50); the 80 kg row (0.48-0.55) is held out to check it. Without it triplets were up
+          to +11% (a linear count overstates the third lamb).
         - milk meMJPerKg 8.3: the slope of Table 29 (housed ewes, 11.5 MJ/kg DM diet), an
           approximation for those diets, not a constant across diets. Table 29's 18 cells are within
           +2%..+6% of maintenance + 8.3 x milk - 35 x loss.
@@ -393,7 +396,7 @@
             reserveDepositMEPerKg="50" reserveMobilizeMEPerKg="35" catabolismMEPerKg="10" pregnancyFactor="0.55"/>
         <physiology growthReferenceKg="40" youngMaintenanceMEPerKgMetabolic="0.475" youngMaintenanceUntilMonth="6"
             adultMaintenanceFromMonth="12" calfGrowthCost="0"
-            growthCostMale="0.80" growthCostCastrate="1.0" growthCostFemale="1.25"/>
+            growthCostMale="0.80" growthCostCastrate="1.0" growthCostFemale="1.25" pregnancyThirdLambFactor="0.50"/>
         <calf maintenanceMEPerKgMetabolic="0.37"/>
         <intake growingPerKgMetabolic="0.092" dryPerKgMetabolic="0.060" lactatingPerKgMetabolic="0.050"
             lactatingPerKgMilk="0.50" calfSolidPerKgMetabolic="0.095"

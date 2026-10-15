@@ -31,6 +31,8 @@ function RLFeedMath.getEnergyConfig(bodyConfig, feedConfig)
     cfg.mobilizeNUPerKg = req.reserveMobilizeMEPerKg
     cfg.catabolismNUPerKg = req.catabolismMEPerKg
     cfg.pregnancyFactor = req.pregnancyFactor
+    -- A species' own cost of a third and further fetus (sheep); cattle count every fetus at 1.
+    cfg.pregnancyThirdLambFactor = feedConfig.physiology ~= nil and feedConfig.physiology.pregnancyThirdLambFactor or nil
     cfg.energyUnit = "ME_MJ"
     return cfg
 end
