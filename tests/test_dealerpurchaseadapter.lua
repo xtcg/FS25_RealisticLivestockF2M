@@ -394,5 +394,54 @@ do
         noLocal.localAuthority = nil
         check("T4 without a local farm the route does not exist", select(2, assert(RLDealerService.new(noLocal)).localQuote({ destination = "net:17", items = itemsL })) == "LOCAL_ROUTE_UNAVAILABLE")
     end
+    -- PR #58 review: a console order id never comes back after a restart (G07 buy again after a reload)
+    do
+        loadMod("scripts/dealer/RLDealerMessages.lua")
+        loadMod("scripts/console/RLIdentityConsole.lua")
+        local K = RLIdentityConsole
+        local stockC, _, wC = fixture()
+        stockC.money = nil
+        local itemsC = {}
+        for _, row in pairs(stockC.listings.records) do itemsC[#itemsC + 1] = { saleId = row.saleId, revision = row.recordRevision } end
+        table.sort(itemsC, function(a, b) return a.saleId < b.saleId end)
+        local real = RLDealerCapacity
+        RLDealerCapacity = { new = function() return function() return wC.capacity end end }
+        local function session(epoch)
+            local p = assert(RLDealerAssembly.assemble({ mission = g_currentMission, farmManager = g_farmManager, stock = stockC, epoch = epoch,
+                directory = "/save", lineage = "DLsame", generation = function() return 1 end, monotonicMs = function() return wC.ms end,
+                resolveSubType = function(name) local i, sub = Economics.find(name); return sub, i end, eligible = function() return true end,
+                allOwners = function() return { wC.dest } end, priceOf = function() return 100 end, feeOf = function() return 0 end, storage = storage,
+                localFarmId = function() return 1 end }))
+            p.gate = function() return true end
+            p.localFarmId = function() return 1 end
+            return p, assert(RLDealerService.new(p))
+        end
+        local previous = RLDealerRuntime
+        RLAnimalIdentityCheckpoint = RLAnimalIdentityCheckpoint or { lineage = "Lsame" }
+        local parts1, svc1 = session("e20261015120000-1111")
+        RLDealerRuntime = { service = svc1, parts = parts1 }
+        local q = svc1.localQuote({ destination = "net:17", items = { itemsC[1] } })
+        K.lastQuote = { destination = "net:17", items = { itemsC[1] }, credential = q.credential }
+        K.dealerConfirm()
+        local first = K.lastOrder
+        check("R10 session 1: the console order commits under an id with the session epoch", first == "console-e20261015120000-1111-1"
+            and svc1.localLookup(first).status == "COMMITTED")
+        -- restart: the purchase records come back from the save, the console's Lua state and the epoch are new
+        stockC.purchase = assert(RLDealerPurchase.import(RLDealerPurchase.export(stockC.purchase)))
+        stockC.money = nil           -- the old Lua state's bound money adapter is gone with it
+        K.orderSeq, K.lastOrder, K.lastQuote = nil, nil, nil
+        local parts2, svc2 = session("e20261015120731-2222")
+        RLDealerRuntime = { service = svc2, parts = parts2 }
+        local q2 = svc2.localQuote({ destination = "net:17", items = { itemsC[2] } })
+        K.lastQuote = { destination = "net:17", items = { itemsC[2] }, credential = q2.credential }
+        K.dealerConfirm()
+        local second = K.lastOrder
+        check("R10 after the restart the next console order gets a new id and commits (no REQUEST_CONFLICT)", second ~= first
+            and svc2.localLookup(second).status == "COMMITTED" and svc2.localLookup(first).status == "COMMITTED")
+        RLDealerRuntime = { parts = {} }
+        check("R10 without a session epoch no order id is made", K.nextOrderId ~= nil and select(2, K.nextOrderId()) == "NO_SESSION_EPOCH")
+        RLDealerRuntime = previous
+        RLDealerCapacity = real
+    end
     check("T4 assembly refuses a legacy (not owned) store", select(2, RLDealerAssembly.assemble({ stock = RLDealerStockService.new("legacy-x", 100) })) == "OWNED_STORE_REQUIRED")
 end

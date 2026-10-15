@@ -197,12 +197,24 @@ function C.dealerQuote(destination, ...)
         quote.subtotal, quote.transportFee, quote.amount, quote.ttlMs or 0))
 end
 
+--- The next console order id. Purchase records are saved with the game, so an id must never come back after a
+--- reload: it carries the dealer's session epoch (new at every rlDealerV2Enable, which every game start needs)
+--- and a sequence of this Lua state. The lineage alone repeats after a restart (REQUEST_CONFLICT).
+function C.nextOrderId()
+    local parts = RLDealerRuntime.parts
+    local epoch = parts ~= nil and parts.epoch or nil
+    if type(epoch) ~= "string" or #epoch == 0 then return nil, "NO_SESSION_EPOCH" end
+    C.orderSeq = (C.orderSeq or 0) + 1
+    return string.format("console-%s-%d", epoch, C.orderSeq)
+end
+
 function C.dealerConfirm()
     local s, why = service(); if not s then return why end
     local q = C.lastQuote
     if q == nil then return "RLDEALERV2: no quote; use rlDealerV2Quote first" end
-    C.orderSeq = (C.orderSeq or 0) + 1
-    local requestId = string.format("console-%s-%d", tostring(RLAnimalIdentityCheckpoint.lineage or "x"), C.orderSeq)
+    local requestId
+    requestId, why = C.nextOrderId()
+    if requestId == nil then return say("RLDEALERV2: " .. tostring(why)) end
     local result, failure = s.localExecute({ requestId = requestId, destination = q.destination, items = q.items, quoteCredential = q.credential })
     C.lastQuote = nil
     C.lastOrder = requestId
