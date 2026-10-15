@@ -251,17 +251,23 @@ CONVERGED_DAYS = 0.05   # engineering precision: two finer steps' crossing estim
 STRADDLED = []          # verdicts that had to fall back to a finer step's estimate
 
 
+STEPS = (0.25, 0.125, 0.0625, 0.03125, 0.015625)
+
+
 def crossing_verdict(name, lo, hi, interval, estimates, unit="days", extra_ok=True, extra=""):
     """Judge a crossing on the step-end interval it happened in (lastBelow, firstAtOrAbove] at the
-    production step; only an interval across a bound falls back to the finer steps' estimate, and
-    only when those two agree within CONVERGED_DAYS (otherwise numerical resolution is unresolved).
-    estimates: (0.25, 0.125, 0.0625) interpolated estimates, same unit."""
+    production step; only an interval across a bound falls back to the finest steps' estimate, and
+    only when the two finest agree within CONVERGED_DAYS (otherwise numerical resolution is
+    unresolved). estimates: the interpolated estimates at STEPS (None where not run), same unit."""
     below, above = interval
     scale = 30 if unit == "months" else 1
-    e25, e125, e0625 = estimates
+    estimates = list(estimates) + [None] * (len(STEPS) - len(estimates))
+    e25 = estimates[0]
+    run = [e for e in estimates if e is not None]
+    e125, e0625 = (run[-2], run[-1]) if len(run) >= 3 else (None, None)
     fmt_e = lambda e: "-" if e is None else f"{e:.3f}"
-    detail = (f"interval ({below:.3f}, {above:.3f}] {unit} at 0.25 d; estimates {fmt_e(e25)} / {fmt_e(e125)} / {fmt_e(e0625)} "
-              f"at 0.25 / 0.125 / 0.0625 d{extra}")
+    detail = (f"interval ({below:.3f}, {above:.3f}] {unit} at 0.25 d; estimates " + " / ".join(fmt_e(e) for e in estimates)
+              + f" at {' / '.join(str(x) for x in STEPS)} d{extra}")
     eps = EPS_DAYS / scale
     if lo - eps <= below and above <= hi + eps:
         return gate(name, extra_ok, detail + " (inside the window)")
@@ -295,10 +301,10 @@ def judge_matched(c):
         key = f"R1/{breed}/1"
         l = lamb_of(c, key)
         m = l["model"]
-        fine, finer = est(lamb_of(c, key, group="step:0.125")), est(lamb_of(c, key, group="step:0.0625"))
-        conv.setdefault("R1 (about 3 months)", []).append((key, m["crossingEstimateDays"], fine, finer))
+        fines = [est(lamb_of(c, key, group=f"step:{x}")) for x in STEPS[1:]]
+        conv.setdefault("R1 (about 3 months)", []).append((key, m["crossingEstimateDays"], *fines))
         crossing_verdict(f"V1 R1 {breed} single ram lamb 84-99 model days to its market weight, 3L+-1 (model time)", 84, 99,
-                         (m["lastBelow"]["days"], m["firstAtOrAbove"]["days"]), (m["crossingEstimateDays"], fine, finer),
+                         (m["lastBelow"]["days"], m["firstAtOrAbove"]["days"]), [m["crossingEstimateDays"]] + fines,
                          extra_ok=near_fat(l.get("fatAtRef"), "3L"),
                          extra=f"; game-hour end {l['ageAtRefGameHour'] * 30:.2f} d; fat {l.get('fatAtRef')}")
     for breed, system, lo, hi in (("LANDRACE", "LOWLAND", 4.3, 5.5), ("TEXEL", "LOWLAND", 4.3, 5.5), ("STEINSCHAF", "HILL", 5.1, 5.5),
@@ -306,30 +312,32 @@ def judge_matched(c):
         s1, s2 = lamb_weights(FLOCK_LAMBS_PER_EWE[system])
         lambs = [lamb_of(c, f"R2/{breed}/{k}") for k in (1, 2)]
         ests = []
-        for group in ("step:0.125", "step:0.0625"):
-            g = [est(lamb_of(c, f"R2/{breed}/{k}", group=group)) for k in (1, 2)]
+        for x in STEPS[1:]:
+            g = [est(lamb_of(c, f"R2/{breed}/{k}", group=f"step:{x}")) for k in (1, 2)]
             ests.append((s1 * g[0] + s2 * g[1]) / 30)
         for k, l in zip((1, 2), lambs):
-            a, b = est(lamb_of(c, f"R2/{breed}/{k}", group="step:0.125")), est(lamb_of(c, f"R2/{breed}/{k}", group="step:0.0625"))
-            conv.setdefault("R2 (4-7 months)", []).append((f"R2/{breed}/{k}", l["model"]["crossingEstimateDays"], a, b))
+            fines = [est(lamb_of(c, f"R2/{breed}/{k}", group=f"step:{x}")) for x in STEPS[1:]]
+            conv.setdefault("R2 (4-7 months)", []).append((f"R2/{breed}/{k}", l["model"]["crossingEstimateDays"], *fines))
             info(f"V2 R2 {breed} {'single' if k == 1 else 'twin'} ram lamb (model time): crossing ({l['model']['lastBelow']['days']:.2f}, "
                  f"{l['model']['firstAtOrAbove']['days']:.2f}] d, estimate {l['model']['crossingEstimateDays'] / 30:.3f} months; "
                  f"game-hour end {l['ageAtRefGameHour']:.3f}")
         interval = tuple((s1 * lambs[0]["model"][k]["days"] + s2 * lambs[1]["model"][k]["days"]) / 30 for k in ("lastBelow", "firstAtOrAbove"))
         e25 = (s1 * lambs[0]["model"]["crossingEstimateDays"] + s2 * lambs[1]["model"]["crossingEstimateDays"]) / 30
         crossing_verdict(f"V2 R2 {breed} flock mean {lo}-{hi} months +-0.5 (model time; scenario n = {FLOCK_LAMBS_PER_EWE[system]})",
-                         lo - 0.5, hi + 0.5, interval, (e25, ests[0], ests[1]), unit="months")
-    # Convergence: the 0.125 / 0.0625 d estimates within CONVERGED_DAYS, per route. The ratio of the
-    # successive differences (about 2: first order) and the extrapolated limit 2 x e0625 - e125 are
-    # reported; no verdict above needed a finer step unless STRADDLED lists it.
+                         lo - 0.5, hi + 0.5, interval, [e25] + ests, unit="months")
+    # Convergence, per route, on CONVERGED_DAYS: the 0.125 / 0.0625 d pair as first judged (kept),
+    # and the finest pair, 0.03125 / 0.015625 d. The ratio of successive differences (about 2: first
+    # order) and the extrapolated limit 2 x finest - next are reported; no verdict above needed a
+    # finer step unless STRADDLED lists it.
     for route, rows in conv.items():
-        worst = max(rows, key=lambda r: abs(r[2] - r[3]))
-        ratios = [abs(r[1] - r[2]) / abs(r[2] - r[3]) for r in rows if abs(r[2] - r[3]) > 1e-12]
-        gate(f"NUMERICS {route}: crossing estimates at 0.125 and 0.0625 d agree within {CONVERGED_DAYS} d (engineering precision)",
-             all(abs(r[2] - r[3]) <= CONVERGED_DAYS + EPS_DAYS for r in rows),
-             f"worst {worst[0]} {abs(worst[2] - worst[3]):.3f} d ({worst[1]:.3f} / {worst[2]:.3f} / {worst[3]:.3f} at 0.25 / 0.125 / 0.0625, "
-             f"extrapolated {2 * worst[3] - worst[2]:.3f}); difference ratio 0.25-0.125 : 0.125-0.0625 = "
-             f"{min(ratios):.2f}-{max(ratios):.2f} (first order); verdicts that needed a finer step: {len(STRADDLED)}")
+        for i, j, label in ((2, 3, "0.125 and 0.0625"), (4, 5, "0.03125 and 0.015625")):
+            worst = max(rows, key=lambda r: abs(r[i] - r[j]))
+            ratios = [abs(r[i - 1] - r[i]) / abs(r[i] - r[j]) for r in rows if abs(r[i] - r[j]) > 1e-12]
+            gate(f"NUMERICS {route}: crossing estimates at {label} d agree within {CONVERGED_DAYS} d (engineering precision)",
+                 all(abs(r[i] - r[j]) <= CONVERGED_DAYS + EPS_DAYS for r in rows),
+                 f"worst {worst[0]} {abs(worst[i] - worst[j]):.4f} d (" + " / ".join(f"{x:.3f}" for x in worst[1:]) +
+                 f" at {' / '.join(str(x) for x in STEPS)} d, extrapolated {2 * worst[j] - worst[i]:.3f}); successive difference ratio "
+                 f"{min(ratios):.2f}-{max(ratios):.2f}; verdicts that needed a finer step: {len(STRADDLED)}")
     # Month length: the same route at 1 / 3 / 7 / 28-day months, on model time.
     one = lamb_of(c, "R1/LANDRACE/2")
     parts, ok = [], True
@@ -369,6 +377,12 @@ def judge_matched(c):
                f"castrates on the study recipe proxy: {l['adg'] * 1000:.0f} g, {l['conc'] / l['actualDays']:.2f} kg concentrate, "
                f"{l['fcrLive0491']:.2f}. The summary's figures are not yet traced to the castrate / 39 kg / 54 day treatment, and the "
                "recipe is a proxy (barley ad lib, peas <= 0.5 kg, silage 0.5 kg fresh)")
+    for age in (5, 6, 7):
+        r = c.get(f"R4STUDYAGE/{age}")
+        if r is not None:
+            info(f"R4 study design castrates at {age} months (the age is an assumption; reported only): game diet "
+                 f"{r['game']['adg'] * 1000:.0f} g / FCR x 0.491 {r['game']['fcrLive0491']:.2f}, recipe {r['recipe']['adg'] * 1000:.0f} g / "
+                 f"{r['recipe']['fcrLive0491']:.2f}")
     rows = lamb_of(c, "R4", sex="male")
     info(f"R4 original (Landrace, 32 kg, three sexes in one pen): {rows['actualDays']:.2f} model days; ram ADG {rows['adg'] * 1000:.0f} g "
          f"(nominal {rows['adgNominal'] * 1000:.0f} g); FCR x 0.49 {rows['fcrLive049']:.2f}, x 0.491 {rows['fcrLive0491']:.2f}, meat {rows['fcrMeat']:.2f}")
@@ -477,7 +491,8 @@ def print_ewe_months(title, r):
     """A ewe year by month: condition, what she ate, the budget's ledger (per day, summed step by
     step: supply, demand, paid, unmet, deposited, mobilised), her milk and her lambs."""
     print(f"INFO {title} by month: month BCS weight gravid reserveKg | ewe ate fresh/DM kg, ME MJ a day | ledger MJ a day: "
-          "supply demand paid unmet deposit mobilised | milk potential/paid/lambs took kg a day | lambs ate fresh/DM kg, ME MJ a day (each) | lamb kg | target")
+          "supply demand paid unmet deposit mobilised | milk potential/paid/lambs took kg a day | lambs ate (each, a day): fresh kg trough + milk = total, "
+          "DM kg, ME MJ | lamb kg | target")
     for x in r["log"]:
         if x["month"] == 0:
             print(f"     0  {x['bcs']:.2f} {x['weight']:6.1f} {x['gravid']:5.1f} {x['reserveKg']:5.1f}")
@@ -485,7 +500,8 @@ def print_ewe_months(title, r):
         led, ei, li = x.get("ledger") or {}, x.get("eweIntake") or {}, x.get("lambIntake")
         def v(d, k, f=".1f"):
             return "-" if d is None or d.get(k) is None else format(d[k], f)
-        lamb = "-" if li is None else f"{v(li, 'freshKg', '.2f')}/{v(li, 'dmKg', '.2f')} {v(li, 'meMJ')}"
+        lamb = "-" if li is None else (f"{v(li, 'troughFreshKg', '.3f')} + {v(li, 'milkFreshKg', '.3f')} = {v(li, 'freshKg', '.3f')}, "
+                                        f"{v(li, 'dmKg', '.3f')} {v(li, 'meMJ')}")
         print(f"    {x['month']:2d}  {x['bcs']:.2f} {x['weight']:6.1f} {x['gravid']:5.1f} {x['reserveKg']:5.1f} | "
               f"{v(ei, 'freshKg', '.2f')}/{v(ei, 'dmKg', '.2f')} {v(ei, 'meMJ')} | {v(led, 'supplyNU')} {v(led, 'demandNU')} {v(led, 'paidNU')} "
               f"{v(led, 'unmetNU')} {v(led, 'depositNU')} {v(led, 'mobilizedNU')} | {x['milkPotential']:.2f}/{x['milkPaid']:.2f}/{x['lambsTook']:.2f} | "
@@ -645,7 +661,7 @@ def main():
     calib, log = run("main")
     # The other groups, each in a Lua state of its own (tests/sheepcalib_scenarios.lua).
     groups = {}
-    for group in ("step:0.125", "step:0.0625", "candidate:base", "candidate:growth cost 30", "candidate:growth cost 36",
+    for group in ("step:0.125", "step:0.0625", "step:0.03125", "step:0.015625", "candidate:base", "candidate:growth cost 30", "candidate:growth cost 36",
                   "candidate:growing intake 0.087", "candidate:ewe reserve deposit 100"):
         groups[group], glog = run(group)
         log = log + [f"{group}: {line}" for line in glog]

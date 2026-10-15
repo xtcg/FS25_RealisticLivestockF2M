@@ -1628,10 +1628,11 @@ function RLFeed.afterStep(animal, state, feed, result, weightBefore, dtMonths)
         -- A young animal's days in a row on creep feed: each step in which it ate at least
         -- readyCreepKgPerDay of concentrate as fed (what it got from the trough, DM back to fresh
         -- weight by each feed's own DM; a day's rate) adds its model days, any other step starts
-        -- the count again. So does a gap: model time that passed without a step in the mode (a
-        -- pen out of it, no trough, the mode off, its config invalid) shows as a previous step
-        -- older than the steps' spacing (RLFeed.isFresh: a long month's hours between steps are
-        -- no gap), and what it ate then is not known. An orphan whose count reaches readyDays
+        -- the count again. So does a gap: an hour on the old weight rule (a pen out of the mode,
+        -- no trough, the mode off, its config invalid) resets it there (RLGrowth.markLegacyHour),
+        -- and a previous step older than the steps' spacing (a save from before: RLFeed.isFresh;
+        -- a long month's hours between steps are no gap) resets it here; what it ate then is not
+        -- known. An orphan whose count reaches readyDays
         -- from earlyWeaningMonth is weaned early (RLFeed.isEarlyWeaned), and that is kept: from
         -- then on it is a weaned lamb.
         if getFeedAge(animal) < nursing.weaningMonth + 1 then

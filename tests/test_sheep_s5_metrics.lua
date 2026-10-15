@@ -51,3 +51,19 @@ check("metrics: an animal already at its reference crosses at day 0 with no step
     r2.firstAtOrAbove ~= nil and r2.firstAtOrAbove.days == 0 and r2.lastBelow == nil)
 check("metrics: FCR proxies divide by live gain x kill-out, the meat FCR by meat gained; nothing for no gain",
     near(SheepMetrics.fcrOnLive(10.7, 2, 0.5), 10.7) and near(SheepMetrics.fcrOnMeat(6, 2), 3) and SheepMetrics.fcrOnLive(1, 0, 0.49) == nil)
+
+
+-- A lamb's dam milk: in DM and ME already, as drunk in the fresh weight (milk DM / damMilk dm).
+do
+    local lamb = { weight = 10 }
+    local t = SheepMetrics.track({ lamb })
+    local dm = RLFeed.getConfig(lamb).damMilk.dm
+    RLFeed.notify("STEP", { stepDays = 0.25, animals = { { animal = lamb, weightAfter = 10.1,
+        feed = { dtDays = 0.25, kg = 0.1 + 0.05, me = 2, damMilk = { kg = 0.1 }, byFill = { BARLEY = { liters = 0.05 / barley.dm * litersPerKg, kg = 0.05, me = 0.5 } } } } } })
+    t.stop()
+    local x = SheepMetrics.export(t.rec[lamb]).intake
+    check(string.format("metrics: a lamb's fresh weight is trough %.3f + milk %.3f = %.3f kg; DM %.3f counts the milk once",
+        x.troughFreshKg, x.milkFreshKg, x.freshKg, x.dmKg),
+        near(x.milkFreshKg, 0.1 / dm, 1e-12) and near(x.troughFreshKg, 0.05 / barley.dm, 1e-12)
+        and near(x.freshKg, x.milkFreshKg + x.troughFreshKg, 1e-12) and near(x.dmKg, 0.15, 1e-12))
+end

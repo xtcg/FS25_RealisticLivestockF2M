@@ -345,6 +345,15 @@ function SheepCalibScenarios.r4Study(prefix)
         CALIB[prefix .. "/" .. sex .. "/game diet"] = { lambs = game }
         CALIB[prefix .. "/" .. sex .. "/study recipe"] = { lambs = recipe }
     end
+    -- The age is an assumption: castrates at 5, 6 and 7 months, both diets (reported only).
+    for _, age in ipairs({ 5, 6, 7 }) do
+        local game = storeLambs(STUDY.breed, { "wether" }, HOUSED, STUDY.days,
+            { age = age, weight = STUDY.weight, daysPerPeriod = STUDY.daysPerPeriod })
+        local stock, refill = studyRecipe()
+        local recipe = storeLambs(STUDY.breed, { "wether" }, stock, STUDY.days,
+            { age = age, weight = STUDY.weight, daysPerPeriod = STUDY.daysPerPeriod, refill = refill })
+        CALIB[prefix .. "AGE/" .. age] = { game = game[1], recipe = recipe[1] }
+    end
 end
 
 
@@ -421,6 +430,8 @@ SheepCalibScenarios.GROUPS = {
     end,
     ["step:0.125"] = stepGroup(0.125),
     ["step:0.0625"] = stepGroup(0.0625),
+    ["step:0.03125"] = stepGroup(0.03125),
+    ["step:0.015625"] = stepGroup(0.015625),
 }
 for name, apply in pairs(SheepCalibScenarios.CANDIDATES) do
     SheepCalibScenarios.GROUPS["candidate:" .. name] = function()

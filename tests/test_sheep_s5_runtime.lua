@@ -409,6 +409,32 @@ do
             section.valid = false; SheepSim.run(pen, 8, GRASS); section.valid = true
         end },
     }
+    -- The shortest gap: a single hour (1.25 model days at a 1-day month) off the mode.
+    local oneHour = {
+        { "a goat in the pen (grass only)", function(lamb, pen)
+            local goat = SheepSim.identify((GrowthSim.makeAnimal("GOAT", { age = 24 })), "CG1")
+            table.insert(pen.animals, goat)
+            setOwner(goat, pen)
+            SheepSim.run(pen, 1, GRASS)
+            table.remove(pen.animals)
+        end },
+        { "no trough", function(lamb, pen)
+            setOwner(lamb, { isServer = true, getClusters = function() return { lamb } end, getAnimalTypeIndex = function() return SheepSim.TYPE end })
+            GrowthSim.advanceHour(); AnimalHealth.updateHealth(lamb, 0.8)
+            setOwner(lamb, pen)
+        end },
+        { "the mode off", function(lamb, pen) FeedSim.setMode(false); SheepSim.run(pen, 1, GRASS); FeedSim.setMode(true) end },
+        { "the config invalid", function(lamb, pen) section.valid = false; SheepSim.run(pen, 1, GRASS); section.valid = true end },
+    }
+    for _, gap in ipairs(oneHour) do
+        local lamb, pen = orphan("CR1" .. gap[1])
+        local held = lamb.rlGrowth.creepDays
+        gap[2](lamb, pen)
+        SheepSim.run(pen, 1, CREEP)
+        check(string.format("creep gap of one hour, %s: %.2f days before, %.2f after one hour back on creep (restarted, not weaned)",
+            gap[1], held, lamb.rlGrowth.creepDays or -1),
+            near(held, 2.5) and near(lamb.rlGrowth.creepDays, 1.25) and not lamb.rlGrowth.weanedEarly)
+    end
     for _, gap in ipairs(gaps) do
         local lamb, pen = orphan("CR" .. gap[1])
         local held = lamb.rlGrowth.creepDays

@@ -312,7 +312,7 @@ local function eweYear(plan)
         end
         local lambIntake
         if #lambs > 0 then
-            lambIntake = { freshKg = 0, dmKg = 0, meMJ = 0, concFreshKg = 0 }
+            lambIntake = { freshKg = 0, troughFreshKg = 0, milkFreshKg = 0, dmKg = 0, meMJ = 0, concFreshKg = 0 }
             for _, lamb in ipairs(lambs) do
                 local lb = tracker.rec[lamb] ~= nil and tracker.rec[lamb].ledger[m - 5] or nil
                 for key in pairs(lambIntake) do lambIntake[key] = lambIntake[key] + (perDay(lb, key) or 0) / #lambs end
@@ -323,7 +323,8 @@ local function eweYear(plan)
             milkPotential = month.potential / d, milkPaid = month.paid / d,
             lambsTook = month.taken / d, need = need, eweConcPerDay = month.eweConc / d, lambConcPerDay = month.lambConc / d,
             lambKg = #lambs > 0 and (lambs[1].weight + lambs[2].weight) / 2 or nil, ledger = ledger,
-            eweIntake = { freshKg = perDay(b, "freshKg"), dmKg = perDay(b, "dmKg"), meMJ = perDay(b, "meMJ"), concFreshKg = perDay(b, "concFreshKg") },
+            eweIntake = { freshKg = perDay(b, "freshKg"), troughFreshKg = perDay(b, "troughFreshKg"), milkFreshKg = perDay(b, "milkFreshKg"),
+                dmKg = perDay(b, "dmKg"), meMJ = perDay(b, "meMJ"), concFreshKg = perDay(b, "concFreshKg") },
             lambIntake = lambIntake, target = RLFeed.getRation(pen).target }
         month = blank()
     end

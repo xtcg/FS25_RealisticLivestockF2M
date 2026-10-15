@@ -4,7 +4,9 @@
 --   - a crossing record against a reference weight: lastBelow / firstAtOrAbove = { days, weight }
 --     at step ends, and crossingEstimateDays, the linear interpolation between them (an estimate,
 --     never the judged value by itself);
---   - what it ate: fresh kg, DM kg, ME MJ, concentrate fresh kg, by fill type;
+--   - what it ate: fresh kg from the trough (troughFreshKg), its dam's milk as drunk (milkFreshKg:
+--     the milk's DM over damMilk dm) and both (freshKg); DM kg and ME MJ, which already hold the
+--     milk; concentrate fresh kg; by fill type;
 --   - the budget's own ledger, step by step (supplyNU, demandNU, paidNU, unmetNU, depositNU,
 --     mobilizedNU, catabolismNU, lostNU, maintenanceNU, pregnancyNU), by bucket of its model days.
 -- And FCR helpers: conversion proxies on live gain x a kill-out, and on the game's saleable meat.
@@ -58,7 +60,8 @@ function SheepMetrics.track(animals, opts)
         local ref = opts.reference ~= nil and opts.reference(animal) or nil
         local r = { elapsedModelDays = 0, steps = 0, ref = ref, startWeight = animal.weight,
             lastBelow = ref ~= nil and animal.weight < ref and { days = 0, weight = animal.weight } or nil,
-            intake = { freshKg = 0, dmKg = 0, meMJ = 0, concFreshKg = 0, byFill = {} }, ledger = {}, ledgerTotal = {} }
+            intake = { freshKg = 0, troughFreshKg = 0, milkFreshKg = 0, dmKg = 0, meMJ = 0, concFreshKg = 0, byFill = {} },
+            ledger = {}, ledgerTotal = {} }
         if ref ~= nil and animal.weight >= ref then r.firstAtOrAbove = { days = 0, weight = animal.weight } end
         return r
     end
@@ -74,7 +77,7 @@ function SheepMetrics.track(animals, opts)
                 r.elapsedModelDays = r.elapsedModelDays + dt
                 r.steps = r.steps + 1
                 -- What it ate, in all and in the bucket.
-                local b = r.ledger[bucket] or { days = 0, freshKg = 0, dmKg = 0, meMJ = 0, concFreshKg = 0 }
+                local b = r.ledger[bucket] or { days = 0, freshKg = 0, troughFreshKg = 0, milkFreshKg = 0, dmKg = 0, meMJ = 0, concFreshKg = 0 }
                 r.ledger[bucket] = b
                 b.days = b.days + dt
                 local intake = r.intake
@@ -83,10 +86,19 @@ function SheepMetrics.track(animals, opts)
                     local f = intake.byFill[name] or { freshKg = 0, dmKg = 0, meMJ = 0 }
                     intake.byFill[name] = f
                     f.freshKg, f.dmKg, f.meMJ = f.freshKg + fresh, f.dmKg + (fill.kg or 0), f.meMJ + (fill.me or 0)
+                    intake.troughFreshKg, b.troughFreshKg = intake.troughFreshKg + fresh, b.troughFreshKg + fresh
                     intake.freshKg, b.freshKg = intake.freshKg + fresh, b.freshKg + fresh
                     if SheepMetrics.CONCENTRATE[name] then
                         intake.concFreshKg, b.concFreshKg = intake.concFreshKg + fresh, b.concFreshKg + fresh
                     end
+                end
+                -- Its dam's milk: in the step's DM and ME already, as drunk only here.
+                local milkDm = e.feed.damMilk ~= nil and e.feed.damMilk.kg or 0
+                if milkDm > 0 then
+                    local dm = RLFeed.getConfig(e.animal).damMilk.dm
+                    local milkFresh = dm > 0 and milkDm / dm or 0
+                    intake.milkFreshKg, b.milkFreshKg = intake.milkFreshKg + milkFresh, b.milkFreshKg + milkFresh
+                    intake.freshKg, b.freshKg = intake.freshKg + milkFresh, b.freshKg + milkFresh
                 end
                 intake.dmKg, intake.meMJ = intake.dmKg + (e.feed.kg or 0), intake.meMJ + (e.feed.me or 0)
                 b.dmKg, b.meMJ = b.dmKg + (e.feed.kg or 0), b.meMJ + (e.feed.me or 0)

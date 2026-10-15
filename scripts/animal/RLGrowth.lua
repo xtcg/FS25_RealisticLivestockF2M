@@ -207,12 +207,16 @@ end
 
 
 --- Mark the hour a sheep took the old weight rule (whatever covered it then: a pen out of the
---- mode, the mode off, its config invalid), so a pen in the mode does not step it again this hour
---- (RLFeed.runStep). Other types are left alone.
+--- mode, no trough, the mode off, its config invalid), so a pen in the mode does not step it again
+--- this hour (RLFeed.runStep). What it ate in that hour is not known, so a lamb not yet weaned
+--- early starts its creep days again (RLFeed.afterStep counts only verified steps in a row); one
+--- already weaned stays weaned. Other types are left alone.
 --- @param animal table
 function RLGrowth.markLegacyHour(animal)
     if animal == nil or animal.getSubType == nil or not RLGrowth.needsRealNutrition(animal:getSubType()) then return end
     animal.rlLegacyHourTick = RLBodyCondition.getTickId()
+    local state = animal.rlGrowth
+    if state ~= nil and not state.weanedEarly and (state.creepDays or 0) > 0 then state.creepDays = 0 end
 end
 
 
