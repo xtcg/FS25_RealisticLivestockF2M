@@ -18,6 +18,11 @@ RmLogging.LOG_LEVEL = { ERROR = 1, WARNING = 2, INFO = 3, DEBUG = 4, TRACE = 5 }
 local getLogger = RmLogging.getLogger
 RmLogging.getLogger = function(...) local log = getLogger(...); log.level = 0; return log end
 
+-- The identity runtime the sale-animal id goes through (not initialised here: it answers with the old counters).
+loadMod("scripts/animal/RLTradePersistence.lua")
+loadMod("scripts/animal/RLAnimalIdentity.lua")
+loadMod("scripts/animal/RLAnimalIdentityRuntime.lua")
+loadMod("scripts/animal/RLAnimalIdentityWorld.lua")
 loadMod("scripts/animal/RLBreedTraits.lua")
 loadMod("scripts/animal/RLGeneticsDraw.lua")
 loadMod("scripts/nutrition/RLCalfRearing.lua")

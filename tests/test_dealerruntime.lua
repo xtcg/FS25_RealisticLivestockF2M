@@ -63,3 +63,72 @@ check("dealer runtime: an unsaved session's WAL is set aside on load, the dealer
     and moved[2] == "delete /save/rm_RlDealerPurchaseJournal.xml")
 copyFile, deleteFile = nil, nil
 RLDealerJournal.load, C.onMissionStarted, fileExists = oldLoad, oldMissionStarted, oldExists
+
+-- T4: the gate and the enable switch
+do
+    R.reset(true)
+    check("T4 gate: closed by default with its reason", select(2, R.gate()) == "DEALER_V2_DISABLED")
+    R.CHANNEL_ENABLED = true
+    check("T4 gate: enabled but not READY names the state", select(2, R.gate()) == "DEALER_STATE:LOADING")
+    R.state = "READY"
+    check("T4 gate: READY without a service is the missing adapter", select(2, R.gate()) == "DEALER_OWNERSHIP_ADAPTER_REQUIRED")
+    R.service = {}
+    RLAnimalIdentityRuntime = { authoritative = function() return false end }
+    check("T4 gate: identity must be the allocator", select(2, R.gate()) == "IDENTITY_NOT_AUTHORITATIVE")
+    RLAnimalIdentityRuntime.authoritative = function() return true end
+    C.state, C.reason = C.UNARMED, "EMPTY"
+    check("T4 gate: the dealer checkpoint must be verified", (select(2, R.gate())):find("CHECKPOINT:UNARMED", 1, true) ~= nil)
+    C.state = C.READY
+    check("T4 gate: a species / map capability must be registered", select(2, R.gate()) == "CAPABILITY:cattleSingleplayer")
+    R.setCapability("cattleSingleplayer", true)
+    check("T4 gate: all conditions met opens", R.gate() == true)
+    R.setCapability("cattleSingleplayer", false)
+    check("T4 gate: a capability that is withdrawn closes it again", R.gate() == false)
+
+    R.reset(false)
+    check("T4 enable: a client cannot", select(2, R.enable()) == "SERVER_ONLY")
+    R.reset(true)
+    check("T4 enable: not before the mission start check", select(2, R.enable()) == "DEALER_STATE:LOADING")
+    R.state = "DORMANT"
+    g_currentMission = { missionDynamicInfo = { isMultiplayer = true } }
+    check("T4 enable: multiplayer is not verified and refused", select(2, R.enable()) == "MULTIPLAYER_NOT_VERIFIED")
+    g_currentMission = { missionDynamicInfo = { isMultiplayer = false } }
+    RLAnimalIdentityRuntime = { authoritative = function() return false end }
+    check("T4 enable: the identity ledger must be ON first", select(2, R.enable()) == "IDENTITY_NOT_AUTHORITATIVE")
+    RLAnimalIdentityRuntime.authoritative = function() return true end
+    C.state = C.READY
+    R.store = assert(V.new("legacy-store", 10))
+    check("T4 enable: a historical-only store is never converted silently", select(2, R.enable()) == "LEGACY_STORE_RECONCILIATION_REQUIRED" and not R.CHANNEL_ENABLED)
+    RLDealerPurchaseEvent.service, RLDealerQuoteEvent.service = {}, {}
+    R.CHANNEL_ENABLED = true
+    R.disable()
+    check("T4 disable: closes the switch and clears both event handles", not R.CHANNEL_ENABLED and RLDealerPurchaseEvent.service == nil and RLDealerQuoteEvent.service == nil)
+    check("T4 status never claims an open channel while disabled", R.getStatus().channelEnabled == false)
+end
+
+-- review: every hourly tick plans with the game date of that tick
+do
+    R.reset(true)
+    local seen
+    R.CHANNEL_ENABLED = true
+    R.service = { tick = function(_, world) seen = world.now.day; return {} end }
+    R.parts = { world = { now = { day = 1 } } }
+    RLDealerGameBinding = { now = function() return { day = 9 } end }
+    g_currentMission = { environment = { daysPerPeriod = 4 } }
+    R.onHour()
+    check("R5 onHour refreshes world.now before the tick", seen == 9 and R.parts.world.now.day == 9)
+    R.disable()
+end
+
+-- review: a failed enable leaves nothing armed, stored or installed
+do
+    R.reset(true); R.state = "DORMANT"
+    g_currentMission = { missionDynamicInfo = { isMultiplayer = false }, environment = {} }
+    RLAnimalIdentityRuntime = { authoritative = function() return true end }
+    C.state = C.UNARMED; C.armed = false
+    RLDealerStockService.newOwned = RLDealerStockService.newOwned or function() return {} end
+    local armedBefore = C.armed
+    local ok, why = R.enable({ generationWorld = function() return nil, "BOOM" end })
+    check("R7 enable that fails after the store was made leaves the checkpoint unarmed and R.store empty", ok == nil and why == "WORLD:BOOM"
+        and C.state == C.UNARMED and C.armed == armedBefore and R.store == nil and R.service == nil and not R.CHANNEL_ENABLED)
+end

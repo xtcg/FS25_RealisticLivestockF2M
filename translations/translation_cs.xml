@@ -1047,5 +1047,15 @@
         <text name="rl_feed_previewNoAnimals" text="本栏没有动物"/>
         <text name="rl_feed_previewNoFeed" text="食槽内没有可用饲料"/>
         <text name="rl_feed_apply" text="应用"/>
+        <text name="rl_dealer_v2_stale" text="商品已更新，请重新选择。"/>
+        <text name="rl_dealer_v2_quote_expired" text="报价已失效，请重新获取并确认。"/>
+        <text name="rl_dealer_v2_capacity" text="目标无法接收这批动物。"/>
+        <text name="rl_dealer_v2_no_permission" text="你没有使用该目标的权限。"/>
+        <text name="rl_dealer_v2_funds" text="资金不足，无法完成订单。"/>
+        <text name="rl_dealer_v2_updating" text="库存正在更新，请稍后再试。"/>
+        <text name="rl_dealer_v2_checking" text="订单结果正在核查，核查完成前暂停交易。"/>
+        <text name="rl_dealer_v2_closed" text="商人的新库存暂未开放。"/>
+        <text name="rl_dealer_v2_limit" text="每份订单最多购买100头动物。"/>
+        <text name="rl_dealer_v2_generic" text="订单未能完成。"/>
     </texts>
 </l10n>

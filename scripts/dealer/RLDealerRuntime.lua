@@ -27,10 +27,13 @@ local function close(reason, evidence)
 end
 function R.reset(isServer)
     R.server, R.store, R.evidence, R.discardedWal = isServer == true, nil, nil, nil
+    R.service, R.parts, R.capabilities = nil, nil, {}
+    R.CHANNEL_ENABLED = false
     R.state, R.reason = isServer and "LOADING" or "DISABLED", isServer and "WAITING_FOR_MISSION" or "CLIENT"
     -- Events from an earlier map must never retain a service or authority handle.
     if RLDealerPurchaseEvent then RLDealerPurchaseEvent.service = nil end
     if RLDealerQuoteEvent then RLDealerQuoteEvent.service = nil end
+    if RLDealerCatalogEvent then RLDealerCatalogEvent.service = nil end
     local runtime = {
         resolver = resolve,
         ownershipContext = {isServer=R.server, resolveDiseaseModel=function(title)
@@ -128,14 +131,128 @@ function R.onMissionStarted(mission, evidence)
         R.reason = R.store and "SAVED_STOCK_VERIFIED_CHANNEL_CLOSED" or "EMPTY_CHANNEL_CLOSED"
     end
 end
+-- Capabilities a channel needs beyond the code: species / map / container / role, registered by the code
+-- that proved them (never by a setting). Only what was verified is true.
+R.capabilities = {}
+function R.setCapability(name, on) R.capabilities[name] = on == true end
+
+--- Every condition the channel needs, with the first one that fails as its reason.
+function R.gate()
+    if not R.CHANNEL_ENABLED then return false, "DEALER_V2_DISABLED" end
+    if R.state ~= "READY" then return false, "DEALER_STATE:" .. tostring(R.state) end
+    if R.service == nil then return false, "DEALER_OWNERSHIP_ADAPTER_REQUIRED" end
+    if RLAnimalIdentityRuntime == nil or not RLAnimalIdentityRuntime.authoritative() then return false, "IDENTITY_NOT_AUTHORITATIVE" end
+    local checkpoint = RLDealerCheckpoint
+    if checkpoint.state ~= checkpoint.READY then return false, "CHECKPOINT:" .. tostring(checkpoint.state) .. ":" .. tostring(checkpoint.reason) end
+    if R.capabilities.cattleSingleplayer ~= true then return false, "CAPABILITY:cattleSingleplayer" end
+    return true
+end
 function R.canPurchase()
     if not R.CHANNEL_ENABLED then return false, "DEALER_V2_DISABLED" end
-    -- Real ownership adapter and release gates must be installed before this can
-    -- ever return true. Changing a configuration value cannot bypass this seam.
-    return false, "DEALER_OWNERSHIP_ADAPTER_REQUIRED"
+    if R.service == nil then return false, "DEALER_OWNERSHIP_ADAPTER_REQUIRED" end
+    return R.gate()
+end
+local function stamp()
+    if getDate ~= nil then
+        local ok, text = pcall(getDate, "%Y%m%d%H%M%S")
+        if ok and type(text) == "string" then return text end
+    end
+    return os.date("%Y%m%d%H%M%S")
+end
+--- Switch the channel on for this session (server console / test). Builds the service from the game's
+--- objects and installs the event handles. Singleplayer cattle only: nothing else has been verified.
+--- Returns true, or nil and why; on failure nothing stays half installed.
+function R.enable(overrides)
+    overrides = overrides or {}
+    if not R.server then return nil, "SERVER_ONLY" end
+    if R.state ~= "DORMANT" and R.state ~= "READY" then return nil, "DEALER_STATE:" .. tostring(R.state) end
+    local mission = overrides.mission or g_currentMission
+    if mission.missionDynamicInfo ~= nil and mission.missionDynamicInfo.isMultiplayer then return nil, "MULTIPLAYER_NOT_VERIFIED" end
+    if RLAnimalIdentityRuntime == nil or not RLAnimalIdentityRuntime.authoritative() then return nil, "IDENTITY_NOT_AUTHORITATIVE" end
+    local checkpoint = RLDealerCheckpoint
+    -- Nothing is armed, stored or installed until everything below has succeeded.
+    local store = R.store
+    if store == nil then
+        local created, why = RLDealerStockService.newOwned("dealer-v2", 0)
+        if not created then return nil, why end
+        store = created
+    end
+    if store.sourceOwners == nil then return nil, "LEGACY_STORE_RECONCILIATION_REQUIRED" end
+    local lineage = checkpoint.lineage
+    if checkpoint.state == checkpoint.UNARMED then lineage = "DL" .. stamp() end
+    if lineage == nil then return nil, "NO_LINEAGE" end
+    local environment = mission.environment
+    local resolveSubType = overrides.resolveSubType or resolve
+    local world, why = (overrides.generationWorld or function()
+        return RLDealerGameBinding.generationWorld(mission.animalSystem, AnimalType.COW, RLDealerGameBinding.now(environment))
+    end)()
+    if not world then return nil, "WORLD:" .. tostring(why) end
+    local eligible = overrides.eligible or RLDealerGameBinding.eligible(world, resolveSubType)
+    local ownerWorld = overrides.ownerWorld or RLDealerWorld.new({ isServer = true, mission = mission })
+    local deps = { mission = mission, farmManager = overrides.farmManager or g_farmManager, stock = store,
+        epoch = "e" .. stamp() .. tostring(math.random(1000, 9999)), directory = mission.missionInfo.savegameDirectory,
+        lineage = lineage, generation = function() return checkpoint.generation end,
+        monotonicMs = overrides.monotonicMs or function() return g_time end, resolveSubType = resolveSubType,
+        resolveDiseaseModel = R.checkpointRuntime.ownershipContext.resolveDiseaseModel, eligible = eligible,
+        allOwners = ownerWorld.allOwners, storage = overrides.storage,
+        localFarmId = overrides.localFarmId or function() return mission:getFarmId() end }
+    local parts
+    parts, why = RLDealerAssembly.assemble(deps)
+    if not parts then return nil, "ASSEMBLE:" .. tostring(why) end
+    local generationContext = { isServer = true, resolveSubType = resolveSubType, resolveEntry = RLDealerGameBinding.resolveEntry(world),
+        eligible = eligible, resolveDiseaseModel = deps.resolveDiseaseModel, birthDate = RLDealerGameBinding.birthDate(environment),
+        checkGlobalIdentities = function(encoded) return ownerWorld.checkGlobalIdentities(encoded) end,
+        persistBarrier = function(payload)
+            return RLDealerJournal.checkpoint(parts.journal, deps.directory, payload.purchase, deps.generation(), deps.storage, payload.recovery)
+        end,
+        identity = RLDealerGeneration.ledgerPort(overrides.farmOf or function(countryIndex, farmId)
+            for _, farm in pairs(mission.animalSystem.countries[countryIndex].farms) do if tostring(farm.id) == tostring(farmId) then return farm end end
+        end),
+        isBusy = overrides.isBusy }
+    parts.generationContext = generationContext
+    parts.world = world
+    parts.scheduler = RLDealerScheduler.new({ budget = overrides.budget or 1,
+        shelfTarget = overrides.shelfTarget or function() return mission.animalSystem.maxDealerAnimals or 0 end })
+    parts.gate = R.gate
+    parts.localFarmId = deps.localFarmId
+    local service
+    service, why = RLDealerService.new(parts)
+    if not service then return nil, why end
+    if checkpoint.state == checkpoint.UNARMED then
+        local armed, armWhy = checkpoint.arm(lineage)
+        if not armed then return nil, "ARM:" .. tostring(armWhy) end
+    end
+    R.store = store
+    R.service, R.parts, R.state, R.reason = service, parts, "READY", "ENABLED"
+    R.CHANNEL_ENABLED = true
+    R.setCapability("cattleSingleplayer", true)
+    if RLDealerPurchaseEvent then RLDealerPurchaseEvent.service = service end
+    if RLDealerQuoteEvent then RLDealerQuoteEvent.service = service end
+    if RLDealerCatalogEvent then RLDealerCatalogEvent.service = service end
+    return true
+end
+function R.disable()
+    R.CHANNEL_ENABLED = false
+    R.service, R.parts = nil, nil
+    if R.state == "READY" then R.state, R.reason = "DORMANT", "DISABLED" end
+    if RLDealerPurchaseEvent then RLDealerPurchaseEvent.service = nil end
+    if RLDealerQuoteEvent then RLDealerQuoteEvent.service = nil end
+    if RLDealerCatalogEvent then RLDealerCatalogEvent.service = nil end
+    return true
+end
+--- The hourly game tick (HOUR_CHANGED), only while enabled: progress, restock, generation within the budget.
+function R.onHour()
+    if R.service == nil or not R.CHANNEL_ENABLED then return end
+    local environment = g_currentMission.environment
+    -- The planner dates birthdays and due dates from world.now: it is the game date of THIS tick.
+    R.parts.world.now = RLDealerGameBinding.now(environment)
+    local ok, report, why = pcall(R.service.tick, { { hours = 1, daysPerMonth = environment.daysPerPeriod } }, R.parts.world)
+    if not ok then
+        RmLogging.getLogger("RLRM"):error("RLDealerRuntime.onHour: %s", tostring(report))
+    end
 end
 function R.getStatus()
-    return { version = R.VERSION, state = R.state, reason = R.reason, channelEnabled = false,
+    return { version = R.VERSION, state = R.state, reason = R.reason, channelEnabled = R.CHANNEL_ENABLED == true,
         checkpointState = RLDealerCheckpoint.state, generation = RLDealerCheckpoint.generation,
         months = R.store and R.store.farm.clock.months or nil }
 end

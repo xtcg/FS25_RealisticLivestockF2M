@@ -54,6 +54,18 @@ function D.resolvePersisted(identity, owners)
     if found == nil then return nil, "DESTINATION_NOT_FOUND" end
     return found
 end
+--- The principal of a connection (its player farm and user), without a destination. Server only.
+function D.principal(connection, mission, farmManager)
+    if type(mission) ~= "table" or type(mission.getIsServer) ~= "function" or mission:getIsServer() ~= true
+        or type(connection) ~= "table" or type(connection.getIsServer) ~= "function" or connection:getIsServer() then return nil, "SERVER_ONLY" end
+    if type(mission.userManager) ~= "table" or type(mission.userManager.getUniqueUserIdByConnection) ~= "function"
+        or type(farmManager) ~= "table" or type(farmManager.getFarmForUniqueUserId) ~= "function" then return nil, "NO_PLAYER_FARM" end
+    local userOK, userId = pcall(mission.userManager.getUniqueUserIdByConnection, mission.userManager, connection)
+    if not userOK or not text(userId) then return nil, "NO_PLAYER_FARM" end
+    local farmOK, farm = pcall(farmManager.getFarmForUniqueUserId, farmManager, userId)
+    if not farmOK or type(farm) ~= "table" or not integer(farm.farmId) then return nil, "NO_PLAYER_FARM" end
+    return "farm:" .. tostring(farm.farmId) .. ":user:" .. userId, farm.farmId
+end
 -- Principal and player farm are resolved from the connection. Animal.farmId is
 -- its source herd identity and is never used as the player's permission scope.
 function D.authorize(connection, reference, mission, farmManager)

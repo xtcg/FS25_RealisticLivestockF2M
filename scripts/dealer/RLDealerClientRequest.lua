@@ -26,6 +26,8 @@ function C.new(clientEpoch,adapter)
 end
 function C.begin(client,selection)
     if client.pending then return nil,"REQUEST_IN_PROGRESS" end
+    -- An unanswered purchase must be settled by its status query before another order starts.
+    if client.unresolved then return nil,"ORDER_UNRESOLVED" end
     local a=client.adapter
     for _,name in ipairs({"monotonicMs","sendQuote","confirm","sendPurchase"}) do
         if type(a[name])~="function" then return nil,"DEALER_V2_DISABLED" end
@@ -82,9 +84,9 @@ function C.receivePurchase(client,value)
     local pending=client.pending
     if not pending or reply.requestId~=pending.request.requestId then return nil,"STALE_REPLY" end
     if pending.phase~="PURCHASE" then return nil,"WRONG_PHASE" end
-    local ms; ms,why=now(client)
-    if not ms then return refused(client,pending,why) end
-    if ms>=pending.deadline then return refused(client,pending,"PURCHASE_TIMEOUT") end
+    -- A reply the server really sent is the outcome, however late: only silence is uncertain.
+    now(client)
+    if client.unresolved and client.unresolved.requestId==reply.requestId then client.unresolved=nil end
     return finish(client,pending,reply)
 end
 function C.cancel(client)
@@ -94,9 +96,51 @@ function C.cancel(client)
 end
 function C.tick(client)
     local pending=client.pending; if not pending then return false end
-    local ms,why=now(client); if not ms then return refused(client,pending,why) end
+    local ms,why=now(client)
+    if not ms and pending.phase=="PURCHASE" then
+        -- A local clock fault after dispatch is not a refusal either.
+        client.unresolved={requestId=pending.request.requestId}
+        return finish(client,pending,{requestId=pending.request.requestId,status="UNCERTAIN",reason=why})
+    end
+    if not ms then return refused(client,pending,why) end
     if ms>=pending.deadline then
+        if pending.phase=="PURCHASE" then
+            -- Dispatched and unanswered: the server may have bought. Never show a refusal; keep the
+            -- request for a status query (same order id, never a new purchase).
+            client.unresolved={requestId=pending.request.requestId}
+            return finish(client,pending,{requestId=pending.request.requestId,status="UNCERTAIN",reason="PURCHASE_TIMEOUT"})
+        end
         return refused(client,pending,pending.phase=="CONFIRM" and "QUOTE_EXPIRED" or pending.phase.."_TIMEOUT")
     end
     return false
+end
+-- The order-status question for an unanswered purchase, or nil.
+function C.statusQuery(client)
+    if client.unresolved==nil then return nil end
+    return {orderId=client.unresolved.requestId}
+end
+-- The server's answer to that question. COMMITTED / ROLLED_BACK settle it; PENDING / UNCERTAIN keep it open.
+-- Only an answer that names the unresolved order counts: a late or repeated answer about an earlier order
+-- (or one of another session, whose ids carry another epoch) never touches the current one.
+function C.receiveOrderStatus(client,reply)
+    local un=client.unresolved
+    if un==nil then return nil,"NOTHING_UNRESOLVED" end
+    if type(reply)~="table" then return nil,"MALFORMED_ORDER_STATUS" end
+    if type(reply.orderId)~="string" then return nil,"ORDER_ID_MISSING" end
+    if reply.orderId~=un.requestId then return nil,"STALE_REPLY" end
+    if reply.status=="UNKNOWN_REQUEST" then
+        -- The channel is ordered: the status query follows the purchase on the same connection, so a server
+        -- that has no such order never received it. Nothing was bought.
+        client.unresolved=nil
+        client.lastResult={requestId=un.requestId,status="REJECTED",reason="NOT_RECEIVED"}
+        if type(client.adapter.complete)=="function" then pcall(client.adapter.complete,copy(client.lastResult)) end
+        return copy(client.lastResult)
+    end
+    if reply.status=="COMMITTED" or reply.status=="ROLLED_BACK" then
+        client.unresolved=nil
+        client.lastResult={requestId=un.requestId,status=reply.status,amount=reply.amount,transferIds=copy(reply.transferIds)}
+        if type(client.adapter.complete)=="function" then pcall(client.adapter.complete,copy(client.lastResult)) end
+        return copy(client.lastResult)
+    end
+    return {requestId=un.requestId,status=reply.status or "UNCERTAIN"}
 end
