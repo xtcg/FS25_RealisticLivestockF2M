@@ -28,6 +28,16 @@ after the quote, the window is 15 s of *real* time and a high timescale does not
    Make 3 copies of the folder: `base` (never played), `runA`, `runB`. The run uses `runA`; `runB` is for G10; `base` re-creates either.
 4. Open `log.txt` in a terminal tail so each card's evidence can be cut as it happens (`tail -f`); do not wait until the end.
 
+## Smoke run for the PR #58 review fixes (the shortest useful order)
+
+When only the review fixes are being checked, run these and skip the rest. Each item is a card's pass criteria.
+1. `runA` Load 1 steps 1-3 (G01), then step 7 (**G02** = order A; also Gate 2).
+2. Step 11 (Load 2): `rlDealerV2Order <A>` unchanged, **order C** commits under a new epoch, no REQUEST_CONFLICT (**G07** steps 5-7,
+   order B optional).
+3. Step 12b (**G12**: OFF, a numbered animal sold, `rlIdentityActivate`, the next key is new).
+4. `runB`: **G10b** then **G11** (recovery clear, the next keys are new, reload keeps READY).
+Copy `log.txt` after each item; G11 and G12 need their own log for KEY-NOT-REISSUED (see the analyzer header).
+
 ## Main run (`runA`): one linear session, three loads
 
 Times are game time at 4 days/month; the real time follows from the formula above. "||" marks a wait you fill with the next lines.
@@ -59,6 +69,9 @@ Times are game time at 4 days/month; the real time follows from the formula abov
     - **Order C** (any 1 animal) with `rlIdentityDump` around it -> debits once. *(G07 step 7.)* Run the analyzer with `--allow-income`.
 12. Highest timescale until the birth(s): **G06** (the player cow: each calf's key CONSUMED, an unborn twin's key BURNED, no repeat) and **G05** (the calf's key is the fetus key from the dump before the birth; dam and calf CONSUMED; no second calf). One `rlIdentityDump` (**D6**) after both.
 
+12b. **G12** (OFF, one numbered animal sold, `rlIdentityActivate`, one more numbered animal; dumps M0-M3). Copy `log.txt` first: the
+    reissue check must not see the reload of step 13.
+
 **G08 last in the run (it needs a loss of the run state, so it ends the run).**
 13. Save. `rlIdentityDump` (**D7**). Buy one animal (G02-style). Quit **without saving**. Load `runA` (**Load 3**). `rlIdentityStatus` shows the burned keys, the animals and money are those of D7, `rlIdentityDump` (**D8**): the burned keys are BURNED and not handed out again (buy once more and check the new key is a different one).
 
@@ -68,6 +81,7 @@ Totals of the main run: 3 loads, one timescale-limited wait (about 1 game day fo
 
 Order by effort, each from a **fresh copy** of `runB`; keep the broken files:
 1. **G10b first** (replace `placeables.xml` with the previous save's): needs only one load -> expect RECOVERY_REQUIRED, old counters back in use, an error line naming the file. Nothing is regenerated or repaid.
+1b. **G11** right after G10b, in the same recovery (two animals numbered during it, one sold, `rlIdentityRecoveryClear`, one more, reload).
 2. **G10a** (kill the process during a save, then load): the same readout. Do it on a copy that already has one dealer order so the journal and the WAL both have something to hold.
 Both need identity ON, so make `runB` from `runA` right after step 3 of the main run (state: ON, one save) - no dealer wait is needed, they do not use the shelf.
 
@@ -102,6 +116,8 @@ Do not retry a failed order in the same run: save the evidence (`log.txt`, the d
 | G05 | step 10-12 | PENDING | |
 | G08 | step 13 | PENDING | |
 | G10 a/b | destructive run | PENDING | |
+| G11 | destructive run 1b | PENDING | |
+| G12 | step 12b | PENDING | |
 
 ## Optional: shorter still (needs your yes, changes the test build only)
 

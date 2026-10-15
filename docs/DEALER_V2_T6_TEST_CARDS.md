@@ -55,6 +55,9 @@ Let a player cow calve with identity ON. PASS when each calf has a CONSUMED ledg
 1. Order A (G02). 2. Sell something or earn money. 3. Move one bought animal to another pen. 4. Order B. 5. Save, quit, load.
 6. `rlDealerV2Order <A>` and `<B>` -> both COMMITTED with their amounts. 7. Order C. `rlIdentityDump` around it.
 PASS when A and B are answered without a debit, C debits once, the analyzer (use `--allow-income`) PASSes.
+Order ids are `console-<session epoch>-<n>`: C's epoch part differs from A's and B's (a new session after the load), and no
+`RLDEALERV2 ORDER ... refused: REQUEST_CONFLICT` line appears (the analyzer's ORDER-ONCE FAILs on it). After C,
+`rlDealerV2Order <A>` once more: still A's amount, unchanged by C.
 
 ## G08 leave without saving
 Save. Buy (G02). Quit WITHOUT saving. Load. PASS when the animals and money are as at the save, `rlIdentityStatus` shows burned keys
@@ -66,6 +69,28 @@ Run `rlDealerV2List` and `rlDealerV2Detail` ten times. PASS when only the clock 
 ## G10 controlled faults (on copies only)
 Keep the original bad files. a) Quit during a save (kill the process) then load. b) Replace one participant file (placeables.xml) with the previous
 save's. Expect RECOVERY_REQUIRED, the old counters back in use, an error line naming the file. No automatic repayment or regeneration.
+
+## G11 numbering after `rlIdentityRecoveryClear` (PR #58 review P1; destructive run, after G10b)
+Starts in RECOVERY_REQUIRED (G10b). Needs two animals numbered **during** the recovery: calves born in a player pen (a cow due within the
+wait), or new animals of the old shop (they are numbered when it restocks).
+1. `rlIdentityStatus` -> RECOVERY_REQUIRED. `rlIdentityDump` (**R0**).
+2. Wait until two new animals X and Y exist. `rlIdentityDump` (**R1**, both live). Sell Y. `rlIdentityDump` (**R2**, Y gone).
+3. `rlIdentityRecoveryClear` -> `recovery cleared; the ledger took in N live record(s) ...` (a `recovery kept: ...` line is a refusal:
+   note the reason, it is not a pass). `rlIdentityStatus` -> READY, ON.
+4. Wait for one more numbered animal Z in the same herd (or the same shop). `rlIdentityDump` (**R3**).
+5. Save, quit, load. `rlIdentityStatus` -> READY, ON (no RECOVERY_REQUIRED). One more numbered animal, `rlIdentityDump` (**R4**).
+PASS when the analyzer on this log PASSes LIVE-UNIQUE, LIVE-IN-LEDGER (R3, R4) and **KEY-NOT-REISSUED** (Y's key never comes
+back); X is CONSUMED in the ledger from R3 on; Z's key is neither X's nor Y's.
+
+## G12 numbering after OFF / SHADOW and `rlIdentityActivate` again (PR #58 review P2; main run, after G05/G06)
+The ledger is ON (G01). Needs one numbered animal while OFF and one after the re-activation, in the same herd (births or shop restock).
+1. `rlIdentityDump` (**M0**). `rlIdentityMode OFF`.
+2. Wait for a new animal N1 (numbered by the old counter). `rlIdentityDump` (**M1**, N1 live). Sell N1. `rlIdentityDump` (**M2**).
+3. `rlIdentityActivate` **without** `accept`: a herd the ledger already holds needs no new acceptance. A refusal naming such a herd is a
+   FAIL; one naming a herd new since G01 is expected (then `accept`). `rlIdentityStatus` -> ON.
+4. Wait for a new animal N2. `rlIdentityDump` (**M3**).
+PASS when KEY-NOT-REISSUED, LIVE-UNIQUE and LIVE-IN-LEDGER (M3) PASS: N2's key is not N1's. The same with `rlIdentityMode SHADOW` in
+step 1 is optional (same code path, covered offline by R8).
 
 ## Not covered by these cards
 Multiplayer (the enable switch refuses it), other species, other maps/containers, any GUI. They stay PENDING in

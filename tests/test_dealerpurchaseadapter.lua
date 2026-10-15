@@ -424,6 +424,7 @@ do
         K.lastQuote = { destination = "net:17", items = { itemsC[1] }, credential = q.credential }
         K.dealerConfirm()
         local first = K.lastOrder
+        local firstResult = svc1.localLookup(first)
         check("R10 session 1: the console order commits under an id with the session epoch", first == "console-e20261015120000-1111-1"
             and svc1.localLookup(first).status == "COMMITTED")
         -- restart: the purchase records come back from the save, the console's Lua state and the epoch are new
@@ -438,6 +439,20 @@ do
         local second = K.lastOrder
         check("R10 after the restart the next console order gets a new id and commits (no REQUEST_CONFLICT)", second ~= first
             and svc2.localLookup(second).status == "COMMITTED" and svc2.localLookup(first).status == "COMMITTED")
+        -- the two orders stay apart: each lookup answers its own receipt, unchanged by the other
+        local a1, a2 = svc2.localLookup(first), svc2.localLookup(second)
+        local canonical = RLTradePersistence.canonical
+        check("R10 old and new order lookups answer their own receipts; the old one is unchanged by the new purchase",
+            canonical(a1) == canonical(firstResult) and a2.requestId ~= a1.requestId and a2.transferIds[1] ~= a1.transferIds[1]
+            and canonical(svc2.localLookup(first)) == canonical(firstResult))
+        loadMod("scripts/dealer/RLDealerClientRequest.lua")
+        local CR = RLDealerClientRequest
+        local client = assert(CR.new("console-check", {}))
+        client.unresolved = { requestId = second }
+        local _, stale = CR.receiveOrderStatus(client, { orderId = first, status = a1.status, amount = a1.amount, transferIds = a1.transferIds })
+        local settled = CR.receiveOrderStatus(client, { orderId = second, status = a2.status, amount = a2.amount, transferIds = a2.transferIds })
+        check("R10 the old order's status cannot settle the new one; the new one's own status does", stale == "STALE_REPLY"
+            and settled.requestId == second and settled.transferIds[1] == a2.transferIds[1])
         RLDealerRuntime = { parts = {} }
         check("R10 without a session epoch no order id is made", K.nextOrderId ~= nil and select(2, K.nextOrderId()) == "NO_SESSION_EPOCH")
         RLDealerRuntime = previous

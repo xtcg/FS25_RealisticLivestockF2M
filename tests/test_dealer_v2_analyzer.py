@@ -28,6 +28,22 @@ class AnalyzerTest(unittest.TestCase):
         for name in ("LIVE-UNIQUE", "LIVE-IN-LEDGER", "MONEY-DELTA", "ORDER-ONCE", "NO-STUCK-KEYS"):
             self.assertEqual(r[name][0], "PASS", (name, r[name]))
 
+    def test_key_gone_and_back_fails(self):
+        a = dump([K1, K2], [(K1, "CONSUMED"), (K2, "CONSUMED")], "ON", 1000)
+        b = dump([K1], [(K1, "CONSUMED"), (K2, "CONSUMED")], "ON", 1000)
+        c = dump([K1, K2], [(K1, "CONSUMED"), (K2, "CONSUMED")], "ON", 1000)
+        self.assertEqual(A.analyze(a + "\n" + b + "\n" + c)["KEY-NOT-REISSUED"][0], "FAIL")
+        K3 = ("41", "310003", "2")
+        d = dump([K1, K3], [(K1, "CONSUMED"), (K2, "CONSUMED"), (K3, "CONSUMED")], "ON", 1000)
+        self.assertEqual(A.analyze(a + "\n" + b + "\n" + d)["KEY-NOT-REISSUED"][0], "PASS")
+        self.assertEqual(A.analyze(a + "\n" + b)["KEY-NOT-REISSUED"][0], "INCOMPLETE")
+
+    def test_request_conflict_refusal_fails(self):
+        text = self.good() + "\nRLDEALERV2 ORDER console-x-1 refused: REQUEST_CONFLICT (text)\n"
+        self.assertEqual(A.analyze(text)["ORDER-ONCE"][0], "FAIL")
+        text = self.good() + "\nRLDEALERV2 ORDER console-x-2 refused: QUOTE_EXPIRED (text)\n"
+        self.assertEqual(A.analyze(text)["ORDER-ONCE"][0], "PASS")
+
     def test_empty_log_is_incomplete_never_pass(self):
         r = A.analyze("nothing here")
         self.assertTrue(all(v[0] == "INCOMPLETE" for v in r.values()), r)

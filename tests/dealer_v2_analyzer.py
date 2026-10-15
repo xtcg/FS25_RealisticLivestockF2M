@@ -10,7 +10,12 @@ Checks
   LIVE-UNIQUE     no full key (farm uniqueId country) twice among the live animals of one dump
   LIVE-IN-LEDGER  with the ledger ON, every live key is CONSUMED in the ledger
   NO-STUCK-KEYS   no ledger key RESERVED / MATERIALIZED older than the first dump (reported, FAIL if any survive two dumps)
-  ORDER-ONCE      an order id commits once; its amount never changes between lines
+  ORDER-ONCE      an order id commits once; its amount never changes between lines; no order is refused as
+                  REQUEST_CONFLICT (an order id made again, e.g. after a restart)
+  KEY-NOT-REISSUED  a live key that left the world (absent from a later dump: sold, dead) never comes back in a
+                  still later dump - that would be its key handed out again (recovery clear, re-activation).
+                  Needs three dumps. Use one log per uninterrupted run: a load that undoes a sale (leave without
+                  saving, an older copy) brings the same animal back and must not share a log with this check.
   MONEY-DELTA     between two dumps the host farm's money changed by exactly minus the committed orders
                   (--allow-income lets it be higher, for sessions that also earned money)
 """
@@ -21,6 +26,7 @@ LIVE = re.compile(r"RLIDENTITY LIVE (\S+) (\S+) (\S+) (\S+)")
 LEDGER = re.compile(r"RLIDENTITY LEDGER (\S+ \S+ \S+) (\S+)")
 DUMP = re.compile(r"RLIDENTITY DUMP live=(\d+) ledger=(\d+) mode=(\S+) generation=(\S+) money=(-?[\d.]+)")
 ORDER = re.compile(r"RLDEALERV2 ORDER (\S+) (COMMITTED|ROLLED_BACK|PENDING|UNCERTAIN) amount=(-?[\d.]+|nil)")
+REFUSED = re.compile(r"RLDEALERV2 ORDER (\S+) refused: (\S+)")
 
 
 def parse(text):
@@ -47,6 +53,10 @@ def parse(text):
         if m:
             amount = None if m.group(3) == "nil" else float(m.group(3))
             events.append(("order", m.group(1), m.group(2), amount))
+            continue
+        m = REFUSED.search(line)
+        if m:
+            events.append(("refused", m.group(1), m.group(2)))
     return blocks, events
 
 
@@ -54,7 +64,7 @@ def analyze(text, allow_income=False):
     blocks, events = parse(text)
     results = {}
     if not blocks:
-        for name in ("LIVE-UNIQUE", "LIVE-IN-LEDGER", "NO-STUCK-KEYS", "MONEY-DELTA"):
+        for name in ("LIVE-UNIQUE", "LIVE-IN-LEDGER", "NO-STUCK-KEYS", "MONEY-DELTA", "KEY-NOT-REISSUED"):
             results[name] = ("INCOMPLETE", "no rlIdentityDump block in the log")
     else:
         dup = []
@@ -116,6 +126,19 @@ def analyze(text, allow_income=False):
                     counted.add(e[1])
                     committed_in_segment += e[3]
         results["MONEY-DELTA"] = (verdict, "; ".join(note))
+        # a key that left the world and came back was handed out again
+        if len(blocks) < 3:
+            results["KEY-NOT-REISSUED"] = ("INCOMPLETE", "needs three dumps (alive, gone, after)")
+        else:
+            seen, gone, back = set(), set(), []
+            for i, b in enumerate(blocks):
+                now = {(farm, uid, country) for farm, uid, country, _where in b["live"] if not (farm == "1" and uid == "1")}
+                for key in sorted(now & gone):
+                    back.append((i, key))
+                gone = (gone | (seen - now)) - now
+                seen |= now
+            results["KEY-NOT-REISSUED"] = ("FAIL", "gone and back (dump, key): %s" % back[:5]) if back else (
+                "PASS", "%d dump(s), %d key(s) left the world" % (len(blocks), len(gone)))
     # orders
     amounts, fail = {}, []
     committed_seen = False
@@ -125,8 +148,12 @@ def analyze(text, allow_income=False):
             if e[1] in amounts and amounts[e[1]] != e[3]:
                 fail.append(e[1])
             amounts.setdefault(e[1], e[3])
-    results["ORDER-ONCE"] = ("INCOMPLETE", "no committed order in the log") if not committed_seen else (
-        ("FAIL", "amount changed for %s" % fail) if fail else ("PASS", "%d order(s)" % len(amounts)))
+    conflicts = [e[1] for e in events if e[0] == "refused" and e[2] == "REQUEST_CONFLICT"]
+    if conflicts:
+        results["ORDER-ONCE"] = ("FAIL", "order id refused as REQUEST_CONFLICT (made again): %s" % conflicts[:5])
+    else:
+        results["ORDER-ONCE"] = ("INCOMPLETE", "no committed order in the log") if not committed_seen else (
+            ("FAIL", "amount changed for %s" % fail) if fail else ("PASS", "%d order(s)" % len(amounts)))
     return results
 
 

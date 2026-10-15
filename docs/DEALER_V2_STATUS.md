@@ -77,4 +77,13 @@ The first two were reproduced against the real runtime/ledger modules; the third
 
 4. **P2 fixed (follow-up review).** Console order ids repeated after a restart. `orderSeq` lived only in memory, but the id used the persistent lineage, so `console-<lineage>-1` came back and the saved purchase record refused it with REQUEST_CONFLICT (G07). `RLIdentityConsole.nextOrderId` now builds `console-<session epoch>-<n>`. The epoch is the dealer's `parts.epoch`, made again at every `rlDealerV2Enable`. Without an epoch the order is refused (`NO_SESSION_EPOCH`). Regression R10 (purchase adapter) uses the real purchase coordinator: it buys, exports and imports the purchase records, starts a new session and epoch, and buys again. The test fails against `9bfb37f`.
 
-Suite **4126/4126** (Lua 5.5 via lupa), analyzer **13/13**. The new tests fail or crash against the code before each fix. Known limit, unchanged: once a domain's counters cross raw 9999, raws 10001..19999 alias used raws, so the ledger refuses (SKIP_LIMIT) rather than hand out an alias. Still not run in game.
+Re-check (2026-10-15): R10 also proves the two orders stay apart. Each order's lookup answers its own receipt, the old one byte for byte unchanged by the new purchase, and the old order's status cannot settle the new one in the client.
+
+Game evidence for the fixes:
+- The analyzer gains KEY-NOT-REISSUED: a live key that left the world must never come back.
+- ORDER-ONCE now FAILs on a REQUEST_CONFLICT refusal.
+- New test cards: G11 (numbering after `rlIdentityRecoveryClear`) and G12 (numbering after OFF/SHADOW and re-activation).
+- G07 now checks the epoch of order C.
+- A smoke-run order for these fixes heads the T6 plan.
+
+Suite **4128/4128** under both Lua 5.5 and Lua 5.4 (lupa), analyzer **15/15**. The new tests fail or crash against the code before each fix. Known limit, unchanged: once a domain's counters cross raw 9999, raws 10001..19999 alias used raws, so the ledger refuses (SKIP_LIMIT) rather than hand out an alias. Still not run in game.
