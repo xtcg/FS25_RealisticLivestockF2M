@@ -2,7 +2,7 @@
 
 Status 2026-10-14. Branch `feat/sheep-s5-nutrition` (worktree `rlrm-sheep5`), rebased on `origin/dev` `bbb4573` (S3 #53, S4 #54, dealer #55, breeding value #56). Decisions: [S5 checklist](../../FS25_SheepBreeds_离线准备_2026-10-11/S5_待设计与决策清单.md) D1–D9 and the [finishing design](../../FS25_SheepBreeds_离线准备_2026-10-11/sheep-finishing-design-v1.md) F-D1–F-D5, all approved by the user. The user asked on 2026-10-13 to develop from the checklist.
 
-**Four states:** code committed — yes; in a run package — no; automated checks — pass (see Verification); game test — not done. **Sheep v2 stays OFF** (`weightProfiles.xml` SHEEP `enabled="false"`). After the triplet pregnancy fix and the BCS feeding control (2026-10-15, below) the calibration has 32 PASS, 7 FAIL and 8 UNVERIFIED items, and it exits with code 1. Nothing has been tried in game.
+**Four states:** code committed — yes; in a run package — no; automated checks — pass (see Verification); game test — not done. **Sheep v2 stays OFF** (`weightProfiles.xml` SHEEP `enabled="false"`). After the calibration rebuild (2026-10-15, four batches, below) the calibration has 52 PASS, 11 FAIL and 11 UNVERIFIED items in four report parts, and it exits with code 1. Part 1 keeps the 7 original failures. No production parameter changed in the rebuild. Nothing has been tried in game.
 
 ## What the code does
 
@@ -180,15 +180,78 @@ By the rule, **neither failure is explained; both stay open**. What the records 
 - **Weaning 2.29.** In the first month of milk the ewe needs 35.2 MJ. She eats 28.0 MJ on grass and 29.2 MJ with the supplement: the concentrate mostly replaced grass, because her intake is fill-limited at about 3.3% of live weight. The lambs took a quarter of the trough as creep and gained 1.5 kg more. Her condition barely moved. AHDB's own Table 32 ration also leaves a deficit (30.0 against 33.4 MJ, losing 200 g a day). So the loss comes from appetite against twin milk, not from too little feed. Whether the loss is too large (0.63 BCS from lambing, against AHDB's expected 0.5) is not settled by this control. Part of it is the 88 kg Landrace ewe giving the full Table 28 lowland twin row.
 - **Mating 2.98.** Free intake from weaning raises her from 2.29 to 3.66 in four months: the energy model can rebuild condition, and overshoots the 3–3.5 band. The baseline's 2.98 is AUTO's GROW rule, which aims a dry ewe at the reference reserve (BCS 3.0) and no further, not a lack of energy. The band lies between the two management settings the game has. Whether AUTO's dry-ewe target should be BCS 3.0 is a game rule to decide. No fertility, flushing or dry-ewe mechanism was added, and no further plan was tried after seeing these results.
 
+## Calibration rebuild (2026-10-15, four batches; production parameters unchanged)
+
+Evidence is in `s5-logs/review5-2026-10-15/`:
+- full suite 3983/3983;
+- Lua 5.1 sheep tests 160 / 160 (new `test_sheep_s5_metrics`, 7 checks);
+- A/B against `bbb4573`: 396 / 640 / 2,040 cases, 0 unexpected differences;
+- calibration 52 PASS, 11 FAIL, 11 UNVERIFIED (exit 1).
+
+The expected values below came from the user's isolated trial runs. They were used to check the implementation, not as factual targets.
+
+### Batch 1: one way to measure time, energy and FCR
+
+- **Files.** `tests/sheepcalib.lua` is now the library (`raiseWithDam`, `storeLambs`, `eweYear`). `tests/sheepcalib_scenarios.lua` holds the inputs and the groups. `tests/sheepcalib_metrics.lua` holds the measurements. `tests/sheepcalib.py` runs each group in a Lua state of its own and keeps the old metrics beside the new ones. `RLFeed.lua` needed no change: the STEP events already carry what is measured.
+- **Identical trajectories.** The history runs first, in its old order, on the same code paths. Every value it had before is identical, with two exceptions: the removed monthly "intake − mid-month need" balance, and R3's ADG, which now divides by the 42.5 model days actually run instead of the nominal 42.
+- **Crossing record.** Each lamb carries `elapsedModelDays`, `lastBelow`, `firstAtOrAbove`, `crossingEstimateDays` (linear between them, an estimate only) and `ageAtRefGameHour` (the old hour-end months). A verdict uses the step interval. Only an interval across a bound falls back to the finer steps' estimate, and only when those two agree within 0.05 d; otherwise the item is "numerical resolution unresolved" (UNVERIFIED). No verdict needed the fallback.
+- **Texel.** The first sub-step at or above market weight is at 99.0 model days; the interpolated estimate is 98.78 / 98.79 / 98.80 at 0.25 / 0.125 / 0.0625-day steps. The new model-time V1 check passes (84–99 d). The old hour-end check (100 d = 3.33 months) stays FAIL in part 1.
+- **Convergence.** For R1 (about 3 months) the two finer steps agree within 0.026 d: PASS. For R2 (4–7 months) they differ by up to 0.112 d: **FAIL** on the 0.05 d engineering precision. The difference halves with the step (ratio 1.99–2.02): first-order integration error growing with route length. At the production 0.25-day step the Landrace twin lamb is 0.45 d (0.3%) short of the extrapolated limit. The production step stays 0.25 d.
+- **R4.** ADG is now the gain over the model days actually run. The 54-day study scenario runs at a 5-day month: 216 hours of 0.25 d, exactly 54.00 d.
+- **Energy.** The budget's own per-step ledger (supply, demand, paid, unmet, deposit, mobilised, catabolism, lost) is summed by month, and closes to within 4e-15 of supply on all 96 tracked animals. Month-length check on model time: at 1 / 3 / 7 / 28-day months the R1 Landrace twin ram lamb crosses at 107.65 d and weighs 37.72 kg at 3 months, identical at every month length.
+
+### Batch 2: management with the game's feeds (no milk, grass or intake change)
+
+| Scenario | Result | Expected |
+|---|---|---|
+| Hill lambs on clover (CLOVER_WINDROW in place of grass; n = 1.3 assumed, singles 0.5385, twins 0.4615) | Flock mean (game-hour end) Steinschaf 5.45, Black Welsh 5.11, Blackface 5.29 months; all three PASS the original window. Grass alone stays FAIL (6.1–6.6) | 5.45 / 5.11 / 5.29 |
+| Ewe, intensified lactation (grass, barley, peas topped up for 90 days) | Weaning BCS 2.60 PASS. Lambs 33.8 kg at weaning vs 26.5; milk paid 197.1 vs 177.6 kg of 202.5. Month 1 of milk: ME 31.6 MJ eaten (baseline 28.0) on the same 2.9 kg DM, unmet demand 0 (baseline 1.1 MJ a day) | about 2.60 |
+| Ewe, controlled recovery (FINISH from weaning; MAINTAIN once BCS ≥ 3.25 = reserve 0.5625, a scenario's player switch) | Next mating BCS 3.256 PASS; switched at month 10.9. Lambs and milk as the baseline | about 3.256 |
+| Both | Weaning 2.60, mating 3.25, lambs and milk as the intensified run; all PASS | |
+
+The 98% guard on lambs at weaning and milk paid passes in every control. These results support a management explanation of the two baseline BCS failures (an energy-dense diet in lactation; a recovery target above AUTO's BCS 3.0). They do not independently verify the energy model, and the baseline failures stay in part 1. AUTO still aims a dry ewe at BCS 3.0. The 3.25 switch exists only in the scenario. A maiden ewe keeps her BCS 3.2 ceiling.
+
+### Batch 3: R4 rebuilt beside the original; candidate parameters
+
+- **Study-design control.** Suffolk (breed proxy for Suffolk-cross), castrates, 39 kg, 54 model days, age 7 months (an assumption). Two diets:
+  - **game diet**: silage, barley and peas ad lib;
+  - **study recipe proxy**: barley ad lib, peas at most 0.5 kg and silage 0.5 kg fresh a head a day, about 16% CP. Keady 2016 summarises Keady and Hanrahan 2014/2015: 160 g CP/kg concentrate, ad lib within 10 days, 0.5 kg fresh high-value silage, about 1.5 kg concentrate a day.
+
+| Castrates | ADG | DM a day | Concentrate a day | FCR live x 0.49 / x 0.491 (proxies) | FCR on game saleable meat |
+|---|---|---|---|---|---|
+| game diet | 278 g | 1.63 kg | 1.66 kg | 12.14 / 12.12 | 15.91 |
+| study recipe | 253 g | 1.51 kg | 1.56 kg | 12.55 / 12.53 | 16.42 |
+
+  Ram and ewe lambs under the same conditions (reported only): rams 316 / 288 g, ewe lambs 239 / 217 g. The summary's 248 g, 1.5 kg and 10.7 are not yet traced to the castrate / 39 kg / 54-day treatment, so the matched check is UNVERIFIED. The original R4 (Landrace, 32 kg, three sexes, 60.0 d) is unchanged: ram 300 g, FCR 10.27 / 10.25, meat 13.19; its V4 ADG gate stays FAIL.
+
+- **Candidates.** Each runs in its own Lua state against a fresh `candidate:base`:
+
+| Candidate | Study castrates, game diet | Study castrates, recipe | R4 ram | Texel R1 crossing |
+|---|---|---|---|---|
+| base | 278 g / 1.63 kg / 12.12 | 253 g / 1.51 / 12.53 | 300 g / 10.27 | 98.78 d |
+| growth cost 30 | 293 / 1.64 / 11.57 | 267 / 1.52 / 11.97 | 311 / 9.99 | 97.08 |
+| growth cost 36 | 263 / 1.62 / 12.73 | 240 / 1.50 / 13.17 | 289 / 10.60 | 101.23 |
+| growing intake 0.087 | 255 / 1.53 / 12.39 | 232 / 1.42 / 12.83 | 278 / 10.33 | 101.87 |
+
+  Growing intake 0.087 worsens FCR (12.12 → 12.39 on the game diet) while ADG comes closer to 248 g, as the user's trial found (their 12.72 → 13.02). The absolute FCR differs from that trial, so the two scenario set-ups are not identical. Ewe reserve deposit 100 MJ/kg (grown parous ewes only, planner and settlement alike) gives weaning / mating BCS of 2.28 / 2.92 (baseline 2.29 / 2.98) and 2.57 / 2.99 under intensified lactation. Under controlled recovery the ewe no longer reaches 3.25 by mating (2.95). **No candidate is adopted**: the conditions are not matched to a traced reference. Production keeps 33, 0.092, 50 and 35.
+
+### Batch 4: the report, regression and the game test
+
+- `sheepcalib.py` reports four parts: 1 history (the original baseline and earlier results, every old FAIL kept); 2 checks matched to a reference (energy tables, model-time V1/V2, convergence, month length, ledger, the R4 study); 3 management controls; 4 unmatched sources, proxies, candidates and what the game has not verified. Each part carries its own PASS / FAIL / UNVERIFIED counts: 25/7/5, 16/4/1, 10/0/0, 1/0/5.
+- A production guard checks 16 kept values in the shipped XML, all equal: third lamb 0.50, lamb maintenance 0.475, lactation intake 0.050 / 0.50 / 0.018, reserve capacity 0.48, AUTO reference 0.50, growth 33 and 0.80 / 1.00 / 1.25, growing intake 0.092, adaptation 14, deposit 50, mobilise 35, sheep v2 `false`.
+- The triplet energy checks still pass: 40 cells, 21 interpolated points, every 1% of the pregnancy. V10 is 13 ms against the 60 ms threshold.
+- An observer that fails is now an error in the calibration (in the game it is only a warning).
+- Game short test: the card is `docs/SHEEP_S5_GAME_TEST.md` (feed supply, ewe and lamb allocation, weaning, mixed-pen fallback, save and load, BCS recovery by hand, 300 sheep). **Not done**; it is UNVERIFIED in part 4.
+
 ## Game compromises added in S5 (four columns in the finishing design §4)
 
 SHEEP-C09 to C17 are recorded in the finishing design §4 (2026-10-14 addendum): monthly milk steps; lean newborn reserve; growth cost by sex; AUTO finishing young females; goat pens stay on the old rules; creep gate; the notification comes the hour after a separation, not at the move; ewe milk composition is a proxy; the hill gap.
 
 ## Verification
 
-- Full suite: 3976/3976 (`python tests/run.py`; log `s5-logs/review4-2026-10-15/tests-full.log`). The sheep files are `test_sheep_s5_config` (19 checks), `test_sheep_s5_nursing` (40), `test_sheep_s5_settings` (24), `test_sheep_s5_runtime` (51) and `test_sheep_s5_lifecycle` (19).
+- Full suite: 3983/3983 (`python tests/run.py`; log `s5-logs/review5-2026-10-15/tests-full.log`). The sheep files are `test_sheep_s5_config` (19 checks), `test_sheep_s5_nursing` (40), `test_sheep_s5_settings` (24), `test_sheep_s5_runtime` (51), `test_sheep_s5_lifecycle` (19) and `test_sheep_s5_metrics` (7).
 - A/B against `bbb4573` (run from `tests/`): `python sheep_s5_ab.py` (cattle legacy budget), `python feed_ab.py` (cattle real-equivalent mode), `python species_ab.py` (every other type). Each takes `--baseline bbb4573 --out …`. Results are in `s5-logs/review2-2026-10-14/`, with 0 unexpected differences.
-- The five sheep test files also pass under Lua 5.1: 153 / 153 (`s5-logs/review4-2026-10-15/sheep-tests-lua51.txt`).
+- The six sheep test files also pass under Lua 5.1: 160 / 160 (`s5-logs/review5-2026-10-15/sheep-tests-lua51.txt`).
 - Not done: game test, W-DEBUG/TestDiagnostics sheep scenario (separate mod), multiplayer.
 
 ## Before sheep v2 may be enabled
