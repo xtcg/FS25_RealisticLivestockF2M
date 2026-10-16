@@ -115,11 +115,12 @@ end
 
 local STAT_LABELS = { "rl_ui_finish", "rl_ui_bodyCondition", "rl_ui_finishVerdict", "rl_ui_finishWeight",
     "rl_ui_rationCoverage", "rl_ui_milkOfPotential", "rl_ui_conceptionCondition",
-    "rl_feed_intake", "rl_feed_ration", "rl_feed_finish" }
+    "rl_feed_intake", "rl_feed_ration", "rl_feed_finish", "rl_ui_fatClass" }
 local STAT_VALUES = { "rl_ui_conditionCalf", "rl_ui_finishVerdictReady", "rl_ui_finishVerdictNeedsFinish",
     "rl_ui_finishVerdictGrowing", "rl_ui_finishVerdictStore", "rl_ui_finishVerdictOverfat",
     "rl_ui_finishVerdictTooYoung", "rl_ui_finishVerdictBlocked", "rl_feed_finishReady", "rl_feed_finishStalled" }
 local PEN_KEYS = { "rl_ui_penBcs", "rl_ui_penCowsThinFat", "rl_ui_penBullsReady", "rl_ui_penBullsOverfat",
+    "rl_ui_penEwesThinFat", "rl_ui_penLambsReady", "rl_ui_penLambsOverfat",
     "rl_ui_penFeedEaten", "rl_ui_penRationEnergy", "rl_ui_penWater",
     "rl_feed_penMode", "rl_feed_penRation", "rl_feed_penCoverage", "rl_feed_penFirstOut" }
 

@@ -142,8 +142,21 @@ function RLWeightProfiles.parse(xmlFile)
         if typeName == nil or typeName:upper() == RLWeightProfiles.COVERED_TYPE then return end
         local excluded = {}
         for breed in (xmlFile:getString(key .. "#excludeBreeds") or ""):gmatch("%S+") do excluded[breed:upper()] = true end
-        config.types[typeName:upper()] = { enabled = xmlFile:getBool(key .. "#enabled", false),
-            status = xmlFile:getString(key .. "#status", "UNKNOWN"), excludeBreeds = excluded }
+        -- A type gets its own table; reading overrides must never mutate the cattle settings.
+        local settings = table.clone(config.settings)
+        for field, default in pairs(settings) do
+            settings[field] = xmlFile:getFloat(key .. "#" .. field, default)
+        end
+        local valid, reason = RLWeightProfiles.validateSettings(settings)
+        config.types[typeName:upper()] = { enabled = valid and xmlFile:getBool(key .. "#enabled", false),
+            status = xmlFile:getString(key .. "#status", "UNKNOWN"), excludeBreeds = excluded,
+            settings = settings, invalidReason = reason,
+            -- "REAL": the type's curves run only under the real-equivalent nutrition mode (sheep:
+            -- their budget has no calibration in the old mode's units); "ANY" (default) either.
+            nutrition = (xmlFile:getString(key .. "#nutrition") or "ANY"):upper() }
+        if not valid then
+            Log:error("RLWeightProfiles: %s settings invalid (%s) - this type switched off", typeName, reason)
+        end
     end)
 
     xmlFile:iterate("weightProfiles.profile", function(_, key)
@@ -171,7 +184,8 @@ function RLWeightProfiles.parse(xmlFile)
             end
             for _, sex in ipairs(RLWeightProfiles.SEXES) do
                 if profile.invalid ~= nil then break end
-                local births = sex == "male" and birth * (profile.maleBirthFactor or config.settings.maleBirthFactor) or birth
+                local typeSettings = config.types[typeName] ~= nil and config.types[typeName].settings or config.settings
+                local births = sex == "male" and birth * (profile.maleBirthFactor or typeSettings.maleBirthFactor) or birth
                 local knots, reason = RLWeightProfiles.parseKnots(xmlFile:getString(key .. "." .. sex .. "#knots"), births)
                 if knots == nil then
                     profile.invalid = sex .. ": " .. reason
@@ -234,6 +248,17 @@ function RLWeightProfiles.getConfig()
         RLWeightProfiles.config = RLBreedTraits.loadConfig(RLWeightProfiles.CONFIG_FILE, "weightProfiles", RLWeightProfiles.parse)
     end
     return RLWeightProfiles.config
+end
+
+
+--- Effective physiology settings for a type. Cattle and proxy types keep the exact root table.
+--- Omitted type attributes inherit the root for compatibility with existing user configs.
+--- Invalid type settings are never returned to a runtime caller.
+function RLWeightProfiles.getSettings(typeName)
+    local config = RLWeightProfiles.getConfig()
+    local entry = typeName ~= nil and config.types[typeName:upper()] or nil
+    if entry ~= nil and entry.invalidReason == nil and entry.settings ~= nil then return entry.settings end
+    return config.settings
 end
 
 
@@ -358,7 +383,12 @@ function RLWeightProfiles.describe(subType, counts)
     local config = RLWeightProfiles.getConfig()
 
     local typeEntry = RLWeightProfiles.getTypeEntry(typeName)
-    if typeEntry ~= nil then record.typeEnabled = typeEntry.enabled end
+    if typeEntry ~= nil then
+        record.typeEnabled = typeEntry.enabled
+        record.settingsInvalidReason = typeEntry.invalidReason
+    end
+    local excluded = RLWeightProfiles.isExcludedBreed(typeEntry, subType.breed)
+    record.settings = table.clone(excluded and config.settings or RLWeightProfiles.getSettings(typeName))
     if RLWeightProfiles.isExcludedBreed(typeEntry, subType.breed) then
         record.resolution, record.reason, record.gap = "NOT_COVERED", "breed excluded from the " .. typeName .. " curves", false
         if RLGrowth ~= nil then record.capability = RLGrowth.describeCapability(subType, counts) end

@@ -175,7 +175,7 @@ function S.restore(record, resolver)
     local r, a = copy(record), copy(record.animal)
     if sub.subTypeIndex ~= nil then a.subTypeIndex = sub.subTypeIndex end
     a.animalTypeIndex = sub.typeIndex
-    local size = RLGrowth.getGeneFactors(a.genetics.metabolism)
+    local size = RLGrowth.getGeneFactors(a.genetics.metabolism, a)
     local binding = RLGrowth.getBinding(sub)
     local curve = RLGrowth.buildCurve(binding, a.rlGrowth.frameTargetKg, a.rlGrowth.birthWeightKg)
     if not near(a.rlGrowth.frameTargetKg, RLGrowth.getAdultReference(binding) * size)

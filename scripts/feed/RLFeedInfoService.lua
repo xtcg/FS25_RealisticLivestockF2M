@@ -33,10 +33,10 @@ local function enumText(prefix, value, default)
 end
 
 
---- A cattle pen with a trough.
+--- A pen the mode can feed (name kept for its callers): a cattle pen with a trough, or a sheep pen
+--- (a species with a feed section of its own, RLFeed.isNutritionPen).
 function RLFeedInfoService.isCattlePen(placeable)
-    return placeable ~= nil and placeable.spec_husbandryFood ~= nil and placeable.getAnimalTypeIndex ~= nil and AnimalType ~= nil
-        and placeable:getAnimalTypeIndex() == AnimalType.COW
+    return RLFeed.isNutritionPen(placeable)
 end
 
 
@@ -441,6 +441,22 @@ function RLFeedInfoService.notifyCalfMilk(placeable, alert)
         mission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_INFO,
             string.format(getText("rl_feed_calfMilkLowAlert"), name, formatMonths(alert.monthsLeft or 0)))
     end
+end
+
+
+--- A sheep pen's young still on milk without their dam (RLFeed.countUnnursed): one notification when
+--- the number rises above what was last told, none again until it does (or falls to 0 and rises).
+function RLFeedInfoService.notifyUnnursed(placeable, count)
+    local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
+    if spec == nil or count == nil then return end
+    local last = spec.rlUnnursedNotified or 0
+    spec.rlUnnursedNotified = count
+    if count <= last then return end
+    local mission = g_currentMission
+    if mission == nil or mission.addIngameNotification == nil then return end
+    if placeable.getOwnerFarmId ~= nil and mission.getFarmId ~= nil and placeable:getOwnerFarmId() ~= mission:getFarmId() then return end
+    local name = placeable.getName ~= nil and placeable:getName() or ""
+    mission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_CRITICAL, string.format(getText("rl_feed_lambNoDam"), name, count))
 end
 
 

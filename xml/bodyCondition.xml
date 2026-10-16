@@ -97,6 +97,14 @@
                      faster) and a dry cow keeps her condition on hay. See
                      tests/test_bodycondition.lua.
 
+    species: a section for one animal type (sheep): the root with the attributes and curves it
+    sets replaced, plus femaleFinishShift (a young female reads finishingTarget at x + this),
+    youngUntilMonth (from this continuous age an animal that never had young is grown: no fat
+    class, and a female leaves the finishing target - and femaleFinishShift - for
+    heiferReserveCeiling, the section's maiden-female ceiling), fertilityEffect (0: condition
+    leaves conception as it is) and fatClass elements (the class a reserve shows: the last whose
+    minReserve it reaches). Goats and every other type read the root.
+
     To change these without editing the mod, copy this file to
     modSettings/FS25_RealisticLivestockRM/bodyCondition.xml; that copy then replaces this file
     entirely. An invalid file switches the feature off and logs why.
@@ -196,4 +204,83 @@
         <fillType name="SUGARBEET_CUT" energy="0.85"/>
         <fillType name="CALFMILK" energy="1.20"/>
     </feedEnergy>
+
+    <!--
+        Sheep (S5, 2026-10-13): candidates for the offline calibration, off until the weight
+        model's SHEEP type is enabled. One BCS point is 10-13% of a ewe's live weight (FAS; AHDB
+        Table 4 uses about 10%): with BCS = 1 + 4r, reserveCapacityRatio 0.48 is 12% of the
+        reference weight a point (cattle 0.20: 5%) - of the frame's reference weight, not of any
+        current weight. The reserve index r is a model state, not a body fat percentage; the EUROP
+        mapping below and the meat factors are game design (the AHDB price gap they follow is a
+        price, not a measured meat loss). Ewes gain a BCS point in 6-8 weeks on good
+        grass (AHDB) - the energy they eat sets that; gainRatePerMonth 0.30 (1.2 BCS) only caps a
+        lamb finished on concentrate - and lose condition fast in early lactation. The
+        reference ewe is at BCS 3 (referenceReserve 0.5). Fat classes: EUROP 1 / 2 / 3L / 3H / 4L /
+        4H / 5 on the reserve (a model mapping, not tissue fat); the finish score is the reserve x
+        100, so yield and market read the classes directly, one value a class (a 0.1 ramp at each
+        boundary): 1.00 at classes 2-3L (the target R3L), 0.99 at 3H,
+        0.97 at 4L, 0.955 at 4H (AHDB: R4H about 30p/kg below R3L), 0.90 at 5, 0.95 at 1 (the ends
+        extrapolated). Over-fat lambs lose saleable meat, not price per kg. finishingTarget: x =
+        weight / slaughter reference; a ram lamb on full feed is mid-3L at the reference (0.45) and
+        enters 4L at 1.15 (AHDB: lambs reach 3L at about half their mature weight); wethers read it
+        at x + 0.09, ewe lambs at x + 0.18 (a ram can be 7.7 kg heavier at the same fatness). BCS
+        does not change conception in this batch (S7). A newborn lamb is lean (birthReserve 0.25,
+        fat class 2: newborn lambs hold a few percent body fat) and lays fat down as it is finished.
+        A lamb at its market weight is ready from fat class 2 and over-fat from 4L
+        (finishReadyReserve, finishOverfatReserve: the design's sellable 2-3H). Lambs are the
+        never-lambed under 12 months (youngUntilMonth, continuous age); a maiden ewe from 12 months
+        is a ewe hogg: BCS shown, no finishing target, her reserve capped at heiferReserveCeiling
+        0.55 (BCS 3.2; a model cap, not a mating or flushing target). A ewe that has lambed is
+        capped at cowReserveCeiling 0.80 (BCS 4.2). Sheep are covered only under the weight
+        model v2 with the real-equivalent nutrition model, from birth (calfLegacyUntilAgeMonth 0:
+        a lamb finished at 3-5 months shows its fat class and its meat follows it).
+    -->
+    <species name="SHEEP" calfLegacyUntilAgeMonth="0" initialReserve="0.50" reserveCapacityRatio="0.48" referenceReserve="0.50" minReserve="0.05"
+        gainRatePerMonth="0.30" lossRatePerMonth="0.25" heiferReserveCeiling="0.55" cowReserveCeiling="0.80"
+        steerFinishShift="0.09" femaleFinishShift="0.18" youngUntilMonth="12" fertilityEffect="0" birthReserve="0.25"
+        finishReadyReserve="0.25" finishOverfatReserve="0.58">
+        <finishingTarget>
+            <point x="0.50" y="0.30"/>
+            <point x="0.80" y="0.38"/>
+            <point x="1.00" y="0.45"/>
+            <point x="1.15" y="0.58"/>
+            <point x="1.30" y="0.70"/>
+            <point x="1.50" y="0.82"/>
+        </finishingTarget>
+        <finishScore>
+            <point x="0" y="0"/>
+            <point x="1" y="100"/>
+        </finishScore>
+        <yield>
+            <point x="24.9" y="0.95"/>
+            <point x="25" y="1.00"/>
+            <point x="49.9" y="1.00"/>
+            <point x="50" y="0.99"/>
+            <point x="57.9" y="0.99"/>
+            <point x="58" y="0.97"/>
+            <point x="65.9" y="0.97"/>
+            <point x="66" y="0.955"/>
+            <point x="74.9" y="0.955"/>
+            <point x="75" y="0.90"/>
+        </yield>
+        <market>
+            <point x="24.9" y="0.95"/>
+            <point x="25" y="1.00"/>
+            <point x="49.9" y="1.00"/>
+            <point x="50" y="0.99"/>
+            <point x="57.9" y="0.99"/>
+            <point x="58" y="0.97"/>
+            <point x="65.9" y="0.97"/>
+            <point x="66" y="0.955"/>
+            <point x="74.9" y="0.955"/>
+            <point x="75" y="0.90"/>
+        </market>
+        <fatClass name="1" minReserve="0"/>
+        <fatClass name="2" minReserve="0.25"/>
+        <fatClass name="3L" minReserve="0.38"/>
+        <fatClass name="3H" minReserve="0.50"/>
+        <fatClass name="4L" minReserve="0.58"/>
+        <fatClass name="4H" minReserve="0.66"/>
+        <fatClass name="5" minReserve="0.75"/>
+    </species>
 </bodyCondition>

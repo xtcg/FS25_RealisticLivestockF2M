@@ -154,6 +154,8 @@ do
         getFloat = function(_, k, d) local v = store[k]; if v == nil then return d end return v end,
         getInt = function(_, k, d) local v = store[k]; if v == nil then return d end return v end,
         getString = function(_, k, d) local v = store[k]; if v == nil then return d end return v end,
+        setBool = function(_, k, v) store[k] = v end,
+        getBool = function(_, k, d) local v = store[k]; if v == nil then return d end return v end,
     }
     local state = G.newState({ birthWeightKg = 41.2, frameTargetKg = 730, developmentMonths = 30, reserveMassKg = 60,
         weightKg = 810, gravidKg = 62.5, lactationMonths = 1.75, source = "derived", lastTick = 5 })

@@ -30,7 +30,8 @@ local function getPens(filter)
     local pens = {}
     filter = filter ~= nil and filter:lower() or nil
     for _, placeable in ipairs(g_currentMission.husbandrySystem.placeables) do
-        if placeable.spec_husbandryFood ~= nil and placeable.getAnimalTypeIndex ~= nil and placeable:getAnimalTypeIndex() == AnimalType.COW then
+        -- Cattle pens and sheep pens (a species with its own feed section).
+        if RLFeed.isNutritionPen(placeable) then
             local name = placeable.getName ~= nil and placeable:getName() or "?"
             if filter == nil or name:lower():find(filter, 1, true) ~= nil then table.insert(pens, placeable) end
         end

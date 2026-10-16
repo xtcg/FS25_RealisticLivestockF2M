@@ -219,6 +219,18 @@ local function planAnimal(a, forageMix, concMix, capped, concScale, request)
     end
 
     local best = evaluate(a, c, forageMix, concMix, request)
+    -- A young animal at foot eats at most concMaxKgPerDay of concentrate (the creep gate): its
+    -- share is held so its concentrate stays there, its appetite filled with forage.
+    local creep = a.concMaxKgPerDay ~= nil and a.concMaxKgPerDay * request.dtDays or nil
+    if best ~= nil and creep ~= nil then
+        for _ = 1, 3 do
+            if best == nil or best.kg * best.c <= creep * (1 + 1e-9) or best.kg <= 0 then break end
+            c = creep / best.kg
+            limit = "CREEP"
+            best = evaluate(a, c, forageMix, concMix, request)
+        end
+        if best ~= nil and best.kg > 0 and best.kg * best.c > creep then best.c = creep / best.kg end
+    end
     a.forageKg, a.concKg = 0, 0
     if best == nil then
         a.c, a.concLimit, a.util, a.intakeLimit, a.solidMe = 0, limit, 1, "NO_FEED", 0

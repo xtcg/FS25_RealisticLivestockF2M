@@ -41,23 +41,29 @@ function AnimalHealth.updateHealth(animal, foodFactor)
     -- Real-equivalent nutrition (RLFeed): its pen's model-time steps already settled its budget and
     -- its health from what the budget paid for (RLFeed.runStep) - nothing more this hour.
     if RLFeed ~= nil and RLFeed.runsFor(animal) then return end
+    -- A sheep a pen in the mode settled this hour before it moved here: once an hour.
+    if RLGrowth.isSettledThisHour(animal) then return end
 
     -- In a calf rearing pen each animal has its own factor from what it could eat at its age.
     foodFactor = RLCalfRearing.getFoodFactor(animal, foodFactor)
     AnimalHealth.updateHealthOnly(animal, foodFactor)
 
     if RLGrowth.covers(animal) then
-        -- No game hour to count the step in: the old rule for this hour, to its old target (the
-        -- next step takes the weight it leaves as it is).
+        -- No game hour to count the step in, or a sheep in a pen that does not run the nutrition
+        -- mode this hour (a goat in it): the old rule for this hour, to its old target (the next
+        -- step takes the weight it leaves as it is).
         if RLGrowth.step(animal, foodFactor) then
             animal:applyUnderweightPenalty()
         else
             animal:updateWeight(foodFactor, RLGrowth.getLegacyTarget(animal:getSubType(), animal.genetics.metabolism))
+            RLGrowth.markLegacyHour(animal)
         end
     elseif RLBodyCondition.step(animal) then
         animal:applyUnderweightPenalty()
     else
         animal:updateWeight(foodFactor)
+        -- A sheep out of the model this hour (the mode off, its config invalid): marked too.
+        RLGrowth.markLegacyHour(animal)
     end
 end
 

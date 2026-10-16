@@ -196,7 +196,7 @@ local function resolveAll(data, resolver, diseaseResolver)
         end
         local p, g = a.physiology, a.physiology.rlGrowth
         if g ~= nil then
-            local target = RLGrowth.getAdultReference(RLGrowth.getBinding(sub)) * RLGrowth.getGeneFactors(p.genetics.metabolism)
+            local target = RLGrowth.getAdultReference(RLGrowth.getBinding(sub)) * RLGrowth.getGeneFactors(p.genetics.metabolism, sub)
             local curve = RLGrowth.buildCurve(RLGrowth.getBinding(sub), g.frameTargetKg, g.birthWeightKg)
             if math.abs(target - g.frameTargetKg) > 1e-8 or g.developmentMonths > curve.endMonth then return false, "SOURCE_OWNER_MODEL_STATE" end
         end

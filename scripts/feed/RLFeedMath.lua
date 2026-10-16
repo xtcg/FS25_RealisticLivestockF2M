@@ -31,18 +31,22 @@ function RLFeedMath.getEnergyConfig(bodyConfig, feedConfig)
     cfg.mobilizeNUPerKg = req.reserveMobilizeMEPerKg
     cfg.catabolismNUPerKg = req.catabolismMEPerKg
     cfg.pregnancyFactor = req.pregnancyFactor
+    -- A species' own cost of a third and further fetus (sheep); cattle count every fetus at 1.
+    cfg.pregnancyThirdLambFactor = feedConfig.physiology ~= nil and feedConfig.physiology.pregnancyThirdLambFactor or nil
     cfg.energyUnit = "ME_MJ"
     return cfg
 end
 
 
 --- ME (MJ) a kg of frame grown costs at this live weight: growthMEPerKgAt500 x (W / 500) ^ e,
---- at least growthMEPerKgMin. The energy in a kg of gain rises with weight (NRC 2000 NEg).
+--- at least growthMEPerKgMin. The energy in a kg of gain rises with weight (NRC 2000 NEg). A
+--- species gives its own reference weight (sheep: the value at 40 kg).
 --- @param weight number kg
 --- @param requirements table
+--- @param referenceKg number|nil The weight growthMEPerKgAt500 is given at (default 500)
 --- @return number
-function RLFeedMath.getGrowthCost(weight, requirements)
-    local scaled = requirements.growthMEPerKgAt500 * (math.max(weight, 1) / 500) ^ requirements.growthWeightExponent
+function RLFeedMath.getGrowthCost(weight, requirements, referenceKg)
+    local scaled = requirements.growthMEPerKgAt500 * (math.max(weight, 1) / (referenceKg or 500)) ^ requirements.growthWeightExponent
     return math.max(scaled, requirements.growthMEPerKgMin)
 end
 

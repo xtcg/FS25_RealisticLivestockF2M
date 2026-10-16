@@ -34,8 +34,10 @@
         weight), speedFactor and intakeFactor (stage factors in transition), weightKg (the live
         weight the state was last set for), ageMonths (a continuous age clock), legacyAnchor and
         anchorElapsedMonths (an old savegame's animal, below), feedAdapted (the concentrate share its
-        rumen is adapted to) and feedShortDays (model days of maintenance shortfall built up), both
-        real-equivalent nutrition (RLFeed), source ("birth", "generated",
+        rumen is adapted to), feedShortDays (model days of maintenance shortfall built up) and
+        creepDays (model days in a row a young animal has eaten creep feed in earnest: an orphan
+        lamb's readiness to wean) and weanedEarly (true once an orphan lamb was weaned early: it
+        never goes back on milk), all real-equivalent nutrition (RLFeed), source ("birth", "generated",
         "derived", "resync", "stream"), lastTick (game hour of the last step), version.
     The body condition state (animal.bodyCondition) mirrors the reserve as its index r = R / K
     after every step, so BCS, finish score and their factors read it as before.
@@ -120,8 +122,21 @@ function RLGrowth.getConfig()
 end
 
 
-function RLGrowth.getSettings()
-    return RLGrowth.getConfig().settings
+--- Subject may be an animal, subtype, curve binding, or type name. No subject preserves the
+--- cattle API. Excluded breeds (goats in SHEEP) keep the root settings, even in previews.
+function RLGrowth.getSettings(subject)
+    local typeName, subType
+    if type(subject) == "string" then
+        typeName = subject
+    elseif type(subject) == "table" then
+        subType = subject.getSubType ~= nil and subject:getSubType() or subject
+        typeName = subType.typeName or RLBreedTraits.getTypeName(subType)
+    end
+    local entry = RLWeightProfiles.getTypeEntry(typeName)
+    if subType ~= nil and RLWeightProfiles.isExcludedBreed(entry, subType.breed) then
+        return RLGrowth.getConfig().settings
+    end
+    return RLWeightProfiles.getSettings(typeName)
 end
 
 
@@ -151,9 +166,73 @@ function RLGrowth.getBinding(subType)
 end
 
 
---- Whether the model covers animals of this subtype.
+--- Whether the model covers animals of this subtype. A type that needs the real-equivalent
+--- nutrition model (weightProfiles.xml nutrition="REAL": sheep) is covered only while it runs and
+--- the type's species sections are valid.
 function RLGrowth.coversSubType(subType)
-    return RLGrowth.isEnabled() and RLGrowth.getBinding(subType) ~= nil
+    if not RLGrowth.isEnabled() then return false end
+    local binding = RLGrowth.getBinding(subType)
+    if binding == nil then return false end
+    if RLGrowth.needsRealNutrition(subType) then return RLGrowth.speciesNutritionReady(binding.typeName) end
+    return true
+end
+
+
+--- Whether the subtype's type grows on the model only under the real-equivalent nutrition mode
+--- (weightProfiles.xml nutrition="REAL": sheep). Such an animal is stepped by its pen alone; in a
+--- pen that does not run the mode this hour (a goat in it, no trough) it keeps the old weight rule
+--- (RLGrowth.step declines it), never the budget on the old feeding.
+--- @param subType table|nil
+--- @return boolean
+function RLGrowth.needsRealNutrition(subType)
+    local binding = RLGrowth.getBinding(subType)
+    if binding == nil or binding.typeName == nil then return false end
+    local entry = RLWeightProfiles.getTypeEntry(binding.typeName)
+    return entry ~= nil and entry.nutrition == "REAL"
+end
+
+
+--- Whether a sheep (a type stepped only by its pen's nutrition mode, RLGrowth.needsRealNutrition)
+--- was already settled this hour by a pen that runs the mode (RLFeed.stepAnimal marks the hour),
+--- and has since moved, or the mode or its config changed: the hour is settled once, so neither
+--- its health nor the old weight rule runs again. Read off the hour's mark alone, never off what
+--- covers it now (switching the mode off within the hour must not hide a step already taken).
+--- @param animal table
+--- @return boolean
+function RLGrowth.isSettledThisHour(animal)
+    if animal == nil or animal.getSubType == nil or not RLGrowth.needsRealNutrition(animal:getSubType()) then return false end
+    local tick = RLBodyCondition.getTickId()
+    return tick ~= nil and animal.rlFeedStepTick == tick
+end
+
+
+--- Mark the hour a sheep took the old weight rule (whatever covered it then: a pen out of the
+--- mode, no trough, the mode off, its config invalid), so a pen in the mode does not step it again
+--- this hour (RLFeed.runStep). What it ate in that hour is not known, so a lamb not yet weaned
+--- early starts its creep days again (RLFeed.afterStep counts only verified steps in a row); one
+--- already weaned stays weaned. Other types are left alone.
+--- @param animal table
+function RLGrowth.markLegacyHour(animal)
+    if animal == nil or animal.getSubType == nil or not RLGrowth.needsRealNutrition(animal:getSubType()) then return end
+    animal.rlLegacyHourTick = RLBodyCondition.getTickId()
+    local state = animal.rlGrowth
+    if state ~= nil and not state.weanedEarly and (state.creepDays or 0) > 0 then state.creepDays = 0 end
+end
+
+
+--- Whether a type that needs the real-equivalent nutrition model can run it now: the mode on and
+--- valid, and the type's feed and body condition sections valid.
+--- @param typeName string
+--- @return boolean
+function RLGrowth.speciesNutritionReady(typeName)
+    typeName = typeName:upper()
+    if RLFeed == nil or RLFeed.mode ~= RLFeed.MODE_REAL or RLFeedProfiles == nil then return false end
+    local feed = RLFeedProfiles.getConfig()
+    local section = feed.valid == true and feed.species ~= nil and feed.species[typeName] or nil
+    if section == nil or section.valid ~= true then return false end
+    local body = RLBodyConditionConfig.get()
+    local bodySection = body.species ~= nil and body.species[typeName] or nil
+    return bodySection ~= nil and bodySection.enabled == true
 end
 
 
@@ -177,8 +256,8 @@ end
 --- @return number speed Development speed factor
 --- @return number maintenance Maintenance and feed request factor
 --- @return number birth Birth weight factor
-function RLGrowth.getGeneFactors(metabolism)
-    local s = RLGrowth.getSettings()
+function RLGrowth.getGeneFactors(metabolism, subject)
+    local s = RLGrowth.getSettings(subject)
     local m = metabolism or 1
     local z = math.clamp((m - 1) / s.geneSpan, -1, 1)
     return 1 + s.sizeGeneEffect * z, 1 + s.speedGeneEffect * z, 1 + s.maintenanceGeneEffect * z,
@@ -194,7 +273,7 @@ end
 function RLGrowth.getIntakeGene(animal)
     local metabolism = animal.genetics ~= nil and animal.genetics.metabolism or 1
     if not RLGrowth.covers(animal) then return metabolism end
-    local _, _, maintenance = RLGrowth.getGeneFactors(metabolism)
+    local _, _, maintenance = RLGrowth.getGeneFactors(metabolism, animal)
     return RLGrowth.blendLegacy(maintenance, metabolism, RLGrowth.getAnchorRemaining(animal, RLGrowth.peekState(animal)))
 end
 
@@ -258,7 +337,7 @@ function RLGrowth.buildCurve(binding, frameTargetKg, birthWeightKg)
     local adult = RLGrowth.getAdultReference(binding)
     local size = adult > 0 and frameTargetKg / adult or 1
     return RLGrowthCurve.new(RLGrowth.buildKnots(RLGrowth.getReferenceKnots(binding), size, birthWeightKg,
-        RLGrowth.getSettings().birthFadeMonths))
+        RLGrowth.getSettings(binding).birthFadeMonths))
 end
 
 
@@ -266,7 +345,7 @@ end
 function RLGrowth.getFrameTarget(animal, binding)
     local state = animal.rlGrowth
     if state ~= nil and state.frameTargetKg ~= nil then return state.frameTargetKg end
-    local size = RLGrowth.getGeneFactors(animal.genetics.metabolism)
+    local size = RLGrowth.getGeneFactors(animal.genetics.metabolism, animal)
     return RLGrowth.getAdultReference(binding) * size
 end
 
@@ -276,7 +355,7 @@ end
 function RLGrowth.getBirthWeight(animal, binding)
     local state = animal.rlGrowth
     if state ~= nil and state.birthWeightKg ~= nil then return state.birthWeightKg end
-    local _, _, _, birth = RLGrowth.getGeneFactors(animal.genetics.metabolism)
+    local _, _, _, birth = RLGrowth.getGeneFactors(animal.genetics.metabolism, animal)
     return RLGrowth.getBirthMean(binding) * birth
 end
 
@@ -300,9 +379,9 @@ function RLGrowth.getCurve(animal)
 end
 
 
---- Reserve capacity per kg of frame (kappa).
-function RLGrowth.getKappa()
-    local bc = RLBodyCondition.getConfig()
+--- Reserve capacity per kg of frame (kappa), of the subject's species (cattle without one).
+function RLGrowth.getKappa(subject)
+    local bc = RLBodyCondition.getConfig(subject)
     return RLGrowthMath.getKappa(bc.reserveCapacityRatio, bc.referenceReserve)
 end
 
@@ -400,7 +479,7 @@ end
 --- @return number 0..1
 function RLGrowth.getAnchorRemaining(animal, state)
     if state == nil or state.legacyAnchor == nil then return 0 end
-    return math.clamp(1 - (state.anchorElapsedMonths or 0) / RLGrowth.getSettings().migrationBlendMonths, 0, 1)
+    return math.clamp(1 - (state.anchorElapsedMonths or 0) / RLGrowth.getSettings(animal).migrationBlendMonths, 0, 1)
 end
 
 
@@ -448,7 +527,7 @@ end
 
 --- Stage speed the development moves at: castratedSpeed for a steer, else 1.
 function RLGrowth.getStageSpeed(animal)
-    return animal.isCastrated and RLGrowth.getSettings().castratedSpeed or 1
+    return animal.isCastrated and RLGrowth.getSettings(animal).castratedSpeed or 1
 end
 
 
@@ -470,6 +549,8 @@ function RLGrowth.newState(fields)
         anchorElapsedMonths = fields.anchorElapsedMonths,
         feedAdapted = fields.feedAdapted,
         feedShortDays = fields.feedShortDays,
+        creepDays = fields.creepDays,
+        weanedEarly = fields.weanedEarly,
         gravidKg = fields.gravidKg,
         lactationMonths = fields.lactationMonths,
         source = fields.source or "derived",
@@ -490,7 +571,7 @@ end
 --- @param animal table
 --- @return number kg
 function RLGrowth.getGravidTarget(animal)
-    local s = RLGrowth.getSettings()
+    local s = RLGrowth.getSettings(animal)
     if s.gravidTermRatio <= 0 then return 0 end
     local progress, fetuses = RLBodyCondition.getPregnancy(animal)
     if progress <= 0 or fetuses <= 0 then return 0 end
@@ -536,7 +617,7 @@ end
 --- @return number 0..1
 function RLGrowth.getLactationFactor(animal, state, legacy)
     if not animal.isLactating then return 1 end
-    local s = RLGrowth.getSettings()
+    local s = RLGrowth.getSettings(animal)
     local strength = legacy and s.lactationCapacityStrength or s.lactationIntakeStrength
     if strength <= 0 then return 1 end
     local weeks = RLGrowth.getLactationMonths(animal, state) * s.lactationWeeksPerMonth
@@ -555,9 +636,9 @@ end
 ---        grew under the model, so no anchor either)
 --- @return table state
 function RLGrowth.deriveState(animal, source)
-    local bc = RLBodyCondition.getConfig()
+    local bc = RLBodyCondition.getConfig(animal)
     local binding = RLGrowth.getBinding(animal:getSubType())
-    local kappa = RLGrowth.getKappa()
+    local kappa = RLGrowth.getKappa(animal)
     local reserve = animal.bodyCondition ~= nil and animal.bodyCondition.reserve or bc.initialReserve
     local frameTarget = RLGrowth.getFrameTarget(animal, binding)
     local birth = RLGrowth.getBirthWeight(animal, binding)
@@ -599,8 +680,8 @@ function RLGrowth.resync(animal, state)
         return false
     end
     if math.abs(weight - state.weightKg) <= RLGrowth.RESYNC_TOLERANCE_KG then return false end
-    local bc = RLBodyCondition.getConfig()
-    local kappa = RLGrowth.getKappa()
+    local bc = RLBodyCondition.getConfig(animal)
+    local kappa = RLGrowth.getKappa(animal)
     local gravid = RLGrowth.getCarriedGravid(animal, state)
     local reserve = animal.bodyCondition ~= nil and animal.bodyCondition.reserve or nil
     if reserve == nil then
@@ -676,10 +757,10 @@ function RLGrowth.getFrameAndReserve(animal)
         local reserve = math.min(math.max(state.reserveMassKg or 0, 0), body)
         return body - reserve, reserve
     end
-    local bc = RLBodyCondition.getConfig()
+    local bc = RLBodyCondition.getConfig(animal)
     local index = animal.bodyCondition ~= nil and animal.bodyCondition.reserve or bc.initialReserve
     local body = (animal.weight or 0) - math.min(RLGrowth.getGravidTarget(animal), animal.weight or 0)
-    return RLGrowthMath.split(math.max(body, 0), index, RLGrowth.getKappa())
+    return RLGrowthMath.split(math.max(body, 0), index, RLGrowth.getKappa(animal))
 end
 
 
@@ -695,7 +776,7 @@ end
 --- @return number|nil
 function RLGrowth.getTargetWeight(subType, genetics)
     if subType == nil or genetics == nil or not RLGrowth.coversSubType(subType) then return nil end
-    return (subType.targetWeight or 0) * (RLGrowth.getGeneFactors(genetics.metabolism))
+    return (subType.targetWeight or 0) * (RLGrowth.getGeneFactors(genetics.metabolism, subType))
 end
 
 
@@ -730,8 +811,8 @@ end
 -- =============================================================================
 
 --- Mean weight factor per calf of a litter.
-function RLGrowth.getLitterFactor(size)
-    local s = RLGrowth.getSettings()
+function RLGrowth.getLitterFactor(size, subject)
+    local s = RLGrowth.getSettings(subject)
     size = size or 1
     if size <= 1 then return 1 end
     if size == 2 then return s.litter2 end
@@ -745,11 +826,11 @@ end
 --- a weight for age mixes frame, pregnancy and gut fill, so it is not read.
 --- @param dam table|nil
 --- @return number
-function RLGrowth.getDamFactor(dam)
+function RLGrowth.getDamFactor(dam, subject)
     local state = dam ~= nil and dam.bodyCondition or nil
     if state == nil or state.reserve == nil then return 1 end
-    local s = RLGrowth.getSettings()
-    local reference = RLBodyCondition.getConfig().referenceReserve
+    local s = RLGrowth.getSettings(subject or dam)
+    local reference = RLBodyCondition.getConfig(dam).referenceReserve
     return math.clamp(1 + s.damReserveEffect * (state.reserve - reference), s.damFactorMin, s.damFactorMax)
 end
 
@@ -775,7 +856,7 @@ function RLGrowth.getBirthMeanFor(childSubType, ctx)
     local binding = RLGrowth.getBinding(childSubType)
     if binding == nil then return nil end
     ctx = ctx or {}
-    local s = RLGrowth.getSettings()
+    local s = RLGrowth.getSettings(childSubType)
     local mean = RLGrowth.getBirthMean(binding)
 
     -- A cross within cattle: the mean of the dam's and the sire's breed for the calf's sex. Water
@@ -788,10 +869,10 @@ function RLGrowth.getBirthMeanFor(childSubType, ctx)
         if damMean ~= nil and sireMean ~= nil then mean = (damMean + sireMean) / 2 end
     end
 
-    mean = mean * RLGrowth.getLitterFactor(ctx.litterSize)
+    mean = mean * RLGrowth.getLitterFactor(ctx.litterSize, childSubType)
     if ctx.firstBirth then mean = mean * s.firstBirthFactor end
-    mean = mean * RLGrowth.getDamFactor(ctx.dam)
-    local _, _, _, birth = RLGrowth.getGeneFactors(ctx.metabolism)
+    mean = mean * RLGrowth.getDamFactor(ctx.dam, childSubType)
+    local _, _, _, birth = RLGrowth.getGeneFactors(ctx.metabolism, childSubType)
     return math.max(mean * birth, 0)
 end
 
@@ -800,9 +881,9 @@ end
 --- then clamped).
 --- @param random function|nil Uniform (0,1) source, math.random by default
 --- @return number z
-function RLGrowth.drawZ(random)
+function RLGrowth.drawZ(random, subject)
     random = random or math.random
-    local limit = RLGrowth.getSettings().birthTruncateSD
+    local limit = RLGrowth.getSettings(subject).birthTruncateSD
     local z = 0
     for _ = 1, 20 do
         local u1 = math.max(random(), 1e-12)
@@ -823,8 +904,8 @@ end
 function RLGrowth.drawBirthWeight(childSubType, ctx, random)
     local mean = RLGrowth.getBirthMeanFor(childSubType, ctx)
     if mean == nil then return nil, 0, 0 end
-    local z = RLGrowth.drawZ(random)
-    return mean * (1 + RLGrowth.getSettings().birthWeightCV * z), z, mean
+    local z = RLGrowth.drawZ(random, childSubType)
+    return mean * (1 + RLGrowth.getSettings(childSubType).birthWeightCV * z), z, mean
 end
 
 
@@ -840,11 +921,13 @@ function RLGrowth.createBirthState(child, weight)
     end
     local binding = RLGrowth.getBinding(child:getSubType())
     if binding == nil then return nil, "MODEL_COVERAGE" end
-    local bc = RLBodyCondition.getConfig()
-    local kappa = RLGrowth.getKappa()
-    local frame, reserveKg = RLGrowthMath.split(weight, bc.initialReserve, kappa)
+    local bc = RLBodyCondition.getConfig(child)
+    local kappa = RLGrowth.getKappa(child)
+    -- A species' newborn may start leaner than a grown animal set up (sheep: birthReserve).
+    local birthReserve = (bc.birthReserve ~= nil and bc.birthReserve >= 0) and bc.birthReserve or bc.initialReserve
+    local frame, reserveKg = RLGrowthMath.split(weight, birthReserve, kappa)
     -- Do not read a previous individual's state through getFrameTarget.
-    local size = RLGrowth.getGeneFactors(child.genetics.metabolism)
+    local size = RLGrowth.getGeneFactors(child.genetics.metabolism, child)
     local frameTarget = RLGrowth.getAdultReference(binding) * size
     local curve = RLGrowth.buildCurve(binding, frameTarget, weight)
     return RLGrowth.newState({
@@ -913,7 +996,7 @@ end
 --- @return number liters per period
 function RLGrowth.getReferenceIntake(animal)
     local frame = RLGrowth.getFrameAndReserve(animal)
-    return RLGrowth.getRequestAt(animal, frame * (1 + RLBodyCondition.getConfig().referenceReserve * RLGrowth.getKappa()))
+    return RLGrowth.getRequestAt(animal, frame * (1 + RLBodyCondition.getConfig(animal).referenceReserve * RLGrowth.getKappa(animal)))
 end
 
 
@@ -926,12 +1009,12 @@ end
 --- @return number referenceWeight
 --- @return number referenceGrowthNU per period
 function RLGrowth.getSupplyReference(animal)
-    local bc = RLBodyCondition.getConfig()
+    local bc = RLBodyCondition.getConfig(animal)
     local subType = animal:getSubType()
     local curve = RLGrowth.getNominalCurve(RLGrowth.getBinding(subType))
     local age = math.max(animal.age or 0, 0)
     local weight = curve:value(age)
-    local kappa = RLGrowth.getKappa()
+    local kappa = RLGrowth.getKappa(animal)
     local scale = 1 + bc.referenceReserve * kappa
     local gain = curve:slope(age)
     local growthNU = gain / scale * bc.growthNUPerKg + gain * (bc.referenceReserve * kappa / scale) * bc.depositNUPerKg
@@ -979,7 +1062,7 @@ function RLGrowth.getUnderweightThreshold(animal)
     local curve = RLGrowth.getCurve(animal)
     if curve == nil then return 0 end
     local age = math.max(animal.age or 0, 0)
-    local threshold = RLGrowth.getSettings().underweightRatio * curve:value(age)
+    local threshold = RLGrowth.getSettings(animal).underweightRatio * curve:value(age)
     local remaining = RLGrowth.getAnchorRemaining(animal, RLGrowth.peekState(animal))
     if remaining <= 0 then return threshold end
     return RLGrowth.blendLegacy(threshold, RLGrowth.getLegacyUnderweight(animal:getSubType(), age), remaining)
@@ -1055,7 +1138,7 @@ function RLGrowth.getMigrationCatchUp(animal, state)
     local curve = RLGrowth.getCurve(animal)
     local lag = math.min(RLGrowth.getContinuousAge(animal), curve.endMonth) - (state.developmentMonths or 0)
     if lag <= 0 then return 0 end
-    return math.min(lag / (remaining * RLGrowth.getSettings().migrationBlendMonths), RLGrowth.CATCH_UP_MAX)
+    return math.min(lag / (remaining * RLGrowth.getSettings(animal).migrationBlendMonths), RLGrowth.CATCH_UP_MAX)
 end
 
 
@@ -1065,9 +1148,9 @@ end
 --- @param state table|nil
 --- @return number
 function RLGrowth.getMilkMobilizeShare(animal, state)
-    local base = RLBodyCondition.getConfig().milkMobilizeShare
+    local base = RLBodyCondition.getConfig(animal).milkMobilizeShare
     if not animal.isLactating then return base end
-    local s = RLGrowth.getSettings()
+    local s = RLGrowth.getSettings(animal)
     local early = math.max(1 - RLGrowth.getLactationMonths(animal, state) / s.earlyMilkMobilizeMonths, 0)
     return base + math.max(s.earlyMilkMobilizeShare - base, 0) * early
 end
@@ -1085,10 +1168,10 @@ end
 --- @return table input
 --- @return number ownReference Liters the animal itself requests on full feed
 function RLGrowth.buildStepInput(animal, state, intakeLiters, milkShare, dtMonths, noReference)
-    local bc = RLBodyCondition.getConfig()
-    local s = RLGrowth.getSettings()
-    local kappa = RLGrowth.getKappa()
-    local _, speedGene, maintenanceGene = RLGrowth.getGeneFactors(animal.genetics.metabolism)
+    local bc = RLBodyCondition.getConfig(animal)
+    local s = RLGrowth.getSettings(animal)
+    local kappa = RLGrowth.getKappa(animal)
+    local _, speedGene, maintenanceGene = RLGrowth.getGeneFactors(animal.genetics.metabolism, animal)
     local progress, fetuses = RLBodyCondition.getPregnancy(animal)
     local milk = getMilk(animal)
     -- The real-equivalent mode prices nothing by the request (noReference): it is not worked out.
@@ -1144,7 +1227,7 @@ function RLGrowth.buildBudgetInput(animal, state, supply, dtMonths)
     local milkShare = feed ~= nil and (feed.water or 1) or (supply.milkShare or 1)
     local input, ownReference = RLGrowth.buildStepInput(animal, state,
         supply.intakeLiters or 0, milkShare, dtMonths, feed ~= nil)
-    local config = RLBodyCondition.getConfig()
+    local config = RLBodyCondition.getConfig(animal)
     if feed ~= nil then input, config = RLFeed.applyStepInput(animal, input, feed, dtMonths) end
     return input, config, ownReference
 end
@@ -1169,9 +1252,9 @@ end
 
 
 --- Move a stage factor toward its target over transitionMonths (about 95% in that time).
-local function relax(value, target, dtMonths)
+local function relax(value, target, dtMonths, animal)
     if value == nil then return target end
-    local alpha = 1 - math.exp(-3 * dtMonths / RLGrowth.getSettings().transitionMonths)
+    local alpha = 1 - math.exp(-3 * dtMonths / RLGrowth.getSettings(animal).transitionMonths)
     return value + (target - value) * alpha
 end
 
@@ -1198,8 +1281,8 @@ end
 --- clock and an old savegame's take-over fade move on by the step's months, the target weight
 --- follows.
 local function prepareStep(animal, state, dtMonths, historical)
-    state.speedFactor = relax(state.speedFactor, RLGrowth.getStageSpeed(animal), dtMonths)
-    state.intakeFactor = relax(state.intakeFactor, RLBodyCondition.getIntakeCapacity(animal), dtMonths)
+    state.speedFactor = relax(state.speedFactor, RLGrowth.getStageSpeed(animal), dtMonths, animal)
+    state.intakeFactor = relax(state.intakeFactor, RLBodyCondition.getIntakeCapacity(animal), dtMonths, animal)
     if historical then state.ageMonths = state.ageMonths + dtMonths
     else RLGrowth.advanceClock(state, animal.age or 0, dtMonths) end
     RLGrowth.advanceLactation(animal, state, dtMonths)
@@ -1296,10 +1379,16 @@ end
 --- (RLGrowth.stepFeed, from RLFeed's model-time steps).
 --- @param animal table
 --- @param foodFactor number The pen's (or the rearing pen's own) food factor
---- @return boolean handled False: not covered or no game hour to count it in; the caller runs
----         the old rules
+--- @return boolean handled False: not covered, a type stepped only by its pen's nutrition mode
+---         (RLGrowth.needsRealNutrition) or no game hour to count it in; the caller runs the old
+---         rules
 function RLGrowth.step(animal, foodFactor)
     if animal == nil or animal.isDead or not RLGrowth.covers(animal) then return false end
+    -- A sheep's budget is calibrated on what its pen's mode feeds it (ME), never on the old food
+    -- factor: out of such a pen it takes the old weight rule this hour (AnimalHealth.updateHealth,
+    -- which marks the hour: RLGrowth.markLegacyHour), its state kept as it is (the next step in
+    -- the mode splits the weight it leaves again, RLGrowth.resync).
+    if RLGrowth.needsRealNutrition(animal:getSubType()) then return false end
     local tick = RLBodyCondition.getTickId()
     if tick == nil then return false end
 
@@ -1377,7 +1466,7 @@ function RLGrowth.setReserveIndex(animal, reserve)
     RLGrowth.resync(animal, state)
     local gravid = RLGrowth.getCarriedGravid(animal, state)
     local frame = math.max(animal.weight - gravid - state.reserveMassKg, 0)
-    state.reserveMassKg = math.max(reserve, 0) * frame * RLGrowth.getKappa()
+    state.reserveMassKg = math.max(reserve, 0) * frame * RLGrowth.getKappa(animal)
     animal.weight = frame + state.reserveMassKg + gravid
     state.weightKg = animal.weight
 end
@@ -1421,6 +1510,8 @@ function RLGrowth.loadFromXMLFile(xmlFile, key)
         anchorElapsedMonths = xmlFile:getFloat(base .. "#anchorElapsedMonths"),
         feedAdapted = xmlFile:getFloat(base .. "#feedAdapted"),
         feedShortDays = xmlFile:getFloat(base .. "#feedShortDays"),
+        creepDays = xmlFile:getFloat(base .. "#creepDays"),
+        weanedEarly = xmlFile:getBool(base .. "#weanedEarly") == true or nil,
         gravidKg = xmlFile:getFloat(base .. "#gravidKg"),
         lactationMonths = xmlFile:getFloat(base .. "#lactationMonths"),
         source = xmlFile:getString(base .. "#source", "derived"),
@@ -1477,7 +1568,7 @@ function RLGrowth.sanitizeState(animal, state, fromClient)
     -- Otherwise its clock stays within the blend.
     if fromClient then state.legacyAnchor, state.anchorElapsedMonths = nil, nil end
     if state.legacyAnchor ~= nil then
-        state.anchorElapsedMonths = math.clamp(state.anchorElapsedMonths or 0, 0, RLGrowth.getSettings().migrationBlendMonths)
+        state.anchorElapsedMonths = math.clamp(state.anchorElapsedMonths or 0, 0, RLGrowth.getSettings(animal).migrationBlendMonths)
     end
     if animal == nil or animal.getSubType == nil then return state end
     local binding = RLGrowth.getBinding(animal:getSubType())
@@ -1506,6 +1597,7 @@ function RLGrowth.isUsable(state)
         and (state.legacyAnchor == nil or (finite(state.legacyAnchor) and state.legacyAnchor > 0))
         and (state.feedAdapted == nil or (finite(state.feedAdapted) and state.feedAdapted >= 0 and state.feedAdapted <= 1))
         and optional(state.feedShortDays) and optional(state.gravidKg) and optional(state.lactationMonths)
+        and optional(state.creepDays) and (state.weanedEarly == nil or state.weanedEarly == true)
 end
 
 
@@ -1527,6 +1619,8 @@ function RLGrowth.saveToXMLFile(state, xmlFile, key)
     end
     if state.feedAdapted ~= nil then xmlFile:setFloat(base .. "#feedAdapted", state.feedAdapted) end
     if state.feedShortDays ~= nil then xmlFile:setFloat(base .. "#feedShortDays", state.feedShortDays) end
+    if state.creepDays ~= nil then xmlFile:setFloat(base .. "#creepDays", state.creepDays) end
+    if state.weanedEarly then xmlFile:setBool(base .. "#weanedEarly", true) end
     if state.gravidKg ~= nil then xmlFile:setFloat(base .. "#gravidKg", state.gravidKg) end
     if state.lactationMonths ~= nil then xmlFile:setFloat(base .. "#lactationMonths", state.lactationMonths) end
     xmlFile:setString(base .. "#source", state.source or "derived")
@@ -1552,6 +1646,8 @@ function RLGrowth.writeStream(state, streamId)
     streamWriteFloat32(streamId, state.feedShortDays or -1)
     streamWriteFloat32(streamId, state.gravidKg or -1)
     streamWriteFloat32(streamId, state.lactationMonths or -1)
+    streamWriteFloat32(streamId, state.creepDays or -1)
+    streamWriteBool(streamId, state.weanedEarly == true)
 end
 
 
@@ -1576,6 +1672,8 @@ function RLGrowth.readStream(streamId)
         feedShortDays = optional(streamReadFloat32(streamId)),
         gravidKg = optional(streamReadFloat32(streamId)),
         lactationMonths = optional(streamReadFloat32(streamId)),
+        creepDays = optional(streamReadFloat32(streamId)),
+        weanedEarly = streamReadBool(streamId) or nil,
         source = "stream",
     })
     if not RLGrowth.isUsable(state) then return nil end
