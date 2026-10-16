@@ -810,10 +810,14 @@ end
 -- Birth
 -- =============================================================================
 
---- Mean weight factor per calf of a litter.
+--- Mean weight factor per calf of a litter: litter2/3/4, or for a type with large litters (pigs,
+--- litterBase set) 1 - litterStep x (size - litterBase) between litterMin and litterMax.
 function RLGrowth.getLitterFactor(size, subject)
     local s = RLGrowth.getSettings(subject)
     size = size or 1
+    if (s.litterBase or 0) > 0 then
+        return math.clamp(1 - s.litterStep * (size - s.litterBase), s.litterMin, s.litterMax)
+    end
     if size <= 1 then return 1 end
     if size == 2 then return s.litter2 end
     if size == 3 then return s.litter3 end

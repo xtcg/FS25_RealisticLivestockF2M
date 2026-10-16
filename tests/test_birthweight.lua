@@ -40,7 +40,13 @@ local GILT, BOAR, EWE, RAM, GOOSE, MARE, COLT = SUBS[5], SUBS[6], SUBS[7], SUBS[
 check("mean: Holstein heifer calf 6.18% of 680 = 42.0 kg", near(B.getBreedMean(HOL_COW), 42.02, 0.01))
 check("mean: Holstein bull calf from the cow's target, x1.07 = 45.0 kg", near(B.getBreedMean(HOL_BULL), 44.97, 0.01))
 check("mean: Angus 32.0 / 34.2 kg", near(B.getBreedMean(ANG_COW), 31.98, 0.01) and near(B.getBreedMean(ANG_BULL), 34.22, 0.01))
-check("mean: Landrace piglet 1.40 / 1.45 kg", near(B.getBreedMean(GILT), 1.399, 0.001) and near(B.getBreedMean(BOAR), 1.448, 0.001))
+check("mean: Landrace piglet 1.494 / 1.546 kg (birthFemaleKg, Canadian purebred 1.52 both sexes)",
+    near(B.getBreedMean(GILT), 1.494, 0.001) and near(B.getBreedMean(BOAR), 1.5463, 0.001))
+local pigMean, pigConfigured = B.getBreedMean(GILT)
+GILT.targetWeight = 280
+check("mean: a piglet's mean is set in kg, not a share of the sow's target weight",
+    pigConfigured == true and near(B.getBreedMean(GILT), pigMean, 1e-9))
+GILT.targetWeight = 240
 check("mean: Landrace lamb 0.07273 x 55 = 4.00 / x1.07 = 4.28 kg", near(B.getBreedMean(EWE), 4.0002, 0.001)
     and near(B.getBreedMean(RAM), 4.2802, 0.001))
 check("mean: foal from the type-level ratio, 50 / 52 kg", near(B.getBreedMean(MARE), 50) and near(B.getBreedMean(COLT), 52))
@@ -57,8 +63,8 @@ HOL_COW.targetWeight = 680
 check("litter: calf twins 85%, triplets 75%", near(B.getLitterFactor(HOL_COW, 2), 0.85) and near(B.getLitterFactor(HOL_COW, 3), 0.75))
 check("litter: lambs 1 / 2 / 3 / 5", B.getLitterFactor(EWE, 1) == 1 and near(B.getLitterFactor(EWE, 2), 0.85)
     and near(B.getLitterFactor(EWE, 3), 0.72) and near(B.getLitterFactor(EWE, 5), 0.65))
-check("litter: piglets 2% per piglet off 12, clamped 0.80-1.15", near(B.getLitterFactor(GILT, 12), 1)
-    and near(B.getLitterFactor(GILT, 15), 0.94) and near(B.getLitterFactor(GILT, 8), 1.08)
+check("litter: piglets 2.4% per piglet off 12 (35 g, Quiniou 2002), clamped 0.80-1.15", near(B.getLitterFactor(GILT, 12), 1)
+    and near(B.getLitterFactor(GILT, 15), 0.928) and near(B.getLitterFactor(GILT, 8), 1.096)
     and near(B.getLitterFactor(GILT, 30), 0.80) and near(B.getLitterFactor(GILT, 1), 1.15))
 check("litter: foal twins 80%", near(B.getLitterFactor(MARE, 2), 0.80))
 check("litter: unconfigured species unchanged", B.getLitterFactor(GOOSE, 6) == 1)
@@ -108,7 +114,7 @@ for _ = 1, n do
 end
 mean = sum / n
 sd = math.sqrt(sumSq / n - mean * mean)
-check("draw: piglets average 1.40 kg with CV ~20%", near(mean, 1.399, 0.01) and sd / mean > 0.185 and sd / mean < 0.202)
+check("draw: piglets average 1.494 kg with CV ~20%", near(mean, 1.494, 0.01) and sd / mean > 0.185 and sd / mean < 0.202)
 
 -- Birth survival: a species baseline, modest health modifier, and species-specific weight risk.
 check("survival: average calf baseline is 97%", near(B.getSurvivalChance(HOL_COW, 1, 0), 0.97))
@@ -127,6 +133,6 @@ check("survival: heavy piglet has no high-weight penalty",
 
 -- minWeight follows the breed mean at load; unconfigured species keep theirs.
 B.syncMinWeights(g_currentMission.animalSystem)
-check("sync: minWeight set to the breed means", near(HOL_BULL.minWeight, 44.97, 0.01) and near(BOAR.minWeight, 1.448, 0.001)
+check("sync: minWeight set to the breed means", near(HOL_BULL.minWeight, 44.97, 0.01) and near(BOAR.minWeight, 1.5463, 0.001)
     and near(COLT.minWeight, 52) and HOL_BULL.configMinWeight == 45)
 check("sync: unconfigured goose keeps 0.5", GOOSE.minWeight == 0.5)

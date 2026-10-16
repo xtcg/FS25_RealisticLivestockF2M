@@ -42,6 +42,8 @@ RLWeightProfiles.SEXES = { "female", "male" }
 RLWeightProfiles.DEFAULTS = {
     maleBirthFactor = 1.07, birthWeightCV = 0.10, birthTruncateSD = 2.5, birthGeneEffect = 0.05,
     firstBirthFactor = 0.93, litter2 = 0.85, litter3 = 0.75, litter4 = 0.70,
+    -- Large litters (pigs): 1 - litterStep x (litter - litterBase), clamped; litterBase 0 = litter2/3/4.
+    litterBase = 0, litterStep = 0, litterMin = 0, litterMax = 10,
     damReserveEffect = 0.25, damFactorMin = 0.90, damFactorMax = 1.03,
     geneSpan = 0.75, sizeGeneEffect = 0.12, speedGeneEffect = 0.10, maintenanceGeneEffect = 0.15,
     birthFadeMonths = 6, castratedSpeed = 0.90, transitionMonths = 0.5, underweightRatio = 0.60,
@@ -104,6 +106,9 @@ function RLWeightProfiles.validateSettings(settings)
     end
     if s.maleBirthFactor <= 0 or s.firstBirthFactor <= 0 or s.litter2 <= 0 or s.litter3 <= 0 or s.litter4 <= 0 then
         return false, "birth factors must be > 0"
+    end
+    if s.litterBase > 0 and (s.litterStep >= 1 or not (s.litterMin <= 1 and 1 <= s.litterMax)) then
+        return false, "with litterBase: need litterStep < 1 and litterMin <= 1 <= litterMax"
     end
     if not (s.damFactorMin <= 1 and 1 <= s.damFactorMax) then return false, "need damFactorMin <= 1 <= damFactorMax" end
     if s.castratedSpeed <= 0 or s.castratedSpeed > 2 then return false, "castratedSpeed must be > 0 and <= 2" end

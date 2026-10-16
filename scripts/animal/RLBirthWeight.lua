@@ -3,8 +3,9 @@
     Birth weight of newborns, from the birth traits in xml/breedTraits.xml.
 
     A breed's mean birth weight is birthWeightRatio x the target weight of the breed's female
-    (a Holstein calf is 6.2% of a 680 kg cow), x maleBirthFactor for a male. So birth weight
-    follows the target weights, and each configured subtype's minWeight - where its growth,
+    (a Holstein calf is 6.2% of a 680 kg cow), or birthFemaleKg where the file sets the mean
+    directly (pigs: a piglet's weight does not follow the sow's size), x maleBirthFactor for a
+    male. So birth weight follows the file, and each configured subtype's minWeight - where its growth,
     expected weight for age and newly generated animals start - is set to that mean at load.
 
     One birth's mean is then adjusted for:
@@ -95,12 +96,17 @@ end
 
 
 --- Mean birth weight of a single young of this subtype from an average dam. Uses the
---- configured ratio when there is one; the `configMinWeight` recorded at load otherwise, and the
---- live minWeight as the last resort.
+--- configured birthFemaleKg, else the configured ratio; the `configMinWeight` recorded at load
+--- otherwise, and the live minWeight as the last resort.
 --- @param subType table
 --- @return number kg
---- @return boolean configured Whether birthWeightRatio set it
+--- @return boolean configured Whether birthFemaleKg or birthWeightRatio set it
 function RLBirthWeight.getBreedMean(subType)
+    local direct = RLBreedTraits.resolve(getLayers(), subType, "birthFemaleKg", nil)
+    if direct ~= nil and direct > 0 then
+        if subType.gender == "male" then direct = direct * RLBirthWeight.get(subType, "maleBirthFactor") end
+        return direct, true
+    end
     local ratio = RLBreedTraits.resolve(getLayers(), subType, "birthWeightRatio", nil)
     local femaleTarget = RLBirthWeight.getFemaleTarget(subType)
     if ratio ~= nil and ratio > 0 and femaleTarget ~= nil and femaleTarget > 0 then

@@ -60,6 +60,8 @@
     birthGeneEffect   Birth weight x (1 + this x (metabolism - 1)).
     firstBirthFactor  A heifer's first calf.
     litter2/3/4       Each calf of twins, triplets, four or more.
+    litterBase/Step   For a type with large litters (pigs): each young x (1 - litterStep x (litter - litterBase)),
+    litterMin/Max     clamped to litterMin..litterMax, in place of litter2/3/4. litterBase 0 (the root) leaves it off.
     damReserveEffect  The dam's body reserve r: x (1 + this x (r - referenceReserve)), between
     damFactorMin/Max  these. A dam with no reserve on record counts as 1.
     geneSpan          z = (metabolism - 1) / geneSpan, clamped to -1..1.
@@ -306,5 +308,43 @@
     <profile name="JACOB" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="4.5" maleBirthFactor="1.0889">  <!-- Jacob (UK) (C) -->
         <female knots="6:35.6 15:47.9 24:58 36:63"/>
         <male knots="4.87:38 6:45.8 15:69 24:84.6 36:92"/>
+    </profile>
+
+    <!--
+        Pigs (pig P4, 2026-10-16; FS25_PigBreeds_离线准备_2026-10-16/growth-candidates-v2.json, 生长数据核对_v2.md). The animal
+        type is switched OFF and needs the real-equivalent nutrition model (nutrition="REAL"): there is no PIG section in
+        feedProfiles.xml or bodyCondition.xml yet (P5/P6), so even switched on every pig keeps the old weight rules.
+        Each curve is a pig on full stage-appropriate feed, standard genes, not pregnant. Knots are measured points where a
+        source has them, else the v1 design candidate:
+          LANDRACE   birth 1.52 kg both sexes (Canadian purebred, n 24884) split by the sex ratio below; 7.5 kg at 26 days
+                     (AHDB weaning example); 30 kg and 105 kg at the ages DanBred 2025 nucleus gilts / boars reach them
+                     (birth -> 30 kg 364 / 361 g a day, 30 kg -> slaughter 1117 / 1164 g a day). From 5.5 months the v1
+                     candidate; adult = animals.xml targetWeight.
+          BERKSHIRE  birth, weaning (22.9 days), on test (72.7 days) and off test (152.4 days): the Korean closed herd's
+                     least-squares means by sex (2003-2007); 6.5 months = off test + the Iowa hoop trial's 24 -> 122 kg gain
+                     (gilts 0.771 kg a day; barrows 0.835 stand in for entire boars). From 8 months the v1 candidate.
+          BLACK_PIED no real breed behind it (design D1): birth as the game loads it today (1.444 kg), else the v1 candidate.
+        Birth: maleBirthFactor 1.035 (Korean Berkshire LS means 1.47 / 1.42); birthWeightCV 0.20 (population CV 0.20-0.21 in
+        both herds); one piglet more is 35 g lighter (Quiniou et al. 2002, 12041 piglets): litterStep 0.024 of the mean at
+        a litter of 12; no first-litter factor of its own (the lighter gilt litters in small studies come with smaller
+        litters, which litterStep already prices). castratedSpeed 1.0: barrows and entire boars weigh the same through
+        92 kg in the Korean herd (92.6 / 92.2 kg at 152 days). The same birth means are in breedTraits.xml (birthFemaleKg)
+        for the old rules. Gravid mass and lactation settings are still the cattle root's: P6 sets the sow's before the
+        type can be switched on.
+    -->
+    <animalType name="PIG" enabled="false" status="P4_CURVES_OFF" nutrition="REAL"
+        maleBirthFactor="1.035" birthWeightCV="0.20" firstBirthFactor="1"
+        litterBase="12" litterStep="0.024" litterMin="0.80" litterMax="1.15" castratedSpeed="1.0"/>
+    <profile name="LANDRACE" type="PIG" status="P4_REAL_KNOTS" birthFemaleKg="1.494">
+        <female knots="0.8667:7.5 2.6104:30 4.8486:105 5.5:125 6:139 6.5:151 8:170 12:220 18:260 24:280"/>
+        <male knots="0.8667:7.581 2.6273:30 4.7751:105 5.5:129 6:145 6.5:160 8:195 12:250 18:300 24:320"/>
+    </profile>
+    <profile name="BERKSHIRE" type="PIG" status="P4_REAL_KNOTS" birthFemaleKg="1.42">
+        <female knots="0.7633:6.48 2.4233:25.7 5.08:88.5 6.5:121.34 8:150 12:190 18:225 24:240"/>
+        <male knots="0.7633:6.55 2.4233:26.1 5.08:92.2 6.5:127.77 8:170 12:235 18:280 24:300"/>
+    </profile>
+    <profile name="BLACK_PIED" type="PIG" status="P4_CANDIDATE_NO_BREED_DATA" birthFemaleKg="1.444">
+        <female knots="0.5:4 0.9333:7 1.5:11 2:17 3:35 4:62 5:92 5.5:106 6:120 6.5:132 8:155 12:180 18:195 24:200"/>
+        <male knots="0.5:4.1 0.9333:7.2 1.5:11.4 2:17.5 3:36.5 4:65 5:96 5.5:110 6:124 6.5:138 8:175 12:220 18:255 24:270"/>
     </profile>
 </weightProfiles>

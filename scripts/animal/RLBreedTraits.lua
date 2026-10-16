@@ -17,7 +17,7 @@ RLBreedTraits.CONFIG_FILE = "breedTraits.xml"
 --- Per-animal trait attributes. All but matureAgeMonth are multipliers, 1 = unchanged. The
 --- birth attributes after them are read by RLBirthWeight.
 RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrowth", "matureAgeMonth", "priceTargetWeight", "priceMatureAgeMonth",
-    "birthWeightRatio", "maleBirthFactor", "birthWeightCV", "firstBirthFactor",
+    "birthWeightRatio", "birthFemaleKg", "maleBirthFactor", "birthWeightCV", "firstBirthFactor",
     "litter2", "litter3", "litter4", "litterBase", "litterStep", "litterMin", "litterMax",
     "birthSurvivalBase", "birthHealthEffect", "birthLowWeightSD", "birthLowWeightPenalty",
     "birthHighWeightSD", "birthHighWeightPenalty", "milkScale", "milkCollect", "sucklingMonths",
