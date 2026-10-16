@@ -92,8 +92,8 @@ check("plan: the withdrawal is the kg DM eaten at PIGFOOD's density, DM and the 
 
 local potatoPen = PigSim.makePen({ gilt }, { POTATO = 4000 })
 local pp = RLFeed.planPen(potatoPen, RLFeed.getRation(potatoPen), { d }, 0.25).animals[1]
-check("plan: on raw potatoes alone it eats at most their 30% share of its intake (FEED_CAP)",
-    pp.intakeLimit == "FEED_CAP" and near(pp.kg, 0.30 * math.min(d.appetite * 0.25, d.energyCap * 0.25 / 15.1), 1e-9))
+check("plan: raw potatoes alone (at most 30% of what it eats): no ration keeps the cap, it eats none (FEED_CAP; review F1)",
+    pp.intakeLimit == "FEED_CAP" and pp.kg == 0)
 
 local light = PigSim.grown("PIG_LANDRACE", 2, 1.2)
 local mixPen = PigSim.makePen({ gilt, light }, { PIGFOOD = 2000, PIGLETFOOD = 2000 })
