@@ -80,7 +80,8 @@ F.getConfig = function() return feed end
 check("feed: an ewe, a sheep pen and the type name read the section; cattle, goats and unknown types the root",
     F.getConfigFor(animal(eweSub)) == sheep and F.getConfigFor(pen(sheepType)) == sheep and F.getConfigFor("SHEEP") == sheep
     and F.getConfigFor(animal(cowSub)) == feed and F.getConfigFor(pen(cowType)) == feed and F.getConfigFor(animal(goatSub)) == feed
-    and F.getConfigFor("PIG") == feed and F.getConfigFor(nil) == feed)
+    and F.getConfigFor("CHICKEN") == feed and F.getConfigFor(nil) == feed
+    and F.getConfigFor("PIG") == feed.species.PIG and feed.species.PIG ~= nil)  -- pigs have a section of their own since pig P5
 check("feed: isValid without a subject is the root's; with a sheep subject also the section's",
     F.isValid() and F.isValid(animal(eweSub)) and F.isValid(animal(cowSub)))
 F.getConfig = saved

@@ -246,11 +246,14 @@ end
 --- type's liters are scaled to what was actually removed.
 --- @param a table
 function RLFeedRationPlanner.sumAnimal(a)
-    local kg, me, cpKg = 0, 0, 0
-    for _, fill in pairs(a.byFill) do kg, me, cpKg = kg + fill.kg, me + fill.me, cpKg + fill.cpKg end
+    local kg, me, cpKg, lysKg = 0, 0, 0, 0
+    for _, fill in pairs(a.byFill) do kg, me, cpKg, lysKg = kg + fill.kg, me + fill.me, cpKg + fill.cpKg, lysKg + (fill.lysKg or 0) end
     if a.damMilk ~= nil then kg, me, cpKg = kg + a.damMilk.kg, me + a.damMilk.me, cpKg + a.damMilk.cpKg end
     a.kg, a.me = kg, me
     a.cp = kg > 0 and cpKg / kg or 0
+    -- SID lysine eaten (kg) and per MJ of ME (g/MJ): read by monogastric sections (pigs) only.
+    a.lysKg = lysKg
+    a.lysPerMe = RLFeedMath.getLysinePerME(lysKg, me)
 end
 
 
@@ -511,6 +514,184 @@ function RLFeedRationPlanner.plan(request)
             RLFeedRationPlanner.sumAnimal(a)
             result.eatenMe, result.eatenKg = result.eatenMe + a.me, result.eatenKg + a.kg
         end
+    end
+    return result
+end
+
+
+-- =============================================================================
+-- Monogastric (pigs)
+-- =============================================================================
+
+--- The shares (of DM) of a mix of `entries` in proportion to their stock, each feed at most its
+--- maxShare: a capped feed is held at its cap and the rest share what is left in proportion
+--- (repeated until no feed is over its cap). Entries with no stock get no share.
+--- @return table name -> share (summing to 1, or empty when nothing is stocked)
+function RLFeedRationPlanner.getStockShares(entries)
+    local shares, fixed, free = {}, {}, {}
+    for _, entry in ipairs(entries) do
+        if (entry.availableKg or 0) > 0 then free[#free + 1] = entry end
+    end
+    local left = 1
+    for _ = 1, #entries + 1 do
+        local total = 0
+        for _, entry in ipairs(free) do total = total + entry.availableKg end
+        if total <= 0 then break end
+        local over = false
+        for _, entry in ipairs(free) do
+            local share = left * entry.availableKg / total
+            local cap = entry.profile.maxShare
+            if cap ~= nil and share > cap + 1e-12 then
+                fixed[entry.name], left, over = cap, left - cap, true
+            end
+        end
+        if not over then
+            for _, entry in ipairs(free) do shares[entry.name] = left * entry.availableKg / total end
+            break
+        end
+        local rest = {}
+        for _, entry in ipairs(free) do if fixed[entry.name] == nil then rest[#rest + 1] = entry end end
+        free = rest
+    end
+    for name, share in pairs(fixed) do shares[name] = share end
+    return shares
+end
+
+
+--- Plan and share one feeding of a monogastric pen (pigs, NRC 2012 ch. 8): no forage, no
+--- concentrate, no rumen. Each animal eats one mix of every feed in the trough it may eat (a feed's
+--- maxWeightKg: piglet feed for light pigs only), in proportion to the stock and each feed at most its
+--- maxShare. Its intake is the least of what it can physically eat (appetite, kg DM a day), and
+--- - freely (FINISH) - its energy appetite (energyCap, MJ a day) or - for a target (GROW,
+--- MAINTAIN) - its energy demand, over the mix's ME. Growth is scored on the mix's SID lysine per MJ
+--- of ME against its need (proteinNeed, g/MJ). A feed the trough holds less of than planned is
+--- shared by plan; nothing short is made up from the rest or valued higher.
+--- @param request table { animals = descriptors (appetite, energyCap, weight, target, needs, proteinNeed),
+---     feeds = { { name, profile, liters } }, scale, realDaysPerPeriod, dtDays, proteinMaintenance }
+--- @return table As RLFeedRationPlanner.plan (forageMix: the pen's mix as planned)
+function RLFeedRationPlanner.planMonogastric(request)
+    local scale, dt = request.scale, request.dtDays
+    local feeds = request.feeds or {}
+    for _, entry in ipairs(feeds) do
+        entry.availableKg = RLFeedUnits.litersToKg(math.max(entry.liters or 0, 0), scale, entry.profile.density, entry.profile.dm)
+        entry.usedKg = 0
+    end
+    local mixes = {}
+    local function mixFor(a)
+        local entries, key = {}, {}
+        for _, entry in ipairs(feeds) do
+            local limit = entry.profile.maxWeightKg
+            if limit == nil or (a.weight or 0) <= limit then
+                entries[#entries + 1] = entry
+                key[#key + 1] = entry.name
+            end
+        end
+        local id = table.concat(key, " ")
+        local cached = mixes[id]
+        if cached ~= nil then return cached end
+        local shares = RLFeedRationPlanner.getStockShares(entries)
+        local parts = {}
+        for _, entry in ipairs(entries) do
+            if (shares[entry.name] or 0) > 0 then parts[#parts + 1] = { entry.profile, shares[entry.name] } end
+        end
+        -- Shares summing to less than 1: every stocked feed is at its cap (only soybean in the
+        -- trough): the animal eats that much of its intake and goes without the rest.
+        local total = 0
+        for _, share in pairs(shares) do total = total + share end
+        cached = { mix = RLFeedMath.compose(parts), shares = shares, entries = entries, total = math.min(total, 1) }
+        mixes[id] = cached
+        return cached
+    end
+
+    local need = {}
+    local plannedMe, plannedKg = 0, 0
+    local main
+    for _, a in ipairs(request.animals) do
+        a.milkPlanKg, a.damMilkKg, a.milkKg, a.troughMilkKg = 0, 0, 0, 0
+        a.c, a.cEaten, a.util, a.concLimit, a.forageKg, a.concKg = 0, 0, 1, nil, 0, 0
+        local m = mixFor(a)
+        a.monoMix = m
+        local mix = m.mix
+        local kg, limit = 0, "NO_FEED"
+        if mix ~= nil and mix.me > 0 then
+            main = main or mix
+            local needs = a.needs or {}
+            local maintenance = (needs.maintenance or 0) + (needs.pregnancy or 0)
+            local production = (needs.growth or 0) + (needs.milk or 0)
+            local protein = RLFeedMath.getProteinFactor(RLFeedMath.getLysinePerME(mix.lys, mix.me), a.proteinNeed or 0,
+                request.proteinMaintenance or 0)
+            local cap = math.max(a.appetite or 0, 0) * dt
+            local energy
+            if a.target == "GROW" then
+                energy = (maintenance + protein * production + (needs.deposit or 0)) * dt
+            elseif a.target == "MAINTAIN" then
+                energy = maintenance * dt
+            else
+                energy = math.max(a.energyCap or 0, 0) * dt
+            end
+            local byEnergy = math.max(energy, 0) / mix.me
+            kg, limit = cap, "APPETITE"
+            if byEnergy < kg then kg, limit = byEnergy, (a.target == "GROW" or a.target == "MAINTAIN") and "DEMAND" or "ENERGY" end
+            -- Every stocked feed it may eat is capped and the caps leave part of the ration unfilled
+            -- (only soybean, 25%): no ration keeps each feed within its share of what is eaten, so it
+            -- eats none of it (maxShare is a share of the DM eaten, never a smaller meal of the feed).
+            if m.total < 1 - 1e-9 then kg, limit = 0, "FEED_CAP" end
+        end
+        a.intakeLimit, a.solidMe, a.monoKg = limit, mix ~= nil and mix.me or 0, kg
+        a.plannedKg, a.plannedMe = kg, kg * (mix ~= nil and mix.me or 0)
+        plannedMe, plannedKg = plannedMe + a.plannedMe, plannedKg + a.plannedKg
+        local perMonth = request.realDaysPerPeriod / dt
+        a.plannedByFill, a.litersPerPeriod = {}, 0
+        for name, share in pairs(m.shares) do
+            local kgFeed = kg * share
+            if kgFeed > 0 then
+                need[name] = (need[name] or 0) + kgFeed
+                local profile
+                for _, entry in ipairs(m.entries) do if entry.name == name then profile = entry.profile end end
+                local liters = RLFeedUnits.kgToLiters(kgFeed * perMonth, scale, profile.density, profile.dm)
+                a.plannedByFill[name] = (a.plannedByFill[name] or 0) + liters
+                a.litersPerPeriod = a.litersPerPeriod + liters
+            end
+        end
+    end
+
+    -- Take each feed from the stock. A feed the trough holds less of than planned shrinks every meal it
+    -- is part of as a whole (to its fulfilment, the least of its feeds'), so each animal's mix - and every
+    -- maxShare - holds for what it eats; the other feeds' rest stays in the trough. Nothing short is made
+    -- up from the rest or valued higher.
+    local fulfil, result = {}, { withdraw = {}, plannedMe = plannedMe, plannedKg = plannedKg, eatenMe = 0, eatenKg = 0,
+        forageMix = main, concentrateMix = nil, milkMix = nil, animals = request.animals, monogastric = true }
+    for _, entry in ipairs(feeds) do
+        local wanted = need[entry.name] or 0
+        fulfil[entry.name] = wanted > 0 and math.min(entry.availableKg / wanted, 1) or 1
+    end
+    local takenKg = {}
+    for _, a in ipairs(request.animals) do
+        local m = a.monoMix
+        local meal = 1
+        for name, share in pairs(m.shares) do
+            if share > 0 and a.monoKg > 0 then meal = math.min(meal, fulfil[name] or 0) end
+        end
+        if meal < 1 - 1e-12 and a.monoKg > 0 then a.intakeLimit = "FEED_SHORT" end
+        a.byFill = {}
+        a.damMilk = nil
+        for _, entry in ipairs(m.entries) do
+            local got = a.monoKg * (m.shares[entry.name] or 0) * meal
+            if got > 0 then
+                local profile = entry.profile
+                a.byFill[entry.name] = { kg = got, liters = RLFeedUnits.kgToLiters(got, scale, profile.density, profile.dm),
+                    me = got * profile.me, cpKg = got * profile.cp, lysKg = got * (profile.sidLys or 0), factor = 1 }
+                takenKg[entry.name] = (takenKg[entry.name] or 0) + got
+            end
+        end
+        a.monoMix = nil
+        RLFeedRationPlanner.sumAnimal(a)
+        result.eatenMe, result.eatenKg = result.eatenMe + a.me, result.eatenKg + a.kg
+    end
+    for _, entry in ipairs(feeds) do
+        local kg = math.min(takenKg[entry.name] or 0, entry.availableKg)
+        entry.usedKg = kg
+        if kg > 0 then result.withdraw[entry.name] = RLFeedUnits.kgToLiters(kg, scale, entry.profile.density, entry.profile.dm) end
     end
     return result
 end

@@ -215,7 +215,8 @@ function RLFeedRationModel:getPreviewTexts()
     local preview, err = self:getPreview()
     local out = { rows = {}, more = 0 }
     if preview == nil then
-        out.empty = getText(err == "CONFIG_INVALID" and "rl_feed_reason_CONFIG_INVALID" or "rl_feed_previewError")
+        -- A pen's reason (a species off, sows or piglets) as its text; only a failed plan is an error.
+        out.empty = (err ~= nil and err ~= "ERROR") and RLFeedInfoService.getReasonText(err) or getText("rl_feed_previewError")
         return out
     end
 

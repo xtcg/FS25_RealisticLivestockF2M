@@ -211,7 +211,19 @@ end
 function RLFeedInfoService.previewRation(placeable, ration)
     ration = RLFeed.sanitizeRation(ration)
     if not RLFeedProfiles.isValid() then return nil, "CONFIG_INVALID" end
-    local config = RLFeed.getConfig()
+    -- Only animals the weight model covers can be described (a species whose curves are off - sheep,
+    -- pigs by default - has no binding): such a pen gets the reason, never a half-built preview.
+    for _, animal in ipairs(placeable.getClusters ~= nil and placeable:getClusters() or {}) do
+        if not animal.isDead and (animal.numAnimals or 1) > 0 and not RLGrowth.covers(animal) then return nil, "UNCOVERED_ANIMAL" end
+    end
+    -- The pen's own section (pigs value their feeds themselves; cattle and sheep read the root's).
+    local config = RLFeed.getConfig(placeable)
+    if config ~= RLFeedProfiles.getConfig() and config.valid ~= true then return nil, "CONFIG_INVALID" end
+    if config.monogastric ~= nil then
+        -- A pig pen the mode leaves on the old rules (sows, unweaned piglets): its reason.
+        local active, reason = RLFeed.evaluateMonogastricPen(placeable, config)
+        if not active then return nil, reason end
+    end
     local stepDays = config.stepDays
     local animals = RLFeed.describePen(placeable, ration, stepDays)
     local plan = RLFeed.planPen(placeable, ration, animals, stepDays)
@@ -227,7 +239,7 @@ function RLFeedInfoService.previewRation(placeable, ration)
     end
     local totalKg, kgByFill = 0, {}
     for name, liters in pairs(perMonth) do
-        local profile = RLFeedProfiles.getUsableFeed(name)
+        local profile = RLFeedProfiles.getUsableFeed(name, config)
         local kg = profile ~= nil and RLFeedUnits.litersToKg(liters, scale, profile.density, profile.dm) or 0
         kgByFill[name], totalKg = kg, totalKg + kg
     end

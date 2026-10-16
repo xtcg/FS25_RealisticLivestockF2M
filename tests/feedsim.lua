@@ -131,10 +131,11 @@ function FeedSim.hour(pen, opts)
         factor = RLFeed.consume(pen, consumed)
         for index, liters in pairs(consumed) do pen:removeFood(liters, index) end
     else
-        -- The old rules: the map's groups in order, at their production weights (no grain).
+        -- The old rules: the map's groups in order, at their production weights (no grain); a pen of
+        -- another species with groups of its own (pen.foodGroups: pigs) eats from those.
         local amount = spec.litersPerHour * GrowthSim.env.timeAdjustment
         local request, weight = amount, 0
-        for _, g in ipairs(cowFood.groups) do
+        for _, g in ipairs(pen.foodGroups or cowFood.groups) do
             if not g.rlGrain and amount > 0 then
                 local before = amount
                 for _, index in ipairs(g.fillTypes) do

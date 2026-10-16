@@ -33,6 +33,8 @@ function RLFeedMath.getEnergyConfig(bodyConfig, feedConfig)
     cfg.pregnancyFactor = req.pregnancyFactor
     -- A species' own cost of a third and further fetus (sheep); cattle count every fetus at 1.
     cfg.pregnancyThirdLambFactor = feedConfig.physiology ~= nil and feedConfig.physiology.pregnancyThirdLambFactor or nil
+    -- A monogastric species' maintenance exponent (pigs: W^0.60, NRC 2012); others W^0.75 (nil).
+    cfg.maintenanceExponent = feedConfig.monogastric ~= nil and feedConfig.monogastric.maintenanceExponent or nil
     cfg.energyUnit = "ME_MJ"
     return cfg
 end
@@ -94,6 +96,8 @@ function RLFeedMath.compose(parts)
             mix.peNdf = mix.peNdf + share * profile.peNdf
             mix.fermentable = mix.fermentable + share * profile.fermentable
             mix.starch = mix.starch + share * profile.starch
+            -- SID lysine (share of DM) where the feed has it (monogastric sections only).
+            if profile.sidLys ~= nil then mix.lys = (mix.lys or 0) + share * profile.sidLys end
             mix.shares[profile.name] = (mix.shares[profile.name] or 0) + share
         end
     end
@@ -234,6 +238,56 @@ function RLFeedMath.getIntake(appetite, fill, ration, demandME)
         if demand < intake then intake, limit = demand, "DEMAND" end
     end
     return math.max(intake, 0), limit
+end
+
+
+-- =============================================================================
+-- Monogastric (pigs, NRC 2012 ch. 8)
+-- =============================================================================
+
+--- The sex key of the monogastric curves: "female", "castrate" (a castrated male) or "male".
+function RLFeedMath.getMonoSex(gender, isCastrated)
+    if gender ~= "male" then return "female" end
+    return isCastrated and "castrate" or "male"
+end
+
+
+--- ME (MJ a real day) an animal of this weight and sex eats freely: a x (1 - exp(-exp(b) x W^c))
+--- (NRC 2012 Eqs. 8-10 to 8-12).
+--- @param weight number kg
+--- @param sex string RLFeedMath.getMonoSex
+--- @param mono table The section's monogastric values
+--- @return number MJ
+function RLFeedMath.getMonoEnergyIntake(weight, sex, mono)
+    local e = mono.energy[sex] or mono.energy.female
+    return e.a * (1 - math.exp(-math.exp(e.b) * math.max(weight, 0) ^ e.c))
+end
+
+
+--- The most DM (kg a real day) it can eat: physicalKgDMPerKg x W^physicalExponent (Eq. 8-16).
+function RLFeedMath.getMonoPhysicalCap(weight, mono)
+    return mono.physicalKgDMPerKg * math.max(weight, 1) ^ mono.physicalExponent
+end
+
+
+--- SID lysine (g per MJ ME) a ration needs for full growth at this weight and sex, linear
+--- between the section's points, flat outside them.
+function RLFeedMath.getLysineNeed(weight, sex, mono)
+    local points = mono.lysine[sex] or mono.lysine.all
+    if weight <= points[1][1] then return points[1][2] end
+    for i = 2, #points do
+        local a, b = points[i - 1], points[i]
+        if weight <= b[1] then return a[2] + (b[2] - a[2]) * (weight - a[1]) / (b[1] - a[1]) end
+    end
+    return points[#points][2]
+end
+
+
+--- A ration's SID lysine per MJ of its ME (g/MJ) from kg of lysine and MJ eaten, or from a mix's
+--- shares of DM (lys) and ME (MJ/kg DM); 0 without energy.
+function RLFeedMath.getLysinePerME(lysKg, me)
+    if me == nil or me <= 0 then return 0 end
+    return (lysKg or 0) * 1000 / me
 end
 
 
