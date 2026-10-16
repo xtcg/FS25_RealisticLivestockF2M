@@ -83,6 +83,14 @@ function PigSim.makePen(animals, stock, opts)
         for _, index in ipairs(g.fillTypes) do spec.fillLevels[index], spec.supportedFillTypes[index] = 0, true end
     end
     function pen:getAnimalTypeIndex() return PIG end
+    -- Hours on the old rules eat the map's pig groups (SERIAL), not the cattle groups.
+    pen.foodGroups = pigFood.groups
+    -- As PlaceableHusbandryFood:addFood: the trough takes back up to what it supports.
+    function pen:addFood(_, liters, index)
+        if not self.spec_husbandryFood.supportedFillTypes[index] or liters <= 0 then return 0 end
+        self.spec_husbandryFood.fillLevels[index] = (self.spec_husbandryFood.fillLevels[index] or 0) + liters
+        return liters
+    end
     for name, liters in pairs(stock or {}) do pen:add(name, liters) end
     return pen
 end

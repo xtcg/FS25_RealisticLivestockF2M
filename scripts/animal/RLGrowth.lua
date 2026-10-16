@@ -214,9 +214,24 @@ end
 --- @param animal table
 function RLGrowth.markLegacyHour(animal)
     if animal == nil or animal.getSubType == nil or not RLGrowth.needsRealNutrition(animal:getSubType()) then return end
-    animal.rlLegacyHourTick = RLBodyCondition.getTickId()
+    local tick = RLBodyCondition.getTickId()
+    local marked = tick ~= nil and animal.rlLegacyHourTick == tick
+    animal.rlLegacyHourTick = tick
     local state = animal.rlGrowth
     if state ~= nil and not state.weanedEarly and (state.creepDays or 0) > 0 then state.creepDays = 0 end
+    -- A monogastric species (pigs): the calendar clock (state.ageMonths) moves on in an hour on the old
+    -- rules too - once an hour, never in an hour a pen in the mode already stepped it - so the pen gate's
+    -- 28 days (feedProfiles monogastric youngLegacyUntilMonth) comes on model time, not at the next
+    -- whole month. Development and weight stay the budget's: only the clock moves. A pig without a
+    -- state is set up from its whole months (no day within the month is made up).
+    if tick ~= nil and not marked and animal.rlFeedStepTick ~= tick and RLFeed ~= nil
+        and RLFeed.getConfig(animal).monogastric ~= nil then
+        state = RLGrowth.ensureState(animal)
+        local environment = g_currentMission ~= nil and g_currentMission.environment or nil
+        if environment ~= nil then
+            RLGrowth.advanceClock(state, animal.age or 0, RLWeightMath.getHourMonths(environment.daysPerPeriod))
+        end
+    end
 end
 
 
