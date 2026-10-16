@@ -1,7 +1,8 @@
 """Pig P5 offline calibration: run tests/pigcalib.lua on the real modules and judge each route
 against the design's frozen references (FS25_PigBreeds_离线准备_2026-10-16/PIG_P5_单胃营养设计.md §7).
 Every item is PASS, FAIL or UNVERIFIED (no matched reference); tolerances are the design's and are
-never widened to pass. Exit code 1 when anything fails or the Lua run logged an error.
+never widened to pass. Exit code 1 when anything fails or the Lua run logged an error. After the verdicts
+it prints the R3 lysine controls (NRC four-phase diets, lysine never limiting): diagnostic only, never judged.
 
     python tests/pigcalib.py [--json out.json] [--ab species=species_ab.json --ab cattle=...]
 """
@@ -184,6 +185,49 @@ def selftest(calib, log):
 
 MISSING = []
 
+# R3 controls: (route window, label, reference ADG, ADFI, F:G) - the same references as V2-V4, printed
+# beside each lysine control for the gap only; nothing here is judged or changes the exit code.
+CONTROL_ROWS = [
+    ("landraceBoar30_105", "Landrace boar 30-105", 1.164, None, None),
+    ("landraceBoar30_100", "Landrace boar 30-100", None, None, 1.75),
+    ("landraceGilt30_105", "Landrace gilt 30-105", 1.117, None, None),
+    ("landraceGilt32_118", "Landrace gilt 32-118", None, None, 2.65),
+    ("landraceBarrow32_118", "Landrace barrow 32-118", None, None, 2.65),
+    ("berkshireGilt24_122", "Berkshire gilt 24-122", 0.771, 2.49, 3.23),
+    ("berkshireBarrow27_124", "Berkshire barrow 27-124", 0.835, 2.85, 3.42),
+]
+MAINTENANCE_MJ = 197 * 4.184 / 1000  # NRC 2012 Eq. 8-19, x BW^0.60
+
+
+def controls(data):
+    """Print the R3 lysine controls (diagnostic): per route, the shipped PIGFOOD baseline, NRC four-phase
+    diets and lysine never limiting, with the gap to each reference, the curve's own ADG (the potential),
+    the intake limit, the reserve's share of the gain, and ME above maintenance per kg of gain."""
+    print("\n=== R3 lysine controls (diagnostic, not judged; baseline = the V2-V4 routes above)")
+    if not isinstance(data, dict):
+        print("  no controls recorded")
+        return
+    print(f"  shipped PIGFOOD sidLys {data.get('shippedSidLys')} (share of DM)")
+
+    def gap(value, ref):
+        return f" ({100 * (value / ref - 1):+.0f}%)" if finite(value) and ref else ""
+    for key, label, adg, adfi, fg in CONTROL_ROWS:
+        print(f"  {label}: reference ADG {adg or '-'} ADFI {adfi or '-'} F:G {fg or '-'}")
+        for mode in ("baseline", "staged", "ample"):
+            w = (data.get(mode) or {}).get(key)
+            if not isinstance(w, dict) or not all(finite(w.get(f)) for f in ("adg", "feedPerDay", "fcr", "mePerDay", "days")):
+                print(f"    {mode:8} no result")
+                continue
+            stats, curve = w.get("stats") or {}, w.get("curve") or {}
+            a, b = w["fromKg"], w["toKg"]
+            meanMetabolic = (b ** 1.6 - a ** 1.6) / (1.6 * (b - a))
+            mePerKgGain = (w["mePerDay"] - MAINTENANCE_MJ * meanMetabolic) / w["adg"]
+            reserveGain = (w.get("reserveKgEnd") or 0) - (w.get("reserveKgStart") or 0)
+            limits = ", ".join(f"{k} {100 * v:.0f}%" for k, v in sorted((stats.get("limits") or {}).items()))
+            print(f"    {mode:8} ADG {w['adg']:.3f}{gap(w['adg'], adg)}  ADFI {w['feedPerDay']:.2f}{gap(w['feedPerDay'], adfi)}  "
+                  f"F:G {w['fcr']:.2f}{gap(w['fcr'], fg)}  lysF {fmt(stats.get('meanLysF'), '.3f')}  curve ADG {fmt(curve.get('adg'), '.3f')}  "
+                  f"reserve {100 * reserveGain / (b - a):.0f}% of gain  ME-maint {mePerKgGain:.1f} MJ/kg gain  [{limits}]")
+
 
 def report(calib, log, ab_items, json_path):
     RESULTS.clear()
@@ -319,6 +363,7 @@ def report(calib, log, ab_items, json_path):
              f"{sum(1 for k in legacy if k in rows)} of 3 cases", "V8 legacy")
     section(("V8 growers", "V8 legacy"), v8, "V8")
     judge("UNVERIFIED", "game test", "not run in game", "game test")
+    section((), lambda: controls(calib.get("controls")), "R3 controls")
     if log:
         gate("Lua log has no errors", False, "; ".join(log[:3]))
     missing = [item for item in REQUIRED if item not in SEEN]
