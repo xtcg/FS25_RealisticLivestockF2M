@@ -135,13 +135,14 @@ end
 
 
 --- Maintenance and pregnancy demand (per period) of an animal of weight W: maintenance x W^0.75
+--- (a species' own cfg.maintenanceExponent: pigs 0.60)
 --- x the maintenance gene; a pregnancy adds pregnancyFactor of the maintenance per fetus counted
 --- (RLGrowthMath.getPregnancyLoad), rising from pregnancyRampStart of the pregnancy to term.
 --- @return number maintenance
 --- @return number pregnancy
 --- @return number ramp 0..1
 local function getMaintenanceAndPregnancy(W, input, cfg)
-    local metabolic = math.max(W, 1) ^ 0.75
+    local metabolic = math.max(W, 1) ^ (cfg.maintenanceExponent or 0.75)
     local maintenance = cfg.maintenancePerKgMetabolic * metabolic * (input.maintenanceFactor or 1)
     local ramp = math.clamp(((input.pregnancyProgress or 0) - cfg.pregnancyRampStart) / (1 - cfg.pregnancyRampStart), 0, 1)
     local pregnancy = cfg.maintenancePerKgMetabolic * metabolic * cfg.pregnancyFactor * RLGrowthMath.getPregnancyLoad(input.numFetuses, cfg) * ramp
@@ -250,7 +251,7 @@ function RLGrowthMath.step(input, cfg)
     else
         local anchor
         if fixedPrice then
-            local referenceMetabolic = math.max(input.referenceWeight or W, 1) ^ 0.75
+            local referenceMetabolic = math.max(input.referenceWeight or W, 1) ^ (cfg.maintenanceExponent or 0.75)
             anchor = cfg.maintenancePerKgMetabolic * referenceMetabolic * (1 + cfg.pregnancyFactor * RLGrowthMath.getPregnancyLoad(input.numFetuses, cfg) * ramp)
                 + math.max(input.referenceGrowthNU or 0, 0)
         else

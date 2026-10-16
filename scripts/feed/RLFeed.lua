@@ -406,6 +406,9 @@ end
 --- With calf rearing switched off a young calf still suckles: the default weaning curves say how
 --- long, so a pen holding one is never taken for a pen of weaned cattle.
 local function getCalfCaps(animal, ageOffsetMonths)
+    -- A monogastric species (pigs) has no calf rules: a pen with a young animal not yet weaned
+    -- keeps the old rules (RLFeed.evaluatePen, PIG_BREEDING_LEGACY), so every animal it feeds is weaned.
+    if RLFeed.getConfig(animal).monogastric ~= nil then return 0, 1 end
     local nursing = getNursing(animal)
     if nursing ~= nil then
         -- Nursing rules (sheep): the species' curves at its age; an orphan ready for it is weaned.
@@ -471,6 +474,7 @@ function RLFeed.evaluatePen(placeable)
         if section == RLFeedProfiles.getConfig() then return false, "NOT_CATTLE" end
         if section.valid ~= true then return false, "CONFIG_INVALID" end
         nursing = section.nursing
+        if section.monogastric ~= nil then return RLFeed.evaluateMonogastricPen(placeable, section) end
     end
     if placeable.spec_husbandryFood == nil then return false, "NO_TROUGH" end
     local rearing = nursing == nil and isRearingPen(placeable)
@@ -487,6 +491,27 @@ function RLFeed.evaluatePen(placeable)
                 -- older one without her is weaned early (getCalfCaps).
                 local milkMax = getCalfCaps(animal)
                 if milkMax > 0 and (animal.motherId == nil or dams[animal.motherId] == nil) then return false, "SUCKLING_CALF" end
+            end
+        end
+    end
+    return true, "OK"
+end
+
+
+--- A monogastric pen (pigs): it runs the mode when it has a trough and every animal in it is covered
+--- and growing - none younger than youngLegacyUntilMonth (continuous months: not weaned), none
+--- pregnant, no female that has given birth. Otherwise the whole pen keeps the old rules
+--- (PIG_BREEDING_LEGACY): the sow's milk, pregnancy and body condition are a later batch.
+--- @return boolean active
+--- @return string reason
+function RLFeed.evaluateMonogastricPen(placeable, section)
+    if placeable.spec_husbandryFood == nil then return false, "NO_TROUGH" end
+    local young = section.monogastric.youngLegacyUntilMonth
+    for _, animal in ipairs(placeable:getClusters() or {}) do
+        if not animal.isDead and (animal.numAnimals or 1) > 0 then
+            if not RLGrowth.covers(animal) then return false, "UNCOVERED_ANIMAL" end
+            if animal.isPregnant or (animal.gender == "female" and animal.isParent) or RLGrowth.getContinuousAge(animal) < young then
+                return false, "PIG_BREEDING_LEGACY"
             end
         end
     end
@@ -551,6 +576,7 @@ end
 
 --- The ration class of an animal: CALF (on milk), LACTATING, DRY (a cow that has calved), GROWING.
 function RLFeed.getRationClass(animal)
+    if RLFeed.getConfig(animal).monogastric ~= nil then return "GROWING" end
     local milkMax = getCalfCaps(animal)
     if milkMax > 0 then return "CALF" end
     if getNursing(animal) ~= nil then
@@ -571,6 +597,12 @@ end
 function RLFeed.getAnimalTarget(animal, ration, class)
     if class == "CALF" then return "FINISH" end
     local target = ration.target or "AUTO"
+    if target == "AUTO" and RLFeed.getConfig(animal).monogastric ~= nil then
+        -- Pigs: young stock (males, and females under the body condition's youngUntilMonth: gilts)
+        -- eat freely, as growing-finishing pigs are fed; an older maiden female grows to her needs.
+        if animal.gender == "male" or RLBodyCondition.isYoungStock(animal, RLBodyCondition.getConfig(animal)) then return "FINISH" end
+        return "GROW"
+    end
     if target == "AUTO" then
         if animal.gender == "male" then return "FINISH" end
         -- A species whose young females are finished too (sheep: ewe lambs, by the body
@@ -716,6 +748,7 @@ end
 --- @return table descriptor
 function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
     local config = RLFeed.getConfig(animal)
+    if config.monogastric ~= nil then return RLFeed.describeMonogastricAnimal(animal, ration, dtMonths, dtDays, config) end
     local body = RLBodyCondition.getConfig(animal)
     local class = RLFeed.getRationClass(animal)
     local target = RLFeed.getAnimalTarget(animal, ration, class)
@@ -811,6 +844,45 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
 end
 
 
+--- One pig as the monogastric planner sees it (NRC 2012 ch. 8): what it can physically eat
+--- (appetite, kg DM a day) and, eaten freely, its energy appetite by sex (energyCap, MJ a day),
+--- both at its weight halfway through the step and x its maintenance gene; its needs as any
+--- animal's (maintenance at W^0.60, its curve's growth, the reserve it may lay down); its SID lysine
+--- need (g per MJ ME) by weight and sex.
+function RLFeed.describeMonogastricAnimal(animal, ration, dtMonths, dtDays, config)
+    local mono = config.monogastric
+    local body = RLBodyCondition.getConfig(animal)
+    local class = "GROWING"
+    local target = RLFeed.getAnimalTarget(animal, ration, class)
+    local input, cfg = buildEnergyInput(animal, dtMonths)
+    local _, _, gene = RLGrowth.getGeneFactors(animal.genetics.metabolism, animal)
+    if target == "GROW" then
+        input.reserveCeiling = math.min(RLBodyCondition.getReserveCeiling(animal) or body.referenceReserve, body.referenceReserve)
+    end
+    local demands = RLGrowthMath.getStepDemands(input, cfg)
+    local days = config.realDaysPerPeriod
+    local weight = math.max(animal.weight or 0, 0) + 0.5 * (demands.growthKg or 0)
+    local sex = RLFeedMath.getMonoSex(animal.gender, animal.isCastrated)
+    return {
+        animal = animal, class = class, target = target, stage = "WEANED", milkKgPerDay = 0, milkCollect = 1,
+        weight = weight, sex = sex,
+        appetite = RLFeedMath.getMonoPhysicalCap(weight, mono) * gene,
+        energyCap = RLFeedMath.getMonoEnergyIntake(weight, sex, mono) * gene,
+        fill = 0, concEligible = false, adapted = 1, milkMax = 0, milkMaxKgPerDay = 0, nursingMaxKgPerDay = 0,
+        solidMax = 1, solidEnergy = 1,
+        proteinNeed = RLFeedMath.getLysineNeed(weight, sex, mono),
+        needs = {
+            maintenance = demands.maintenance / days,
+            pregnancy = demands.pregnancy / days,
+            milk = 0,
+            growth = target == "MAINTAIN" and 0 or demands.growthStep / dtDays,
+            deposit = target == "MAINTAIN" and 0
+                or math.min(demands.depositHeadroomKg, demands.depositRatePerMonthKg) * cfg.depositNUPerKg / days,
+        },
+    }
+end
+
+
 -- =============================================================================
 -- Feeding
 -- =============================================================================
@@ -828,6 +900,8 @@ end
 --- map's cattle food groups list them), concentrate (the ration's order) and milk.
 --- @return table forage, table concentrate, table milk, table unconfigured names with stock
 function RLFeed.getStockLists(placeable, ration)
+    local config = RLFeed.getConfig(placeable)
+    if config.monogastric ~= nil then return RLFeed.getMonogastricStock(placeable, config) end
     local spec = placeable.spec_husbandryFood
     local foodSystem = g_currentMission.animalFoodSystem
     local animalFood = foodSystem ~= nil and foodSystem:getAnimalFood(spec.animalTypeIndex) or nil
@@ -861,6 +935,33 @@ function RLFeed.getStockLists(placeable, ration)
         end
     end
     return forage, concentrate, milk, unconfigured
+end
+
+
+--- A monogastric pen's stock (pigs): every fill type its animal food groups list that the section
+--- values (its own feeds first), in the groups' order, as one list for the planner.
+--- @return table feeds, table concentrate (empty), table milk (empty), table unconfigured names with stock
+function RLFeed.getMonogastricStock(placeable, config)
+    local spec = placeable.spec_husbandryFood
+    local foodSystem = g_currentMission.animalFoodSystem
+    local animalFood = foodSystem ~= nil and foodSystem:getAnimalFood(spec.animalTypeIndex) or nil
+    local feeds, seen, unconfigured = {}, {}, {}
+    for _, group in ipairs(animalFood ~= nil and animalFood.groups or {}) do
+        for _, index in ipairs(group.fillTypes or {}) do
+            local name = fillTypeName(index)
+            if name ~= nil and not seen[name] then
+                seen[name] = true
+                local liters = math.max(placeable:getAvailableFood(index) or 0, 0)
+                local profile = RLFeedProfiles.getUsableFeed(name, config)
+                if profile == nil or profile.role == "MILK" then
+                    if liters > 0 then table.insert(unconfigured, name) end
+                else
+                    table.insert(feeds, { name = name, profile = profile, liters = liters, index = index })
+                end
+            end
+        end
+    end
+    return feeds, {}, {}, unconfigured
 end
 
 
@@ -1147,6 +1248,11 @@ end
 function RLFeed.planPen(placeable, ration, animals, stepDays)
     local config = RLFeed.getConfig(placeable)
     local forage, concentrate, milk, unconfigured = RLFeed.getStockLists(placeable, ration)
+    if config.monogastric ~= nil then
+        local plan = RLFeedRationPlanner.planMonogastric({ animals = animals, feeds = forage, scale = config.resourceScale,
+            realDaysPerPeriod = config.realDaysPerPeriod, dtDays = stepDays, proteinMaintenance = config.monogastric.lysineMaintenance })
+        return plan, forage, concentrate, milk, unconfigured
+    end
     local plan = RLFeedRationPlanner.plan({
         animals = animals, forage = forage, concentrate = concentrate, milk = milk,
         scale = config.resourceScale, realDaysPerPeriod = config.realDaysPerPeriod, dtDays = stepDays,
@@ -1213,7 +1319,10 @@ function RLFeed.runStep(placeable, window, stepDays)
     for _, a in ipairs(order) do
         for name, fill in pairs(a.byFill) do
             local r = ratio[name] or 0
-            if r < 1 then fill.kg, fill.liters, fill.me, fill.cpKg = fill.kg * r, fill.liters * r, fill.me * r, fill.cpKg * r end
+            if r < 1 then
+                fill.kg, fill.liters, fill.me, fill.cpKg = fill.kg * r, fill.liters * r, fill.me * r, fill.cpKg * r
+                if fill.lysKg ~= nil then fill.lysKg = fill.lysKg * r end
+            end
         end
         if a.damMilk ~= nil then RLFeed.settleDamMilk(a, hour, config.damMilk, observed) end
         RLFeedRationPlanner.sumAnimal(a)
@@ -1221,12 +1330,13 @@ function RLFeed.runStep(placeable, window, stepDays)
         -- A calf's milk this step: what it planned to drink and what it got (trough and dam).
         local milkDrunk = a.damMilk ~= nil and a.damMilk.kg or 0
         for name, fill in pairs(a.byFill) do
-            local profile = RLFeedProfiles.getUsableFeed(name)
+            local profile = RLFeedProfiles.getUsableFeed(name, config)
             if profile ~= nil and profile.role == "MILK" then milkDrunk = milkDrunk + fill.kg end
         end
         local feed = { tick = tick, owner = placeable, kg = a.kg, me = a.me, cp = a.cp, byFill = a.byFill, plannedKg = a.plannedKg,
             plannedMe = a.plannedMe, class = a.class, target = a.target, concShare = a.cEaten, concLimit = a.concLimit,
-            intakeLimit = a.intakeLimit, proteinFactor = RLFeedMath.getProteinFactor(a.cp, a.proteinNeed, protein.maintenance),
+            intakeLimit = a.intakeLimit, proteinFactor = RLFeed.getStepProteinFactor(a, config),
+            lysPerMe = config.monogastric ~= nil and a.lysPerMe or nil,
             proteinNeed = a.proteinNeed, dtDays = stepDays, water = waterCoverage, damMilk = a.damMilk,
             milkDemandFactor = a.milkDemandFactor, milkPlanKg = a.milkPlanKg or 0, milkDrunkKg = milkDrunk }
         local before = observed ~= nil and { weight = animal.weight, health = animal.health, healthCarry = animal.rlHealthCarry or 0 } or nil
@@ -1256,6 +1366,16 @@ function RLFeed.runStep(placeable, window, stepDays)
         hour.limitOf[animal] = a.concLimit or a.intakeLimit
     end
     if observed ~= nil then RLFeed.notify("STEP", observed) end
+end
+
+
+--- The share of its growth potential a step's ration protein allows: crude protein against the
+--- class need, or - monogastric sections (pigs) - SID lysine per MJ of ME against its need.
+function RLFeed.getStepProteinFactor(a, config)
+    if config.monogastric ~= nil then
+        return RLFeedMath.getProteinFactor(a.lysPerMe or 0, a.proteinNeed, config.monogastric.lysineMaintenance)
+    end
+    return RLFeedMath.getProteinFactor(a.cp, a.proteinNeed, config.protein.maintenance)
 end
 
 
@@ -1682,6 +1802,7 @@ function RLFeed.applyHealth(animal, feed, result, dtMonths)
     end
     budget.shortfall, budget.shortDays, budget.bufferDays = shortfall, state ~= nil and state.feedShortDays or 0, config.health.shortageBufferDays
     budget.water, budget.cp, budget.cpMaintenance, budget.eatenDm = feed.water, feed.cp, config.protein.maintenance, feed.kg
+    if config.monogastric ~= nil then budget.cp, budget.cpMaintenance = feed.lysPerMe or 0, config.monogastric.lysineMaintenance end
     local factor, reason = RLFeedMath.getHealthFactor(budget)
     feed.healthFactor, feed.healthReason = factor, reason
     local subType = animal:getSubType()

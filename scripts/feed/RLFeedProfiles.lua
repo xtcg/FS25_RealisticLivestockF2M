@@ -98,6 +98,20 @@ RLFeedProfiles.NURSING = { weaningMonth = 3, earlyWeaningMonth = 2, readyCreepKg
 
 RLFeedProfiles.NURSING_CURVES = { "milkMax", "solidMax", "solidEnergy" }
 
+-- monogastric: a species without a rumen (pigs, NRC 2012 ch. 8). Its pens plan with
+-- RLFeedRationPlanner.planMonogastric (every feed the animal may eat, mixed as stocked; no forage,
+-- concentrate or rumen rules). maintenanceExponent: maintenance x W^this (NRC 2012 Eq. 8-19: 0.60;
+-- other species 0.75). energy: the most ME (MJ a day) an animal eats freely, a x (1 - exp(-exp(b) x
+-- W^c)) by sex (female, castrate, male; Eqs. 8-10 to 8-12); physicalKgDMPerKg x W^physicalExponent:
+-- the most DM it can eat (Eq. 8-16, g as fed x 0.90 DM). lysine: SID lysine (g per MJ ME) a ration
+-- needs for full growth, by weight (kg) and sex; lysineMaintenance the level growth falls to nothing
+-- at. youngLegacyUntilMonth: a pen with a young animal under this age (continuous months: not weaned),
+-- a pregnant female or one that has given birth keeps the old rules (PIG_BREEDING_LEGACY: the sow's
+-- milk, pregnancy and body condition are a later batch).
+RLFeedProfiles.MONOGASTRIC = { maintenanceExponent = 0.75, physicalKgDMPerKg = 0.0999, physicalExponent = 0.803,
+    lysineMaintenance = 0.05, youngLegacyUntilMonth = 0 }
+RLFeedProfiles.MONO_SEXES = { "female", "castrate", "male" }
+
 --- Numeric fields of a feed profile and the range each must be in.
 RLFeedProfiles.FEED_SHARES = { "dm", "cp", "ndf", "peFactor", "starch", "sugar" }
 
@@ -130,6 +144,10 @@ function RLFeedProfiles.parseFeed(xmlFile, key)
         density = xmlFile:getFloat(key .. "#density"),
         tdn = xmlFile:getFloat(key .. "#tdn"),
         maxShare = xmlFile:getFloat(key .. "#maxShare"),
+        -- Monogastric sections only (pigs): SID lysine, share of DM; the heaviest animal (kg) that
+        -- may eat the feed (piglet feed).
+        sidLys = xmlFile:getFloat(key .. "#sidLys"),
+        maxWeightKg = xmlFile:getFloat(key .. "#maxWeightKg"),
         capGroup = xmlFile:getString(key .. "#capGroup") ~= nil and xmlFile:getString(key .. "#capGroup"):upper() or nil,
         stages = {},
     }
@@ -177,6 +195,12 @@ function RLFeedProfiles.validateFeed(profile)
         return false, "maxShare must be a share in (0, 1]"
     end
     if profile.capGroup ~= nil and profile.maxShare == nil then return false, "capGroup needs a maxShare" end
+    if profile.sidLys ~= nil and (not finite(profile.sidLys) or profile.sidLys < 0 or profile.sidLys >= 0.1) then
+        return false, "sidLys must be a share of DM in 0..0.1"
+    end
+    if profile.maxWeightKg ~= nil and (not finite(profile.maxWeightKg) or profile.maxWeightKg <= 0) then
+        return false, "maxWeightKg must be > 0"
+    end
     profile.peNdf = profile.ndf * profile.peFactor
     profile.fermentable = profile.starch + profile.sugar
     return true
@@ -282,6 +306,32 @@ function RLFeedProfiles.validateSpecies(section)
         if p.growthReferenceKg <= 0 then return false, "physiology growthReferenceKg must be > 0" end
         if p.youngMaintenanceMEPerKgMetabolic > 0 and p.adultMaintenanceFromMonth < p.youngMaintenanceUntilMonth then
             return false, "physiology adultMaintenanceFromMonth must not be before youngMaintenanceUntilMonth"
+        end
+    end
+    local m = section.monogastric
+    if m ~= nil then
+        for key, value in pairs(m) do
+            if type(value) == "number" and (not finite(value) or value < 0) then return false, "monogastric " .. key .. " must be a number >= 0" end
+        end
+        if m.maintenanceExponent <= 0 or m.maintenanceExponent > 1 then return false, "monogastric maintenanceExponent must be in (0, 1]" end
+        if m.physicalKgDMPerKg <= 0 or m.physicalExponent <= 0 then return false, "monogastric physical intake must be > 0" end
+        for _, sex in ipairs(RLFeedProfiles.MONO_SEXES) do
+            local e = m.energy[sex]
+            if e == nil or not finite(e.a) or not finite(e.b) or not finite(e.c) or e.a <= 0 or e.c <= 0 then
+                return false, "monogastric energy for " .. sex .. " needs a > 0, b and c > 0"
+            end
+            local points = m.lysine[sex] or m.lysine.all
+            if points == nil or #points == 0 then return false, "monogastric lysine for " .. sex .. " has no points" end
+            for i, point in ipairs(points) do
+                if not finite(point[1]) or not finite(point[2]) or point[2] <= m.lysineMaintenance then
+                    return false, string.format("monogastric lysine %s point %d must be above lysineMaintenance", sex, i)
+                end
+                if i > 1 and point[1] <= points[i - 1][1] then return false, "monogastric lysine " .. sex .. " must rise in weight" end
+            end
+        end
+        for feedName in pairs(section.ownFeeds or {}) do
+            local profile = section.feeds[feedName]
+            if profile.valid and profile.sidLys == nil then return false, "monogastric feed " .. feedName .. " needs sidLys" end
         end
     end
     local n = section.nursing
@@ -405,6 +455,49 @@ local function parseSpecies(xmlFile, config)
             nursing.lactation = lactation
             section.nursing = nursing
         end
+        if xmlFile:getString(key .. ".monogastric#maintenanceExponent") ~= nil then
+            local mono = readGroup(xmlFile, key .. ".monogastric", RLFeedProfiles.MONOGASTRIC)
+            mono.energy, mono.lysine = {}, {}
+            xmlFile:iterate(key .. ".monogastric.energy", function(_, energyKey)
+                local sex = (xmlFile:getString(energyKey .. "#sex") or ""):lower()
+                mono.energy[sex] = { a = xmlFile:getFloat(energyKey .. "#a"), b = xmlFile:getFloat(energyKey .. "#b"),
+                    c = xmlFile:getFloat(energyKey .. "#c") }
+            end)
+            xmlFile:iterate(key .. ".monogastric.lysine", function(_, lysineKey)
+                local sex = (xmlFile:getString(lysineKey .. "#sex") or ""):lower()
+                local points = {}
+                for pair in (xmlFile:getString(lysineKey .. "#points") or ""):gmatch("%S+") do
+                    local x, y = pair:match("^([%d%.]+):([%d%.]+)$")
+                    points[#points + 1] = { tonumber(x) or (0 / 0), tonumber(y) or (0 / 0) }
+                end
+                mono.lysine[sex] = points
+            end)
+            section.monogastric = mono
+        end
+        -- Feeds a section values for itself (pigs: pig ME and SID lysine), in place of the root's.
+        local ownFeeds = nil
+        xmlFile:iterate(key .. ".feed", function(_, feedKey)
+            local profile = RLFeedProfiles.parseFeed(xmlFile, feedKey)
+            if ownFeeds == nil then
+                ownFeeds = {}
+                section.feeds, section.feedOrder = {}, {}
+                for feedName, rootProfile in pairs(config.feeds) do section.feeds[feedName] = rootProfile end
+                for _, feedName in ipairs(config.feedOrder) do section.feedOrder[#section.feedOrder + 1] = feedName end
+            end
+            if profile.name == "" or ownFeeds[profile.name] then
+                Log:warning("RLFeedProfiles: species %s: feed %s listed twice or without a fillType; the first is kept", name, profile.name)
+                return
+            end
+            ownFeeds[profile.name] = true
+            local feedOk, feedReason = RLFeedProfiles.validateFeed(profile)
+            profile.valid, profile.invalidReason = feedOk, feedReason
+            if not feedOk and profile.status ~= "UNCONFIGURED" then
+                Log:warning("RLFeedProfiles: species %s: feed %s is not used: %s", name, profile.name, tostring(feedReason))
+            end
+            if section.feeds[profile.name] == nil then section.feedOrder[#section.feedOrder + 1] = profile.name end
+            section.feeds[profile.name] = profile
+        end)
+        section.ownFeeds = ownFeeds
         local ok, reason = RLFeedProfiles.validate(section)
         if ok then ok, reason = RLFeedProfiles.validateSpecies(section) end
         section.valid, section.invalidReason = ok, reason
@@ -527,6 +620,15 @@ function RLFeedProfiles.computeHash(config)
     if config.speciesName ~= nil then
         add("species", config.speciesName)
         addGroup("physiology", config.physiology)
+        local mono = config.monogastric
+        if mono ~= nil then
+            addGroup("mono", mono)
+            for _, sex in ipairs(RLFeedProfiles.MONO_SEXES) do
+                local e = mono.energy[sex] or {}
+                add("mono.energy." .. sex, tostring(e.a) .. ":" .. tostring(e.b) .. ":" .. tostring(e.c))
+                for i, point in ipairs(mono.lysine[sex] or mono.lysine.all or {}) do add("mono.lysine." .. sex .. "." .. i, point[1] .. ":" .. point[2]) end
+            end
+        end
         local nursing = config.nursing
         if nursing ~= nil then
             addGroup("nursing", nursing)
@@ -563,6 +665,9 @@ function RLFeedProfiles.computeHash(config)
             for _, field in ipairs({ "role", "density", "dm", "me", "cp", "ndf", "peFactor", "starch", "sugar", "maxShare", "capGroup" }) do
                 add("feed." .. name .. "." .. field, profile[field])
             end
+            -- Monogastric fields only where a feed has them (the root's fingerprint is as before).
+            if profile.sidLys ~= nil then add("feed." .. name .. ".sidLys", profile.sidLys) end
+            if profile.maxWeightKg ~= nil then add("feed." .. name .. ".maxWeightKg", profile.maxWeightKg) end
             local stages = {}
             for stage in pairs(profile.stages) do stages[#stages + 1] = stage end
             table.sort(stages)
@@ -616,8 +721,15 @@ end
 
 
 --- A usable profile of a fill type (nil when unlisted, unconfigured or invalid).
-function RLFeedProfiles.getUsableFeed(name)
-    local profile = RLFeedProfiles.getFeed(name)
+--- @param name string|nil
+--- @param config table|nil A species section with feeds of its own (pigs); the root's by default
+function RLFeedProfiles.getUsableFeed(name, config)
+    local profile
+    if config ~= nil and config.feeds ~= nil then
+        profile = name ~= nil and config.feeds[name:upper()] or nil
+    else
+        profile = RLFeedProfiles.getFeed(name)
+    end
     if profile ~= nil and profile.valid then return profile end
     return nil
 end

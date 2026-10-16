@@ -47,9 +47,9 @@ def main():
             equal = a.hex() == b.hex() if isinstance(a, float) and isinstance(b, float) else a == b
             if not equal:
                 row = {"case": left["case"], "field": key, "before": a, "after": b}
-                # The one intended change: the SHEEP type has a feed section now, so its pen is
-                # judged on its animals (sheep v2 off: UNCOVERED_ANIMAL) rather than refused by
-                # type (NOT_CATTLE). It stays out of the mode either way.
+                # The one intended change: the SHEEP type (S5) and the PIG type (P5) have a feed
+                # section now, so their pens are judged on their animals (v2 off: UNCOVERED_ANIMAL)
+                # rather than refused by type (NOT_CATTLE). They stay out of the mode either way.
                 if (key == "reason" and a == "NOT_CATTLE" and b == "UNCOVERED_ANIMAL"
                         and left.get("active") is False and right.get("active") is False):
                     expected.append(row)
@@ -59,7 +59,7 @@ def main():
     result = {"baseline": sha, "runtime": "Lua 5.1", "cases": len(after), "subtypes": types,
               "scalarComparisons": sum(len(r) for r in after), "differences": diffs[:200], "differenceCount": len(diffs),
               "expectedDifferences": len(expected),
-              "expectedNote": "SHEEP-type pens: reason NOT_CATTLE -> UNCOVERED_ANIMAL, inactive before and after",
+              "expectedNote": "SHEEP- and PIG-type pens: reason NOT_CATTLE -> UNCOVERED_ANIMAL, inactive before and after",
               "baselineSHA256": fingerprint(before), "candidateSHA256": fingerprint(after),
               "scope": "every non-cattle subtype x ages 1/6/30 x food 0.3/1.0 x legacy/real mode; 48 hours of updateHealth; pen evaluation",
               "passed": len(before) == len(after) and len(after) > 0 and not diffs}

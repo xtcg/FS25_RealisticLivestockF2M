@@ -283,4 +283,36 @@
         <fatClass name="4H" minReserve="0.66"/>
         <fatClass name="5" minReserve="0.75"/>
     </species>
+
+    <!--
+        Pigs (pig P5, 2026-10-16; FS25_PigBreeds_离线准备_2026-10-16/PIG_P5_单胃营养设计.md). The reserve is body lipid
+        (NRC 2012 ch. 8), the frame everything else. One unit of the reserve index is 0.356 of the reference live weight,
+        so the reference reserve 0.5 holds 17.8% body lipid: NRC's typical pig (PdMax 147.7 g a day) at 60 kg (Eq. 8-6);
+        real pigs fatten from about 11% at 25 kg to 24% at 120 kg on that rule, the model holds the mid-growth share
+        and the lipid an ad libitum pig lays down above it is its own (a model simplification). gainRatePerMonth 0.33:
+        NRC's default barrow at 100-135 kg lays down 384 g of lipid a day (Eq. 8-31), 0.33 of a unit a month at that
+        weight; lossRatePerMonth the same (CANDIDATE: the sow's lactation loss, P6, will give a real one). Growing pigs
+        show the model reserve only (design D7: no EUROP class, no backfat mm); meat per head is as before (yield and
+        market flat at 1). No ceiling below the capacity (heiferReserveCeiling 1.0, finishingTarget flat at 1): NRC lays
+        down as lipid whatever energy maintenance and protein leave (Eq. 8-31). cowReserveCeiling 0.80 is the sows', P6.
+        youngUntilMonth 8: a gilt under 8 months is fed freely under AUTO (service from 220-270
+        days, AHDB); a maiden gilt from 8 months grows to her needs. Body condition does not touch conception (P7).
+        Pens with sows or unweaned piglets keep the old rules (feedProfiles.xml PIG).
+    -->
+    <species name="PIG" calfLegacyUntilAgeMonth="0" initialReserve="0.50" reserveCapacityRatio="0.356" referenceReserve="0.50" minReserve="0.05"
+        gainRatePerMonth="0.33" lossRatePerMonth="0.33" heiferReserveCeiling="1.0" cowReserveCeiling="0.80"
+        youngUntilMonth="8" fertilityEffect="0">
+        <finishingTarget>
+            <point x="0" y="1.00"/>
+            <point x="2" y="1.00"/>
+        </finishingTarget>
+        <yield>
+            <point x="0" y="1.00"/>
+            <point x="100" y="1.00"/>
+        </yield>
+        <market>
+            <point x="0" y="1.00"/>
+            <point x="100" y="1.00"/>
+        </market>
+    </species>
 </bodyCondition>
