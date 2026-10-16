@@ -80,7 +80,9 @@ do
     check("profiles: with its binding switched off MILKCOW is not covered, whatever its breed says",
         record.resolution == "NOT_COVERED" and record.profile == nil and record.gap == true)
 end
-check("profiles: other animal types are not listed", byName.PIG_TEST == nil and byName.PIG_LANDRACE == nil)
+check("profiles: a pig is listed under its own type's profile, switched off (TYPE_OFF, pig P4)",
+    byName.PIG_TEST ~= nil and byName.PIG_TEST.resolution == "TYPE_OFF" and byName.PIG_TEST.profile == "PIG:LANDRACE"
+    and byName.PIG_TEST.typeEnabled == false)
 check("profiles: the filter matches part of a subtype or breed name",
     #RLWeightProfiles.enumerate("charola") == 3 and #RLWeightProfiles.enumerate("aubrac") == 1)
 

@@ -27,7 +27,8 @@ check("settings: type name, subtype, binding and individual resolve the same tab
     and G.getSettings(animal(eweSub)) == entry.settings)
 check("settings: cattle, proxy types, excluded goats and unknown types keep exact root table",
     G.getSettings() == root and G.getSettings(cowSub) == root and G.getSettings("MILKCOW") == root
-    and G.getSettings(goatSub) == root and G.getSettings("PIG") == root and G.getSettings(nil) == root)
+    and G.getSettings(goatSub) == root and G.getSettings("CHICKEN") == root and G.getSettings(nil) == root
+    and G.getSettings("PIG") ~= root)  -- pigs have a table of their own since pig P4
 
 -- Parse independent overrides from an actual shipped file through the engine XML interface.
 local xml = XMLFile.loadIfExists("s5", REPO .. "xml/weightProfiles.xml")

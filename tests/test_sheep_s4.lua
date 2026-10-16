@@ -52,7 +52,7 @@ local bindingOf = function(s) local b, r = RLWeightProfiles.getCurveBinding(s); 
 local _, eweOff = bindingOf(ewe)
 check("off: a sheep has no curve (TYPE_OFF)", bindingOf(ewe) == nil and eweOff == "TYPE_OFF" and bindingOf(ram) == nil)
 local _, pigWhy = bindingOf(pig)
-check("off: a pig named LANDRACE is not a sheep or a cow (NOT_CATTLE)", bindingOf(pig) == nil and pigWhy == "NOT_CATTLE")
+check("off: a pig named LANDRACE is not a sheep or a cow (its own type, off since pig P4)", bindingOf(pig) == nil and pigWhy == "TYPE_OFF")
 local cowBefore = {}
 for _, s in ipairs(Economics.subTypes) do
     if s.typeName == "COW" then
@@ -64,7 +64,7 @@ check("off: the cattle breed lookup is unchanged (no cattle LANDRACE)", RLWeight
     and RLWeightProfiles.resolveBreed("HOLSTEIN") == "HOLSTEIN")
 
 check("off: a proxy type (MILKCOW) still reads the cattle breeds", RLWeightProfiles.resolveBreed("HOLSTEIN", "MILKCOW") == "HOLSTEIN"
-    and RLWeightProfiles.resolveBreed("LANDRACE", "SHEEP") == "SHEEP:LANDRACE" and RLWeightProfiles.resolveBreed("LANDRACE", "PIG") == nil)
+    and RLWeightProfiles.resolveBreed("LANDRACE", "SHEEP") == "SHEEP:LANDRACE" and RLWeightProfiles.resolveBreed("LANDRACE", "PIG") == "PIG:LANDRACE")
 local _, goatOff = bindingOf(goat)
 check("off: a goat is NOT_COVERED (excludeBreeds), not a gap", goatOff == "NOT_COVERED")
 

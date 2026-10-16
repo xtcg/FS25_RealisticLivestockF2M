@@ -34,6 +34,8 @@
     Birth weight (RLBirthWeight). Mean weight of a single young from an average dam:
     birthWeightRatio  x the target weight of the breed's female (0.062 = 6.2%). Each configured
                       subtype's minWeight is set to this mean at load, so growth starts there.
+    birthFemaleKg     The mean in kg, in place of the ratio (pigs). It is the same number as the
+                      breed's weightProfiles.xml profile.
     maleBirthFactor   x for a male young.
     One birth's mean is then scaled by:
     litter2/3/4       per young in a litter of 2, 3, 4 and more;
@@ -102,15 +104,19 @@
     </animalType>
 
     <!-- Gilts grow almost as fast as boars; the mod's 0.6 for females is for breeding stock. -->
-    <!-- Piglets: ~1.3-1.4 kg in a litter of 12, 2% lighter per extra piglet, wide spread within a litter. -->
+    <!-- Piglets (pig P4, 2026-10-16, real sources in FS25_PigBreeds_离线准备_2026-10-16/生长数据核对_v2.md): the mean in kg,
+         not a share of the sow (a piglet's weight does not follow her size). Landrace 1.52 kg both sexes (Canadian purebred),
+         Berkshire 1.42 / 1.47 (Korean herd LS means, also the boar factor 1.035), Black pied as the game loaded it (no breed
+         data). One piglet more is 35 g lighter (Quiniou et al. 2002): 2.4% of the mean at a litter of 12. Spread CV 0.20
+         (population CV 0.20-0.21). Old ratios gave 1.632 / 1.418 / 1.444 kg; animals already born keep their weight. -->
     <animalType name="PIG" femaleGrowth="0.95" maleBirthFactor="1.035" birthWeightCV="0.20"
-                litterBase="12" litterStep="0.02" litterMin="0.80" litterMax="1.15"
+                litterBase="12" litterStep="0.024" litterMin="0.80" litterMax="1.15"
                 birthSurvivalBase="0.94" birthHealthEffect="0.20"
                 birthLowWeightSD="0.9" birthLowWeightPenalty="0.20"
                 birthHighWeightSD="2.5" birthHighWeightPenalty="0">
-        <breed name="BERKSHIRE"  feed="1.08" growth="0.95" matureAgeMonth="18.9" birthWeightRatio="0.00591"/>  <!-- 118 kg at 6.5 months; born 1.30 / 1.35 kg -->
-        <breed name="LANDRACE"   feed="1.00" growth="1.05" matureAgeMonth="20.1" birthWeightRatio="0.00583"/>  <!-- 126 kg at 5.5 months; born 1.40 / 1.45 kg -->
-        <breed name="BLACK_PIED" feed="0.90" growth="0.95" matureAgeMonth="15.1" birthWeightRatio="0.00722"/>  <!-- 120 kg at 6 months; born 1.30 / 1.35 kg -->
+        <breed name="BERKSHIRE"  feed="1.08" growth="0.95" matureAgeMonth="18.9" birthFemaleKg="1.42"/>   <!-- 118 kg at 6.5 months; born 1.42 / 1.47 kg -->
+        <breed name="LANDRACE"   feed="1.00" growth="1.05" matureAgeMonth="20.1" birthFemaleKg="1.494"/>  <!-- 126 kg at 5.5 months; born 1.494 / 1.546 kg -->
+        <breed name="BLACK_PIED" feed="0.90" growth="0.95" matureAgeMonth="15.1" birthFemaleKg="1.444"/>  <!-- 120 kg at 6 months; born 1.444 / 1.494 kg -->
     </animalType>
 
     <!-- Lambs and kids (goats share the SHEEP type): single 6-8% of the ewe, twins 85%, triplets 72%.
