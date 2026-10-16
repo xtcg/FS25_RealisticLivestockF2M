@@ -1006,6 +1006,7 @@
         <text name="rl_feed_limit_NO_FEED" text="No feed"/>
         <text name="rl_feed_limit_APPETITE" text="Intake limit"/>
         <text name="rl_feed_limit_ENERGY" text="Energy cap"/>
+        <text name="rl_feed_limit_FEED_SHORT" text="Feed short"/>
         <text name="rl_feed_limit_FILL" text="Rumen full"/>
         <text name="rl_feed_limit_DEMAND" text="Needs met"/>
         <text name="rl_feed_limit_PROTEIN" text="Low protein"/>

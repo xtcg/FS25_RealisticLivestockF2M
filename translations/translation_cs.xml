@@ -1010,6 +1010,7 @@
         <text name="rl_feed_limit_NO_FEED" text="没有饲料"/>
         <text name="rl_feed_limit_APPETITE" text="采食上限"/>
         <text name="rl_feed_limit_ENERGY" text="能量上限"/>
+        <text name="rl_feed_limit_FEED_SHORT" text="饲料不足"/>
         <text name="rl_feed_limit_FILL" text="容量上限"/>
         <text name="rl_feed_limit_DEMAND" text="需求已满足"/>
         <text name="rl_feed_limit_PROTEIN" text="蛋白不足"/>

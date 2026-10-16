@@ -1296,16 +1296,20 @@ function RLFeed.runStep(placeable, window, stepDays)
     end
     -- From here the hour changes the trough and the animals: it can no longer go to the old rules.
     window.started = true
-    for name, liters in pairs(plan.withdraw) do
-        local index = indices[name]
-        if index ~= nil and liters > 0 then
-            local removed = placeable:removeFood(liters, index) or 0
-            removedLiters[name] = removed
-            ratio[name] = math.clamp(removed / liters, 0, 1)
+    if config.monogastric ~= nil then
+        removedLiters = RLFeed.withdrawMonogastric(placeable, plan, indices, hour)
+    else
+        for name, liters in pairs(plan.withdraw) do
+            local index = indices[name]
+            if index ~= nil and liters > 0 then
+                local removed = placeable:removeFood(liters, index) or 0
+                removedLiters[name] = removed
+                ratio[name] = math.clamp(removed / liters, 0, 1)
+            end
         end
     end
     local observed = #observers > 0 and { placeable = placeable, tick = tick, stepDays = stepDays, scale = config.resourceScale,
-        withdraw = plan.withdraw, removed = removedLiters, animals = {}, dams = {} } or nil
+        withdraw = plan.withdraw, removed = removedLiters, ledger = hour.monoLedger, animals = {}, dams = {} } or nil
 
     local water = spec.rlWaterCoverage
     local waterCoverage = (water ~= nil and water.tick ~= nil and tick - water.tick <= 1) and water.coverage or 1
@@ -1317,11 +1321,11 @@ function RLFeed.runStep(placeable, window, stepDays)
     for _, a in ipairs(plan.animals) do table.insert(a.damMilk ~= nil and calves or order, a) end
     for _, a in ipairs(calves) do table.insert(order, a) end
     for _, a in ipairs(order) do
-        for name, fill in pairs(a.byFill) do
-            local r = ratio[name] or 0
-            if r < 1 then
-                fill.kg, fill.liters, fill.me, fill.cpKg = fill.kg * r, fill.liters * r, fill.me * r, fill.cpKg * r
-                if fill.lysKg ~= nil then fill.lysKg = fill.lysKg * r end
+        -- A monogastric pen's meals were already settled whole against the trough (RLFeed.withdrawMonogastric).
+        if config.monogastric == nil then
+            for name, fill in pairs(a.byFill) do
+                local r = ratio[name] or 0
+                if r < 1 then fill.kg, fill.liters, fill.me, fill.cpKg = fill.kg * r, fill.liters * r, fill.me * r, fill.cpKg * r end
             end
         end
         if a.damMilk ~= nil then RLFeed.settleDamMilk(a, hour, config.damMilk, observed) end
@@ -1366,6 +1370,71 @@ function RLFeed.runStep(placeable, window, stepDays)
         hour.limitOf[animal] = a.concLimit or a.intakeLimit
     end
     if observed ~= nil then RLFeed.notify("STEP", observed) end
+end
+
+
+--- Take a monogastric pen's plan from its trough (pigs) so every animal's mix - each feed within its
+--- maxShare of what it eats - holds for what it actually eats. First against the stock right before
+--- removal: a feed short of the plan shrinks each meal it is part of as a whole. Then against what the
+--- trough gave: a feed it gave less of shrinks those meals again, and what was taken of the other feeds
+--- above the meals is put back (addFood) or, where it cannot be, booked as lost - never as eaten. Only
+--- what is eaten reaches an animal's DM, ME, CP and SID lysine. The hour's ledger keeps withdrawn,
+--- eaten, returned and lost liters per feed (hour.monoLedger).
+--- @return table removed name -> liters taken from the trough and kept (withdrawn - returned)
+function RLFeed.withdrawMonogastric(placeable, plan, indices, hour)
+    local function shrink(factors)
+        local need = {}
+        for _, a in ipairs(plan.animals) do
+            local meal = 1
+            for name in pairs(a.byFill) do meal = math.min(meal, factors[name] or 1) end
+            if meal < 1 - 1e-12 then
+                for _, fill in pairs(a.byFill) do
+                    fill.kg, fill.liters, fill.me, fill.cpKg = fill.kg * meal, fill.liters * meal, fill.me * meal, fill.cpKg * meal
+                    fill.lysKg = (fill.lysKg or 0) * meal
+                end
+                a.intakeLimit = "FEED_SHORT"
+            end
+            for name, fill in pairs(a.byFill) do need[name] = (need[name] or 0) + fill.liters end
+        end
+        return need
+    end
+    -- 1. Against the stock as it is now.
+    local factors = {}
+    for name, liters in pairs(plan.withdraw) do
+        local index = indices[name]
+        local available = index ~= nil and math.max(placeable:getAvailableFood(index) or 0, 0) or 0
+        if liters > 0 and available < liters then factors[name] = available / liters end
+    end
+    local need = shrink(factors)
+    -- 2. Against what the trough gives.
+    local removed, short = {}, {}
+    for name, liters in pairs(need) do
+        local index = indices[name]
+        if index ~= nil and liters > 0 then
+            removed[name] = placeable:removeFood(liters, index) or 0
+            if removed[name] < liters * (1 - 1e-9) then short[name] = removed[name] / liters end
+        end
+    end
+    if next(short) ~= nil then need = shrink(short) end
+    -- 3. The ledger: what was taken above the meals goes back where it can.
+    local ledger = hour.monoLedger or {}
+    hour.monoLedger = ledger
+    local kept = {}
+    for name, taken in pairs(removed) do
+        local eaten = need[name] or 0
+        local excess = math.max(taken - eaten, 0)
+        local returned = 0
+        if excess > 1e-9 and placeable.addFood ~= nil then
+            local farmId = placeable.getOwnerFarmId ~= nil and placeable:getOwnerFarmId() or nil
+            returned = math.min(placeable:addFood(farmId, excess, indices[name]) or 0, excess)
+        end
+        local row = ledger[name] or { withdrawn = 0, eaten = 0, returned = 0, lost = 0 }
+        row.withdrawn, row.eaten = row.withdrawn + taken, row.eaten + math.min(eaten, taken)
+        row.returned, row.lost = row.returned + returned, row.lost + (excess - returned)
+        ledger[name] = row
+        kept[name] = taken - returned
+    end
+    return kept
 end
 
 

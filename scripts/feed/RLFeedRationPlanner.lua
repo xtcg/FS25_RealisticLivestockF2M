@@ -632,7 +632,10 @@ function RLFeedRationPlanner.planMonogastric(request)
             local byEnergy = math.max(energy, 0) / mix.me
             kg, limit = cap, "APPETITE"
             if byEnergy < kg then kg, limit = byEnergy, (a.target == "GROW" or a.target == "MAINTAIN") and "DEMAND" or "ENERGY" end
-            if m.total < 1 - 1e-9 then kg, limit = kg * m.total, "FEED_CAP" end
+            -- Every stocked feed it may eat is capped and the caps leave part of the ration unfilled
+            -- (only soybean, 25%): no ration keeps each feed within its share of what is eaten, so it
+            -- eats none of it (maxShare is a share of the DM eaten, never a smaller meal of the feed).
+            if m.total < 1 - 1e-9 then kg, limit = 0, "FEED_CAP" end
         end
         a.intakeLimit, a.solidMe, a.monoKg = limit, mix ~= nil and mix.me or 0, kg
         a.plannedKg, a.plannedMe = kg, kg * (mix ~= nil and mix.me or 0)
@@ -640,7 +643,7 @@ function RLFeedRationPlanner.planMonogastric(request)
         local perMonth = request.realDaysPerPeriod / dt
         a.plannedByFill, a.litersPerPeriod = {}, 0
         for name, share in pairs(m.shares) do
-            local kgFeed = m.total > 0 and kg * share / m.total or 0
+            local kgFeed = kg * share
             if kgFeed > 0 then
                 need[name] = (need[name] or 0) + kgFeed
                 local profile
@@ -652,32 +655,43 @@ function RLFeedRationPlanner.planMonogastric(request)
         end
     end
 
-    -- Take each feed from the stock; one the trough holds less of is shared by plan.
+    -- Take each feed from the stock. A feed the trough holds less of than planned shrinks every meal it
+    -- is part of as a whole (to its fulfilment, the least of its feeds'), so each animal's mix - and every
+    -- maxShare - holds for what it eats; the other feeds' rest stays in the trough. Nothing short is made
+    -- up from the rest or valued higher.
     local fulfil, result = {}, { withdraw = {}, plannedMe = plannedMe, plannedKg = plannedKg, eatenMe = 0, eatenKg = 0,
         forageMix = main, concentrateMix = nil, milkMix = nil, animals = request.animals, monogastric = true }
     for _, entry in ipairs(feeds) do
         local wanted = need[entry.name] or 0
-        local taken = math.min(wanted, entry.availableKg)
-        fulfil[entry.name] = wanted > 0 and taken / wanted or 0
-        entry.usedKg = taken
-        if taken > 0 then result.withdraw[entry.name] = RLFeedUnits.kgToLiters(taken, scale, entry.profile.density, entry.profile.dm) end
+        fulfil[entry.name] = wanted > 0 and math.min(entry.availableKg / wanted, 1) or 1
     end
+    local takenKg = {}
     for _, a in ipairs(request.animals) do
+        local m = a.monoMix
+        local meal = 1
+        for name, share in pairs(m.shares) do
+            if share > 0 and a.monoKg > 0 then meal = math.min(meal, fulfil[name] or 0) end
+        end
+        if meal < 1 - 1e-12 and a.monoKg > 0 then a.intakeLimit = "FEED_SHORT" end
         a.byFill = {}
         a.damMilk = nil
-        local m = a.monoMix
         for _, entry in ipairs(m.entries) do
-            local share = m.total > 0 and (m.shares[entry.name] or 0) / m.total or 0
-            local got = a.monoKg * share * (fulfil[entry.name] or 0)
+            local got = a.monoKg * (m.shares[entry.name] or 0) * meal
             if got > 0 then
                 local profile = entry.profile
                 a.byFill[entry.name] = { kg = got, liters = RLFeedUnits.kgToLiters(got, scale, profile.density, profile.dm),
                     me = got * profile.me, cpKg = got * profile.cp, lysKg = got * (profile.sidLys or 0), factor = 1 }
+                takenKg[entry.name] = (takenKg[entry.name] or 0) + got
             end
         end
         a.monoMix = nil
         RLFeedRationPlanner.sumAnimal(a)
         result.eatenMe, result.eatenKg = result.eatenMe + a.me, result.eatenKg + a.kg
+    end
+    for _, entry in ipairs(feeds) do
+        local kg = math.min(takenKg[entry.name] or 0, entry.availableKg)
+        entry.usedKg = kg
+        if kg > 0 then result.withdraw[entry.name] = RLFeedUnits.kgToLiters(kg, scale, entry.profile.density, entry.profile.dm) end
     end
     return result
 end

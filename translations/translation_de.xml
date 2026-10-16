@@ -1000,6 +1000,7 @@
         <text name="rl_feed_limit_NO_FEED" text="No feed"/>
         <text name="rl_feed_limit_APPETITE" text="Intake limit"/>
         <text name="rl_feed_limit_ENERGY" text="Energielimit"/>
+        <text name="rl_feed_limit_FEED_SHORT" text="Futter knapp"/>
         <text name="rl_feed_limit_FILL" text="Rumen full"/>
         <text name="rl_feed_limit_DEMAND" text="Needs met"/>
         <text name="rl_feed_limit_PROTEIN" text="Low protein"/>
