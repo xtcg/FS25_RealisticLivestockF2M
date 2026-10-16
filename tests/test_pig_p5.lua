@@ -11,8 +11,14 @@ local pig = feed.species.PIG
 local KCAL = 4.184 / 1000
 
 -- Config.
-check("config: the PIG section is valid and monogastric, the root and sheep hashes as on dev (2050392e / 35154e91)",
-    pig ~= nil and pig.valid == true and pig.monogastric ~= nil and feed.hash == "2050392e" and feed.species.SHEEP.hash == "35154e91")
+-- dev dc58aa2's fingerprints in the same runtime (number formatting differs between Lua 5.1 and 5.4; the
+-- fingerprint is not compared across runtimes).
+local DEV_HASH = { ["Lua 5.1"] = { root = "2050392e", sheep = "e29f5a1d" }, ["Lua 5.3"] = { root = "2050392e", sheep = "35154e91" },
+    ["Lua 5.4"] = { root = "2050392e", sheep = "35154e91" }, ["Lua 5.5"] = { root = "2050392e", sheep = "35154e91" } }
+local expected = DEV_HASH[_VERSION]
+check("config: the PIG section is valid and monogastric, the root and sheep hashes as on dev in this runtime (" .. _VERSION .. ")",
+    pig ~= nil and pig.valid == true and pig.monogastric ~= nil and expected ~= nil and feed.hash == expected.root
+    and feed.species.SHEEP.hash == expected.sheep)
 local own, allLys = 0, true
 for name in pairs(pig.ownFeeds or {}) do
     own = own + 1
@@ -120,7 +126,34 @@ local legacyPen = PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 8, 18, { isParen
 FeedSim.hour(legacyPen)
 check("gate: a legacy pen's hour is not the mode's", legacyPen.spec_husbandryFood.rlFeedPen.active == false)
 
+-- The ration preview (review F3): read only, a reason instead of an error wherever the mode cannot describe the pen.
+local function preview(p)
+    local level, weights = p:level("PIGFOOD"), {}
+    for i, x in ipairs(p.animals) do weights[i] = x.weight end
+    local ok, result, err = pcall(RLFeedInfoService.previewRation, p, RLFeed.getRation(p))
+    local same = p:level("PIGFOOD") == level
+    for i, x in ipairs(p.animals) do same = same and x.weight == weights[i] end
+    return ok, result, err, same
+end
+local okG, pv, _, sameG = preview(PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 10, 3) }, { PIGFOOD = 500 }))
+check("preview: a grower pen previews (read only: trough and weights unchanged)", okG and pv ~= nil and pv.animals == 1 and sameG
+    and #pv.rows == 1 and pv.rows[1].name == "PIGFOOD")
+local okS, sv, sErr, sameS = preview(PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 11, 18, { isParent = true }) }, { PIGFOOD = 500 }))
+check("preview: a sow pen gives its reason PIG_BREEDING_LEGACY, no error", okS and sv == nil and sErr == "PIG_BREEDING_LEGACY" and sameS)
+
 PigSim.enable(false)
+local okOff, ov, offErr, sameOff = preview(PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 12, 3) }, { PIGFOOD = 500 }))
+check("preview: with the PIG curves off (the default) a pig pen gives UNCOVERED_ANIMAL, no error", okOff and ov == nil
+    and offErr == "UNCOVERED_ANIMAL" and sameOff)
+local sheepPen = PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 13, 3) }, { PIGFOOD = 500 })
+local ewe = GrowthSim.makeAnimal("SHEEP_LANDRACE", { age = 24 })
+sheepPen.animals = { ewe }
+ewe.clusterSystem = { owner = sheepPen }
+local okSh, shv, shErr = pcall(RLFeedInfoService.previewRation, sheepPen, RLFeed.getRation(sheepPen))
+check("preview: a species whose curves are off (sheep) gives UNCOVERED_ANIMAL, no error", okSh and shv == nil and shErr == "UNCOVERED_ANIMAL")
 local _, offWhy = RLFeed.evaluatePen(PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 9, 3) }, { PIGFOOD = 100 }))
 check("off: with the PIG curves off a pig pen keeps the old rules (UNCOVERED_ANIMAL)", offWhy == "UNCOVERED_ANIMAL")
 FeedSim.setMode(false)
+local okMode, mv, modeErr = pcall(RLFeedInfoService.previewRation, PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 14, 3) }, { PIGFOOD = 100 }),
+    RLFeed.getRation(PigSim.makePen({}, {})))
+check("preview: mode off, curves off: a reason, no error", okMode and mv == nil and modeErr ~= nil)
