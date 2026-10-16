@@ -983,6 +983,7 @@
         <text name="rl_feed_reason_NO_TROUGH" text="No supported trough"/>
         <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="Unsupported animal"/>
         <text name="rl_feed_reason_SUCKLING_CALF" text="Bezerro: mãe ou bezerreiro"/>
+        <text name="rl_feed_reason_PIG_BREEDING_LEGACY" text="Sow/piglets: old rules"/>
         <text name="rl_feed_reason_UNKNOWN" text="Status unavailable"/>
         <text name="rl_feed_limit_NONE" text="No limit"/>
         <text name="rl_feed_limit_FIBRE" text="Fibre limit"/>
@@ -997,6 +998,7 @@
         <text name="rl_feed_limit_NO_CONCENTRATE" text="No grain"/>
         <text name="rl_feed_limit_NO_FEED" text="No feed"/>
         <text name="rl_feed_limit_APPETITE" text="Intake limit"/>
+        <text name="rl_feed_limit_ENERGY" text="Energy cap"/>
         <text name="rl_feed_limit_FILL" text="Rumen full"/>
         <text name="rl_feed_limit_DEMAND" text="Needs met"/>
         <text name="rl_feed_limit_PROTEIN" text="Low protein"/>

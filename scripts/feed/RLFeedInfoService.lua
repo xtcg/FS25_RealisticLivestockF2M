@@ -211,7 +211,8 @@ end
 function RLFeedInfoService.previewRation(placeable, ration)
     ration = RLFeed.sanitizeRation(ration)
     if not RLFeedProfiles.isValid() then return nil, "CONFIG_INVALID" end
-    local config = RLFeed.getConfig()
+    -- The pen's own section (pigs value their feeds themselves; cattle and sheep read the root's).
+    local config = RLFeed.getConfig(placeable)
     local stepDays = config.stepDays
     local animals = RLFeed.describePen(placeable, ration, stepDays)
     local plan = RLFeed.planPen(placeable, ration, animals, stepDays)
@@ -227,7 +228,7 @@ function RLFeedInfoService.previewRation(placeable, ration)
     end
     local totalKg, kgByFill = 0, {}
     for name, liters in pairs(perMonth) do
-        local profile = RLFeedProfiles.getUsableFeed(name)
+        local profile = RLFeedProfiles.getUsableFeed(name, config)
         local kg = profile ~= nil and RLFeedUnits.litersToKg(liters, scale, profile.density, profile.dm) or 0
         kgByFill[name], totalKg = kg, totalKg + kg
     end
