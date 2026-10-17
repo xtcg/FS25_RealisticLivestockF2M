@@ -325,7 +325,7 @@ function C.onMissionStarted(mission)
 
     local scan = RLAnimalIdentityWorld ~= nil and RLAnimalIdentityWorld.scan(mission) or nil
     if scan ~= nil then
-        R.setLive(scan.records)
+        R.setLive(scan.records, scan.refs)
         if #scan.partial > 0 then logf("warning", "RLAnimalIdentityCheckpoint: world scan partial: %s", table.concat(scan.partial, "; ")) end
     end
     R.lineage = nil

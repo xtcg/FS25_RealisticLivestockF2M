@@ -227,25 +227,14 @@ function Animal.new(config)
 
             if farm == nil then
                 id = "1"
-            elseif RLAnimalIdentityRuntime.authoritative() then
-                -- The identity ledger numbers this animal once its birth country is known (below).
+            else
+                -- Numbered once its birth country is known (below), through the identity runtime in
+                -- every mode: the ledger when it is the allocator, else the farm's counter past every
+                -- key known to be taken (ID-COLLISION-01).
                 local farmHerdId = RLAnimalIdentityWorld.ensureHerd(farm)
                 self.farmId = tostring(farmHerdId)
                 deferredIdentity = { farm = farm, herd = farmHerdId,
                     typeIndex = g_currentMission.animalSystem:getSubTypeByIndex(self.subTypeIndex).typeIndex }
-            else
-                id = farm.stats:getNextAnimalId(g_currentMission.animalSystem:getSubTypeByIndex(self.subTypeIndex)
-                .typeIndex)
-
-                local farmHerdId = farm.stats.statistics.farmId
-                if farmHerdId == nil then
-                    farmHerdId = math.random(100000, 999999)
-                    farm.stats.statistics.farmId = farmHerdId
-                end
-
-                self.farmId = tostring(farmHerdId)
-
-                id = RLAnimalUtil.generateUniqueId(farmHerdId, id)
             end
         end
 

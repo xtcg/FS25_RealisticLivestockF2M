@@ -43,14 +43,16 @@ do
     local b = W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto")
     check("SHADOW: legacy values, counter moves exactly as before", a == 1 and b == 2 and farm.stats.statistics.cowId == 2)
     farm.stats.statistics.cowId = 6
+    -- ID-COLLISION-01: a taken key is counted as a collision and passed (the counter takes the next one).
     local c = W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto")
-    check("SHADOW: a legacy key that already exists is counted as a collision, the value is unchanged", c == 7 and R.shadow.collisions == 1)
+    check("SHADOW: a legacy key that already exists is counted as a collision and passed", c == 8 and farm.stats.statistics.cowId == 8
+        and R.shadow.collisions == 1)
     farm.stats.statistics.cowId = 10000
-    W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto")    -- raw 10001 ... aliases raw 1 handed out earlier in this session
-    check("SHADOW: aliasing raw 10001 vs 1 seen earlier is a collision", R.shadow.collisions == 2)
+    local d = W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto")    -- raw 10001 ... aliases raw 1 handed out earlier in this session
+    check("SHADOW: aliasing raw 10001 vs 1 (and 10002 vs 2) seen earlier are collisions, passed to 10003", d == 10003 and R.shadow.collisions == 3)
 
     R.reset(false)
-    check("client: never anything but legacy", W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto") == 10002 and R.shadow.observed == 0)
+    check("client: never anything but legacy", W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto") == 10004 and R.shadow.observed == 0)
 end
 
 -- ---- ON: domains -------------------------------------------------------------------------------
