@@ -49,6 +49,8 @@ function RealisticLivestock_PlaceableHusbandryFood:updateFeeding(superFunc)
     if self.isServer then
         RLBodyCondition.endFeeding(self)
         if realEquivalent then RLFeed.endFeeding(self) else RLCalfRearing.settle(self) end
+        -- A pen on the old rules holding only the mode's added feeds eats nothing: said once.
+        RLFeedInfoService.checkFallbackFeed(self, foodFactor)
     end
 
     spec.rlForageShares = RLBreedTraits.getForageShares(before, spec.fillLevels, self.spec_husbandryMeadow ~= nil)
