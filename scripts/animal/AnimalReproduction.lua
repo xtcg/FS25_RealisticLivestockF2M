@@ -961,15 +961,14 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
         if animal.deathEnabled and math.random() >= RLBirthWeight.getSurvivalChance(childSubType, genetics.health, z) then
 
-            childNum = childNum - 1
-            if not sourceBirth then animalsToSell = animalsToSell - 1 end
-
             table.insert(childrenToRemove, i)
             deadChildrenCount = deadChildrenCount + 1
 
             child.isDead = true
 
-            Log:trace("  child %d died at birth (weight=%.3f mean=%.3f z=%.2f)", i, weight, meanWeight, z)
+            Log:info("BIRTH_DEATH: mother=%s farmId=%s child=%d/%d unborn=%s subType=%s weight=%.3f mean=%.3f z=%.2f",
+                tostring(animal.uniqueId), tostring(animal.farmId), i, litterSize, tostring(child.uniqueId),
+                tostring(child.subType), weight, meanWeight, z)
 
             continue
 
@@ -1016,8 +1015,14 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
     local totalAnimalPrice = 0
 
+    -- Birth ledger (BIRTH-SOLD-NEGATIVE-01): the young born alive need the room, the ones that died
+    -- at birth do not. Sold only for want of room, counted as they are actually sold, so the litter
+    -- closes: litter = died at birth + sold + kept, none of them negative.
+    local liveBorn = litterSize - deadChildrenCount
+    local sellTarget = math.max(0, math.min(liveBorn, liveBorn - freeSlots))
+    local soldCount = 0
 
-    for i = 1, animalsToSell do
+    for i = 1, sellTarget do
 
         local childToSell = sellPrices[i]
 
@@ -1025,8 +1030,12 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
         table.insert(childrenToRemove, childToSell.index)
         totalAnimalPrice = totalAnimalPrice + childToSell.sellPrice
+        soldCount = soldCount + 1
 
     end
+
+    animalsToSell = soldCount
+    childNum = liveBorn - soldCount
 
     table.sort(childrenToRemove)
 
@@ -1143,8 +1152,11 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
     if not sourceBirth and parentDied then animal:die("rl_death_pregnancy") end
 
-    Log:trace("reproduce: result children=%d parentDied=%s sold=%d soldAmount=%.0f deadChildren=%d",
-        childNum, tostring(parentDied), animalsToSell, totalAnimalPrice, deadChildrenCount)
+    Log:info("BIRTH_LEDGER: mother=%s farmId=%s subType=%s litter=%d liveBorn=%d diedAtBirth=%d sold=%d soldMoney=%.2f"
+        .. " kept=%d freeSlots=%s parentDied=%s isSaleAnimal=%s source=%s",
+        tostring(animal.uniqueId), tostring(animal.farmId), tostring(animal.subType), litterSize, liveBorn,
+        deadChildrenCount, animalsToSell, totalAnimalPrice, childNum, tostring(freeSlots), tostring(parentDied),
+        tostring(isSaleAnimal), tostring(sourceBirth))
 
     return childNum, parentDied, animalsToSell, totalAnimalPrice
 
