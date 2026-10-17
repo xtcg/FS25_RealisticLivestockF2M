@@ -61,6 +61,14 @@ function RLFeedRationEvent:run(connection)
                 tostring(ownerFarmId))
             return
         end
+        -- The pen must run the mode's rations at all: the dialog is read-only otherwise, and a
+        -- client's request is not taken on trust (UI-RATION-01).
+        if RLFeed.mode ~= RLFeed.MODE_REAL or not RLFeed.isNutritionPen(object) then
+            Log:warning("RLFeedRationEvent: %s from user '%s' for '%s'; dropped",
+                RLFeed.mode ~= RLFeed.MODE_REAL and "MODE_OFF" or "NOT_NUTRITION_PEN", tostring(userName),
+                object.getName ~= nil and tostring(object:getName()) or "?")
+            return
+        end
         local _, valid = RLFeed.sanitizeRation(self.ration)
         if not valid or self.valid == false then
             Log:warning("RLFeedRationEvent: ration values out of range from user '%s'; dropped", tostring(userName))

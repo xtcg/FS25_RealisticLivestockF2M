@@ -19,7 +19,11 @@ local ROW_FIELDS = { Title = "title", Month = "perMonth", Share = "dmShare", Sto
 
 function RLFeedRationDialog.register()
     local dialog = RLFeedRationDialog.new()
-    g_gui:loadGui(modDirectory .. "gui/RLFeedRationDialog.xml", "RLFeedRationDialog", dialog)
+    local gui = g_gui:loadGui(modDirectory .. "gui/RLFeedRationDialog.xml", "RLFeedRationDialog", dialog)
+    if gui == nil then
+        Log:warning("RLFeedRationDialog.register: gui/RLFeedRationDialog.xml did not load")
+        return
+    end
     RLFeedRationDialog.INSTANCE = dialog
     Log:trace("RLFeedRationDialog.register: dialog registered")
 end
@@ -40,10 +44,22 @@ end
 --- @param callback function|nil fn(target, sent) when the dialog closes
 --- @param target table|nil
 function RLFeedRationDialog.show(placeable, callback, target)
-    if placeable == nil or placeable.spec_husbandryFood == nil then return end
-    if RLFeedRationDialog.INSTANCE == nil then RLFeedRationDialog.register() end
-    local dialog = RLFeedRationDialog.INSTANCE
+    if placeable == nil or placeable.spec_husbandryFood == nil then
+        Log:warning("RLFeedRationDialog.show: no pen with a trough; not opened")
+        return
+    end
+    -- rawget: Class() makes this table fall back to MessageDialog, so a plain read of INSTANCE
+    -- answers with the base game's MessageDialog and the dialog would never be loaded (UI-RATION-01).
+    if rawget(RLFeedRationDialog, "INSTANCE") == nil or g_gui.guis == nil or g_gui.guis.RLFeedRationDialog == nil then
+        RLFeedRationDialog.register()
+    end
+    local dialog = rawget(RLFeedRationDialog, "INSTANCE")
+    if dialog == nil then
+        Log:warning("RLFeedRationDialog.show: dialog could not be loaded; not opened")
+        return
+    end
     dialog.placeable, dialog.callback, dialog.callbackTarget = placeable, callback, target
+    Log:debug("RLFeedRationDialog.show: %s", placeable.getName ~= nil and placeable:getName() or "?")
     g_gui:showDialog("RLFeedRationDialog")
 end
 
