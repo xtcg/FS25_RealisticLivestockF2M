@@ -92,6 +92,9 @@ source(modDirectory .. "scripts/animals/husbandry/placeables/PlaceableHusbandryW
 source(modDirectory .. "scripts/animals/husbandry/placeables/RealisticLivestock_PlaceableHusbandryAnimals.lua")
 source(modDirectory .. "scripts/animals/husbandry/placeables/RealisticLivestock_PlaceableHusbandryMilk.lua")
 source(modDirectory .. "scripts/animals/husbandry/placeables/RealisticLivestock_PlaceableHusbandryFood.lua")
+-- Pasture seasons (xml/pastureSeasons.xml: config and pure season arithmetic, then the meadow adapter).
+source(modDirectory .. "scripts/animals/husbandry/placeables/RLPastureSeason.lua")
+source(modDirectory .. "scripts/animals/husbandry/placeables/RLMeadowSeason.lua")
 source(modDirectory .. "scripts/animals/husbandry/placeables/RealisticLivestock_PlaceableHusbandryPallets.lua")
 
 -- SECTION 5: Animal Husbandry - Core Systems

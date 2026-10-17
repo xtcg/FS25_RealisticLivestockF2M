@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    The pasture adapter (RLPastureSeason, RLMeadowSeason): the fresh grass of a pen's own pasture
+    (husbandry meadow) through the winter. A copy in the mod's modSettings folder replaces this
+    file. Wool shearing seasons are in breedTraits.xml (woolShearing).
+
+    There is one DEFAULT preset and any number of map presets. A map preset applies when
+    one of its `maps` (mod names, space separated) is the loaded map; else DEFAULT does.
+
+    Only pens with a pasture (sheep, cattle, horses: any husbandry meadow). Normal fields, mown
+    grass and anything in a trough (grass, hay, silage) are never touched.
+
+    The edible share of the pasture's fresh grass follows the season, in model days (a game month
+    is 30 model days at any days-per-month setting):
+
+      ramp down   from the first dormant month on, rampDownDays to fall from 1 to dormantFactor;
+                  the grass the factor takes away is gone (it withered), and a growth update in
+                  this time adds nothing back
+      dormant     the rest of the dormant months: dormantFactor; a growth update or a month change
+                  restores nothing
+      recovery    from the first growing month on: what the map's growth gives, less the share
+                  of the pasture's grass area not grown back yet (1 - factor, the factor rising
+                  from dormantFactor to 1 over rampUpDays); nothing comes back that withered in
+                  the autumn
+      warning     warnDays before the ramp down starts, the pen's owner is told to provide
+                  supplementary feed (hay or silage in the trough)
+
+    The pen's food rows, the info box, the ration planner and what the animals eat all see the
+    same edible amount.
+
+    dormancy      AUTO: dormant months are those in which the map's growth table (foliage
+                  growth.seasonal) lets none of the pasture's fruit types grow into or within its
+                  eatable states (Hof Bergmann's grass and meadow: late autumn, early and mid
+                  winter). PERIODS: the months in dormantPeriods (EARLY_SPRING .. LATE_WINTER).
+    enabled       false: the pasture behaves as the base game's.
+    With seasonal growth off (growth mode daily or disabled) the factor is 1 all year.
+
+    The 14 days and the factor 0 are a game fit for Hof Bergmann's winters, not an ecological rule:
+    mild climates graze through the winter (AHDB deferred grazing), which a map's own growth table
+    expresses by growing in those months, and then AUTO finds no dormancy.
+-->
+<pastureSeasons>
+    <meadow>
+        <preset name="DEFAULT" enabled="true" dormancy="AUTO" rampDownDays="14" rampUpDays="14" dormantFactor="0" warnDays="7"/>
+        <preset name="HOF_BERGMANN" maps="FS25_HofBergmann" enabled="true" dormancy="AUTO" rampDownDays="14" rampUpDays="14" dormantFactor="0" warnDays="7"/>
+    </meadow>
+</pastureSeasons>

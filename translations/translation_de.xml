@@ -1023,6 +1023,7 @@
         <text name="rl_feed_calfMilkAlert" text="%s: %d calves on milk have no calf milk - they will lose health and may die"/>
         <text name="rl_feed_calfMilkLowAlert" text="%s: calf milk runs out in %s"/>
         <text name="rl_feed_lambNoDam" text="%s: %d Lämmer, die noch Milch brauchen, sind nicht bei ihrem Mutterschaf - sie verlieren Gesundheit und können sterben"/>
+        <text name="rl_meadow_witherWarning" text="%s: Das Weidegras stirbt in etwa %d Tagen für den Winter ab - Heu oder Silage in den Trog geben"/>
         <text name="rl_feed_target_AUTO" text="Automatic"/>
         <text name="rl_feed_target_GROW" text="Growth"/>
         <text name="rl_feed_target_FINISH" text="Finishing"/>
