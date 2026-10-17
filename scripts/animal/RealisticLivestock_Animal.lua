@@ -1156,6 +1156,11 @@ function Animal:showMonitorInfo(box)
     if self.clusterSystem ~= nil and self.clusterSystem.owner.spec_husbandryMilk ~= nil and self.gender ~= nil and self.gender == "female" and self.age >= 12 then
         if self.isLactating ~= nil then box:addLine(g_i18n:getText("rl_ui_lactating"),
                 self.isLactating and g_i18n:getText("rl_ui_yes") or g_i18n:getText("rl_ui_no")) end
+    elseif self.gender == "female" and self.isParent and RLFeed ~= nil and RLFeed.getNursingState ~= nil
+        and (RLFeed.getConfig(self).nursing ~= nil or RLFeed.getConfig(self).monogastric ~= nil) then
+        -- A ewe or sow: whether she nurses young now (lambs or a litter at foot), not the milk flag
+        -- (RLFeed.getNursingState); neither gives saleable milk.
+        box:addLine(g_i18n:getText("rl_ui_lactating"), self:getIsNursing() and g_i18n:getText("rl_ui_yes") or g_i18n:getText("rl_ui_no"))
     end
 
     box:addLine(g_i18n:getText("rl_ui_weight"), string.format("%.2f", self.weight) .. "kg")
@@ -1913,6 +1918,15 @@ function Animal.warnUnscaledWool(subType)
     if Animal.unscaledWoolWarned[name] then return end
     Animal.unscaledWoolWarned[name] = true
     Log:warning("updateOutput: %s makes WOOL on a curve no breedTraits woolScale configures; it keeps the 12 C cold gate", tostring(name))
+end
+
+--- Whether she nurses young now (RLFeed.getNursingState): a cow or goat in milk (isLactating), a ewe
+--- whose lambs on milk are with her, a sow with her unweaned litter. Display and reports only; the
+--- saleable milk and the milk flag stay isLactating's.
+---@return boolean
+function Animal:getIsNursing()
+    if RLFeed ~= nil and RLFeed.getNursingState ~= nil then return (RLFeed.getNursingState(self)) end
+    return self.isLactating == true
 end
 
 --- Milk yield through the lactation (RLLactation.getYieldFactor: 0.8 at birth, 1.3 at 3 months,

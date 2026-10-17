@@ -340,6 +340,44 @@ function RLFeed.isNursingDam(animal)
 end
 
 
+--- Whether a dam is nursing young now, and how - what a display or a report should call
+--- "lactating". Three different things share that word:
+---   isLactating (the saved flag): the game's milk rule (RLLactation.startsAtBirth): a cow or goat
+---     in milk after giving birth - the flag the saleable milk output, the cattle feed class, the
+---     cattle dam's calf milk (RLFeed.canNurse) and the mastitis prerequisite read. Never set for a
+---     ewe or a sow: they give no saleable milk.
+---   A ewe nursing: her lambs on milk by their age are in her pen (RLFeed.isNursingDam): the milk
+---     her budget pays for them (nursing rules, sheep); none when they are away or weaned.
+---   A sow nursing: a litter of hers under the pen gate's weaning age (feedProfiles monogastric
+---     youngLegacyUntilMonth) is in her pen. Shown only: no sow milk is modelled yet (the pen keeps
+---     the old feeding rules, RLFeed.stepFallback), so no milk is made or paid for it.
+--- Reads only; nothing here makes milk.
+--- @param animal table
+--- @return boolean nursing
+--- @return string|nil kind "MILK" (isLactating), "NURSING" (a ewe's lambs drink her milk), "SUCKLING" (a sow's litter, not modelled)
+function RLFeed.getNursingState(animal)
+    if animal == nil or animal.isDead then return false, nil end
+    if animal.isLactating == true then return true, "MILK" end
+    if animal.gender ~= "female" or not animal.isParent then return false, nil end
+    local config = RLFeed.getConfig(animal)
+    if config.nursing ~= nil then
+        if RLFeed.isNursingDam(animal) then return true, "NURSING" end
+        return false, nil
+    end
+    local mono = config.monogastric
+    local owner = getOwner(animal)
+    if mono == nil or owner == nil or owner.getClusters == nil or animal.getIdentifiers == nil then return false, nil end
+    local id = animal:getIdentifiers()
+    for _, young in ipairs(owner:getClusters() or {}) do
+        if young ~= animal and not young.isDead and (young.numAnimals or 1) > 0 and young.motherId ~= nil and young.motherId == id
+            and getFeedAge(young) < mono.youngLegacyUntilMonth then
+            return true, "SUCKLING"
+        end
+    end
+    return false, nil
+end
+
+
 --- A nursing dam's milk at full feed now (real kg a day, as drunk; nursing lactation rows: her
 --- system, single or twin by the young she suckles here - more share the twin row - in the month
 --- of her youngest's age), the young she suckles and their age. 0 when she suckles none.
