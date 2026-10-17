@@ -3,8 +3,11 @@
     Health updates, death processing, and the daily death rolls - low health,
     old age, random accidents. Old-age and accident chances are per month and
     are converted to a daily chance at the live days per period; the low-health
-    chance is already daily. Animal.lua holds one-liner delegates that route
-    here, and must be sourced AFTER this module.
+    chance is already daily. An animal under the real-equivalent nutrition mode
+    (RLFeed) takes its low-health chance from the risk its steps built up instead
+    (rlGrowth lowHealthHazard: the mode's one curve for every gene, per model day),
+    taken and cleared at every day change. Animal.lua holds one-liner delegates
+    that route here, and must be sourced AFTER this module.
 
     Serialization and XML load/save stay in Animal.lua: health, isDead and
     numAnimals are initialized in the constructor and serialized as part of the
@@ -291,10 +294,26 @@ function AnimalHealth.getAccidentMonthlyDeathChance(animal, spec)
 end
 
 
---- Roll the daily low-health death; no draw is spent when the chance is not above 0.
+--- Take the low-health risk the real-equivalent nutrition mode's steps built up since the last day
+--- change (RLFeed.addDeathRisk) and clear it: drawn once, whatever happens to the draw (death off,
+--- an unowned pen, a client). nil when no step of the mode ran since.
 --- @param animal table Animal instance
+--- @return number|nil hazard
+function AnimalHealth.takeLowHealthHazard(animal)
+    local state = animal.rlGrowth
+    local hazard = state ~= nil and state.lowHealthHazard or nil
+    if state ~= nil then state.lowHealthHazard = nil end
+    return hazard
+end
+
+
+--- Roll the daily low-health death; no draw is spent when the chance is not above 0. With a hazard
+--- (an animal the real-equivalent nutrition mode stepped since the last day change) the chance is
+--- the one it stands for, not the old rule's.
+--- @param animal table Animal instance
+--- @param hazard number|nil AnimalHealth.takeLowHealthHazard's
 --- @return number died 1 if the animal died, 0 otherwise
-function AnimalHealth.calculateLowHealthDailyAnimalDeaths(animal)
+function AnimalHealth.calculateLowHealthDailyAnimalDeaths(animal, hazard)
 
     if animal.numAnimals <= 0 or animal.isDead then
         Log:trace("calculateLowHealth: skipped (dead=%s numAnimals=%d)",
@@ -302,7 +321,12 @@ function AnimalHealth.calculateLowHealthDailyAnimalDeaths(animal)
         return 0
     end
 
-    local chance = AnimalHealth.getLowHealthDailyDeathChance(animal)
+    local chance
+    if hazard ~= nil then
+        chance = RLFeedMath.getHazardChance(hazard)
+    else
+        chance = AnimalHealth.getLowHealthDailyDeathChance(animal)
+    end
 
     if not (chance > 0) then
         Log:trace("calculateLowHealth: farmId=%s uniqueId=%s chance=%s, no draw",
@@ -312,8 +336,8 @@ function AnimalHealth.calculateLowHealthDailyAnimalDeaths(animal)
 
     local draw = math.random()
 
-    Log:trace("calculateLowHealth: farmId=%s uniqueId=%s chance=%s draw=%s",
-        tostring(animal.farmId), tostring(animal.uniqueId), tostring(chance), tostring(draw))
+    Log:trace("calculateLowHealth: farmId=%s uniqueId=%s hazard=%s chance=%s draw=%s",
+        tostring(animal.farmId), tostring(animal.uniqueId), tostring(hazard), tostring(chance), tostring(draw))
 
     if draw < chance then
         animal:die("rl_death_health")
@@ -421,6 +445,9 @@ end
 --- @return number randomDeathMoney Sale proceeds from random death, 0 otherwise
 function AnimalHealth.evaluateDaily(animal, spec, daysPerPeriod)
 
+    -- Taken before any skip: risk never waits for a later day (death switched on, the pen owned).
+    local hazard = AnimalHealth.takeLowHealthHazard(animal)
+
     if not animal.deathEnabled or g_server == nil then
         Log:trace("evaluateDaily: skipped (deathEnabled=%s server=%s)",
             tostring(animal.deathEnabled), tostring(g_server ~= nil))
@@ -432,7 +459,7 @@ function AnimalHealth.evaluateDaily(animal, spec, daysPerPeriod)
         return 0, 0, 0, 0
     end
 
-    local lowHealthDeath = animal:calculateLowHealthDailyAnimalDeaths()
+    local lowHealthDeath = animal:calculateLowHealthDailyAnimalDeaths(hazard)
 
     local oldDeath = 0
     if lowHealthDeath == 0 then

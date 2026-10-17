@@ -1600,7 +1600,8 @@ end
 -- Health/death delegates -> AnimalHealth module
 function Animal:die(reason) AnimalHealth.die(self, reason) end
 
-function Animal:calculateLowHealthDailyAnimalDeaths() return AnimalHealth.calculateLowHealthDailyAnimalDeaths(self) end
+function Animal:calculateLowHealthDailyAnimalDeaths(hazard) return AnimalHealth.calculateLowHealthDailyAnimalDeaths(self,
+        hazard) end
 
 function Animal:calculateOldAgeMonthlyAnimalDeaths(daysPerPeriod) return AnimalHealth.calculateOldAgeMonthlyAnimalDeaths(
         self, daysPerPeriod) end

@@ -19,17 +19,20 @@ do
 
     local function nutritionHealth(gene, water)
         local a = GrowthSim.makeAnimal("BULL_ANGUS", { age = 18 })
-        a.health, a.rlHealthCarry, a.genetics.health = 90, 0, gene
+        a.health, a.rlHealthCarry, a.genetics.health = 90, nil, gene
         local result = { supplyNU = 10, maintenanceNU = 10, pregnancyNU = 0, reserve = 0.5 }
         RLFeed.applyHealth(a, { water = water, cp = 1, kg = 1, dtDays = 1 }, result, 1 / 24)
         return a.health, a.rlHealthCarry
     end
-    local good, goodCarry = nutritionHealth(1.75, 0)
-    local poor, poorCarry = nutritionHealth(0.25, 0)
-    check("upstream health: good genes also slow losses in real-equivalent nutrition",
-        near(good + goodCarry, 83.75, 1e-9) and near(poor + poorCarry, 46.25, 1e-9))
-    check("upstream health: real-equivalent recovery keeps its existing gene effect",
-        nutritionHealth(1.75, 1) == 100 and nutritionHealth(0.25, 1) == 92)
+    -- Real-equivalent nutrition takes its own calibration (feedProfiles.xml health): one hour of a
+    -- one-day month is 1.25 model days; a wholly unpaid hour costs 6 / 8 / 10 points at genes
+    -- 1.75 / 1 / 0.25, not upstream's 2 / 8 / 14.
+    check("upstream health: real-equivalent losses use the calibrated gene spread (6 / 8 / 10 an hour)",
+        near(nutritionHealth(1.75, 0), 84, 1e-5) and near(nutritionHealth(1, 0), 82, 1e-5) and near(nutritionHealth(0.25, 0), 80, 1e-5))
+    check("upstream health: real-equivalent recovery is capped at 100 for every gene",
+        nutritionHealth(1.75, 1) == 100 and near(nutritionHealth(0.25, 1), 97.5, 1e-5))
+    local _, carry = nutritionHealth(0.25, 0.5)
+    check("upstream health: real-equivalent health keeps its fractions (no carry left)", carry == nil)
 end
 
 do
