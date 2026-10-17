@@ -610,36 +610,80 @@ function RLFeed.getAnimalTarget(animal, ration, class)
     if target == "AUTO" then
         if animal.gender == "male" then return "FINISH" end
         -- A species whose young females are finished too (sheep: ewe lambs, by the body
-        -- condition's one rule; a maiden ewe from youngUntilMonth grows as a ewe hogg).
-        if RLBodyCondition.isFinishingYoungFemale(animal) then return "FINISH" end
+        -- condition's one rule; a maiden ewe from youngUntilMonth grows as a ewe hogg, after her
+        -- lamb -> hogg window: RLFeed.getYoungTransition).
+        if RLBodyCondition.isFinishingYoungFemale(animal) or RLFeed.getYoungTransition(animal) ~= nil then return "FINISH" end
         return "GROW"
     end
     return target
 end
 
 
---- A weaned male's concentrate route (a species with concentrate routes: sheep; nil for any other
---- animal): what share of the ration's DM his concentrate is aimed at and capped at, apart from what
+--- A weaned male's or maiden female's concentrate route (a species with concentrate routes: sheep;
+--- nil for any other animal, and for a ewe that lambed or is in lamb): what share of the ration's DM his concentrate is aimed at and capped at, apart from what
 --- his rumen is adapted to (the ration's adaptation still limits him too). On AUTO a ram lamb's growth
 --- route (lambTarget / lambCap) moving to a breeding ram's maintenance route (ramTarget / ramCap) over
 --- transitionDays model days from adultFromMonth - his age alone, so the change neither clears his
 --- adaptation nor touches his weight. An explicit FINISH target or share on the pen is the intensive
---- route: at most finishingCap (the rest forage). maxNow: the most he may eat this step, his last
---- step's routed share (else what his rumen is adapted to) + targetRisePerDay a model day.
+--- route: at most finishingCap (the rest forage). When the pen's forage cannot fill the route's
+--- forage share, concentrate makes up the missing forage up to finishingCap (the planner). maxNow:
+--- the most he may eat this step, his last step's routed share (else what his rumen is adapted
+--- to) + targetRisePerDay a model day.
 --- @return table|nil { target (nil: the intensive route), cap, maxNow }
 function RLFeed.getConcentrateRoute(animal, ration, class, dtDays)
     local config = RLFeed.getConfig(animal)
     local route = config.concentrate
-    if route == nil or class == "CALF" or animal.gender ~= "male" then return nil end
+    if route == nil or class == "CALF" then return nil end
+    -- Rams and ram lambs, and maiden ewe lambs and hoggs (a ewe that lambed or is in lamb eats for
+    -- her pregnancy and milk on AUTO as before).
+    if animal.gender ~= "male" and (animal.isParent or animal.isPregnant) then return nil end
     local state = RLGrowth.peekState(animal)
     local last = state ~= nil and (state.concTarget or state.feedAdapted) or 0
     local maxNow = last + route.targetRisePerDay * math.max(dtDays or 0, 0)
     if ration ~= nil and (ration.share ~= nil or ration.target == "FINISH") then
-        return { cap = route.finishingCap, maxNow = maxNow }
+        return { cap = route.finishingCap, finishingCap = route.finishingCap, maxNow = maxNow }
     end
     local t = math.clamp((getFeedAge(animal) - route.adultFromMonth) * config.realDaysPerPeriod / route.transitionDays, 0, 1)
     return { target = route.lambTarget + (route.ramTarget - route.lambTarget) * t,
-        cap = route.lambCap + (route.ramCap - route.lambCap) * t, maxNow = maxNow }
+        cap = route.lambCap + (route.ramCap - route.lambCap) * t, finishingCap = route.finishingCap, maxNow = maxNow }
+end
+
+
+--- A maiden female of a species with concentrate routes (sheep) crossing her body condition's
+--- youngUntilMonth (a ewe lamb becoming a hogg): how far through the route's transitionDays she is
+--- (0..1), by her continuous age; nil outside that window. In it she is still fed freely (FINISH on
+--- AUTO) and what she may lay down fades out to the hogg's ceiling (RLFeed.getTransitionCeiling),
+--- so her gain falls over the window, not in the hour she turns 12
+--- months (before, FINISH -> GROW and 0.82 -> 0.55 at once: about 0.45 -> 0.08 kg an hour at a
+--- one-day month).
+--- @return number|nil t
+function RLFeed.getYoungTransition(animal)
+    local config = RLFeed.getConfig(animal)
+    local route = config.concentrate
+    if route == nil or animal.gender ~= "female" or animal.isParent then return nil end
+    local body = RLBodyCondition.getConfig(animal)
+    if (body.femaleFinishShift or 0) <= 0 or (body.youngUntilMonth or 0) <= 0 then return nil end
+    local days = (getFeedAge(animal) - body.youngUntilMonth) * config.realDaysPerPeriod
+    if days < 0 or days >= route.transitionDays then return nil end
+    return days / route.transitionDays
+end
+
+
+--- The reserve ceiling of a maiden female in her lamb -> hogg window (RLFeed.getYoungTransition)
+--- for a step of dtMonths: what she may still lay down fades from the ewe lamb's rate (her ceiling
+--- as the ewe lamb she was, read on a copy of her just under youngUntilMonth) to none above the
+--- hogg's ceiling over the window - a gain that falls day by day, not in one hour; never below the
+--- hogg's ceiling. nil outside the window.
+function RLFeed.getTransitionCeiling(animal, dtMonths)
+    local t = RLFeed.getYoungTransition(animal)
+    if t == nil then return nil end
+    local body = RLBodyCondition.getConfig(animal)
+    local state = setmetatable({ ageMonths = body.youngUntilMonth - 1e-6 }, { __index = animal.rlGrowth })
+    local young = setmetatable({ age = math.max(math.ceil(body.youngUntilMonth) - 1, 0), rlGrowth = state }, { __index = animal })
+    local from, to = RLBodyCondition.getReserveCeiling(young), RLBodyCondition.getReserveCeiling(animal)
+    if from == nil or to == nil or to >= from then return to end
+    local reserve = RLBodyCondition.getReserve(animal) or to
+    return math.max(to, math.min(from, reserve + (1 - t) * body.gainRatePerMonth * math.max(dtMonths or 0, 0)))
 end
 
 
@@ -759,6 +803,7 @@ end
 local function buildEnergyInput(animal, dtMonths)
     local state = RLGrowth.peekState(animal)
     local input = RLGrowth.buildStepInput(animal, state, 0, 1, dtMonths, true)
+    input.reserveCeiling = RLFeed.getTransitionCeiling(animal, dtMonths) or input.reserveCeiling
     local config = RLFeed.getConfig(animal)
     input.maintenanceFactor = (input.maintenanceFactor or 1) * RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
     input.growthCostPerKg = RLFeed.getGrowthCost(animal, dtMonths)
@@ -1949,6 +1994,8 @@ function RLFeed.applyStepInput(animal, input, feed, dtMonths)
     -- A nursing dam's milk (sheep): her lactation row this step, x her water as a cow's.
     if config.nursing ~= nil then RLFeed.applyDamMilk(animal, input, config, feed.water or 1) end
     input.supplyPerPeriod = dtMonths > 0 and feed.me / dtMonths or 0
+    -- A ewe lamb turning hogg: her ceiling moves over the window (RLFeed.getTransitionCeiling).
+    input.reserveCeiling = RLFeed.getTransitionCeiling(animal, dtMonths) or input.reserveCeiling
     input.maintenanceFactor = (input.maintenanceFactor or 1) * RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
     input.growthCostPerKg = RLFeed.getGrowthCost(animal, dtMonths)
     local _, mePerLiter = RLFeed.getMilkBridge(animal, input.potentialMilk)

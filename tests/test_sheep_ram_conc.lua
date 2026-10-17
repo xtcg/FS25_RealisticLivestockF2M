@@ -81,6 +81,30 @@ do
     check("12 months: his rumen's adaptation is not cleared at the boundary", (r.rlGrowth.feedAdapted or 0) > 0)
 end
 
+-- A maiden ewe lamb turning hogg at 12 months: routed as a lamb (at most 40%), then as a hogg (at most
+-- 25%), and her gain falls over the 14-day window instead of in one hour (before: FINISH -> GROW and
+-- reserve ceiling 0.82 -> 0.55 at once, about 0.46 -> 0.08 kg an hour at a one-day month).
+do
+    local ewe = SheepSim.grown("SHEEP_LANDRACE", "E12", 11.5)
+    ewe.rlGrowth.feedAdapted = 0.3
+    local p = SheepSim.makePen({ ewe }, STOCK)
+    local gains, shares, w = {}, {}, ewe.weight
+    for h = 1, 40 do
+        SheepSim.run(p, 1, STOCK)
+        gains[h], shares[h] = ewe.weight - w, share(ewe)
+        w = ewe.weight
+    end
+    local maxDrop, maxShare = 0, 0
+    for h = 2, 40 do maxDrop = math.max(maxDrop, gains[h - 1] - gains[h]) end
+    for h = 1, 40 do maxShare = math.max(maxShare, shares[h]) end
+    check(string.format("ewe lamb -> hogg: her gain falls over the window (largest fall %.3f kg an hour; %.2f -> %.2f kg an hour)",
+        maxDrop, gains[20], gains[40]), maxDrop < 0.1 and gains[20] > 0.2 and gains[40] < 0.1)
+    check(string.format("ewe lamb -> hogg: routed (largest share %.2f, 25%% cap as a hogg: %.2f)", maxShare, shares[40]),
+        maxShare <= 0.4 + 1e-6 and shares[40] <= 0.25 + 1e-6)
+    check("ewe lamb -> hogg: still fed freely in the window, GROW after it",
+        RLFeed.getYoungTransition(ewe) == nil and ewe.rlFeedIntake.target == "GROW")
+end
+
 -- The route moves by his age: half way through the 14 days, half way between the routes.
 do
     local r = ram("R12H", 12 + 7 / 30, 0.3)
@@ -91,7 +115,7 @@ do
     check("transition: before 12 months the lamb route, from 12 months + 14 days the ram route",
         near(lambGot.target, 0.2, 1e-9) and near(lambGot.cap, 0.4, 1e-9) and near(ramGot.target, 0.1, 1e-9) and near(ramGot.cap, 0.25, 1e-9))
     local ewe = SheepSim.ewe("SHEEP_LANDRACE", "E1")
-    check("scope: ewes, lambs on milk and other species are not routed",
+    check("scope: ewes that lambed, lambs on milk and other species are not routed",
         RLFeed.getConcentrateRoute(ewe, RLFeed.DEFAULT_RATION, "DRY", 0.25) == nil
         and RLFeed.getConcentrateRoute(r, RLFeed.DEFAULT_RATION, "CALF", 0.25) == nil)
 end

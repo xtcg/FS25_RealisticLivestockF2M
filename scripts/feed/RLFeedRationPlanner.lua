@@ -201,7 +201,14 @@ local function planAnimal(a, forageMix, concMix, capped, concScale, request)
     if a.concEligible and concMix ~= nil then
         local cLimit, why = RLFeedMath.getConcentrateLimit(forageMix, concMix, request.classes[a.class], capped)
         c, limit = cLimit, why
-        if route ~= nil and route.cap < c then c, limit = route.cap, "TARGET" end
+        local routeCap, routeTarget = route ~= nil and route.cap or nil, route ~= nil and route.target or nil
+        if route ~= nil and (a.forageFill or 1) < 1 - 1e-9 then
+            -- Too little forage in stock for the route's share: concentrate makes up the forage that
+            -- is missing (the same forage kg, the rest of its appetite), up to the intensive cap.
+            routeCap = math.max(routeCap, math.min(route.finishingCap or routeCap, 1 - (1 - routeCap) * math.max(a.forageFill, 0)))
+            routeTarget = nil
+        end
+        if routeCap ~= nil and routeCap < c then c, limit = routeCap, "TARGET" end
         cLimit = c
         if request.share ~= nil then
             if request.share < c then c, limit = request.share, "TARGET" end
@@ -218,7 +225,7 @@ local function planAnimal(a, forageMix, concMix, capped, concScale, request)
                 g = g + RLFeedRationPlanner.AUTO_STEP
             end
             if best ~= nil and best.c < c - 1e-9 then c, limit = best.c, "PROTEIN_OR_DEMAND" end
-            if route ~= nil and route.target ~= nil and c > 0 then
+            if routeTarget ~= nil and c > 0 then
                 -- The least grid share whose energy covers its needs (scored fully adapted, as above).
                 local needed, g2 = c, 0
                 while true do
@@ -227,7 +234,7 @@ local function planAnimal(a, forageMix, concMix, capped, concScale, request)
                     if g2 >= c then break end
                     g2 = g2 + RLFeedRationPlanner.AUTO_STEP
                 end
-                local want = math.max(route.target, needed)
+                local want = math.max(routeTarget, needed)
                 if want < c - 1e-9 then c, limit = want, "TARGET" end
             end
             a.adapted = adapted
@@ -418,6 +425,10 @@ function RLFeedRationPlanner.plan(request)
                 if a.concEligible then eligibleIntake = eligibleIntake + a.forageKg + a.concKg end
             end
             if pass == 1 then
+                -- A routed animal (a.concRoute) whose forage the stock cannot give replaces it with
+                -- concentrate in the second pass (planAnimal).
+                local fill = forageNeed > 0 and math.min(availableKg(group.forage) / forageNeed, 1) or 1
+                for _, a in ipairs(group.animals) do if a.concRoute ~= nil then a.forageFill = fill end end
                 _, _, forageParts = RLFeedRationPlanner.takeSerial(group.forage, forageNeed, nil, false)
                 forageMix = RLFeedMath.compose(forageParts) or forageMix
                 local mix, shares, total = concentrateMix(group.concentrate, concNeed, eligibleIntake)
