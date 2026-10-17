@@ -818,8 +818,9 @@ do
     local savedServer = g_server
     g_server = nil
     RLBodyConditionStateEvent.emptyNew():readStream(1, serverConn)
+    -- The reserve travels on its canonical 1e-6 grid (SHEEP-FATCLASS-BOUNDARY-01): what the server reads.
     check("network: the hourly state event gives the client the server's weight, reserve and budget",
-        clientCow.weight == cow.weight and clientCow.bodyCondition.reserve == cow.bodyCondition.reserve
+        clientCow.weight == cow.weight and clientCow.bodyCondition.reserve == RLBodyCondition.getReserve(cow)
         and near(clientCow.rlNutrition.coverage, cow.rlNutrition.coverage, 1e-12) and clientPen.spec_husbandryFood.rlPenSummary ~= nil)
 
     -- A client sending it to the server changes nothing.

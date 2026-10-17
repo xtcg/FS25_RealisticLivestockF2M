@@ -257,13 +257,31 @@ function RLBodyCondition.copyState(state)
 end
 
 
---- The reserve: the saved one, or the one the animal would start with.
+--- Step of the canonical reserve every reading uses (fat class, finish score, BCS, yield, market,
+--- display) and the savegame and stream carry: a float written to the savegame comes back a few
+--- 1e-8 away (0.49999996 -> 0.5), which flipped a sheep's fat class 3L/3H across a reload
+--- (SHEEP-FATCLASS-BOUNDARY-01). The model's own step keeps the unrounded value. An engineering
+--- setting, not a biological one.
+RLBodyCondition.RESERVE_QUANTUM = 1e-6
+
+
+--- A reserve on the canonical 1e-6 grid (stable: quantizing again gives the same number).
+--- @param reserve number
+--- @return number
+function RLBodyCondition.quantizeReserve(reserve)
+    if reserve == nil or reserve ~= reserve then return reserve end
+    local steps = 1 / RLBodyCondition.RESERVE_QUANTUM
+    return math.floor(reserve * steps + 0.5) / steps
+end
+
+
+--- The reserve: the saved one, or the one the animal would start with, on the canonical grid.
 --- @param animal table
 --- @return number
 function RLBodyCondition.getReserve(animal)
     local state = animal.bodyCondition
-    if state ~= nil and state.reserve ~= nil then return state.reserve end
-    return RLBodyCondition.getInitialReserve(animal)
+    if state ~= nil and state.reserve ~= nil then return RLBodyCondition.quantizeReserve(state.reserve) end
+    return RLBodyCondition.quantizeReserve(RLBodyCondition.getInitialReserve(animal))
 end
 
 
@@ -892,7 +910,7 @@ function RLBodyCondition.loadFromXMLFile(xmlFile, key)
 
     return {
         version = version,
-        reserve = math.clamp(reserve, 0, 1),
+        reserve = RLBodyCondition.quantizeReserve(math.clamp(reserve, 0, 1)),
         capacityKg = math.max(xmlFile:getFloat(base .. "#capacityKg", 1), 1),
         balanceEMA = xmlFile:getFloat(base .. "#balanceEMA", 0),
         lossRateEMA = xmlFile:getFloat(base .. "#lossRateEMA", 0),
@@ -906,7 +924,7 @@ function RLBodyCondition.saveToXMLFile(state, xmlFile, key)
     if state == nil then return end
     local base = key .. ".bodyCondition"
     xmlFile:setInt(base .. "#version", state.version or RLBodyCondition.STATE_VERSION)
-    xmlFile:setFloat(base .. "#reserve", state.reserve)
+    xmlFile:setFloat(base .. "#reserve", RLBodyCondition.quantizeReserve(state.reserve))
     xmlFile:setFloat(base .. "#capacityKg", state.capacityKg)
     xmlFile:setFloat(base .. "#balanceEMA", state.balanceEMA or 0)
     xmlFile:setFloat(base .. "#lossRateEMA", state.lossRateEMA or 0)
@@ -919,7 +937,7 @@ end
 function RLBodyCondition.writeStream(state, streamId)
     streamWriteBool(streamId, state ~= nil)
     if state == nil then return end
-    streamWriteFloat32(streamId, state.reserve)
+    streamWriteFloat32(streamId, RLBodyCondition.quantizeReserve(state.reserve))
     streamWriteFloat32(streamId, state.capacityKg)
     streamWriteFloat32(streamId, state.balanceEMA or 0)
     streamWriteFloat32(streamId, state.lossRateEMA or 0)
@@ -931,7 +949,7 @@ function RLBodyCondition.readStream(streamId)
     if not streamReadBool(streamId) then return nil end
     return {
         version = RLBodyCondition.STATE_VERSION,
-        reserve = streamReadFloat32(streamId),
+        reserve = RLBodyCondition.quantizeReserve(streamReadFloat32(streamId)),
         capacityKg = streamReadFloat32(streamId),
         balanceEMA = streamReadFloat32(streamId),
         lossRateEMA = streamReadFloat32(streamId),
