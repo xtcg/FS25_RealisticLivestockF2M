@@ -114,11 +114,19 @@ end
 PlaceableHusbandryFood.saveToXMLFile = Utils.appendedFunction(PlaceableHusbandryFood.saveToXMLFile, RealisticLivestock_PlaceableHusbandryFood.saveToXMLFile)
 
 
-function RealisticLivestock_PlaceableHusbandryFood:loadFromXMLFile(xmlFile, key)
+function RealisticLivestock_PlaceableHusbandryFood:loadFromXMLFile(superFunc, xmlFile, key)
+    -- addFood -> getFreeFoodCapacity normally applies the live unloading gate. A saved
+    -- trough must instead restore its already-owned stock before the mode/settings load.
+    local spec = self.spec_husbandryFood
+    local restoring = spec ~= nil and spec.rlRestoringFood or nil
+    if spec ~= nil then spec.rlRestoringFood = true end
+    local ok, err = pcall(superFunc, self, xmlFile, key)
+    if spec ~= nil then spec.rlRestoringFood = restoring end
+    if not ok then error(err, 0) end
     RLFeed.loadPen(self, xmlFile, key)
 end
 
-PlaceableHusbandryFood.loadFromXMLFile = Utils.appendedFunction(PlaceableHusbandryFood.loadFromXMLFile, RealisticLivestock_PlaceableHusbandryFood.loadFromXMLFile)
+PlaceableHusbandryFood.loadFromXMLFile = Utils.overwrittenFunction(PlaceableHusbandryFood.loadFromXMLFile, RealisticLivestock_PlaceableHusbandryFood.loadFromXMLFile)
 
 
 function RealisticLivestock_PlaceableHusbandryFood.onSettingChanged(name, state)

@@ -1028,6 +1028,11 @@ end
 --- Whether a pen's trough takes more of a fill type: grain only while the mode is on; a species'
 --- added feeds (sheep: silage, grain) only while its pen eats them (RLFeed.isSpeciesFeedOpen).
 function RLFeed.acceptsFill(placeable, fillTypeIndex)
+    -- Restoring existing stock is not new unloading. The save's mode and species settings
+    -- load after the trough, and fallback pens must keep their stock for a later recovery.
+    -- The engine still checks the supported fill type and the trough's actual capacity.
+    local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
+    if spec ~= nil and spec.rlRestoringFood then return true end
     if RLFeed.mode == RLFeed.MODE_REAL then
         local species = getAddedFills(placeable)[fillTypeIndex]
         if type(species) == "string" then return RLFeed.isSpeciesFeedOpen(placeable, species) end
