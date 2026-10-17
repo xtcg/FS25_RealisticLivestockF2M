@@ -618,6 +618,31 @@ function RLFeed.getAnimalTarget(animal, ration, class)
 end
 
 
+--- A weaned male's concentrate route (a species with concentrate routes: sheep; nil for any other
+--- animal): what share of the ration's DM his concentrate is aimed at and capped at, apart from what
+--- his rumen is adapted to (the ration's adaptation still limits him too). On AUTO a ram lamb's growth
+--- route (lambTarget / lambCap) moving to a breeding ram's maintenance route (ramTarget / ramCap) over
+--- transitionDays model days from adultFromMonth - his age alone, so the change neither clears his
+--- adaptation nor touches his weight. An explicit FINISH target or share on the pen is the intensive
+--- route: at most finishingCap (the rest forage). maxNow: the most he may eat this step, his last
+--- step's routed share (else what his rumen is adapted to) + targetRisePerDay a model day.
+--- @return table|nil { target (nil: the intensive route), cap, maxNow }
+function RLFeed.getConcentrateRoute(animal, ration, class, dtDays)
+    local config = RLFeed.getConfig(animal)
+    local route = config.concentrate
+    if route == nil or class == "CALF" or animal.gender ~= "male" then return nil end
+    local state = RLGrowth.peekState(animal)
+    local last = state ~= nil and (state.concTarget or state.feedAdapted) or 0
+    local maxNow = last + route.targetRisePerDay * math.max(dtDays or 0, 0)
+    if ration ~= nil and (ration.share ~= nil or ration.target == "FINISH") then
+        return { cap = route.finishingCap, maxNow = maxNow }
+    end
+    local t = math.clamp((getFeedAge(animal) - route.adultFromMonth) * config.realDaysPerPeriod / route.transitionDays, 0, 1)
+    return { target = route.lambTarget + (route.ramTarget - route.lambTarget) * t,
+        cap = route.lambCap + (route.ramCap - route.lambCap) * t, maxNow = maxNow }
+end
+
+
 -- =============================================================================
 -- Animal descriptors
 -- =============================================================================
@@ -827,6 +852,7 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
         fill = RLFeedMath.getFillCapacity(weight, class, config.intake, gene) * cowIntake,
         -- Every animal may eat concentrate its feeding stage allows (a calf: a starter feed).
         concEligible = true,
+        concRoute = RLFeed.getConcentrateRoute(animal, ration, class, dtDays),
         adapted = state.feedAdapted or 0,
         milkMax = class == "CALF" and milkMax or 0,
         milkMaxKgPerDay = milkLimit,
@@ -1418,6 +1444,8 @@ function RLFeed.runStep(placeable, window, stepDays)
         -- over model time, in any pen.
         if animal.rlGrowth ~= nil and feed.result ~= nil then
             animal.rlGrowth.waterIntake = (a.waterCap or 1) < 1 - 1e-9 and a.waterCap or nil
+            -- A routed animal's share this step: the next may rise from it only so fast.
+            if a.concRoute ~= nil and a.routeC ~= nil then animal.rlGrowth.concTarget = a.routeC end
         end
         if a.nursing ~= nil and hour.animals[animal] ~= nil then
             -- What her budget paid this step, as real kg DM her calves may drink.

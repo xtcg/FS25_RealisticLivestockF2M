@@ -449,6 +449,18 @@
             <class name="LACTATING" peNdfMin="0.18" fermentableMax="0.35"/>
             <class name="DRY" peNdfMin="0.20" fermentableMax="0.30"/>
         </ration>
+        <!-- Concentrate routes (SHEEP-RAM-CONC-01, 2026-10-18): a weaned male's concentrate share of the ration's
+             DM on AUTO, apart from his rumen's adaptation (14 days above). A ram lamb grows on 20% (up to 40% as his
+             needs want), a breeding ram from 12 months is kept on 10% (up to 25%; good forage alone is enough),
+             moving between the two over 14 model days; an explicit FINISH target or share is intensive finishing,
+             at most 80% (at least 20% forage DM, a conservative game rule); the share rises by at most 5 points a
+             model day. Real practice: concentrate is built up over 2-3 weeks (Teagasc, finishing store lambs on
+             all-concentrate diets; SRUC), and an all-concentrate finishing diet exists - 95% is not wrong as such,
+             only as the default for a breeding ram. Rams are fed for condition before tupping (Teagasc Sheep
+             Newsletter Dec 2023). The targets and caps are game fits, not a recommendation of those bodies.
+             Ewe lambs and ewes are not routed here. -->
+        <concentrate lambTarget="0.20" lambCap="0.40" ramTarget="0.10" ramCap="0.25" finishingCap="0.80"
+            adultFromMonth="12" transitionDays="14" targetRisePerDay="0.05"/>
         <milk realKgPerDay="2.1" meMJPerKg="8.3"/>
         <damMilk dm="0.19" me="25.0" cp="0.28"/>
         <nursing weaningMonth="3" earlyWeaningMonth="2" readyCreepKgPerDay="0.25" readyDays="3.5"
