@@ -1018,6 +1018,7 @@
         <text name="rl_feed_limit_UNKNOWN" text="Unknown limit"/>
         <text name="rl_feed_limit_NO_CALF_MILK" text="No calf milk"/>
         <text name="rl_feed_limit_CREEP" text="Creep cap"/>
+        <text name="rl_feed_limit_WATER" text="Water short"/>
         <text name="rl_feed_penCalfMilk" text="Calves on milk"/>
         <text name="rl_feed_calfMilkNone" text="%d without calf milk"/>
         <text name="rl_feed_calfMilkLow" text="Calf milk for %s"/>

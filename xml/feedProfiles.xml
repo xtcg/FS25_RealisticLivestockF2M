@@ -224,6 +224,18 @@
     the twin row, at most maxSuckled counted); breeds name their system, the rest use default.
     Her milk is never sold or stored: she makes what her young drink from it, paid by her budget.
 
+    water: water first, then intake (a first game fit, not a real formula; it needs a real
+    water cut and recovery to check it). Each hour a pen's water coverage is read off its water
+    spec before the feeding (the engine draws water after the food): an automatic supply covers all;
+    otherwise the water stock in the pen - filled by hand, a pipeline or a rain water tank's
+    deliveries - over the hour's need. Water in fresh feed is not counted (version 1); the milk a
+    young animal still drinks is (its milkMax of the diet counts as covered). From fullFrom of its
+    water an animal eats freely; at halfCoverage at most halfIntake of its dry intake; with none
+    minIntake. A shortage takes that much off within dropHours model hours, and once water is back
+    the intake comes back over recoveryDays model days (rlGrowth waterIntake, saved). Milk follows
+    the coverage, and health the coverage too (reason WATER, kept apart from feed shortfall in the
+    records). Water amounts themselves (animals.xml input water) are not changed here.
+
     Copy this file to modSettings/FS25_RealisticLivestockRM/feedProfiles.xml to change it; that
     copy replaces this file. A file that fails a check keeps the mode off and logs why; a single
     feed that fails is left uneaten and listed.
@@ -255,6 +267,8 @@
     <calfMilk realLitersPerDay="5" density="1.03" dm="0.50" sizeExponent="0.75" nursingLitersPerDay="10" earlyWeaningMonth="3"/>
 
     <damMilk dm="0.125" me="22.5" cp="0.25"/>
+
+    <water fullFrom="0.9" halfCoverage="0.5" halfIntake="0.6" minIntake="0.2" dropHours="6" recoveryDays="2"/>
 
     <protein maintenance="0.065" calf="0.18" young="0.14" growing="0.12" finishing="0.105"
         lactating="0.16" dry="0.10" youngUntilMonth="8" growingUntilMonth="14" lactatingAtKg="30"

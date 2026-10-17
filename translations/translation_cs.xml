@@ -1027,6 +1027,7 @@
         <text name="rl_feed_limit_UNKNOWN" text="限制未知"/>
         <text name="rl_feed_limit_NO_CALF_MILK" text="缺小牛奶"/>
         <text name="rl_feed_limit_CREEP" text="小羊补饲上限"/>
+        <text name="rl_feed_limit_WATER" text="缺水"/>
         <text name="rl_feed_penCalfMilk" text="吃奶小牛"/>
         <text name="rl_feed_calfMilkNone" text="%d 头缺小牛奶"/>
         <text name="rl_feed_calfMilkLow" text="小牛奶还够 %s"/>

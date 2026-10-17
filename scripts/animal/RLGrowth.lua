@@ -36,7 +36,9 @@
         anchorElapsedMonths (an old savegame's animal, below), feedAdapted (the concentrate share its
         rumen is adapted to), feedShortDays (model days of maintenance shortfall built up) and
         creepDays (model days in a row a young animal has eaten creep feed in earnest: an orphan
-        lamb's readiness to wean) and weanedEarly (true once an orphan lamb was weaned early: it
+        lamb's readiness to wean), waterIntake (the share of its dry intake its water allows, nil:
+        all; it falls and recovers over model time), concTarget (the concentrate share a sheep's
+        route let it eat last step: the next may rise from it only so fast) and weanedEarly (true once an orphan lamb was weaned early: it
         never goes back on milk), lowHealthHazard (the low-health death risk its steps built up
         since the last day change; saved, not streamed: only the server draws it), all
         real-equivalent nutrition (RLFeed), source ("birth", "generated",
@@ -569,6 +571,8 @@ function RLGrowth.newState(fields)
         creepDays = fields.creepDays,
         weanedEarly = fields.weanedEarly,
         lowHealthHazard = fields.lowHealthHazard,
+        waterIntake = fields.waterIntake,
+        concTarget = fields.concTarget,
         gravidKg = fields.gravidKg,
         lactationMonths = fields.lactationMonths,
         source = fields.source or "derived",
@@ -1535,6 +1539,8 @@ function RLGrowth.loadFromXMLFile(xmlFile, key)
         creepDays = xmlFile:getFloat(base .. "#creepDays"),
         weanedEarly = xmlFile:getBool(base .. "#weanedEarly") == true or nil,
         lowHealthHazard = xmlFile:getFloat(base .. "#lowHealthHazard"),
+        waterIntake = xmlFile:getFloat(base .. "#waterIntake"),
+        concTarget = xmlFile:getFloat(base .. "#concTarget"),
         gravidKg = xmlFile:getFloat(base .. "#gravidKg"),
         lactationMonths = xmlFile:getFloat(base .. "#lactationMonths"),
         source = xmlFile:getString(base .. "#source", "derived"),
@@ -1622,6 +1628,8 @@ function RLGrowth.isUsable(state)
         and optional(state.feedShortDays) and optional(state.gravidKg) and optional(state.lactationMonths)
         and optional(state.creepDays) and (state.weanedEarly == nil or state.weanedEarly == true)
         and optional(state.lowHealthHazard)
+        and (state.waterIntake == nil or (finite(state.waterIntake) and state.waterIntake >= 0 and state.waterIntake <= 1))
+        and (state.concTarget == nil or (finite(state.concTarget) and state.concTarget >= 0 and state.concTarget <= 1))
 end
 
 
@@ -1646,6 +1654,8 @@ function RLGrowth.saveToXMLFile(state, xmlFile, key)
     if state.creepDays ~= nil then xmlFile:setFloat(base .. "#creepDays", state.creepDays) end
     if state.weanedEarly then xmlFile:setBool(base .. "#weanedEarly", true) end
     if state.lowHealthHazard ~= nil then xmlFile:setFloat(base .. "#lowHealthHazard", state.lowHealthHazard) end
+    if state.waterIntake ~= nil then xmlFile:setFloat(base .. "#waterIntake", state.waterIntake) end
+    if state.concTarget ~= nil then xmlFile:setFloat(base .. "#concTarget", state.concTarget) end
     if state.gravidKg ~= nil then xmlFile:setFloat(base .. "#gravidKg", state.gravidKg) end
     if state.lactationMonths ~= nil then xmlFile:setFloat(base .. "#lactationMonths", state.lactationMonths) end
     xmlFile:setString(base .. "#source", state.source or "derived")

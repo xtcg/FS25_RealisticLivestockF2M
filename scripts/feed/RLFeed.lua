@@ -812,13 +812,17 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
         appetiteCtx.milkKgPerDay = milkKg + 1
         appetitePerMilkKg = RLFeedMath.getAppetite(weight, class, config.intake, appetiteCtx) - appetite
     end
+    -- Water first: short of it an animal eats less (its dry intake share, RLFeed.getAnimalWater).
+    local waterCoverage, water = RLFeed.getAnimalWater(animal, class == "CALF" and milkMax or 0, dtDays)
+    cowIntake = cowIntake * water
 
     return {
         animal = animal, class = class, target = target, stage = getFeedStage(animal, milkMax), milkKgPerDay = milkKg,
         milkCollect = milkCollect, appetitePerMilkKg = appetitePerMilkKg ~= nil and appetitePerMilkKg * cowIntake or nil,
         appetite = appetite * cowIntake,
         -- A calf on milk: what its rumen takes of solids, at its solidMax.
-        solidCap = class == "CALF" and solidMax * RLFeedMath.getCalfSolidCapacity(weight, config.intake, weaningX, gene) or nil,
+        solidCap = class == "CALF" and solidMax * RLFeedMath.getCalfSolidCapacity(weight, config.intake, weaningX, gene) * water or nil,
+        waterCoverage = waterCoverage, waterCap = water,
         fill = RLFeedMath.getFillCapacity(weight, class, config.intake, gene) * cowIntake,
         -- Every animal may eat concentrate its feeding stage allows (a calf: a starter feed).
         concEligible = true,
@@ -866,11 +870,12 @@ function RLFeed.describeMonogastricAnimal(animal, ration, dtMonths, dtDays, conf
     local days = config.realDaysPerPeriod
     local weight = math.max(animal.weight or 0, 0) + 0.5 * (demands.growthKg or 0)
     local sex = RLFeedMath.getMonoSex(animal.gender, animal.isCastrated)
+    local waterCoverage, water = RLFeed.getAnimalWater(animal, 0, dtDays)
     return {
         animal = animal, class = class, target = target, stage = "WEANED", milkKgPerDay = 0, milkCollect = 1,
-        weight = weight, sex = sex,
-        appetite = RLFeedMath.getMonoPhysicalCap(weight, mono) * gene,
-        energyCap = RLFeedMath.getMonoEnergyIntake(weight, sex, mono) * gene,
+        weight = weight, sex = sex, waterCoverage = waterCoverage, waterCap = water,
+        appetite = RLFeedMath.getMonoPhysicalCap(weight, mono) * gene * water,
+        energyCap = RLFeedMath.getMonoEnergyIntake(weight, sex, mono) * gene * water,
         fill = 0, concEligible = false, adapted = 1, milkMax = 0, milkMaxKgPerDay = 0, nursingMaxKgPerDay = 0,
         solidMax = 1, solidEnergy = 1,
         proteinNeed = RLFeedMath.getLysineNeed(weight, sex, mono),
@@ -1049,6 +1054,10 @@ function RLFeed.beginFeeding(placeable)
     local spec = placeable.spec_husbandryFood
     if spec == nil then return false end
     local tick = RLBodyCondition.getTickId()
+    -- The hour's water before its feeding (the engine draws the water after the food): what the
+    -- pen's water spec will give this hour, recorded now; the water spec records what the
+    -- animals actually drank once it has drawn it (RL_PlaceableHusbandryWater.updateFeeding).
+    if placeable.spec_husbandryWater ~= nil then RLBodyCondition.recordWater(placeable, (RLFeed.getWaterSupply(placeable))) end
     local active, reason = RLFeed.evaluatePen(placeable)
     spec.rlFeedPen = { tick = tick, active = active, reason = reason }
     spec.rlFeedWindow = active and { tick = tick } or nil
@@ -1060,6 +1069,51 @@ function RLFeed.beginFeeding(placeable)
             daysPerPeriod = environment.daysPerPeriod, pendingDays = spec.rlFeedClock ~= nil and spec.rlFeedClock.pendingDays or 0 })
     end
     return active
+end
+
+
+--- The share of its water need a pen gets this hour, read off its water spec before the feeding:
+--- automatic supply (the pen pays for its water) all of it; otherwise the water stock in the pen
+--- (filled by hand, a pipeline or a rain water tank's deliveries) over the hour's need, as the
+--- engine will draw it after the feeding. A pen without a water spec has no water modelled (1).
+--- Water in fresh feed and in the milk a young animal drinks is not part of the pen's coverage
+--- (RLFeed.getAnimalWater adds the milk; feed moisture is not counted in this version).
+--- @return number coverage 0..1
+--- @return string source "NONE", "AUTOMATIC", "NO_NEED", "STOCK"
+function RLFeed.getWaterSupply(placeable)
+    local water = placeable ~= nil and placeable.spec_husbandryWater or nil
+    if water == nil then return 1, "NONE" end
+    if water.automaticWaterSupply then return 1, "AUTOMATIC" end
+    local environment = g_currentMission ~= nil and g_currentMission.environment or nil
+    local need = (water.litersPerHour or 0) * (environment ~= nil and environment.timeAdjustment or 1)
+    if need <= 0 then return 1, "NO_NEED" end
+    local stock = placeable.getHusbandryFillLevel ~= nil and placeable:getHusbandryFillLevel(water.fillType) or 0
+    return math.clamp((stock or 0) / need, 0, 1), "STOCK"
+end
+
+
+--- A pen's water coverage this hour: as recorded for this hour (before its feeding, then what was
+--- drunk), else read off its water spec now - never an older hour's, never 1 for want of a record.
+function RLFeed.getHourWater(placeable, tick)
+    local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
+    local water = spec ~= nil and spec.rlWaterCoverage or nil
+    tick = tick or RLBodyCondition.getTickId()
+    if water ~= nil and tick ~= nil and water.tick == tick then return water.coverage end
+    return (RLFeed.getWaterSupply(placeable))
+end
+
+
+--- An animal's water this step: its pen's coverage, with the milk it may still drink counted as
+--- covered (a young animal on milk takes its water with it: milkMax of its diet), and the share of
+--- its dry intake that water allows (RLFeedMath.stepWaterIntake from its last step's, read only:
+--- RLFeed.runStep keeps it once the step is taken).
+--- @return number coverage 0..1
+--- @return number intake share 0..1
+function RLFeed.getAnimalWater(animal, milkMax, dtDays)
+    local coverage = RLFeed.getHourWater(getOwner(animal))
+    coverage = 1 - (1 - math.clamp(coverage, 0, 1)) * (1 - math.clamp(milkMax or 0, 0, 1))
+    local state = RLGrowth.peekState(animal)
+    return coverage, RLFeedMath.stepWaterIntake(state ~= nil and state.waterIntake or nil, coverage, dtDays, RLFeed.getConfig(animal).water)
 end
 
 
@@ -1319,8 +1373,8 @@ function RLFeed.runStep(placeable, window, stepDays)
     local observed = #observers > 0 and { placeable = placeable, tick = tick, stepDays = stepDays, scale = config.resourceScale,
         withdraw = plan.withdraw, removed = removedLiters, ledger = hour.monoLedger, animals = {}, dams = {} } or nil
 
-    local water = spec.rlWaterCoverage
-    local waterCoverage = (water ~= nil and water.tick ~= nil and tick - water.tick <= 1) and water.coverage or 1
+    -- This hour's water, worked out before the feeding (RLFeed.beginFeeding): never an older hour's.
+    local waterCoverage = RLFeed.getHourWater(placeable, tick)
     local protein = config.protein
     hour.plannedPerMonth = {}
     -- Dams settle before the calves drinking from them: a calf gets her milk only as far as her
@@ -1345,15 +1399,25 @@ function RLFeed.runStep(placeable, window, stepDays)
             local profile = RLFeedProfiles.getUsableFeed(name, config)
             if profile ~= nil and profile.role == "MILK" then milkDrunk = milkDrunk + fill.kg end
         end
+        -- Held by its water rather than its appetite or rumen: said so.
+        if (a.waterCap or 1) < 1 - 1e-9 and (a.intakeLimit == "APPETITE" or a.intakeLimit == "FILL" or a.intakeLimit == "ENERGY") then
+            a.intakeLimit = "WATER"
+        end
         local feed = { tick = tick, owner = placeable, kg = a.kg, me = a.me, cp = a.cp, byFill = a.byFill, plannedKg = a.plannedKg,
             plannedMe = a.plannedMe, class = a.class, target = a.target, concShare = a.cEaten, concLimit = a.concLimit,
             intakeLimit = a.intakeLimit, proteinFactor = RLFeed.getStepProteinFactor(a, config),
             lysPerMe = config.monogastric ~= nil and a.lysPerMe or nil,
-            proteinNeed = a.proteinNeed, dtDays = stepDays, water = waterCoverage, damMilk = a.damMilk,
+            proteinNeed = a.proteinNeed, dtDays = stepDays, water = a.waterCoverage or waterCoverage, waterIntake = a.waterCap or 1,
+            damMilk = a.damMilk,
             milkDemandFactor = a.milkDemandFactor, milkPlanKg = a.milkPlanKg or 0, milkDrunkKg = milkDrunk }
         local before = observed ~= nil and { weight = animal.weight, health = animal.health, healthCarry = animal.rlHealthCarry or 0 } or nil
         local paidBefore = a.nursing ~= nil and hour.animals[animal] ~= nil and hour.animals[animal].milkPaidLiters or 0
         RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
+        -- Its water intake share is kept with it (saved), so a shortage builds up and passes off
+        -- over model time, in any pen.
+        if animal.rlGrowth ~= nil and feed.result ~= nil then
+            animal.rlGrowth.waterIntake = (a.waterCap or 1) < 1 - 1e-9 and a.waterCap or nil
+        end
         if a.nursing ~= nil and hour.animals[animal] ~= nil then
             -- What her budget paid this step, as real kg DM her calves may drink.
             local liters = hour.animals[animal].milkPaidLiters - paidBefore
@@ -1504,7 +1568,8 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
     local record = hour.animals[animal]
     if record == nil then
         record = { tick = tick, owner = placeable, kg = 0, me = 0, cpKg = 0, byFill = {}, plannedKg = 0, plannedMe = 0, dtDays = 0,
-            milkLiters = 0, milkPaidLiters = 0, damMilkKg = 0, milkPlanKg = 0, milkDrunkKg = 0, steps = 0 }
+            milkLiters = 0, milkPaidLiters = 0, damMilkKg = 0, milkPlanKg = 0, milkDrunkKg = 0, steps = 0,
+            healthLostWater = 0, healthLostFeed = 0 }
         hour.animals[animal] = record
         table.insert(hour.order, animal)
     end
@@ -1521,9 +1586,17 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
     record.class, record.target, record.concShare, record.concLimit, record.intakeLimit = feed.class, feed.target, feed.concShare,
         feed.concLimit, feed.intakeLimit
     record.proteinFactor, record.proteinNeed, record.water = feed.proteinFactor, feed.proteinNeed, feed.water
+    record.waterIntake = feed.waterIntake
     if result == nil then return end
     RLFeed.afterStep(animal, animal.rlGrowth, feed, result, weightBefore, dtMonths)
+    local healthBefore = animal.health or 0
     RLFeed.applyHealth(animal, feed, result, dtMonths)
+    -- Health lost for want of water is kept apart from health lost for want of feed.
+    local lost = healthBefore - (animal.health or 0)
+    if lost > 0 then
+        if feed.healthReason == "WATER" then record.healthLostWater = record.healthLostWater + lost
+        else record.healthLostFeed = record.healthLostFeed + lost end
+    end
     RLFeed.applyUnderweight(animal, dtMonths)
     RLFeed.addDeathRisk(animal, dtMonths)
     -- The milk this step's budget paid (game liters): her calves' share leaves it (settleDamMilk), the
@@ -1648,13 +1721,12 @@ function RLFeed.endFeeding(placeable)
     -- away) get no milk at all - the player is told, never stopped (S5 D4).
     if hour.steps > 0 and getNursing(placeable) ~= nil then hour.unnursed = RLFeed.countUnnursed(placeable) end
 
-    local water = spec.rlWaterCoverage
     hour.tick = tick
     hour.limits = {}
     for _, limit in pairs(hour.limitOf or {}) do hour.limits[limit] = (hour.limits[limit] or 0) + 1 end
     hour.limitOf = nil
     hour.animals, hour.order = #hour.order, nil
-    hour.water = (water ~= nil and water.tick == tick) and water.coverage or 1
+    hour.water = RLFeed.getHourWater(placeable, tick)
     hour.coverage = hour.plannedMe > 0 and hour.eatenMe / hour.plannedMe or (hour.animals > 0 and 0 or 1)
     -- The old ledger's energy row reads the share of the planned ME eaten in this mode.
     local supply = spec.rlNutritionSupply
@@ -1759,6 +1831,8 @@ function RLFeed.onPenDayChanged(placeable)
             identity.concLimit, identity.intakeLimit = record.concLimit, record.intakeLimit
             identity.protein = round(record.proteinFactor)
             identity.health, identity.healthReason = animal.health, record.healthReason
+            identity.water, identity.waterIntake = round(record.water or 1), round(record.waterIntake or 1)
+            identity.healthLostWater, identity.healthLostFeed = round(record.healthLostWater), round(record.healthLostFeed)
             identity.weight = round(animal.weight)
             animals[#animals + 1] = identity
         end
