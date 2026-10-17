@@ -253,6 +253,7 @@ source(modDirectory .. "scripts/dealer/RLDealerQualityResolver.lua")
 -- SECTION 11n: Dealer stock purposes (xml/dealerStock.xml): what ages and breeding states the
 -- dealer sells. Loads its file through RLBreedTraits.loadConfig on first use.
 source(modDirectory .. "scripts/dealer/RLDealerStockPolicy.lua")
+source(modDirectory .. "scripts/dealer/RLDealerStockWeight.lua")
 source(modDirectory .. "scripts/dealer/RLDealerHistory.lua")
 source(modDirectory .. "scripts/dealer/RLDealerReplay.lua")
 -- Strict source ledgers and monthly listing lifecycle; dormant until the complete
