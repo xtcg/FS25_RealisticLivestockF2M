@@ -83,8 +83,14 @@ RLGrowth.STATE_VERSION = 1
 --- Weight differences below this are the float rounding of a save or a stream, not a change.
 RLGrowth.RESYNC_TOLERANCE_KG = 0.01
 
---- The continuous age never runs a whole month ahead of the whole months.
-RLGrowth.AGE_CLOCK_CAP = 0.999
+--- The continuous age runs on model time alone, never pinned to the whole months: those step on
+--- the animal's birthday, which falls at a different point of the month at another month length
+--- (U43-AGE-01). A running clock stays within (age - 1, age + 2) of them (a birthday moves at most
+--- a month within the month; a new animal's first birthday can be up to two months away); one
+--- outside is stale (it was not stepped: the model off, a long transport, the age set by hand)
+--- and starts again at the whole months.
+RLGrowth.AGE_CLOCK_STALE_BELOW = 1
+RLGrowth.AGE_CLOCK_STALE_ABOVE = 2
 
 --- A legacy anchor is kept within these bounds (a broken old weight line cannot blow it up);
 --- every real breed and Hof Bergmann's MILKCOW fall well inside them.
@@ -226,8 +232,10 @@ function RLGrowth.markLegacyHour(animal)
     -- 28 days (feedProfiles monogastric youngLegacyUntilMonth) comes on model time, not at the next
     -- whole month. Development and weight stay the budget's: only the clock moves. A pig without a
     -- state is set up from its whole months (no day within the month is made up).
-    if tick ~= nil and not marked and animal.rlFeedStepTick ~= tick and RLFeed ~= nil
-        and RLFeed.getConfig(animal).monogastric ~= nil then
+    -- A sheep's clock that already runs moves on the same way (its whole months no longer pull it
+    -- along: RLGrowth.getContinuousAge); one without a state gets none here.
+    if tick ~= nil and not marked and animal.rlFeedStepTick ~= tick and ((state ~= nil and state.ageMonths ~= nil)
+        or (RLFeed ~= nil and RLFeed.getConfig(animal).monogastric ~= nil)) then
         state = RLGrowth.ensureState(animal)
         local environment = g_currentMission ~= nil and g_currentMission.environment or nil
         if environment ~= nil then
@@ -403,11 +411,24 @@ function RLGrowth.getKappa(subject)
 end
 
 
+--- The clock to go on from: the state's own, or the whole months when it has none or it is stale
+--- (RLGrowth.AGE_CLOCK_STALE_*).
+--- @param state table
+--- @param age number Whole months
+--- @return number
+local function clockBase(state, age)
+    local value = state.ageMonths
+    if value == nil or value < age - RLGrowth.AGE_CLOCK_STALE_BELOW or value > age + RLGrowth.AGE_CLOCK_STALE_ABOVE then
+        return age
+    end
+    return value
+end
+
+
 --- Age in months as a continuous number, for what changes smoothly with age (the calf's feed
---- transition, the legacy anchor's fade): the state's own clock, which every step moves on by the
---- months it covers, kept within the animal's whole months (an animal ages by its birthday on a
---- day change, after that day's first hour, so the period's clock alone would step back for an
---- hour). Whole months without a state. Comparisons with a curve at an age use the whole months,
+--- transition, weaning, the legacy anchor's fade): the state's own clock, which every step moves on
+--- by the model months it covers and nothing else does - not a birthday, not a change of the month
+--- length. Whole months without a state. Comparisons with a curve at an age use the whole months,
 --- as the old rules did.
 --- @param animal table
 --- @return number
@@ -417,17 +438,27 @@ function RLGrowth.getContinuousAge(animal)
     if state == nil or state.ageMonths == nil then return age end
     -- Detached historical replay owns an exact continuous clock, including birthdays.
     if animal.rlHistoryReplay == true then return state.ageMonths end
-    return math.min(math.max(state.ageMonths, age), age + RLGrowth.AGE_CLOCK_CAP)
+    return clockBase(state, age)
 end
 
 
---- Move the state's clock on by dtMonths, within the animal's whole months.
+--- Move the state's clock on by dtMonths of model time.
 --- @param state table
 --- @param age number Whole months
 --- @param dtMonths number
 function RLGrowth.advanceClock(state, age, dtMonths)
-    local value = (state.ageMonths or age) + dtMonths
-    state.ageMonths = math.min(math.max(value, age), age + RLGrowth.AGE_CLOCK_CAP)
+    state.ageMonths = clockBase(state, age) + dtMonths
+end
+
+
+--- A day of a sale or AI pool animal (Animal:onDayChanged): nothing steps it, so its clock takes
+--- the day's model months here (1 / days per month), as its whole months take its birthday.
+--- @param animal table
+--- @param daysPerPeriod number
+function RLGrowth.advancePoolDay(animal, daysPerPeriod)
+    local state = animal.rlGrowth
+    if state == nil or state.ageMonths == nil or animal.rlHistoryReplay == true or (animal.age or 0) < 0 then return end
+    RLGrowth.advanceClock(state, animal.age or 0, 1 / math.max(daysPerPeriod or 1, 1))
 end
 
 

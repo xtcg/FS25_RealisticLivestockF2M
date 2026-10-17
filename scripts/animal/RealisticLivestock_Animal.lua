@@ -1567,6 +1567,9 @@ function Animal:onDayChanged(spec, isServer, day, month, year, currentDayInPerio
         self:increaseAge()
     end
 
+    -- A pool animal takes no hourly step: its continuous age takes the day's model time here.
+    if isSaleAnimal and RLGrowth ~= nil then RLGrowth.advancePoolDay(self, daysPerPeriod) end
+
 
     if self:isHorse() and not isSaleAnimal then
         AnimalHorse.processRidingUpdate(self)
