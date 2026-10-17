@@ -111,6 +111,8 @@ function PlaceableHusbandryPallets:updateInputAndOutput(superFunc, animals)
 
     -- Each covered cow's share of litersPerHour in cow or buffalo milk cans (updateOutput below).
     spec.rlMilkContributions = {}
+    -- Each sheep's wool liters, for the shearing season (RLWoolShearing).
+    spec.rlWoolContributions = {}
 
     spec.activeFillTypes = {}
 
@@ -128,6 +130,7 @@ function PlaceableHusbandryPallets:updateInputAndOutput(superFunc, animals)
                     local output = animal:getOutput("pallets")
                     spec.litersPerHour[pallets.fillType] = spec.litersPerHour[pallets.fillType] + output
                     table.addElement(spec.activeFillTypes, pallets.fillType)
+                    RLWoolShearing.addContribution(spec, animal, pallets.fillType, output)
                     if Animal.isCowMilkPalletFillType(pallets.fillType) and RLBodyCondition.isEligible(animal) then
                         table.insert(spec.rlMilkContributions, { animal = animal, fillType = pallets.fillType, liters = output })
                     end
@@ -170,8 +173,10 @@ function RealisticLivestock_PlaceableHusbandryPallets:updateOutput(superFunc, fo
     end
 
     local queued = false
+    -- Sheep wool goes to the pallets or onto the sheep by the map's shearing season (RLWoolShearing).
+    local function base() superFunc(self, foodFactor, productionFactor, globalProductionFactor) end
     RLBodyCondition.depositMilk(self, spec.litersPerHour, spec.rlMilkContributions,
-        function() superFunc(self, foodFactor, productionFactor, globalProductionFactor) end,
+        function() RLWoolShearing.runOutput(self, base, productionFactor, globalProductionFactor) end,
         function(fillType, liters)
             if spec.pendingLiters[fillType] ~= nil then
                 spec.pendingLiters[fillType] = spec.pendingLiters[fillType] + liters
@@ -183,3 +188,17 @@ function RealisticLivestock_PlaceableHusbandryPallets:updateOutput(superFunc, fo
     if queued then self:updatePallets() end
 end
 
+
+--- The pen's last shearing (RLWoolShearing), saved with its pending pallet liters.
+function RealisticLivestock_PlaceableHusbandryPallets:saveToXMLFile(xmlFile, key)
+    RLWoolShearing.savePen(self, xmlFile, key)
+end
+
+PlaceableHusbandryPallets.saveToXMLFile = Utils.appendedFunction(PlaceableHusbandryPallets.saveToXMLFile, RealisticLivestock_PlaceableHusbandryPallets.saveToXMLFile)
+
+
+function RealisticLivestock_PlaceableHusbandryPallets:loadFromXMLFile(xmlFile, key)
+    RLWoolShearing.loadPen(self, xmlFile, key)
+end
+
+PlaceableHusbandryPallets.loadFromXMLFile = Utils.appendedFunction(PlaceableHusbandryPallets.loadFromXMLFile, RealisticLivestock_PlaceableHusbandryPallets.loadFromXMLFile)

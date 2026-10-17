@@ -1,4 +1,4 @@
--- SHEEP-WOOL-NEWPEN-01: sheep wool into pallets in every sheep building that has a wool spawner.
+-- SHEEP-WOOL-NEWPEN-01 and HB-WINTER-WOOL-01: sheep wool into pallets.
 -- Hof Bergmann remaps every sheep's WOOL to SHEEPWOOL_SHEARED; the base game's sheep barns
 -- (sheepBarnBig/Medium/Small, sheepGoatBarn: palletSpawner fillTypes="WOOL GOATMILK") and HB's
 -- goat stable spawn only WOOL, so their sheep's wool was dropped (no pendingLiters node in the
@@ -76,6 +76,8 @@ end
 
 loadMod("tests/fixtures/giants_lua.lua")
 loadGiantsMod("scripts/bridge/RLMapBridge.lua")
+loadMod("scripts/animals/husbandry/placeables/RLPastureSeason.lua")
+loadMod("scripts/animals/husbandry/placeables/RLWoolShearing.lua")
 loadMod("scripts/animals/husbandry/placeables/RealisticLivestock_PlaceableHusbandryPallets.lua")
 
 -- Hof Bergmann's bridge: its palletRemap is kept as a building alias.
@@ -133,6 +135,9 @@ end
 local function pending(placeable, name) return placeable.spec_husbandryPallets.pendingLiters[FILLS[name]] end
 
 -- SHEEP-WOOL-NEWPEN-01: a base-game sheep barn on HB --------------------------------------------
+RLWoolShearing.reset()
+RLWoolShearing.config = RLWoolShearing.getDefaultConfig()
+RLWoolShearing.preset = RLPastureSeason.resolvePreset(RLWoolShearing.config.presets, function() return false end) -- YEAR_ROUND
 local flock = { animal(ewe, 0.01), animal(hbEwe, 0.02), animal(doe, 0) }
 local barn = pen({ "WOOL", "GOATMILK" }, SHEEP, flock, "sheepBarnBig")
 check("new barn: spawns SHEEPWOOL_SHEARED from its WOOL spawner", barn.spec_husbandryPallets.fillTypeIndexToPalletSpawner[9] == barn.spawners[1]
@@ -151,6 +156,119 @@ check("no wool spawner: no wool made up, nothing pending", milkOnly.spec_husband
 -- The pallets module logs through the global Log (stubs: info is silent); the note is kept once.
 check("no wool spawner: noted once per building and fill type",
     milkOnly.spec_husbandryPallets.rlUnsupportedNoted ~= nil and milkOnly.spec_husbandryPallets.rlUnsupportedNoted[9] == true)
+
+-- HB-WINTER-WOOL-01: spring shearing ------------------------------------------------------------
+RLWoolShearing.preset = nil
+RLWoolShearing.config = RLWoolShearing.parse(loadXMLFileFromDisk(REPO .. "xml/breedTraits.xml"))
+local preset = RLWoolShearing.getPreset()
+check("preset: Hof Bergmann shears in late spring / early summer, every 12 months",
+    preset.name == "HOF_BERGMANN" and preset.mode == "SPRING_SHEARING" and preset.shearingPeriods[3] and preset.shearingPeriods[4]
+    and not preset.shearingPeriods[5] and preset.intervalMonths == 12)
+check("preset: elsewhere year-round", RLPastureSeason.resolvePreset(RLWoolShearing.config.presets, function() return false end).mode == "YEAR_ROUND")
+check("preset: a breedTraits copy without woolShearing keeps the same presets",
+    RLWoolShearing.parse(nil).presets[2].mode == "SPRING_SHEARING")
+
+local env = g_currentMission.environment
+local function runYears(placeable, startPeriod, years, hoursPerMonth, factor)
+    local woolByPeriod = {}
+    local before = pending(placeable, "SHEEPWOOL_SHEARED")
+    for m = 0, years * 12 - 1 do
+        local index = (startPeriod - 1) + m
+        env.currentPeriod = index % 12 + 1
+        env.currentYear = 1 + math.floor(index / 12)
+        for _ = 1, hoursPerMonth do output(placeable, factor or 1, 1) end
+        local now = pending(placeable, "SHEEPWOOL_SHEARED")
+        woolByPeriod[#woolByPeriod + 1] = { period = env.currentPeriod, liters = now - before }
+        before = now
+    end
+    return woolByPeriod
+end
+
+local function flockOf(n, liters)
+    local list = {}
+    for i = 1, n do list[i] = animal(i % 2 == 0 and ewe or hbEwe, liters) end
+    return list
+end
+local spring = pen({ "SHEEPWOOL_SHEARED", "GOATMILK" }, SHEEP, flockOf(10, 0.01), "sheepStable")
+local yearRoundPen = pen({ "SHEEPWOOL_SHEARED", "GOATMILK" }, SHEEP, flockOf(10, 0.01), "control")
+refresh(spring); refresh(yearRoundPen)
+NOTES = {}
+local months = runYears(spring, 7, 2, 24, 0.8) -- from early autumn, two years, 24 h a month, food factor 0.8
+local shorn, winterWool, total = {}, 0, 0
+for _, m in ipairs(months) do
+    total = total + m.liters
+    if m.liters > 1e-9 then shorn[#shorn + 1] = m.period end
+    if m.period >= 9 then winterWool = winterWool + m.liters end
+end
+check("spring: no wool pallets in autumn or winter", winterWool == 0)
+check("spring: shorn once a year, in late spring (" .. table.concat(shorn, " ") .. ")", table.concat(shorn, " ") == "3 3")
+local fleeceLeft = 0
+for _, a in ipairs(spring.animals) do fleeceLeft = fleeceLeft + (a.rlFleece or 0) end
+RLWoolShearing.preset = { name = "T", maps = {}, mode = "YEAR_ROUND", intervalMonths = 12 }
+runYears(yearRoundPen, 7, 2, 24, 0.8)
+local yearRound = pending(yearRoundPen, "SHEEPWOOL_SHEARED")
+check(string.format("spring: shorn + still on the sheep = year-round total (%.4f + %.4f = %.4f)", total, fleeceLeft, yearRound),
+    near(total + fleeceLeft, yearRound, 1e-9) and near(yearRound, 10 * 0.01 * 0.8 * 24 * 24, 1e-9))
+check("spring: a notification for each shearing", #NOTES == 2 and NOTES[1].text:find("rl_wool_shorn", 1, true) ~= nil)
+
+-- Not more than grown: a second shearing month in the same season shears nothing.
+RLWoolShearing.preset = nil
+local late = pen({ "SHEEPWOOL_SHEARED" }, SHEEP, flockOf(4, 0.01), "late")
+refresh(late)
+env.currentPeriod, env.currentYear = 3, 5
+output(late)
+check("spring: a pen shears its own fleece only (4 sheep x 0.01 l after one hour)", near(pending(late, "SHEEPWOOL_SHEARED"), 0.04, 1e-9))
+env.currentPeriod = 4
+output(late); output(late)
+check("spring: the next shearing month does not shear again within 12 months", near(pending(late, "SHEEPWOOL_SHEARED"), 0.04, 1e-9)
+    and near(late.animals[1].rlFleece, 0.02, 1e-9))
+
+-- Year-round compatibility: switching back releases the fleece the next hour.
+RLWoolShearing.preset = { name = "T", maps = {}, mode = "YEAR_ROUND", intervalMonths = 12 }
+env.currentPeriod = 10
+output(late)
+check("year-round again: the stored fleece and this hour's wool go to the pallets",
+    near(pending(late, "SHEEPWOOL_SHEARED"), 0.04 + 0.08 + 0.04, 1e-9) and late.animals[1].rlFleece == 0)
+
+-- Manual shearing stall (HB shearing station): left to the map.
+RLWoolShearing.preset = nil
+local manual = pen({ "SHEEPWOOL_SHEARED" }, SHEEP, flockOf(2, 0.01), "manual")
+manual.lsfmGetShearingStationEnabled = function() return true end
+refresh(manual)
+env.currentPeriod = 10
+output(manual)
+check("manual shearing stall: the base output runs (the map's station suppresses it)", near(pending(manual, "SHEEPWOOL_SHEARED"), 0.02, 1e-9)
+    and manual.animals[1].rlFleece == nil)
+
+-- Persistence --------------------------------------------------------------------------------
+local function memoryXml()
+    local values = {}
+    return {
+        values = values,
+        setInt = function(_, k, v) values[k] = v end, setFloat = function(_, k, v) values[k] = v end,
+        getInt = function(_, k, d) return values[k] or d end, getFloat = function(_, k, d) return values[k] or d end,
+    }
+end
+local file = memoryXml()
+local sheared = pen({ "SHEEPWOOL_SHEARED" }, SHEEP, {}, "saved")
+sheared.spec_husbandryPallets.rlLastShearMonth = 63
+PlaceableHusbandryPallets.saveToXMLFile(sheared, file, "p")
+local loaded = pen({ "SHEEPWOOL_SHEARED" }, SHEEP, {}, "loaded")
+PlaceableHusbandryPallets.loadFromXMLFile(loaded, file, "p")
+check("save: the pen's last shearing comes back", loaded.spec_husbandryPallets.rlLastShearMonth == 63)
+local oldPen = pen({ "SHEEPWOOL_SHEARED" }, SHEEP, {}, "old")
+PlaceableHusbandryPallets.loadFromXMLFile(oldPen, memoryXml(), "p")
+check("old save: no shearing on record (shears at the next shearing month)", oldPen.spec_husbandryPallets.rlLastShearMonth == nil)
+local sheep = { rlFleece = 0.75 }
+local animalFile = memoryXml()
+RLWoolShearing.saveAnimal(sheep, animalFile, "a")
+local back = {}
+RLWoolShearing.loadAnimal(back, animalFile, "a")
+local bare = {}
+RLWoolShearing.saveAnimal({}, animalFile, "b")
+RLWoolShearing.loadAnimal(bare, animalFile, "b")
+check("save: an animal's fleece comes back; none saved or made up when bare", back.rlFleece == 0.75 and bare.rlFleece == nil
+    and animalFile.values["b#rlFleece"] == nil)
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end
