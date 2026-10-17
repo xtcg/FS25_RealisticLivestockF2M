@@ -142,7 +142,7 @@ function RLPastureSeason.getMeadowPreset()
         local preset = RLPastureSeason.resolvePreset(RLPastureSeason.getConfig().meadow.presets)
         if preset == nil then
             preset = table.clone(RLPastureSeason.MEADOW_DEFAULTS)
-            preset.name, preset.maps = "DEFAULT", {}
+            preset.name, preset.maps, preset.enabled = "DEFAULT", {}, false
         end
         RLPastureSeason.meadowPreset = preset
         Log:info("RLPastureSeason: pasture preset %s (enabled=%s dormancy=%s down=%.1f up=%.1f factor=%.2f warn=%.1f)",

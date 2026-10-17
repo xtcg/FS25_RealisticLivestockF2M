@@ -35,13 +35,17 @@
     enabled       false: the pasture behaves as the base game's.
     With seasonal growth off (growth mode daily or disabled) the factor is 1 all year.
 
+    DEFAULT ships disabled: only Hof Bergmann gets the winter die-back for now (the fix plan of
+    2026-10-17 keeps other maps to a climate decision, not a global "no grass in winter"). Set
+    DEFAULT enabled="true" to use the same AUTO rule on another seasonal map.
+
     The 14 days and the factor 0 are a game fit for Hof Bergmann's winters, not an ecological rule:
     mild climates graze through the winter (AHDB deferred grazing), which a map's own growth table
     expresses by growing in those months, and then AUTO finds no dormancy.
 -->
 <pastureSeasons>
     <meadow>
-        <preset name="DEFAULT" enabled="true" dormancy="AUTO" rampDownDays="14" rampUpDays="14" dormantFactor="0" warnDays="7"/>
+        <preset name="DEFAULT" enabled="false" dormancy="AUTO" rampDownDays="14" rampUpDays="14" dormantFactor="0" warnDays="7"/>
         <preset name="HOF_BERGMANN" maps="FS25_HofBergmann" enabled="true" dormancy="AUTO" rampDownDays="14" rampUpDays="14" dormantFactor="0" warnDays="7"/>
     </meadow>
 </pastureSeasons>
