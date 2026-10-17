@@ -504,7 +504,8 @@ end
 --- A monogastric pen (pigs): it runs the mode when it has a trough and every animal in it is covered
 --- and growing - none younger than youngLegacyUntilMonth (continuous months: not weaned), none
 --- pregnant, no female that has given birth. Otherwise the whole pen keeps the old rules
---- (PIG_BREEDING_LEGACY): the sow's milk, pregnancy and body condition are a later batch.
+--- (PIG_BREEDING_LEGACY): the sow's milk, pregnancy and body condition are a later batch. Its covered
+--- pigs' weight still follows their curves (RLFeed.stepFallback, from AnimalHealth.updateHealth).
 --- @return boolean active
 --- @return string reason
 function RLFeed.evaluateMonogastricPen(placeable, section)
@@ -1861,6 +1862,48 @@ function RLFeed.runsFor(animal, tick)
     local pen = spec ~= nil and spec.rlFeedPen or nil
     if tick == nil or pen == nil or pen.tick ~= tick or not pen.active then return false end
     return RLGrowth.covers(animal)
+end
+
+
+--- A covered pig in a pen that does not run the mode this hour (PIG_BREEDING_LEGACY: a sow, a
+--- pregnant female or an unweaned piglet in it; or no trough, an uncovered animal, a failed plan):
+--- its weight still follows its own curve on the weight model's budget - the old weight rule
+--- (Animal:updateWeight, a fixed gain off whole months) put piglets about three times above it. What
+--- it eats is not known here, so the hour pays the pig's own needs (maintenance, pregnancy, its
+--- curve's growth, its reserve back to the reference) x the pen's food factor, the old rules' measure
+--- of the feeding (water included). An approximation: no sow milk, colostrum or litter budget (a later
+--- batch), no ration or lysine; its health stays the old rules'. The same state and budget as the
+--- mode's steps, so a piglet taken over at 28 days goes on from the weight it has; an older, heavier
+--- one keeps its weight and grows on from there.
+--- @param animal table
+--- @param foodFactor number The pen's food factor this hour
+--- @return boolean handled
+function RLFeed.stepFallback(animal, foodFactor)
+    if animal == nil or animal.isDead or not RLGrowth.covers(animal) then return false end
+    local config = RLFeed.getConfig(animal)
+    if config.monogastric == nil then return false end
+    local tick = RLBodyCondition.getTickId()
+    if tick == nil then return false end
+    local state = RLGrowth.ensureState(animal)
+    if state.lastTick == tick or animal.rlFeedStepTick == tick then return true end
+    local hourDays = RLFeed.getHourDays()
+    local dtMonths = hourDays / config.realDaysPerPeriod
+    if not (dtMonths > 0) then return false end
+    RLGrowth.resync(animal, state)
+    local input, cfg = buildEnergyInput(animal, dtMonths)
+    local body = RLBodyCondition.getConfig(animal)
+    input.reserveCeiling = math.min(RLBodyCondition.getReserveCeiling(animal) or body.referenceReserve, body.referenceReserve)
+    local demands = RLGrowthMath.getStepDemands(input, cfg)
+    local deposit = math.min(demands.depositHeadroomKg, demands.depositRatePerMonthKg) * cfg.depositNUPerKg
+    local perMonth = demands.maintenance + demands.pregnancy + demands.growthStep / dtMonths + deposit
+    local share = math.clamp(foodFactor or 0, 0, 1)
+    local feed = { tick = tick, kg = 0, me = perMonth * share * dtMonths, cp = 0, byFill = {}, plannedKg = 0,
+        plannedMe = perMonth * dtMonths, class = "GROWING", target = "GROW", proteinFactor = 1, dtDays = hourDays, water = 1,
+        fallback = true }
+    local result = RLGrowth.stepFeed(animal, feed, dtMonths, tick)
+    if result == nil then return true end
+    animal.rlFeedFallback = { tick = tick, share = share, coverage = result.coverage, growthFraction = result.growthFraction }
+    return true
 end
 
 

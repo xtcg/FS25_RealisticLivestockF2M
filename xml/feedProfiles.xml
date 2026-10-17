@@ -506,7 +506,9 @@
           each % at its diet ME (3300-3400 kcal/kg, 90% DM) / 4.184; growth falls linearly to nothing at 0.05 g/MJ (the
           gut and skin losses of Eqs. 8-40 to 8-42 at about 60 kg).
         - A pen with a pig under 28 model days (not weaned, design D3), a pregnant female or one that has farrowed keeps
-          the old rules (PIG_BREEDING_LEGACY): the sow's milk, pregnancy and body condition are P6/P7.
+          the old rules (PIG_BREEDING_LEGACY): the sow's milk, pregnancy and body condition are P6/P7. Its covered pigs'
+          weight still follows their own curve there (RLFeed.stepFallback: the budget pays their needs x the pen's food
+          factor), never the old fixed gain; an approximation until the sow's milk and litter budget exist.
         - Feeds: INRA-CIRAD-AFZ tables (feedtables.com) and Feedipedia, read 2026-10-16, pig ME and SID lysine on DM;
           density the engine's massPerLiter (Hof Bergmann 1.5b1). A pig eats every feed in its trough it may, mixed as
           stocked (a mixed trough), each at most its maxShare; PIGLETFOOD only up to 25 kg.

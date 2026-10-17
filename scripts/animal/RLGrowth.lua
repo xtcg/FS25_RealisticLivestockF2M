@@ -228,8 +228,9 @@ function RLGrowth.markLegacyHour(animal)
     -- 28 days (feedProfiles monogastric youngLegacyUntilMonth) comes on model time, not at the next
     -- whole month. Development and weight stay the budget's: only the clock moves. A pig without a
     -- state is set up from its whole months (no day within the month is made up).
+    -- A pig the budget stepped this hour (RLFeed.stepFallback) moved its clock in that step.
     if tick ~= nil and not marked and animal.rlFeedStepTick ~= tick and RLFeed ~= nil
-        and RLFeed.getConfig(animal).monogastric ~= nil then
+        and (state == nil or state.lastTick ~= tick) and RLFeed.getConfig(animal).monogastric ~= nil then
         state = RLGrowth.ensureState(animal)
         local environment = g_currentMission ~= nil and g_currentMission.environment or nil
         if environment ~= nil then
