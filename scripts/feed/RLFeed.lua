@@ -1876,7 +1876,9 @@ function RLFeed.applyHealth(animal, feed, result, dtMonths)
     feed.healthFactor, feed.healthReason = factor, reason
     local subType = animal:getSubType()
     local rate = factor >= 0 and (subType.healthIncreaseHour or 0) or (subType.healthDecreaseHour or 0)
-    RLFeed.addHealth(animal, rate * factor * (animal.genetics.health or 1) * 24 * dtMonths)
+    local healthGenetics = animal.genetics.health or 1
+    local geneticsTerm = factor >= 0 and healthGenetics or (2 - healthGenetics)
+    RLFeed.addHealth(animal, rate * factor * geneticsTerm * 24 * dtMonths)
 end
 
 

@@ -39,7 +39,7 @@ local physiologyFields = { "age", "health", "monthsSinceLastBirth", "birthCount"
     "isParent", "isPregnant", "isLactating", "isCastrated", "reproduction", "weight", "targetWeight", "genetics",
     "rlGrowth", "bodyCondition", "rlFeedGain", "rlHealthCarry", "input", "output" }
 local diseaseFields = { "state", "incubationTicksRemaining", "monthsElapsed", "treatmentMonthsRemaining",
-    "immunityMonthsRemaining", "treatmentRunning", "isCarrier", "genes" }
+    "immunityMonthsRemaining", "treatmentRunning", "isCarrier", "genes", "vaccinated" }
 local function encodeDiseases(diseases)
     if not dense(diseases or {}) then return nil end
     local out = {}
@@ -207,8 +207,12 @@ local function resolveAll(data, resolver, diseaseResolver)
             elseif d.kind == "MODEL" and Disease ~= nil and d.version == Disease.RECORD_VERSION and type(diseaseResolver) == "function" then
                 local model = diseaseResolver(d.title)
                 if model == nil or model.title ~= d.title then return false, "SOURCE_OWNER_MISSING_DISEASE" end
+                if d.vaccinated ~= nil and type(d.vaccinated) ~= "boolean" then return false, "SOURCE_OWNER_DISEASE" end
                 local restored = Disease.new(model)
-                for _, key in ipairs(diseaseFields) do restored[key] = d[key] end
+                for _, key in ipairs(diseaseFields) do
+                    -- Older ownership records predate vaccination; keep Disease.new's false default.
+                    if key ~= "vaccinated" or d[key] ~= nil then restored[key] = d[key] end
+                end
                 local adherent = RLDiseaseRecord.isAdherent(restored, model, "COW")
                 if not adherent then return false, "SOURCE_OWNER_DISEASE" end
                 diseases[idKey][#diseases[idKey] + 1] = restored

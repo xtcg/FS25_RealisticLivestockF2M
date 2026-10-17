@@ -152,6 +152,7 @@ source(modDirectory .. "scripts/events/ReturnStrawEvent.lua")
 source(modDirectory .. "scripts/events/TakeStrawEvent.lua")
 source(modDirectory .. "scripts/events/DiseaseTreatmentToggleEvent.lua")
 source(modDirectory .. "scripts/events/DiseaseCullEvent.lua")
+source(modDirectory .. "scripts/events/DiseaseVaccinateEvent.lua")
 
 -- SECTION 10: Farms
 source(modDirectory .. "scripts/farms/FarmManager.lua")
@@ -312,6 +313,7 @@ source(modDirectory .. "scripts/gui/RealisticLivestockFrame.lua")
 source(modDirectory .. "scripts/gui/AnimalAIDialog.lua")
 source(modDirectory .. "scripts/gui/AnimalFilterDialog.lua")
 source(modDirectory .. "scripts/gui/AnimalMoveDestinationDialog.lua")
+source(modDirectory .. "scripts/gui/RLSeverityIcon.lua")
 source(modDirectory .. "scripts/gui/DiseaseDialog.lua")
 source(modDirectory .. "scripts/gui/EarTagColourPickerDialog.lua")
 source(modDirectory .. "scripts/gui/RLFilterConditionDialog.lua")
@@ -448,6 +450,7 @@ source(modDirectory .. "scripts/disease/RLDiseaseEffects.lua")
 source(modDirectory .. "scripts/disease/RLDiseaseProgression.lua")
 source(modDirectory .. "scripts/disease/RLDiseaseStatus.lua")
 source(modDirectory .. "scripts/disease/RLDiseaseCull.lua")
+source(modDirectory .. "scripts/disease/RLDiseaseVaccination.lua")
 source(modDirectory .. "scripts/disease/RLDiseaseSaleGate.lua")
 source(modDirectory .. "scripts/disease/Disease.lua")
 source(modDirectory .. "scripts/disease/DiseaseManager.lua")
@@ -486,10 +489,12 @@ source(modDirectory .. "scripts/console/RLFeedConsole.lua")
 source(modDirectory .. "scripts/console/RLConsoleCommandManager.lua")
 
 -- SECTION 20j: Messaging
+-- Reads RLConstants at file scope, so it must follow SECTION 2c.
 source(modDirectory .. "scripts/messaging/RLMessage.lua")
 source(modDirectory .. "scripts/messaging/RLMessageAggregator.lua")
 
 -- SECTION 20k: Core (settings)
+source(modDirectory .. "scripts/core/RLAnimalExport.lua")
 source(modDirectory .. "scripts/core/RLSettings.lua")
 source(modDirectory .. "scripts/utils/RLDebugUtils.lua")
 

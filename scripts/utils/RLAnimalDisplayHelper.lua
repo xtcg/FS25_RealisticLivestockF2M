@@ -102,4 +102,27 @@ function RLAnimalDisplayHelper.sortAnimals(a, b)
 
 end
 
+--- Keep fleece amounts below 1 L/day at two decimals, and amounts below 10 at one.
+---@param litresPerDay number per-day amount
+---@return number precision 2, 1 or 0
+function RLAnimalDisplayHelper.amountPerDayPrecision(litresPerDay)
+    local size = math.abs(litresPerDay)
+    if size > 0 and size < 1 then return 2 end
+    if size > 0 and size < 10 then return 1 end
+    return 0
+end
+
+--- A per-day amount rendered with the translated `rl_ui_amountPerDay` label, such as "0.2L / day".
+---@param litresPerDay number per-day amount
+---@return string text localised amount
+function RLAnimalDisplayHelper.formatAmountPerDay(litresPerDay)
+    local precision = RLAnimalDisplayHelper.amountPerDayPrecision(litresPerDay)
+    -- formatNumber truncates at precision 0, so round first to keep 12.6 reading as 13.
+    local rounded = MathUtil.round(litresPerDay, precision)
+    local text = string.format(g_i18n:getText("rl_ui_amountPerDay"), g_i18n:formatNumber(rounded, precision))
+    Log:trace("RLAnimalDisplayHelper.formatAmountPerDay: %s -> '%s' (precision %d)",
+        tostring(litresPerDay), text, precision)
+    return text
+end
+
 Log:trace("RLAnimalDisplayHelper: loaded")

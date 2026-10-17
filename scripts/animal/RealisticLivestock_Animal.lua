@@ -1135,20 +1135,12 @@ function Animal:addGeneticsInfo()
     return texts
 end
 
---- "x L / day" for a per-hour amount, in the language's rl_ui_amountPerDay format. Amounts under 10 a
---- day keep one decimal and under 1 two (a fleece is about half a liter a month), where the format's
---- whole liters would show 0.
+--- Localised daily amount, retaining the shared helper's small-amount precision.
 ---@param amountPerHour number
 ---@param daysPerMonth number
 ---@return string
 function Animal.formatAmountPerDay(amountPerHour, daysPerMonth)
-    local value = (amountPerHour * 24) / daysPerMonth
-    local format = g_i18n:getText("rl_ui_amountPerDay")
-    local size = math.abs(value)
-    if size > 0 and size < 10 then
-        format = string.gsub(format, "%%%.0f", size < 1 and "%%.2f" or "%%.1f", 1)
-    end
-    return string.format(format, value)
+    return RLAnimalDisplayHelper.formatAmountPerDay((amountPerHour * 24) / daysPerMonth)
 end
 
 
@@ -1173,7 +1165,7 @@ function Animal:showMonitorInfo(box)
 
     for fillType, amount in pairs(self.input) do
         box:addLine(g_i18n:getText("rl_ui_input_" .. fillType),
-            Animal.formatAmountPerDay(amount, daysPerMonth))
+            RLAnimalDisplayHelper.formatAmountPerDay((amount * 24) / daysPerMonth))
     end
 
     for fillType, amount in pairs(self.output) do
@@ -1189,7 +1181,7 @@ function Animal:showMonitorInfo(box)
         end
 
         box:addLine(g_i18n:getText("rl_ui_output_" .. outputText),
-            Animal.formatAmountPerDay(amount, daysPerMonth))
+            RLAnimalDisplayHelper.formatAmountPerDay((amount * 24) / daysPerMonth))
     end
 end
 
@@ -1586,7 +1578,7 @@ function Animal:onDayChanged(spec, isServer, day, month, year, currentDayInPerio
 
     -- Death evaluation: low health -> old age -> random accidents (with AnimalDeathEvent broadcast)
     local lowHealthDeath, oldDeath, randomDeath, randomDeathMoney =
-        AnimalHealth.evaluateDaily(self, spec)
+        AnimalHealth.evaluateDaily(self, spec, daysPerPeriod)
 
     return children, deadAnimals, childrenSold, childrenSoldAmount, lowHealthDeath, oldDeath, randomDeath,
         randomDeathMoney
@@ -1608,12 +1600,13 @@ end
 -- Health/death delegates -> AnimalHealth module
 function Animal:die(reason) AnimalHealth.die(self, reason) end
 
-function Animal:calculateLowHealthMonthlyAnimalDeaths() return AnimalHealth.calculateLowHealthMonthlyAnimalDeaths(self) end
+function Animal:calculateLowHealthDailyAnimalDeaths() return AnimalHealth.calculateLowHealthDailyAnimalDeaths(self) end
 
-function Animal:calculateOldAgeMonthlyAnimalDeaths() return AnimalHealth.calculateOldAgeMonthlyAnimalDeaths(self) end
+function Animal:calculateOldAgeMonthlyAnimalDeaths(daysPerPeriod) return AnimalHealth.calculateOldAgeMonthlyAnimalDeaths(
+        self, daysPerPeriod) end
 
-function Animal:calculateRandomMonthlyAnimalDeaths(spec) return AnimalHealth.calculateRandomMonthlyAnimalDeaths(self,
-        spec) end
+function Animal:calculateRandomMonthlyAnimalDeaths(spec, daysPerPeriod) return AnimalHealth.calculateRandomMonthlyAnimalDeaths(
+        self, spec, daysPerPeriod) end
 
 -- ##################################
 --             HORSES
