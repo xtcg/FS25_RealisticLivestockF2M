@@ -383,6 +383,13 @@ function RLFeedInfoService.getPenInfoRows(placeable)
     local rows = {}
     if not state.active then
         table.insert(rows, { titleKey = "rl_feed_penMode", text = RLFeedInfoService.getReasonText(state.reason) })
+        -- The old rules never eat the feeds added for the mode: say which, and when nothing else
+        -- is there to eat (SHEEP-GOATMIX-NOFEED-01).
+        local gap = RLFeedInfoService.getFallbackFeedGap(placeable)
+        if gap ~= nil then
+            table.insert(rows, { titleKey = "rl_feed_penNotEaten", text = gap.titles, warning = gap.baseMissing })
+            if gap.baseMissing then table.insert(rows, { titleKey = "rl_feed_penNoBaseFeed", text = getText("rl_feed_noBaseFeed"), warning = true }) end
+        end
         return rows
     end
     table.insert(rows, { titleKey = "rl_feed_penMode", text = getText("rl_feed_modeReal") })
@@ -402,6 +409,103 @@ function RLFeedInfoService.getPenInfoRows(placeable)
         table.insert(rows, { titleKey = "rl_feed_penFirstOut", text = string.format("%s %s", first.title, formatMonths(first.monthsLeft)) })
     end
     return rows
+end
+
+
+-- =============================================================================
+-- A pen on the old rules with the mode's added feeds (SHEEP-GOATMIX-NOFEED-01)
+-- =============================================================================
+
+--- What a pen with living animals holds that the old rules never eat (the groups RLFeed added for
+--- the mode: a sheep pen's silage, grains and protein feed, a cattle pen's grain), and whether
+--- there is any of its own groups' feed (meadow included) besides. The caller says the pen is on
+--- the old rules (a goat in a sheep pen, a young animal the curves do not cover, ...).
+--- @param placeable table
+--- @return table|nil { feeds = { { name, title, liters } }, titles, liters, baseLiters, baseMissing },
+---         nil when the pen holds none of them or has no animal
+function RLFeedInfoService.getFallbackFeedGap(placeable)
+    local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
+    if spec == nil or g_currentMission == nil or placeable.getAvailableFood == nil then return nil end
+    local living = 0
+    for _, animal in ipairs(placeable.getClusters ~= nil and placeable:getClusters() or {}) do
+        if not animal.isDead and (animal.numAnimals or 1) > 0 then living = living + 1 end
+    end
+    if living == 0 then return nil end
+    local foodSystem = g_currentMission.animalFoodSystem
+    local animalFood = foodSystem ~= nil and foodSystem:getAnimalFood(spec.animalTypeIndex) or nil
+    if animalFood == nil then return nil end
+    local feeds, titles, liters, base, seen = {}, {}, 0, 0, {}
+    for _, group in ipairs(animalFood.groups or {}) do
+        for _, index in ipairs(group.fillTypes or {}) do
+            if not seen[index] then
+                seen[index] = true
+                local available = math.max(placeable:getAvailableFood(index) or 0, 0)
+                if group.rlGrain then
+                    if available > 0 then
+                        local name = g_fillTypeManager:getFillTypeNameByIndex(index)
+                        local title = fillTitle(index, name)
+                        table.insert(feeds, { name = name, title = title, liters = available })
+                        table.insert(titles, title)
+                        liters = liters + available
+                    end
+                else
+                    base = base + available
+                end
+            end
+        end
+    end
+    if #feeds == 0 then return nil end
+    return { feeds = feeds, titles = table.concat(titles, ", "), liters = liters, baseLiters = base, baseMissing = base <= 0 }
+end
+
+
+--- After a feeding on the old rules (server): log when what such a pen cannot eat, or that it has
+--- nothing else, changes (once, not every hour), and tell the player once when it has nothing it
+--- eats. The feeding itself is the engine's: the added groups give nothing (food factor 0 when
+--- nothing else is there).
+--- @param placeable table
+--- @param foodFactor number|nil the engine's food factor of this feeding
+--- @return table|nil gap (getFallbackFeedGap)
+function RLFeedInfoService.checkFallbackFeed(placeable, foodFactor)
+    local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
+    if spec == nil then return nil end
+    local pen = spec.rlFeedPen
+    local gap
+    if RLFeed.mode == RLFeed.MODE_REAL and pen ~= nil and not pen.active and RLFeedInfoService.isCattlePen(placeable) then
+        gap = RLFeedInfoService.getFallbackFeedGap(placeable)
+    end
+    local names = {}
+    for _, feed in ipairs(gap ~= nil and gap.feeds or {}) do names[#names + 1] = feed.name end
+    local key = gap ~= nil and string.format("%s|%s|%s", tostring(pen.reason), gap.baseMissing and "NO_BASE_FEED" or "BASE_FEED",
+        table.concat(names, ",")) or nil
+    local last = spec.rlFallbackFeedKey
+    if key == last then return gap end
+    spec.rlFallbackFeedKey = key
+    local Log = RmLogging.getLogger("RLRM")
+    local name = placeable.getName ~= nil and tostring(placeable:getName()) or "?"
+    if gap == nil then
+        if last ~= nil then Log:info("RLFeed: %s no longer holds feed the old rules leave uneaten", name) end
+        spec.rlFallbackNoFeedNotified = nil
+        return nil
+    end
+    if gap.baseMissing then
+        Log:warning("RLFeed: %s runs the old rules (%s) and has no feed they eat: %s (%.0f l) not eaten, food factor %s",
+            name, tostring(pen.reason), table.concat(names, ","), gap.liters, foodFactor ~= nil and string.format("%.2f", foodFactor) or "-")
+        if not spec.rlFallbackNoFeedNotified then
+            spec.rlFallbackNoFeedNotified = true
+            local mission = g_currentMission
+            if mission ~= nil and mission.addIngameNotification ~= nil and mission.getIsClient ~= nil and mission:getIsClient()
+                and (placeable.getOwnerFarmId == nil or mission.getFarmId == nil or placeable:getOwnerFarmId() == mission:getFarmId()) then
+                mission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_CRITICAL, string.format(getText("rl_feed_noBaseFeedAlert"),
+                    name, RLFeedInfoService.getReasonText(pen.reason), gap.titles))
+            end
+        end
+    else
+        Log:info("RLFeed: %s runs the old rules (%s): %s (%.0f l) not eaten, %.0f l of its own feed left", name, tostring(pen.reason),
+            table.concat(names, ","), gap.liters, gap.baseLiters)
+        spec.rlFallbackNoFeedNotified = nil
+    end
+    return gap
 end
 
 

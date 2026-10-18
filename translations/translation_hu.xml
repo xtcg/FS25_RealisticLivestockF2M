@@ -1034,6 +1034,10 @@
         <text name="rl_feed_calfMilkAlert" text="%s: %d calves on milk have no calf milk - they will lose health and may die"/>
         <text name="rl_feed_calfMilkLowAlert" text="%s: calf milk runs out in %s"/>
         <text name="rl_feed_lambNoDam" text="%s: %d lambs on milk are away from their ewe - no milk for them; they lose health and may die"/>
+        <text name="rl_feed_penNotEaten" text="Not eaten (old rules)"/>
+        <text name="rl_feed_penNoBaseFeed" text="Base feed"/>
+        <text name="rl_feed_noBaseFeed" text="None - animals get no feed"/>
+        <text name="rl_feed_noBaseFeedAlert" text="%s: %s - the pen is fed by the old rules, which do not eat %s. Add its normal feed or the animals go without"/>
         <text name="rl_feed_target_AUTO" text="Automatic"/>
         <text name="rl_feed_target_GROW" text="Growth"/>
         <text name="rl_feed_target_FINISH" text="Finishing"/>

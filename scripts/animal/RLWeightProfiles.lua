@@ -333,7 +333,9 @@ end
 --- @return table|nil binding { profile, sex, resolution = "EXACT" / "ALIAS" / "PROXY", typeName }
 --- @return string resolution Also "UNRESOLVED", "NOT_COVERED" (also a breed a listed type excludes), "NOT_CATTLE",
 --- "TYPE_OFF" (a listed type switched off) or "INVALID_PROFILE" when there is none
-function RLWeightProfiles.getCurveBinding(subType)
+--- @param anyTypeState boolean|nil true: a listed type's profile also while the type is switched
+---        off (the dealer's stock weights, RLDealerStockWeight); never the pens' coverage
+function RLWeightProfiles.getCurveBinding(subType, anyTypeState)
     if subType == nil then return nil, "UNRESOLVED" end
     local typeName = RLBreedTraits.getTypeName(subType)
     local config = RLWeightProfiles.getConfig()
@@ -342,7 +344,7 @@ function RLWeightProfiles.getCurveBinding(subType)
     local profileName, sex, resolution
     if typeName == RLWeightProfiles.COVERED_TYPE or typeEntry ~= nil then
         if RLWeightProfiles.isExcludedBreed(typeEntry, subType.breed) then return nil, "NOT_COVERED" end
-        if typeEntry ~= nil and not typeEntry.enabled then return nil, "TYPE_OFF" end
+        if typeEntry ~= nil and not typeEntry.enabled and anyTypeState ~= true then return nil, "TYPE_OFF" end
         profileName, resolution = RLWeightProfiles.resolveProfile(subType)
         sex = subType.gender == "male" and "male" or "female"
     else
