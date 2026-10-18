@@ -74,6 +74,23 @@ RLFeedProfiles.CALF_MILK = { realLitersPerDay = 5, density = 1.03, dm = 0.50, si
 -- A dam's own milk as her calf drinks it (whole milk, NRC 2001: 12.5% DM, ME 5.37 Mcal/kg DM).
 RLFeedProfiles.DAM_MILK = { dm = 0.125, me = 22.5, cp = 0.25 }
 
+-- Water (a game fit, not a real formula): the share of its dry intake an animal may eat at a
+-- pen's water coverage - none held from fullFrom, halfIntake at halfCoverage, minIntake with no
+-- water at all - reached within dropHours model hours as water runs short and given back over
+-- recoveryDays model days once it is back.
+RLFeedProfiles.WATER = { fullFrom = 0.9, halfCoverage = 0.5, halfIntake = 0.6, minIntake = 0.2, dropHours = 6, recoveryDays = 2 }
+
+-- Concentrate routes (species sections only, sheep): the concentrate share (of the ration's DM) a
+-- weaned male eats on AUTO, apart from what his rumen is adapted to. A ram lamb's growth route
+-- (lambTarget, lambCap) to adultFromMonth, a breeding ram's maintenance route (ramTarget, ramCap)
+-- from it, moving from one to the other over transitionDays model days; the share is the route's
+-- target, above it only as far as his needs (maintenance, pregnancy, growth: not reserve laid
+-- down freely) want, never above its cap. An explicit FINISH target or share is the intensive
+-- route: at most finishingCap (the rest forage). The share he eats rises by at most
+-- targetRisePerDay a model day (a route or age switch is taken up over about two weeks).
+RLFeedProfiles.CONCENTRATE = { lambTarget = 0.20, lambCap = 0.40, ramTarget = 0.10, ramCap = 0.25, finishingCap = 0.80,
+    adultFromMonth = 12, transitionDays = 14, targetRisePerDay = 0.05 }
+
 -- Species sections only (<species name="SHEEP">): the root (cattle) has neither group, and
 -- every reader treats a missing group as the cattle rule.
 -- physiology: growthReferenceKg, the live weight growthMEPerKgAt500 is given at (500 for cattle);
@@ -231,7 +248,12 @@ function RLFeedProfiles.validate(config)
     local reason = positive(config.requirements, "requirements") or positive(config.intake, "intake")
         or positive(config.ration, "ration") or positive(config.health, "health")
         or positive(config.calfMilk, "calfMilk") or positive(config.calf, "calf") or positive(config.damMilk, "damMilk")
+        or positive(config.water, "water")
     if reason ~= nil then return false, reason end
+    local w = config.water
+    if not (w.fullFrom <= 1 and w.halfCoverage < w.fullFrom and w.minIntake < w.halfIntake and w.halfIntake < 1) then
+        return false, "water needs halfCoverage < fullFrom <= 1 and minIntake < halfIntake < 1"
+    end
     if config.calfMilk.dm > 1 then return false, "calfMilk dm must be in (0, 1]" end
     local req = config.requirements
     local calf = config.calf
@@ -322,6 +344,21 @@ function RLFeedProfiles.validateSpecies(section)
         if p.growthReferenceKg <= 0 then return false, "physiology growthReferenceKg must be > 0" end
         if p.youngMaintenanceMEPerKgMetabolic > 0 and p.adultMaintenanceFromMonth < p.youngMaintenanceUntilMonth then
             return false, "physiology adultMaintenanceFromMonth must not be before youngMaintenanceUntilMonth"
+        end
+    end
+    local route = section.concentrate
+    if route ~= nil then
+        for key, value in pairs(route) do
+            if not finite(value) or value < 0 then return false, "concentrate " .. key .. " must be a number >= 0" end
+        end
+        for _, key in ipairs({ "lambTarget", "lambCap", "ramTarget", "ramCap", "finishingCap", "targetRisePerDay" }) do
+            if route[key] > 1 then return false, "concentrate " .. key .. " must be a share <= 1" end
+        end
+        if route.lambTarget > route.lambCap or route.ramTarget > route.ramCap then
+            return false, "concentrate targets must not exceed their caps"
+        end
+        if route.transitionDays <= 0 or route.targetRisePerDay <= 0 then
+            return false, "concentrate transitionDays and targetRisePerDay must be > 0"
         end
     end
     local m = section.monogastric
@@ -434,6 +471,10 @@ local function parseSpecies(xmlFile, config)
         section.calfMilk = readGroup(xmlFile, key .. ".calfMilk", config.calfMilk)
         section.calf = readGroup(xmlFile, key .. ".calf", config.calf)
         section.damMilk = readGroup(xmlFile, key .. ".damMilk", config.damMilk)
+        section.water = readGroup(xmlFile, key .. ".water", config.water)
+        if xmlFile:getString(key .. ".concentrate#lambCap") ~= nil then
+            section.concentrate = readGroup(xmlFile, key .. ".concentrate", RLFeedProfiles.CONCENTRATE)
+        end
         local breeds = config.milk.breeds
         section.milk = readGroup(xmlFile, key .. ".milk", { realKgPerDay = config.milk.realKgPerDay, meMJPerKg = config.milk.meMJPerKg })
         section.milk.breeds = breeds
@@ -546,6 +587,7 @@ function RLFeedProfiles.parse(xmlFile)
     config.calfMilk = readGroup(xmlFile, "feedProfiles.calfMilk", RLFeedProfiles.CALF_MILK)
     config.calf = readGroup(xmlFile, "feedProfiles.calf", RLFeedProfiles.CALF)
     config.damMilk = readGroup(xmlFile, "feedProfiles.damMilk", RLFeedProfiles.DAM_MILK)
+    config.water = readGroup(xmlFile, "feedProfiles.water", RLFeedProfiles.WATER)
     config.milk.breeds = {}
     config.feeds, config.feedOrder = {}, {}
 
@@ -639,10 +681,12 @@ function RLFeedProfiles.computeHash(config)
     addGroup("calfMilk", config.calfMilk)
     addGroup("calf", config.calf)
     addGroup("damMilk", config.damMilk)
+    addGroup("water", config.water)
     -- A species section's own groups (the root has none: its fingerprint is as before).
     if config.speciesName ~= nil then
         add("species", config.speciesName)
         addGroup("physiology", config.physiology)
+        if config.concentrate ~= nil then addGroup("concentrate", config.concentrate) end
         local mono = config.monogastric
         if mono ~= nil then
             addGroup("mono", mono)

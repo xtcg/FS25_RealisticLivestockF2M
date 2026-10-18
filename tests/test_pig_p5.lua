@@ -14,8 +14,9 @@ local KCAL = 4.184 / 1000
 -- dev dc58aa2's fingerprints in the same runtime, with the upstream 1.4.1.0 health calibration (feedProfiles
 -- health rates and lowHealthDeath) added; number formatting differs between Lua 5.1 and 5.4, so the
 -- fingerprint is not compared across runtimes.
-local DEV_HASH = { ["Lua 5.1"] = { root = "d9933ebb", sheep = "7844598a" }, ["Lua 5.3"] = { root = "d9933ebb", sheep = "d6a7d97e" },
-    ["Lua 5.4"] = { root = "d9933ebb", sheep = "d6a7d97e" }, ["Lua 5.5"] = { root = "d9933ebb", sheep = "d6a7d97e" } }
+-- With the water group (U14-WATER-01) in the root and the sections and the SHEEP concentrate routes (SHEEP-RAM-CONC-01), 2026-10-18.
+local DEV_HASH = { ["Lua 5.1"] = { root = "2ac43132", sheep = "697fc7a8" }, ["Lua 5.3"] = { root = "2ac43132", sheep = "9b9b649c" },
+    ["Lua 5.4"] = { root = "2ac43132", sheep = "9b9b649c" }, ["Lua 5.5"] = { root = "2ac43132", sheep = "9b9b649c" } }
 local expected = DEV_HASH[_VERSION]
 check("config: the PIG section is valid and monogastric, the root and sheep hashes as on dev in this runtime (" .. _VERSION .. ")",
     pig ~= nil and pig.valid == true and pig.monogastric ~= nil and expected ~= nil and feed.hash == expected.root

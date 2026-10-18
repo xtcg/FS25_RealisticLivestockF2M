@@ -9,6 +9,12 @@
 
     Pure but for getSucklingMonths / getMonths, which read the breed traits config (RLBreedTraits);
     AnimalType is read at call time only.
+
+    isLactating is this milk rule's flag (cattle and goats in milk: saleable milk, the cattle feed
+    class, the cattle dam's calf milk, the mastitis prerequisite), not "has young at foot": a ewe or a
+    sow is never set lactating by a birth, so neither starts giving saleable milk. Whether a dam
+    nurses young now (a ewe's lambs on milk with her, a sow's unweaned litter) is
+    RLFeed.getNursingState / Animal:getIsNursing, for display and reports.
 ]]
 
 RLLactation = {}
