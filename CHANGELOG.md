@@ -70,6 +70,10 @@
 - tests/test_bodycondition.lua: the budget's energy ledger and bounds, the calibration against the old growth line for every bull and against the milk yield for both dairy breeds, 1/3/7 days per period, the feed ledger, conception, the carcass factor, save and stream round trips and the milk deposit.
 ## Unreleased (xtcg fork, Hof Bergmann)
 
+### Project identity
+
+- 2026-10-18: Renamed the xtcg extension to Realistic Livestock: Farm to Market (真实畜牧：从牧场到市场). Published English and Chinese introductions, contributor credits, developer notes and the fork's Issue links. Internal mod ID, ZIP filename, savegame paths and version are unchanged. Original upstream README retained in docs/UPSTREAM_README.md; GPL-3.0 license retained.
+
 ### Changed
 
 - Pigs, sheep, goats, poultry and rabbits are on the cattle meat chain (xml/carcassYield.xml): a standard animal x dressing to the carcass x saleable to what the map sells. Pig 125 kg x 0.80 x 0.75 = 75 kg (unchanged), lamb 50 x 0.48 x 0.80 = 19.2 kg (was 50), bird 3 x 0.70 x 0.90 = 1.89 kg (was 6), goose 7 x 0.70 x 0.90 = 4.41 kg (was 9.17), rabbit 3 x 0.58 x 0.90 = 1.57 kg (was 5.71). Contract slaughter adds a cutting fee per kg to the map's fee per head: pork 0.60 (50 + 45 per pig), lamb 1.20 (40 + 23 per lamb); poultry, geese and rabbits are sold whole and pay only the map's 5 per head.

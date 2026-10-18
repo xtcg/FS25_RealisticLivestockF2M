@@ -1,9 +1,9 @@
-site_name: Realistic Livestock RM
-site_description: User documentation for the Realistic Livestock RM mod for Farming Simulator 25
-site_url: https://rittermod.github.io/FS25_RealisticLivestockRM/
+site_name: 'Realistic Livestock: Farm to Market'
+site_description: Livestock production and economy expansion for Farming Simulator 25
+site_url: https://xtcg.github.io/FS25_RealisticLivestockF2M/
 
-repo_url: https://github.com/rittermod/FS25_RealisticLivestockRM
-repo_name: FS25_RealisticLivestockRM
+repo_url: https://github.com/xtcg/FS25_RealisticLivestockF2M
+repo_name: 'Realistic Livestock: Farm to Market'
 
 docs_dir: docs/user-guide
 
