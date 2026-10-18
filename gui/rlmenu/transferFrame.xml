@@ -113,7 +113,7 @@
             <Text profile="rlMenu_penNameText" id="penNameText" position="0px -45px"/>
             <Text profile="rlMenu_penCountText" id="penCountText" position="0px -80px"/>
             <Bitmap profile="rlMenu_penIcon" id="penIcon"/>
-            <BoxLayout profile="fs25_animalRequirementsLayout" id="penRequirementsLayout" position="0px -350px">
+            <ScrollingLayout profile="rlMenu_penRequirementsLayout" id="penRequirementsLayout">
 
                 <Text profile="fs25_animalRequirementsHeaderLong" id="penConditionsHeader" text="$l10n_ui_animalConditions"/>
 
@@ -219,7 +219,10 @@
                         <ThreePartBitmap profile="fs25_animalSmallStatusBar" id="foodStatusBar[5]"/>
                     </ThreePartBitmap>
                 </GuiElement>
-            </BoxLayout>
+            </ScrollingLayout>
+            <ThreePartBitmap profile="rlMenu_penRequirementsSliderBox">
+                <Slider profile="fs25_listSlider" dataElementId="penRequirementsLayout"/>
+            </ThreePartBitmap>
         </GuiElement>
 
         <ThreePartBitmap profile="fs25_animalInfoSeparatorLeft"/>

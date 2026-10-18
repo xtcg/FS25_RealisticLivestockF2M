@@ -283,7 +283,19 @@ function RLDetailPaneHelper.updatePenDisplay(frame, husbandry, farmId)
     end
 
     if frame.penRequirementsLayout ~= nil and frame.penRequirementsLayout.invalidateLayout ~= nil then
-        frame.penRequirementsLayout:invalidateLayout()
+        local layout = frame.penRequirementsLayout
+        layout:invalidateLayout()
+        if layout.scrollTo ~= nil then
+            -- Start each pen at its conditions. For updates of the same pen,
+            -- preserve the view but clamp it if visible rows have disappeared.
+            local maxOffset = math.max(0, layout.contentSize - layout.absSize[2])
+            if layout.rlHusbandry ~= husbandry then
+                layout:scrollTo(0)
+            elseif layout.contentOffsetY > maxOffset or layout.targetContentOffsetY > maxOffset then
+                layout:scrollTo(math.min(layout.contentOffsetY, maxOffset))
+            end
+            layout.rlHusbandry = husbandry
+        end
     end
 end
 
