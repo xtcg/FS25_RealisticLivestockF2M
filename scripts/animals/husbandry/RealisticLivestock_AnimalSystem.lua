@@ -2003,6 +2003,10 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
         genetics = genetics
     })
 
+    -- The breed curve's weight at its age with its genes, the old rules' line otherwise swinging
+    -- with the metabolism gene (DEALER-WEIGHT-SPREAD-01). Before the checks below, which read it.
+    if RLDealerStockWeight ~= nil then RLDealerStockWeight.applyToNewStock(animal, subType) end
+
     -- The listing record, before the checks below read its source and parity. `day` is the
     -- monotonic day it is listed on (the rotation's shelf time).
     animal.sale = {
@@ -2893,9 +2897,18 @@ function AnimalSystem:onDayChanged()
 
                 animal.reserved = false
 
+                local ageBefore = animal.age
                 RmSafeUtils.safeAnimalCall(animal, "AnimalSystem:onDayChanged", function()
                     animal:onDayChanged(nil, self.isServer, day, month, year, currentDayInPeriod, daysPerPeriod, true)
                 end)
+
+                -- A month older on the shelf: it grows as its source farm would rear it
+                -- (DEALER-WEIGHT-SPREAD-01), not standing still at its listing weight.
+                if self.isServer and RLDealerStockWeight ~= nil and ageBefore ~= nil and (animal.age or 0) > ageBefore then
+                    RmSafeUtils.safeAnimalCall(animal, "RLDealerStockWeight.onShelfAged", function()
+                        RLDealerStockWeight.onShelfAged(animal, ageBefore)
+                    end)
+                end
 
                 tickDisease(animal, "sale")
 
