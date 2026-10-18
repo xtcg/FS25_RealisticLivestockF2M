@@ -12,7 +12,7 @@
         <text name="fillType_bull_hereford" text="海佛特公牛"/>
         <text name="fillType_cow_highland_cattle" text="高地牛"/>
         <text name="fillType_bull_highland_cattle" text="高地公牛"/>
-        <text name="animal_descriptionBullFeed" text="公牛喜食牧草、干草和全混合日粮。"/>
+        <text name="animal_descriptionBullFeed" text="公牛喜食牧草、干草和全混合日粮。现实等效营养模式下，断奶后的牛还可按限额补喂谷物（玉米、小麦、大麦、燕麦）。"/>
         <text name="animal_descriptionBullYoung" text="这是雄性小牛。"/>
         <text name="animal_descriptionBullReproduction" text="健康且月龄超过12个月的公牛可以繁殖。"/>
         <text name="rl_descriptionCowReproduction" text="健康且月龄超过12个月的母牛可以繁殖。"/>
@@ -134,6 +134,10 @@
         <text name="rl_ui_penCowsThinFat" text="母牛 体况低/高"/>
         <text name="rl_ui_penBullsReady" text="可出栏公牛"/>
         <text name="rl_ui_penBullsOverfat" text="过肥公牛"/>
+        <text name="rl_ui_fatClass" text="肥度等级"/>
+        <text name="rl_ui_penEwesThinFat" text="母羊 体况低/高"/>
+        <text name="rl_ui_penLambsReady" text="可出栏小羊"/>
+        <text name="rl_ui_penLambsOverfat" text="过肥小羊"/>
         <text name="rl_ui_penFeedEaten" text="采食满足率"/>
         <text name="rl_ui_penRationEnergy" text="日粮能量"/>
         <text name="rl_ui_penWater" text="饮水满足率"/>
@@ -211,6 +215,8 @@
         <text name="rl_ui_moveErrorNoSpace" text="目的地空间不足。"/>
         <text name="rl_ui_tradeRequestInProgress" text="已有交易正在进行，请稍候。"/>
         <text name="rl_ui_tradeRequestTimeout" text="服务器没有响应，请重试。"/>
+        <text name="rl_ui_moveEPPMinAgeFormat" text="%d 月龄以上" tag="format"/>
+        <text name="rl_ui_moveRejectedMinAge" text="%d 头动物已跳过：低于最低月龄（%d 个月）" tag="format"/>
 
         <text name="rl_ui_monitor" text="检测器"/>
         <text name="rl_ui_monitorSubscriptions" text="检测器订阅"/>
@@ -227,8 +233,10 @@
         <text name="rl_ui_output_pallets_eggs" text="鸡蛋"/>
         <text name="rl_ui_output_pallets_wool" text="羊毛"/>
         <text name="rl_ui_output_pallets_goatMilk" text="羊奶"/>
-        <text name="rl_ui_amountPerDay" text="%.0f 升/天" tag="format"/>
+        <text name="rl_ui_amountPerDay" text="%s 升/天" tag="format"/>
+        <text name="rl_ui_amountPerMonth" text="%s 升/月" tag="format"/>
         <text name="rl_ui_feePerMonth" text="%s/月" tag="format"/>
+        <text name="rl_ui_feePerDose" text="%s/剂" tag="format"/>
 
         <text name="rl_ui_animalType" text="类型"/>
         <text name="rl_ui_amountMonitored" text="已检测"/>
@@ -473,6 +481,7 @@
         <text name="rl_settings_exportCSV_label" text="导出为CSV"/>
         <text name="rl_settings_exportCSV_tooltip" text="将统计信息导出为CSV"/>
         <text name="rl_settings_exportCSV_text" text="导出为CSV"/>
+        <text name="rl_settings_exportCSV_failed" text="无法写入 %s。请在其他程序中关闭该文件后重试。"/>
 
         <text name="rl_settings_maxNumMessages_label" text="最大消息数量"/>
         <text name="rl_settings_maxNumMessages_tooltip" text="数量较大会导致存档文件夹占用更多空间。达到此限制后，最早的消息将被删除。"/>
@@ -540,6 +549,13 @@
         <text name="rl_ui_stopTreatment" text="停止护理"/>
         <text name="rl_ui_cull" text="处置"/>
         <text name="rl_ui_cullConfirm" text="处置 %s？它将永久移出你的畜群，你将获得 %s 的补偿。"/>
+        <text name="rl_ui_vaccinated" text="已接种"/>
+        <text name="rl_ui_vaccinate" text="接种"/>
+        <text name="rl_ui_vaccinateConfirm" text="为 %s 接种针对 %s 的防护针？每剂费用为 %s。"/>
+        <text name="rl_ui_notVaccinated" text="未接种"/>
+        <text name="rl_ui_startTreatmentConfirm" text="开始为 %s 护理 %s？护理时间为 %s，每月费用为 %s。"/>
+        <text name="rl_ui_resumeTreatmentConfirm" text="继续为 %s 护理 %s？护理时间还剩 %s，每月费用为 %s。"/>
+        <text name="rl_ui_stopTreatmentConfirm" text="停止为 %s 护理 %s？暂停期间不收取费用；继续时会保留已完成的护理时间。"/>
         <text name="rl_ui_duration" text="持续时间"/>
         <text name="rl_ui_beingTreated" text="护理中"/>
         <text name="rl_ui_notTreated" text="未护理"/>
@@ -562,6 +578,7 @@
         <text name="rl_disease_brd" text="牛呼吸道感染 (BRD)"/>
         <text name="rl_disease_clostridial" text="软肾感染"/>
         <text name="rl_disease_colic" text="急性消化不适"/>
+        <text name="rl_disease_footRot" text="脚部感染"/>
 
 
 
@@ -954,5 +971,118 @@
         <text name="rl_semen_sellConfirm" text="出售这个装有 %d 支细管的精液罐，售价 %s？"/>
         <text name="rl_semen_saleValue" text="出售价值"/>
         <text name="rl_semen_sale" text="精液销售"/>
+        <text name="rl_settings_nutritionMode_label" text="营养模型"/>
+        <text name="rl_settings_nutritionMode_tooltip" text="牛：旧版沿用原饲料规则。现实等效按现实干物质与能量计算采食和日粮，默认扣料为现实等效体积的1/8，不是旧版用量的1/8。"/>
+        <text name="rl_settings_nutritionMode_texts_1" text="旧版"/>
+        <text name="rl_settings_nutritionMode_texts_2" text="现实等效（省料）"/>
+        <text name="rl_feed_grainGroup" text="谷物补料"/>
+
+        <!-- Feed UI: Chinese and English; English fallback for other languages. -->
+        <text name="rl_feed_penMode" text="饲料模式"/>
+        <text name="rl_feed_modeReal" text="现实等效"/>
+        <text name="rl_feed_penRation" text="日粮目标"/>
+        <text name="rl_feed_penCoverage" text="计划供能覆盖"/>
+        <text name="rl_feed_penFirstOut" text="最先耗尽"/>
+        <text name="rl_feed_intake" text="干物质/供能"/>
+        <text name="rl_feed_intakeFormat" text="%.1f千克/日（%.0f%%）"/>
+        <text name="rl_feed_ration" text="谷物干物质/限制"/>
+        <text name="rl_feed_finish" text="预计出栏"/>
+        <text name="rl_feed_finishReady" text="已达出栏参考"/>
+        <text name="rl_feed_finishStalled" text="增重过慢"/>
+        <text name="rl_feed_monthsShort" text="月"/>
+        <text name="rl_feed_unconfigured" text="营养未配置"/>
+        <text name="rl_feed_grainNotEaten" text="旧模式不采食"/>
+        <text name="rl_feed_grain_AUTO" text="自动选谷物"/>
+        <text name="rl_feed_grain_NONE" text="不加谷物"/>
+        <text name="rl_feed_feedShareFormat" text="%s（干物质%.0f%%）"/>
+        <text name="rl_feed_feedPlanFormat" text="%s · 计划%.0f升/%s"/>
+        <text name="rl_feed_reason_OK" text="现实等效"/>
+        <text name="rl_feed_reason_MODE_OFF" text="旧营养模式"/>
+        <text name="rl_feed_reason_CONFIG_INVALID" text="饲料配置无效"/>
+        <text name="rl_feed_reason_MODEL_OFF" text="体重模型未启用"/>
+        <text name="rl_feed_reason_NOT_CATTLE" text="仅适用于牛"/>
+        <text name="rl_feed_reason_MILKCOW_LEGACY" text="特殊奶牛沿用旧模式"/>
+        <text name="rl_feed_reason_NO_TROUGH" text="食槽不支持"/>
+        <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="栏内有未覆盖动物"/>
+        <text name="rl_feed_reason_SUCKLING_CALF" text="吃奶小牛需母牛或小牛栏"/>
+        <text name="rl_feed_reason_PIG_BREEDING_LEGACY" text="有母猪或仔猪：旧规则"/>
+        <text name="rl_feed_reason_UNKNOWN" text="状态未知"/>
+        <text name="rl_feed_limit_NONE" text="无限制"/>
+        <text name="rl_feed_limit_FIBRE" text="粗料限制"/>
+        <text name="rl_feed_limit_STARCH" text="糖类限制"/>
+        <text name="rl_feed_limit_WHEAT" text="小麦限额"/>
+        <text name="rl_feed_limit_FEED_CAP" text="单料上限"/>
+        <text name="rl_feed_limit_NO_FORAGE" text="缺少粗料"/>
+        <text name="rl_feed_limit_TARGET" text="目标配比"/>
+        <text name="rl_feed_limit_PROTEIN_OR_DEMAND" text="蛋白或需求"/>
+        <text name="rl_feed_limit_ADAPTATION" text="换料适应"/>
+        <text name="rl_feed_limit_STOCK" text="谷物不足"/>
+        <text name="rl_feed_limit_NO_CONCENTRATE" text="缺少谷物"/>
+        <text name="rl_feed_limit_NO_FEED" text="没有饲料"/>
+        <text name="rl_feed_limit_APPETITE" text="采食上限"/>
+        <text name="rl_feed_limit_ENERGY" text="能量上限"/>
+        <text name="rl_feed_limit_FEED_SHORT" text="饲料不足"/>
+        <text name="rl_feed_limit_FILL" text="容量上限"/>
+        <text name="rl_feed_limit_DEMAND" text="需求已满足"/>
+        <text name="rl_feed_limit_PROTEIN" text="蛋白不足"/>
+        <text name="rl_feed_limit_UNKNOWN" text="限制未知"/>
+        <text name="rl_feed_limit_NO_CALF_MILK" text="缺小牛奶"/>
+        <text name="rl_feed_limit_CREEP" text="小羊补饲上限"/>
+        <text name="rl_feed_limit_WATER" text="缺水"/>
+        <text name="rl_feed_penCalfMilk" text="吃奶小牛"/>
+        <text name="rl_feed_calfMilkNone" text="%d 头缺小牛奶"/>
+        <text name="rl_feed_calfMilkLow" text="小牛奶还够 %s"/>
+        <text name="rl_feed_calfMilkAlert" text="%s：%d 头吃奶小牛没有小牛奶，会掉健康甚至死亡"/>
+        <text name="rl_feed_calfMilkLowAlert" text="%s：小牛奶约 %s 后用完"/>
+        <text name="rl_feed_lambNoDam" text="%s：%d 只仍需喝奶的小羊不在母羊身边，没有奶可喝，会掉健康甚至死亡"/>
+        <text name="rl_feed_penNotEaten" text="旧模式不吃"/>
+        <text name="rl_feed_penNoBaseFeed" text="基础饲料"/>
+        <text name="rl_feed_noBaseFeed" text="没有，动物吃不到饲料"/>
+        <text name="rl_feed_noBaseFeedAlert" text="%s：%s，此栏按旧模式喂养，%s 不会被吃。请添加基础饲料，否则动物没有饲料可吃"/>
+        <text name="rl_feed_target_AUTO" text="自动"/>
+        <text name="rl_feed_target_GROW" text="生长"/>
+        <text name="rl_feed_target_FINISH" text="育肥"/>
+        <text name="rl_feed_target_MAINTAIN" text="维持"/>
+        <text name="rl_feed_target_UNKNOWN" text="目标未知"/>
+        <text name="input_RL_FEED_RATION" text="栏日粮设置"/>
+        <text name="rl_feed_rationButton" text="日粮"/>
+        <text name="rl_feed_dialogTitle" text="日粮设置"/>
+        <text name="rl_feed_labelTarget" text="饲喂目标"/>
+        <text name="rl_feed_labelGrain" text="精料"/>
+        <text name="rl_feed_labelShare" text="精料比例（干物质）"/>
+        <text name="rl_feed_labelSubstitute" text="缺料时替代"/>
+        <text name="rl_feed_share_AUTO" text="自动（允许上限）"/>
+        <text name="rl_feed_substitute_on" text="允许"/>
+        <text name="rl_feed_substitute_off" text="不允许"/>
+        <text name="rl_feed_readOnly" text="只读：%s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="没有权限"/>
+        <text name="rl_feed_statusClient" text="服务器确认后生效"/>
+        <text name="rl_feed_previewTarget" text="目标"/>
+        <text name="rl_feed_previewNow" text="当前"/>
+        <text name="rl_feed_previewAdapted" text="适应后"/>
+        <text name="rl_feed_previewIntake" text="%d头 · 每头%.1f千克干物质/日 · 计划供能%.0f%%"/>
+        <text name="rl_feed_colFeed" text="饲料"/>
+        <text name="rl_feed_colMonth" text="升/月"/>
+        <text name="rl_feed_colShare" text="干物质占比"/>
+        <text name="rl_feed_colStock" text="库存"/>
+        <text name="rl_feed_colLasts" text="可用"/>
+        <text name="rl_feed_previewNote" text="仅为预览，不扣料。比例是目标，仍受粗料、糖类、小麦和换料适应限制。"/>
+        <text name="rl_feed_previewMore" text="另有%d种饲料未列出。"/>
+        <text name="rl_feed_previewError" text="无法预览"/>
+        <text name="rl_feed_previewNoAnimals" text="本栏没有动物"/>
+        <text name="rl_feed_previewNoFeed" text="食槽内没有可用饲料"/>
+        <text name="rl_feed_apply" text="应用"/>
+        <text name="rl_dealer_v2_stale" text="商品已更新，请重新选择。"/>
+        <text name="rl_dealer_v2_quote_expired" text="报价已失效，请重新获取并确认。"/>
+        <text name="rl_dealer_v2_capacity" text="目标无法接收这批动物。"/>
+        <text name="rl_dealer_v2_no_permission" text="你没有使用该目标的权限。"/>
+        <text name="rl_dealer_v2_funds" text="资金不足，无法完成订单。"/>
+        <text name="rl_dealer_v2_updating" text="库存正在更新，请稍后再试。"/>
+        <text name="rl_dealer_v2_checking" text="订单结果正在核查，核查完成前暂停交易。"/>
+        <text name="rl_dealer_v2_closed" text="商人的新库存暂未开放。"/>
+        <text name="rl_dealer_v2_limit" text="每份订单最多购买100头动物。"/>
+        <text name="rl_dealer_v2_generic" text="订单未能完成。"/>
+        <text name="rl_meadow_witherWarning" text="%s：牧场鲜草约%d天后入冬枯退，请在食槽补充干草或青贮"/>
+        <text name="rl_wool_shorn" text="%s：已为%d只羊剪毛，共%d升羊毛等待装托盘"/>
     </texts>
 </l10n>

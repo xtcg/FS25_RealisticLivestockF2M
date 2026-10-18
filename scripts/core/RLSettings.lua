@@ -155,47 +155,69 @@ function RLSettings.onDiseaseSelectionConfirmed(catalog, result)
 end
 
 
-function RLSettings.onClickExportCSV()
+--- Write `text` to `path`, creating the mod-settings folder first; false on a missing handle or a raise.
+---@param path string
+---@param text string
+---@return boolean ok
+function RLSettings.writeExportFile(path, text)
 
-	local file = io.open(modSettingsDirectory .. "animals.csv", "w")
+	local file = nil
+	local ok, written = pcall(function()
+		createFolder(modSettingsDirectory)
+		file = io.open(path, "w")
+		if file == nil then return false end
+		-- In-game write and close return nil even on success, so their results prove nothing.
+		file:write(text)
+		file:close()
+		file = nil
+		return true
+	end)
 
-	file:write("Type,Subtype,Country,Farm Id,Unique Id,Age,Health,Weight,Value,Value / kg,Pregnant,Expected Offspring,Lactating,Food,Water,Straw,Product,Manure,Liquid Manure")
-
-	local husbandrySystem = g_currentMission.husbandrySystem
-	local animalSystem = g_currentMission.animalSystem
-
-	for _, placeable in pairs(husbandrySystem.placeables) do
-
-		local animals = placeable:getClusters()
-
-		for _, animal in pairs(animals) do
-
-			local hasMonitor = animal.monitor.active or animal.monitor.removed
-
-			local foodInput = animal:getInput("food") * 24
-			local waterInput = animal:getInput("water") * 24
-			local strawInput = animal:getInput("straw") * 24
-			local manureOutput = animal:getOutput("manure") * 24
-			local liquidManureOutput = animal:getOutput("liquidManure") * 24
-			local milkOutput = animal:getOutput("milk") * 24
-			local palletsOutput = animal:getOutput("pallets") * 24
-
-			local productOutput = milkOutput > palletsOutput and milkOutput or palletsOutput
-
-			local value = animal:getSellPrice()
-			local valuePerKg = hasMonitor and (value / animal.weight) or "no monitor"
-			
-			local expectedOffspring = animal.pregnancy ~= nil and animal.pregnancy.pregnancies ~= nil and #animal.pregnancy.pregnancies or 0
-
-			file:write(string.format("\n%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", animalSystem.types[animal.animalTypeIndex].name, animal.subType, RLConstants.AREA_CODES[animal.birthday.country].code, animal.farmId, animal.uniqueId, animal.age, hasMonitor and animal.health or "no monitor", hasMonitor and animal.weight or "no monitor", value, valuePerKg, animal.isPregnant and "yes" or "no", expectedOffspring, (hasMonitor and (animal.isLactating and "yes" or "no") or "no monitor"), hasMonitor and foodInput or "no monitor", hasMonitor and waterInput or "no monitor", hasMonitor and strawInput or "no monitor", hasMonitor and productOutput or "no monitor", hasMonitor and manureOutput or "no monitor", hasMonitor and liquidManureOutput or "no monitor"))
-
-		end
-
+	if file ~= nil then
+		Log:trace("RLSettings.writeExportFile: closing %s after the write or close raised", tostring(path))
+		pcall(function() file:close() end)
 	end
 
-	file:close()
+	if not ok then
+		Log:trace("RLSettings.writeExportFile: writing %s raised: %s", tostring(path), tostring(written))
+		return false
+	end
+	if written ~= true then
+		Log:trace("RLSettings.writeExportFile: could not open %s for writing", tostring(path))
+		return false
+	end
+	Log:trace("RLSettings.writeExportFile: handed %d byte(s) to %s", #text, tostring(path))
+	return true
 
-	InfoDialog.show(modSettingsDirectory .. "animals.csv")
+end
+
+
+--- Export the player farms' pen animals to animals.csv in the mod-settings folder and show the path.
+---@return nil
+function RLSettings.onClickExportCSV()
+
+	RmSafeUtils.safeCall("RLSettings.onClickExportCSV", function()
+
+		local mission = g_currentMission
+		local ctx = {
+			animalSystem = mission.animalSystem,
+			isMultiplayer = mission.missionDynamicInfo.isMultiplayer == true
+		}
+		local path = modSettingsDirectory .. "animals.csv"
+		local lines, stats = RLAnimalExport.buildLines(mission.husbandrySystem.placeables, ctx)
+
+		-- The byte-order mark makes spreadsheet programs read non-ASCII names as UTF-8.
+		if not RLSettings.writeExportFile(path, "\239\187\191" .. table.concat(lines, "\n")) then
+			Log:warning("RLSettings.onClickExportCSV: could not write %s", path)
+			InfoDialog.show(string.format(g_i18n:getText("rl_settings_exportCSV_failed"), path))
+			return
+		end
+
+		Log:info("RLSettings.onClickExportCSV: %d row(s), %d failed, %d pen(s) exported, %d skipped (%s) -> %s",
+			stats.rows, stats.rowsFailed, stats.pensExported, stats.pensSkipped, ctx.isMultiplayer and "MP" or "SP", path)
+		InfoDialog.show(path)
+
+	end)
 
 end
 
@@ -246,10 +268,10 @@ end
 -- each row by its rlmenuSetting_<name> element id. setting.index is consumed by
 -- RLDebugUtils.dumpSettings, which prints state rows in index order (it skips
 -- ignore==true rows), so index must stay a faithful mirror of the XML order below.
--- Keep the two in step when adding or moving a row. Sections (1..21):
--- Mortality (1-2), Health & Disease (3-4), Husbandry & Economy (5-8),
--- Custom Animals (9-10), Message Log (11-12), Display Preferences (13-16),
--- Tools & Admin (17-20), Visual Animals (21, client-local, no admin gate).
+-- Keep the two in step when adding or moving a row. Sections (1..22):
+-- Mortality (1-2), Health & Disease (3-4), Husbandry & Economy (5-9),
+-- Custom Animals (10-11), Message Log (12-13), Display Preferences (14-17),
+-- Tools & Admin (18-21), Visual Animals (22, client-local, no admin gate).
 RLSettings.SETTINGS = {
 
 	["deathEnabled"] = {
@@ -324,8 +346,19 @@ RLSettings.SETTINGS = {
 		["callback"] = RealisticLivestock_PlaceableHusbandryFood.onSettingChanged
 	},
 
-	["maxDealerAnimals"] = {
+	-- Real-equivalent nutrition (RLFeed, xml/feedProfiles.xml): cattle intake and ration in real
+	-- dry matter and ME, with the game's feed at the resource scale. Legacy until it is accepted.
+	["nutritionMode"] = {
 		["index"] = 6,
+		["adminOnly"] = true,
+		["type"] = "MultiTextOption",
+		["default"] = 1,
+		["values"] = { 1, 2 },
+		["callback"] = RLFeed.onSettingChanged
+	},
+
+	["maxDealerAnimals"] = {
+		["index"] = 7,
 		["adminOnly"] = true,
 		["type"] = "MultiTextOption",
 		["default"] = 4,
@@ -342,7 +375,7 @@ RLSettings.SETTINGS = {
 	-- and every reader depend on values[i] == i, which RLSettingsTests pins
 	-- against RLDealerQualityModel.DEFAULT_INDEX / PRESET_COUNT.
 	["dealerQuality"] = {
-		["index"] = 7,
+		["index"] = 8,
 		["adminOnly"] = true,
 		["type"] = "MultiTextOption",
 		["default"] = 2,
@@ -355,7 +388,7 @@ RLSettings.SETTINGS = {
 	-- and the resolver cannot drift. Option texts are runtime-built (getTexts):
 	-- only "Map default" is localized, country names render in English.
 	["mapCountry"] = {
-		["index"] = 8,
+		["index"] = 9,
 		["adminOnly"] = true,
 		["type"] = "MultiTextOption",
 		["default"] = 1,
@@ -373,7 +406,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["useCustomAnimals"] = {
-		["index"] = 9,
+		["index"] = 10,
 		["adminOnly"] = true,
 		["type"] = "BinaryOption",
 		["dynamicTooltip"] = true,
@@ -383,7 +416,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["animalsXML"] = {
-		["index"] = 10,
+		["index"] = 11,
 		["adminOnly"] = true,
 		["type"] = "Button",
 		["ignore"] = true,
@@ -395,7 +428,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["messageSummary"] = {
-		["index"] = 11,
+		["index"] = 12,
 		["adminOnly"] = true,
 		["type"] = "BinaryOption",
 		["dynamicTooltip"] = true,
@@ -406,7 +439,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["maxNumMessages"] = {
-		["index"] = 12,
+		["index"] = 13,
 		["adminOnly"] = true,
 		["type"] = "MultiTextOption",
 		["default"] = 5,
@@ -416,7 +449,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["geneticsDisplay"] = {
-		["index"] = 13,
+		["index"] = 14,
 		["adminOnly"] = true,
 		["type"] = "MultiTextOption",
 		["default"] = 1,
@@ -424,7 +457,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["geneticsPosition"] = {
-		["index"] = 14,
+		["index"] = 15,
 		["adminOnly"] = true,
 		["type"] = "BinaryOption",
 		["default"] = 1,
@@ -432,7 +465,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["sortByGenetics"] = {
-		["index"] = 15,
+		["index"] = 16,
 		["adminOnly"] = true,
 		["type"] = "BinaryOption",
 		["dynamicTooltip"] = true,
@@ -442,7 +475,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["tagColour"] = {
-		["index"] = 16,
+		["index"] = 17,
 		["adminOnly"] = true,
 		["type"] = "Button",
 		["ignore"] = true,
@@ -450,7 +483,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["exportCSV"] = {
-		["index"] = 17,
+		["index"] = 18,
 		["adminOnly"] = true,
 		["type"] = "Button",
 		["ignore"] = true,
@@ -458,7 +491,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["resetDealer"] = {
-		["index"] = 18,
+		["index"] = 19,
 		["type"] = "Button",
 		["ignore"] = true,
 		["adminOnly"] = true,
@@ -469,7 +502,7 @@ RLSettings.SETTINGS = {
 	-- dealer offers. Server-authoritative (the Confirm handler writes the override
 	-- registry and regenerates the dealer), hence the admin gate.
 	["dealerSale"] = {
-		["index"] = 19,
+		["index"] = 20,
 		["type"] = "Button",
 		["ignore"] = true,
 		["adminOnly"] = true,
@@ -477,7 +510,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["resetAIAnimals"] = {
-		["index"] = 20,
+		["index"] = 21,
 		["type"] = "Button",
 		["ignore"] = true,
 		["adminOnly"] = true,
@@ -490,7 +523,7 @@ RLSettings.SETTINGS = {
 	-- and out of rm_RlSettings.xml. The dialog persists the value per peer to
 	-- modSettings/Settings.xml.
 	["maxVisualAnimals"] = {
-		["index"] = 21,
+		["index"] = 22,
 		["type"] = "Button",
 		["ignore"] = true,
 		["callback"] = RLSettings.onClickVisualAnimals
@@ -607,6 +640,7 @@ function RLSettings.loadFromXMLFile()
 		Log:debug("RLSettings.loadFromXMLFile: loading from '%s' (rootKey=%s)", path, rootKey)
 
 		RLSettings.readSettingStates(xmlFile, rootKey)
+		RLFeed.loadSummary(xmlFile, rootKey .. ".feed")
 
 		xmlFile:delete()
 
@@ -825,6 +859,9 @@ function RLSettings.saveToXMLFile(name, state)
 			xmlFile:setInt("rm_RlSettings#version", 1)
 
 			RLSettings.writeSettingStates(xmlFile)
+
+			-- The nutrition mode's feed data (RLFeed): a later change is logged on load.
+			RLFeed.saveSummary(xmlFile, "rm_RlSettings.feed")
 
 			-- Saveable filters share rm_RlSettings.xml as their on-disk
 			-- home. Server-only by virtue of the surrounding g_server

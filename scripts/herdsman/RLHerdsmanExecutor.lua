@@ -1053,6 +1053,8 @@ end
 --- Move to an EPP (butcher) destination: player-move parity on the delivery-time age filter and the
 --- delivery primitive, with two deliberate divergences - placeable-keyed transport, and ALL-OR-NOTHING
 --- capacity. The order is PINNED:
+---   0. a butcher still under construction (RLPenConstruction) takes nothing: "pen-not-built",
+---      wage charged, as for a husbandry dest.
 ---   1. typeData PRESENCE on the SOURCE pen's type index, BEFORE any age read; nil rejects as
 ---      ANIMAL_NOT_SUPPORTED with the wage charged.
 ---   2. age filter over action.animals against typeData.minimumAge/.maximumAge; out-of-window animals
@@ -1079,6 +1081,15 @@ end
 ---@return nil skippedCount always nil
 ---@return table extra { movedCount, skippedAge, skippedSick }
 function RLHerdsmanExecutor._doMoveToEPP(action, ctx, placeable, dest, pp, farmId, count)
+    -- 0. Not built yet: nothing is filtered or dispatched.
+    local admit, construction = RLPenConstruction.canAdmit(dest)
+    if not admit then
+        Log:warning("%s rule=%s op=move husbandry=%s farm=%s: butcher '%s' is not built yet (%s) - dispatch skipped (wage charged)",
+            LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), tostring(action.destinationHusbandry),
+            RLPenConstruction.detail(construction))
+        return true, false, "pen-not-built", nil, nil, { movedCount = 0, skippedAge = 0, skippedSick = 0 }
+    end
+
     -- 1. The source pen is single-type, and its type index keys the butcher's animalsTypeData.
     local typeIndex = placeable.getAnimalTypeIndex ~= nil and placeable:getAnimalTypeIndex() or nil
     local typeData = (typeIndex ~= nil and type(pp.animalsTypeData) == "table") and pp.animalsTypeData[typeIndex] or nil
@@ -1088,21 +1099,20 @@ function RLHerdsmanExecutor._doMoveToEPP(action, ctx, placeable, dest, pp, farmI
         return true, false, "bad-data"
     end
 
-    -- 2. Delivery-time age filter, with the player path's own `or 0` / `or 999` defaults.
-    local minAge = typeData.minimumAge or 0
-    local maxAge = typeData.maximumAge or 999
+    -- 2. Delivery-time age filter, the same window the player path applies.
     local eligible = {}
     local skippedAge = 0
     for _, animal in ipairs(action.animals) do
         local age = (type(animal) == "table" and animal.age) or 0
-        if age >= minAge and age <= maxAge then
+        if RLEppAge.check(age, typeData) then
             eligible[#eligible + 1] = animal
         else
             skippedAge = skippedAge + 1
         end
     end
-    Log:info("%s rule=%s op=move husbandry=%s farm=%s: butcher age filter (window %d-%d) -> %d eligible, %d skipped-age of %d",
-        LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId), minAge, maxAge, #eligible, skippedAge, count)
+    Log:info("%s rule=%s op=move husbandry=%s farm=%s: butcher age filter (window %s) -> %d eligible, %d skipped-age of %d",
+        LOG_PREFIX, tostring(action.ruleId), tostring(action.husbandryId), tostring(farmId),
+        RLEppAge.format(RLEppAge.getWindow(typeData)), #eligible, skippedAge, count)
 
     -- 2b. The sick gate over the age-eligible only, so skippedAge stays exactly the age count.
     local skippedSick = 0

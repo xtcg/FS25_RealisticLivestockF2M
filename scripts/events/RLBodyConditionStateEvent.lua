@@ -1,9 +1,12 @@
 --[[
     RLBodyConditionStateEvent
     Server -> clients, once per game hour per cattle pen whose animals took a body condition step:
-    each stepped animal's weight, reserve, trends and last budget (ration coverage, intake, milk
-    share), and the pen's feed ledger summary. Clients only display these; the server is the only
-    one that advances them. Sent from RL_PlaceableHusbandry:onHourChanged.
+    each stepped animal's weight, reserve, trends, weight model v2 state (RLGrowth) and last budget
+    (ration coverage, intake, milk share, and in the real-equivalent nutrition mode its real
+    intake, limits and target), and the pen's feed ledger summary (with the mode's state, ration and
+    feed month). Clients only display
+    these; the server is the only one that advances them. Sent from
+    RL_PlaceableHusbandry:onHourChanged.
 
     A client cannot send it: run() ignores it unless it came from the server.
 ]]
@@ -54,11 +57,17 @@ function RLBodyConditionStateEvent:writeStream(streamId, connection)
     streamWriteFloat32(streamId, summary.eatenShare)
     streamWriteFloat32(streamId, summary.energy)
     streamWriteFloat32(streamId, summary.water)
+    -- The hour the animals below took their step (their nutrition's hour on the client).
+    streamWriteInt32(streamId, self.tick or -1)
+    -- Real-equivalent nutrition: the pen's mode, ration and feed month (RLFeed).
+    RLFeed.writePenStream(self.object, streamId)
 
     local animals = {}
     for _, animal in ipairs(self.object:getClusters()) do
-        local state = animal.bodyCondition
-        if state ~= nil and state.lastTick == self.tick then table.insert(animals, animal) end
+        local state, growth = animal.bodyCondition, animal.rlGrowth
+        if state ~= nil and (state.lastTick == self.tick or (growth ~= nil and growth.lastTick == self.tick)) then
+            table.insert(animals, animal)
+        end
     end
 
     streamWriteUInt16(streamId, #animals)
@@ -68,9 +77,11 @@ function RLBodyConditionStateEvent:writeStream(streamId, connection)
         RLAnimalUtil.writeStreamIdentifiers(animal, streamId, connection)
         streamWriteFloat32(streamId, animal.weight)
         RLBodyCondition.writeStream(state, streamId)
+        RLGrowth.writeStream(animal.rlGrowth, streamId)
         streamWriteFloat32(streamId, nutrition.coverage or 0)
         streamWriteFloat32(streamId, nutrition.intakeRatio or 0)
         streamWriteFloat32(streamId, nutrition.milkShare or -1)
+        RLFeed.writeAnimalStream(animal, streamId, self.tick)
     end
 end
 
@@ -82,6 +93,8 @@ function RLBodyConditionStateEvent:readStream(streamId, connection)
         energy = streamReadFloat32(streamId),
         water = streamReadFloat32(streamId),
     }
+    self.tick = streamReadInt32(streamId)
+    self.feed = RLFeed.readPenStream(streamId)
 
     self.entries = {}
     local count = streamReadUInt16(streamId)
@@ -89,11 +102,13 @@ function RLBodyConditionStateEvent:readStream(streamId, connection)
         local identifiers = RLAnimalUtil.readStreamIdentifiers(streamId, connection)
         local weight = streamReadFloat32(streamId)
         local state = RLBodyCondition.readStream(streamId)
+        local growth = RLGrowth.readStream(streamId)
         local coverage = streamReadFloat32(streamId)
         local intakeRatio = streamReadFloat32(streamId)
         local milkShare = streamReadFloat32(streamId)
-        table.insert(self.entries, { identifiers = identifiers, weight = weight, state = state, coverage = coverage,
-            intakeRatio = intakeRatio, milkShare = milkShare >= 0 and milkShare or nil })
+        local feed = RLFeed.readAnimalStream(streamId)
+        table.insert(self.entries, { identifiers = identifiers, weight = weight, state = state, growth = growth,
+            coverage = coverage, intakeRatio = intakeRatio, milkShare = milkShare >= 0 and milkShare or nil, feed = feed })
     end
 
     self:run(connection)
@@ -107,6 +122,7 @@ function RLBodyConditionStateEvent:run(connection)
 
     local foodSpec = self.object.spec_husbandryFood
     if foodSpec ~= nil then foodSpec.rlPenSummary = self.summary end
+    RLFeed.applyPenStream(self.object, self.feed)
 
     local clusterSystem = self.object:getClusterSystem()
     if clusterSystem == nil then return end
@@ -117,8 +133,14 @@ function RLBodyConditionStateEvent:run(connection)
         if animal ~= nil and entry.state ~= nil then
             animal.weight = entry.weight
             animal.bodyCondition = entry.state
-            animal.rlNutrition = { tick = entry.state.lastTick, coverage = entry.coverage, intakeRatio = entry.intakeRatio,
+            if entry.growth ~= nil then
+                animal.rlGrowth = entry.growth
+                -- Its target weight follows its state (an old savegame's moves to the model's).
+                if RLGrowth.covers(animal) then animal.targetWeight = RLGrowth.getAnimalTargetWeight(animal) end
+            end
+            animal.rlNutrition = { tick = self.tick, coverage = entry.coverage, intakeRatio = entry.intakeRatio,
                 milkShare = entry.milkShare }
+            animal.rlFeedClient = entry.feed
         end
     end
 end

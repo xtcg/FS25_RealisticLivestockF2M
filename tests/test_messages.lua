@@ -1,4 +1,5 @@
 -- Formatting regressions through the real message-to-display-row path.
+loadMod("scripts/core/RLConstants.lua")
 loadMod("scripts/messaging/RLMessage.lua")
 loadMod("scripts/gui/rlmenu/services/RLMessageService.lua")
 local template

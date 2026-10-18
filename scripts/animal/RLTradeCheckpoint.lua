@@ -33,7 +33,9 @@
     records as replay-only, unfinished ones as NEEDS_RECONCILIATION with their locks (scoped, so
     unrelated work may run), and cancels a record that never left PREPARED. A RECOVERY_REQUIRED load
     keeps what it could read for the report, refuses all new T02 transactions, keeps a damaged
-    ledger's text beside the save (rm_RlTradeLedger.quarantine.txt), and every later save writes the
+    ledger's text beside the save (rm_RlTradeLedger.quarantine.txt; only text that still parses as
+    XML can be read back - the engine has no raw read - else a note that it is in savegameBackup),
+    and every later save writes the
     ledger as RECOVERY_REQUIRED again - a save never launders it. Nothing is paid, refunded, put
     back or unlocked automatically (no L3). The old sale and delivery paths are not affected.
 
@@ -213,9 +215,10 @@ end
 
 local function writeQuarantine(directory)
     if C.quarantine == nil or io == nil or io.open == nil then return end
-    local handle = io.open(directory .. "/" .. C.QUARANTINE_FILENAME, "wb")
+    local handle = io.open(directory .. "/" .. C.QUARANTINE_FILENAME, "w")
     if handle == nil then return end
-    handle:write(C.quarantine.text)
+    handle:write(C.quarantine.text or ("ledger text unreadable (not XML): " .. tostring(C.quarantine.reason)
+        .. "; the damaged ledger is in savegameBackup"))
     handle:close()
 end
 
@@ -355,12 +358,7 @@ end
 
 
 local function readRaw(path)
-    if io == nil or io.open == nil then return nil end
-    local handle = io.open(path, "rb")
-    if handle == nil then return nil end
-    local text = handle:read(C.MAX_QUARANTINE)
-    handle:close()
-    return text
+    return RLTradePersistence.readXMLText(path, C.MAX_QUARANTINE)
 end
 
 
@@ -491,8 +489,10 @@ function C.onMissionStarted(mission, notes)
         RLContractTrade.store.recoveryRequired = true
         C.newEpoch(0)
         if evidence.ledger.present and evidence.ledger.path ~= nil then
+            -- Only a ledger that still parses as XML can be kept; one that does not stays untouched on
+            -- disk until the next save replaces the folder (the game keeps it in savegameBackup).
             local text = readRaw(evidence.ledger.path)
-            if text ~= nil then C.quarantine = { text = text, reason = decision.reason } end
+            C.quarantine = { text = text, reason = decision.reason }
         end
     else
         C.newEpoch(0)

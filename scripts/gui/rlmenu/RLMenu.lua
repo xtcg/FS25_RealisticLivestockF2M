@@ -62,6 +62,8 @@ function RLMenu.new(target, custom_mt)
     -- Selection shared across the husbandry-based tabs, exported on frame close and
     -- imported on frame open: { husbandry, animalIdentity = { farmId, uniqueId, country } }
     self.sharedSelection = nil
+    -- Session-only last pen per animal type, shared across Info/Move/Sell and scoped to farm.
+    self.husbandrySelectionByFarm = {}
 
     -- Open mode. Reset to MODE_FULL on every onClose, so the next keyboard open is
     -- unaffected by whatever the last bridged open set.
@@ -273,10 +275,10 @@ function RLMenu:onOpen()
 end
 
 --- Called by the GUI manager when the menu is closing.
---- Clears open state + resets per-frame saved-filter session state
----.
+--- Clears open state + resets per-frame saved-filter session state.
 function RLMenu:onClose()
-    -- Saved-filter session reset across the 4 consumer frames. Runs before
+    -- Saved-filter session reset for the four frames that reset on close (Transfer
+    -- resets on its own open). Runs before
     -- superClass().onClose so frame references are still live. Nil-guards
     -- each frame (early-init edge case: menu close before a frame finished
     -- .new()).

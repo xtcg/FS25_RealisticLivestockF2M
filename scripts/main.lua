@@ -26,6 +26,8 @@ source(modDirectory .. "scripts/gui/MPLoadingScreen.lua")
 source(modDirectory .. "scripts/utils/RmSafeUtils.lua")
 source(modDirectory .. "scripts/utils/RLAnimalUtil.lua")
 source(modDirectory .. "scripts/utils/RLPenLog.lua")
+source(modDirectory .. "scripts/utils/RLEppAge.lua")
+source(modDirectory .. "scripts/utils/RLFacilityAge.lua")
 source(modDirectory .. "scripts/utils/RLPermissionHelper.lua")
 source(modDirectory .. "scripts/utils/RLScaleHelper.lua")
 source(modDirectory .. "scripts/utils/RLAnimalDisplayHelper.lua")
@@ -40,11 +42,23 @@ source(modDirectory .. "scripts/core/RLConstants.lua")
 source(modDirectory .. "scripts/core/RLMapCountry.lua")
 
 -- SECTION 2e: Breed traits (xml/breedTraits.xml; its layered lookup is shared with the carcass yield config)
+-- Weight arithmetic of the growth line, the old weight rule and the body condition budget (pure)
+source(modDirectory .. "scripts/animal/RLWeightMath.lua")
+source(modDirectory .. "scripts/animal/RLMilkParity.lua")
 source(modDirectory .. "scripts/animal/RLBreedTraits.lua")
+source(modDirectory .. "scripts/animal/RLCurveScale.lua")
+-- Which species section of the nutrition configs an animal or pen reads (sheep; cattle read the root)
+source(modDirectory .. "scripts/animal/RLSpecies.lua")
 -- Carcass yield arithmetic, pure; AnimalMoveEvent feeds it the animal and config snapshot
 source(modDirectory .. "scripts/animal/RLMeatMath.lua")
 -- Delivery rules shared by the delivery code and the trade quote (contract order, fee, butcher recipe), pure
 source(modDirectory .. "scripts/animal/RLFacilityRules.lua")
+-- Weight model v2 (xml/weightProfiles.xml): continuous growth curves (pure), the budget step
+-- (pure), and the profile each cattle subtype resolves to. RLGrowth, the game side, is sourced
+-- after the body condition it reads.
+source(modDirectory .. "scripts/animal/RLGrowthCurve.lua")
+source(modDirectory .. "scripts/animal/RLGrowthMath.lua")
+source(modDirectory .. "scripts/animal/RLWeightProfiles.lua")
 -- Livestock prices follow the difficulty multiplier: live prices, semen, contract slaughter fees
 source(modDirectory .. "scripts/animal/RLLivestockPrices.lua")
 -- Body condition of cattle (xml/bodyCondition.xml): nutrition budget, reserve, finish score / BCS.
@@ -53,6 +67,16 @@ source(modDirectory .. "scripts/nutrition/RLNutritionMath.lua")
 source(modDirectory .. "scripts/nutrition/RLBodyConditionConfig.lua")
 source(modDirectory .. "scripts/nutrition/RLBodyCondition.lua")
 source(modDirectory .. "scripts/nutrition/RLCalfRearing.lua")
+source(modDirectory .. "scripts/animal/RLGrowth.lua")
+-- Real-equivalent nutrition (xml/feedProfiles.xml): units and profiles, the pure ration math and
+-- planner, then the game side, which wraps AnimalFoodSystem after RLCalfRearing's wrapper.
+source(modDirectory .. "scripts/feed/RLFeedUnits.lua")
+source(modDirectory .. "scripts/feed/RLFeedProfiles.lua")
+source(modDirectory .. "scripts/feed/RLFeedMath.lua")
+source(modDirectory .. "scripts/feed/RLFeedRationPlanner.lua")
+source(modDirectory .. "scripts/feed/RLFeed.lua")
+source(modDirectory .. "scripts/feed/RLFeedInfoService.lua")
+source(modDirectory .. "scripts/animal/RLBirthWeight.lua")
 
 -- SECTION 3: Animal Husbandry - Cluster System
 source(modDirectory .. "scripts/animals/husbandry/cluster/RealisticLivestock_AnimalCluster.lua")
@@ -68,6 +92,11 @@ source(modDirectory .. "scripts/animals/husbandry/placeables/PlaceableHusbandryW
 source(modDirectory .. "scripts/animals/husbandry/placeables/RealisticLivestock_PlaceableHusbandryAnimals.lua")
 source(modDirectory .. "scripts/animals/husbandry/placeables/RealisticLivestock_PlaceableHusbandryMilk.lua")
 source(modDirectory .. "scripts/animals/husbandry/placeables/RealisticLivestock_PlaceableHusbandryFood.lua")
+-- Pasture seasons (xml/pastureSeasons.xml: config and pure season arithmetic, then the meadow
+-- adapter) and the wool shearing season (breedTraits.xml woolShearing), read by the pallets module.
+source(modDirectory .. "scripts/animals/husbandry/placeables/RLPastureSeason.lua")
+source(modDirectory .. "scripts/animals/husbandry/placeables/RLMeadowSeason.lua")
+source(modDirectory .. "scripts/animals/husbandry/placeables/RLWoolShearing.lua")
 source(modDirectory .. "scripts/animals/husbandry/placeables/RealisticLivestock_PlaceableHusbandryPallets.lua")
 
 -- SECTION 5: Animal Husbandry - Core Systems
@@ -102,8 +131,16 @@ source(modDirectory .. "scripts/animal/RLSaleRecovery.lua")
 source(modDirectory .. "scripts/animal/RLLiveSale.lua")
 -- T02 batch 4: the ledger saved with the savegame, checked on load (gate before any T02 work)
 source(modDirectory .. "scripts/animal/RLTradePersistence.lua")
+-- Dealer v2 identity ledger (T1 pure service, T2 runtime / world / save checkpoint). SHADOW by default.
+source(modDirectory .. "scripts/animal/RLAnimalIdentity.lua")
+source(modDirectory .. "scripts/animal/RLAnimalIdentityPersistence.lua")
+source(modDirectory .. "scripts/animal/RLAnimalIdentityRuntime.lua")
+source(modDirectory .. "scripts/animal/RLAnimalIdentityWorld.lua")
+source(modDirectory .. "scripts/animal/RLAnimalIdentityRepair.lua")
+source(modDirectory .. "scripts/animal/RLAnimalIdentityCheckpoint.lua")
 source(modDirectory .. "scripts/animal/RLTradeRecovery.lua")
 source(modDirectory .. "scripts/animal/RLTradeCheckpoint.lua")
+source(modDirectory .. "scripts/animal/RLContractDiag.lua")
 source(modDirectory .. "scripts/animals/shop/events/AnimalSellEvent.lua")
 source(modDirectory .. "scripts/animals/shop/events/SemenBuyEvent.lua")
 
@@ -114,12 +151,14 @@ source(modDirectory .. "scripts/animals/shop/RealisticLivestock_AnimalItemStock.
 source(modDirectory .. "scripts/events/HusbandryMessageStateEvent.lua")
 source(modDirectory .. "scripts/events/RLBodyConditionStateEvent.lua")
 source(modDirectory .. "scripts/events/RLBodyConditionConfigEvent.lua")
+source(modDirectory .. "scripts/events/RLFeedRationEvent.lua")
 source(modDirectory .. "scripts/events/HusbandryMessageAddEvent.lua")
 source(modDirectory .. "scripts/events/HusbandryMessageDeleteEvent.lua")
 source(modDirectory .. "scripts/events/ReturnStrawEvent.lua")
 source(modDirectory .. "scripts/events/TakeStrawEvent.lua")
 source(modDirectory .. "scripts/events/DiseaseTreatmentToggleEvent.lua")
 source(modDirectory .. "scripts/events/DiseaseCullEvent.lua")
+source(modDirectory .. "scripts/events/DiseaseVaccinateEvent.lua")
 
 -- SECTION 10: Farms
 source(modDirectory .. "scripts/farms/FarmManager.lua")
@@ -130,6 +169,7 @@ source(modDirectory .. "scripts/fillTypes/RealisticLivestock_FillTypeManager.lua
 
 -- SECTION 11a: Map Bridge System
 source(modDirectory .. "scripts/bridge/RLVersionSpec.lua")
+source(modDirectory .. "scripts/bridge/RLModelMerge.lua")
 source(modDirectory .. "scripts/bridge/RLMapBridge.lua")
 source(modDirectory .. "scripts/bridge/RLModBridge.lua")
 source(modDirectory .. "scripts/bridge/RLHusbandryProfiles.lua")
@@ -137,6 +177,7 @@ source(modDirectory .. "scripts/bridge/RLPenConstruction.lua")
 
 -- SECTION 11b: Breeding Mathematics
 source(modDirectory .. "scripts/animal/BreedingMath.lua")
+source(modDirectory .. "scripts/animal/RLBreedingValue.lua")
 source(modDirectory .. "scripts/animal/RLGeneticsDraw.lua")
 -- Reads RLConstants at file scope, so it must follow SECTION 2c; a consumer binding one of
 -- its re-exported tables at file scope must follow this line.
@@ -145,7 +186,9 @@ source(modDirectory .. "scripts/animal/RLGenetics.lua")
 -- SECTION 11c: Horse Logic (delegate module, sourced before Animal.lua)
 source(modDirectory .. "scripts/animal/AnimalHorse.lua")
 
--- SECTION 11d: Reproduction Logic (delegate module, sourced before Animal.lua)
+-- SECTION 11d: Reproduction Logic (delegate module, sourced before Animal.lua); the milk rule
+-- births, the monthly tick, milk yield, the feed forecast and the dealer share.
+source(modDirectory .. "scripts/animal/RLLactation.lua")
 source(modDirectory .. "scripts/animal/AnimalReproduction.lua")
 
 -- SECTION 11e: Health/Death Logic (delegate module, sourced before Animal.lua)
@@ -214,6 +257,58 @@ source(modDirectory .. "scripts/dealer/RLDealerQualityModel.lua")
 -- Dereferences RLDealerQualityModel.DEFAULT_INDEX at file scope, so it must follow the model.
 source(modDirectory .. "scripts/dealer/RLDealerQualityResolver.lua")
 
+-- SECTION 11n: Dealer stock purposes (xml/dealerStock.xml): what ages and breeding states the
+-- dealer sells. Loads its file through RLBreedTraits.loadConfig on first use.
+source(modDirectory .. "scripts/dealer/RLDealerStockPolicy.lua")
+source(modDirectory .. "scripts/dealer/RLDealerStockWeight.lua")
+source(modDirectory .. "scripts/dealer/RLDealerHistory.lua")
+source(modDirectory .. "scripts/dealer/RLDealerReplay.lua")
+-- Strict source ledgers and monthly listing lifecycle; dormant until the complete
+-- server purchase/checkpoint adapter is installed. No map callbacks or RNG here.
+source(modDirectory .. "scripts/dealer/RLDealerSourceState.lua")
+source(modDirectory .. "scripts/dealer/RLDealerSourceReproduction.lua")
+source(modDirectory .. "scripts/dealer/RLDealerSourceOwnership.lua")
+source(modDirectory .. "scripts/dealer/RLDealerSourceAdapter.lua")
+source(modDirectory .. "scripts/dealer/RLDealerObservedGrowth.lua")
+source(modDirectory .. "scripts/dealer/RLDealerOwnedStock.lua")
+source(modDirectory .. "scripts/dealer/RLDealerHandoff.lua")
+source(modDirectory .. "scripts/dealer/RLDealerSourceFactory.lua")
+source(modDirectory .. "scripts/dealer/RLDealerDestination.lua")
+source(modDirectory .. "scripts/dealer/RLDealerTargetAdapter.lua")
+source(modDirectory .. "scripts/dealer/RLDealerMoneyAdapter.lua")
+source(modDirectory .. "scripts/dealer/RLDealerClock.lua")
+source(modDirectory .. "scripts/dealer/RLDealerSourceFarm.lua")
+source(modDirectory .. "scripts/dealer/RLDealerListingRegistry.lua")
+source(modDirectory .. "scripts/dealer/RLDealerPurchase.lua")
+source(modDirectory .. "scripts/dealer/RLDealerPurchaseProtocol.lua")
+source(modDirectory .. "scripts/events/RLDealerPurchaseEvent.lua")
+source(modDirectory .. "scripts/dealer/RLDealerQuote.lua")
+source(modDirectory .. "scripts/dealer/RLDealerQuoteProtocol.lua")
+source(modDirectory .. "scripts/events/RLDealerQuoteEvent.lua")
+source(modDirectory .. "scripts/dealer/RLDealerClientRequest.lua")
+source(modDirectory .. "scripts/dealer/RLDealerPersistence.lua")
+source(modDirectory .. "scripts/dealer/RLDealerStockService.lua")
+source(modDirectory .. "scripts/dealer/RLDealerOwnedProgress.lua")
+source(modDirectory .. "scripts/dealer/RLDealerOwnedBirth.lua")
+source(modDirectory .. "scripts/dealer/RLDealerOwnedAdmission.lua")
+source(modDirectory .. "scripts/dealer/RLDealerWorld.lua")
+source(modDirectory .. "scripts/dealer/RLDealerCapacity.lua")
+source(modDirectory .. "scripts/dealer/RLDealerJournal.lua")
+source(modDirectory .. "scripts/dealer/RLDealerPurchaseAdapter.lua")
+source(modDirectory .. "scripts/dealer/RLDealerCheckpoint.lua")
+-- Dealer v2 T3/T4: stock generation, scheduler, service facade, game binding. Dormant until rlDealerEnable.
+source(modDirectory .. "scripts/dealer/RLDealerRng.lua")
+source(modDirectory .. "scripts/dealer/RLDealerCatalog.lua")
+source(modDirectory .. "scripts/dealer/RLDealerCatalogProtocol.lua")
+source(modDirectory .. "scripts/events/RLDealerCatalogEvent.lua")
+source(modDirectory .. "scripts/dealer/RLDealerPlanner.lua")
+source(modDirectory .. "scripts/dealer/RLDealerGeneration.lua")
+source(modDirectory .. "scripts/dealer/RLDealerScheduler.lua")
+source(modDirectory .. "scripts/dealer/RLDealerAssembly.lua")
+source(modDirectory .. "scripts/dealer/RLDealerService.lua")
+source(modDirectory .. "scripts/dealer/RLDealerGameBinding.lua")
+source(modDirectory .. "scripts/dealer/RLDealerRuntime.lua")
+
 -- SECTION 12: GUI Elements
 source(modDirectory .. "scripts/gui/elements/DoubleOptionSliderElement.lua")
 source(modDirectory .. "scripts/gui/elements/RenderElement.lua")
@@ -226,6 +321,7 @@ source(modDirectory .. "scripts/gui/RealisticLivestockFrame.lua")
 source(modDirectory .. "scripts/gui/AnimalAIDialog.lua")
 source(modDirectory .. "scripts/gui/AnimalFilterDialog.lua")
 source(modDirectory .. "scripts/gui/AnimalMoveDestinationDialog.lua")
+source(modDirectory .. "scripts/gui/RLSeverityIcon.lua")
 source(modDirectory .. "scripts/gui/DiseaseDialog.lua")
 source(modDirectory .. "scripts/gui/EarTagColourPickerDialog.lua")
 source(modDirectory .. "scripts/gui/RLFilterConditionDialog.lua")
@@ -236,6 +332,7 @@ source(modDirectory .. "scripts/gui/RLHerdsmanDestinationPickerDialog.lua")
 source(modDirectory .. "scripts/gui/RLDealerSaleSelectorDialog.lua")
 -- Reads the disease-selection modules (SECTION 20e2) at call time only.
 source(modDirectory .. "scripts/gui/RLDiseaseSelectorDialog.lua")
+source(modDirectory .. "scripts/gui/RLFeedRationDialog.lua")
 source(modDirectory .. "scripts/gui/FileExplorerDialog.lua")
 source(modDirectory .. "scripts/gui/RL_InfoDisplayKeyValueBox.lua")
 source(modDirectory .. "scripts/gui/RealisticLivestock_InGameMenuAnimalsFrame.lua")
@@ -244,8 +341,10 @@ source(modDirectory .. "scripts/gui/RealisticLivestock_InGameMenuAnimalsFrame.lu
 -- menu, so FrameReference refs resolve.
 source(modDirectory .. "scripts/gui/rlmenu/services/RLMessageService.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLAnimalQuery.lua")
+source(modDirectory .. "scripts/gui/rlmenu/services/RLHusbandrySelector.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLGeneticsFormatter.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLPenFeedForecast.lua")
+source(modDirectory .. "scripts/gui/rlmenu/services/RLFeedRationModel.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLAnimalInfoService.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLDetailPaneHelper.lua")
 -- The shared trade-request guard, before the three trade services that dispatch through it.
@@ -360,6 +459,7 @@ source(modDirectory .. "scripts/disease/RLDiseaseEffects.lua")
 source(modDirectory .. "scripts/disease/RLDiseaseProgression.lua")
 source(modDirectory .. "scripts/disease/RLDiseaseStatus.lua")
 source(modDirectory .. "scripts/disease/RLDiseaseCull.lua")
+source(modDirectory .. "scripts/disease/RLDiseaseVaccination.lua")
 source(modDirectory .. "scripts/disease/RLDiseaseSaleGate.lua")
 source(modDirectory .. "scripts/disease/Disease.lua")
 source(modDirectory .. "scripts/disease/DiseaseManager.lua")
@@ -377,6 +477,8 @@ source(modDirectory .. "scripts/events/RLDiseaseOverrideSetEvent.lua")
 source(modDirectory .. "scripts/core/FSCareerMissionInfo.lua")
 -- T02 ledger save hooks; after RLRM's own careerSavegame append, so the ledger is written last.
 RLTradeCheckpoint.install()
+RLDealerCheckpoint.install()
+RLAnimalIdentityCheckpoint.install()
 source(modDirectory .. "scripts/core/I18N.lua")
 source(modDirectory .. "scripts/core/RealisticLivestock.lua")
 
@@ -390,13 +492,18 @@ source(modDirectory .. "scripts/core/RealisticLivestock_FSBaseMission.lua")
 source(modDirectory .. "scripts/console/RLBodyConditionConsole.lua")
 source(modDirectory .. "scripts/console/RLTradeReportConsole.lua")
 source(modDirectory .. "scripts/console/RLPenConsole.lua")
+source(modDirectory .. "scripts/console/RLDealerConsole.lua")
+source(modDirectory .. "scripts/console/RLIdentityConsole.lua")
+source(modDirectory .. "scripts/console/RLFeedConsole.lua")
 source(modDirectory .. "scripts/console/RLConsoleCommandManager.lua")
 
 -- SECTION 20j: Messaging
+-- Reads RLConstants at file scope, so it must follow SECTION 2c.
 source(modDirectory .. "scripts/messaging/RLMessage.lua")
 source(modDirectory .. "scripts/messaging/RLMessageAggregator.lua")
 
 -- SECTION 20k: Core (settings)
+source(modDirectory .. "scripts/core/RLAnimalExport.lua")
 source(modDirectory .. "scripts/core/RLSettings.lua")
 source(modDirectory .. "scripts/utils/RLDebugUtils.lua")
 

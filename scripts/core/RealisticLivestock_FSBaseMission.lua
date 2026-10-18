@@ -207,6 +207,9 @@ function RealisticLivestock_FSBaseMission:onStartMission()
 
     -- Map pen rules go in after the map has set its own husbandry filters at load.
     RLHusbandryProfiles.applyAll()
+    -- Butcher and slaughterhouse minimum ages from carcassYield.xml (facilityMinAgeMonth); placeables
+    -- added later get them in PlaceableSystem.addPlaceable.
+    RmSafeUtils.safeCall("RLFacilityAge.applyToAll", function() RLFacilityAge.applyToAll() end)
     -- Animals a pen's rules would no longer take in stay where they are; they are only logged.
     if g_currentMission:getIsServer() then
         RmSafeUtils.safeCall("RLHusbandryProfiles.checkAllResidents", function()
@@ -262,6 +265,7 @@ function RealisticLivestock_FSBaseMission:onStartMission()
     RLHerdsmanDestinationPickerDialog.register()
     RLDealerSaleSelectorDialog.register()
     RLDiseaseSelectorDialog.register()
+    RLFeedRationDialog.register()
     RmMigrationDialog.register()
 
     -- Mod-compatibility detection runs on every peer, g_modIsLoaded being per-peer
@@ -312,6 +316,17 @@ function RealisticLivestock_FSBaseMission:onStartMission()
         Log:info("onStartMission: repaired %d animal(s) with fallback IDs (load-order race)", fallbackRepairCount)
     end
 
+    -- ID-COLLISION-01: live animals sharing one full key (the old per-species counters) - the later one
+    -- gets a new key, unambiguous parent references follow; counted with the repairs above.
+    if isServer and RLAnimalIdentityRepair ~= nil then
+        local repaired, summary = pcall(RLAnimalIdentityRepair.run, self)
+        if not repaired then
+            Log:error("onStartMission: duplicate identity repair failed: %s", tostring(summary))
+        elseif summary.renumbered > 0 then
+            fallbackRepairCount = fallbackRepairCount + summary.renumbered
+        end
+    end
+
     -- T02 ledger: check the saved ledger against the files the game just loaded, after the
     -- identity repair above and before the first herdsman day; opens or keeps closed the T02 gate.
     if isServer then
@@ -319,6 +334,30 @@ function RealisticLivestock_FSBaseMission:onStartMission()
         if not checked then
             Log:error("onStartMission: T02 ledger check failed: %s - T02 transactions stay closed", tostring(checkErr))
             RLTradeCheckpoint.state, RLTradeCheckpoint.reason = RLTradeCheckpoint.RECOVERY_REQUIRED, "CHECK_THREW"
+        end
+        if RLDealerRuntime ~= nil then
+            local dealerChecked, dealerError = pcall(RLDealerRuntime.onMissionStarted, self,
+                { identityRepairs = fallbackRepairCount })
+            if not dealerChecked then
+                Log:error("onStartMission: dealer checkpoint check failed: %s - v2 purchases stay closed", tostring(dealerError))
+                RLDealerRuntime.state, RLDealerRuntime.reason = "RECOVERY_REQUIRED", "CHECK_THREW"
+                RLDealerCheckpoint.state, RLDealerCheckpoint.reason = RLDealerCheckpoint.RECOVERY_REQUIRED, "CHECK_THREW"
+            end
+        end
+    end
+
+    -- Identity ledger: after the identity repair above (so repaired ids are in the scan) and the T02 / dealer checks.
+    if isServer then
+        local idChecked, idError = pcall(RLAnimalIdentityCheckpoint.onMissionStarted, self)
+        if not idChecked then
+            Log:error("onStartMission: identity ledger check failed: %s - keys come from the old counters", tostring(idError))
+            RLAnimalIdentityCheckpoint.state, RLAnimalIdentityCheckpoint.reason = RLAnimalIdentityCheckpoint.RECOVERY_REQUIRED, "CHECK_THREW"
+            RLAnimalIdentityRuntime.setLoaded(RLAnimalIdentityRuntime.ledger, "RECOVERY_REQUIRED", "CHECK_THREW")
+        end
+        if g_messageCenter ~= nil and MessageType ~= nil and MessageType.HOUR_CHANGED ~= nil then
+            g_messageCenter:subscribe(MessageType.HOUR_CHANGED, RLAnimalIdentityCheckpoint.onHour, RLAnimalIdentityCheckpoint)
+            -- Dealer v2 hourly tick: a no-op until rlDealerEnable switched the channel on.
+            g_messageCenter:subscribe(MessageType.HOUR_CHANGED, RLDealerRuntime.onHour, RLDealerRuntime)
         end
     end
 

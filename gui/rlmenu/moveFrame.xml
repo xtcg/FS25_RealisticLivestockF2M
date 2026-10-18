@@ -26,25 +26,19 @@
     <!-- Left sidebar content -->
     <Bitmap profile="fs25_subCategoryContainer">
 
-        <!-- Husbandry picker -->
-        <MultiTextOption profile="fs25_subCategorySelector"
+        <!-- Two-level navigation: animal type, then a husbandry within that type. -->
+        <MultiTextOption profile="rlMenu_speciesSelector"
+                         id="speciesSelector"
+                         onClick="onSpeciesChanged"/>
+        <MultiTextOption profile="rlMenu_husbandrySelector"
                          id="subCategorySelector"
                          onClick="onHusbandryChanged"/>
+        <Text profile="rlMenu_husbandryCounter" id="husbandryCounter"/>
 
-        <!-- Dot indicators -->
-        <BoxLayout profile="fs25_subCategorySelectorBox" id="subCategoryDotBox"/>
-        <RoundCorner profile="fs25_subCategorySelectorDot" id="subCategoryDotTemplate"/>
-
-        <!-- Filter chip: readonly readout of currently-active saved filter
-            . Positioned in the 30px empty strip between
-             the dot indicators (bottom at y=-115) and the animal list
-             container (top at y=-145). X=28 aligns with the left edge of
-             the husbandry selector body (fs25_subCategorySelector's
-             absoluteSizeOffset inset), in line with the left-arrow button. -->
-        <Text id="filterChip" profile="rlMenu_filterChip" text="$l10n_rl_menu_filter_chip_none" position="28px -125px"/>
+        <Text id="filterChip" profile="rlMenu_filterChip" text="$l10n_rl_menu_filter_chip_none" position="28px -157px"/>
 
         <!-- Animal list container -->
-        <GuiElement profile="fs25_subCategoryListContainer" id="animalListContainer">
+        <GuiElement profile="rlMenu_husbandryListContainer" id="animalListContainer">
             <Bitmap profile="fs25_subCategoryStartClipper" name="startClipper"/>
             <Bitmap profile="fs25_subCategoryStopClipper" name="endClipper"/>
 
@@ -127,7 +121,7 @@
             <Text profile="rlMenu_penNameText" id="penNameText" position="0px -45px"/>
             <Text profile="rlMenu_penCountText" id="penCountText" position="0px -80px"/>
             <Bitmap profile="rlMenu_penIcon" id="penIcon"/>
-            <BoxLayout profile="fs25_animalRequirementsLayout" id="penRequirementsLayout" position="0px -350px">
+            <ScrollingLayout profile="rlMenu_penRequirementsLayout" id="penRequirementsLayout">
 
                 <Text profile="fs25_animalRequirementsHeaderLong" id="penConditionsHeader" text="$l10n_ui_animalConditions"/>
 
@@ -233,7 +227,10 @@
                         <ThreePartBitmap profile="fs25_animalSmallStatusBar" id="foodStatusBar[5]"/>
                     </ThreePartBitmap>
                 </GuiElement>
-            </BoxLayout>
+            </ScrollingLayout>
+            <ThreePartBitmap profile="rlMenu_penRequirementsSliderBox">
+                <Slider profile="fs25_listSlider" dataElementId="penRequirementsLayout"/>
+            </ThreePartBitmap>
         </GuiElement>
 
         <ThreePartBitmap profile="fs25_animalInfoSeparatorLeft"/>

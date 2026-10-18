@@ -16,8 +16,15 @@
     There is no calf starter fill type on the map. Solid feed is the map's cattle food; the
     calf pens' troughs take all of it (the map's avoidFillTypes is not read by the engine).
 
-    Calves under 6 months are outside the body condition budget (bodyCondition.xml
-    calfLegacyUntilAgeMonth); an older animal still in a rearing pen keeps its own share there.
+    Under the weight model v2 (weightProfiles.xml) calves are in the body condition budget from
+    birth: each calf's own milk and solid liters are valued separately - milk at its fill type's
+    energy (bodyCondition.xml feedEnergy, CALFMILK 1.20), solid feed at its energy x solidEnergy
+    below - and the curves are read at the age within the month, so the change from milk to solid
+    feed is gradual, with no step at weaning or at 6 months. Outside a rearing pen a calf's share
+    of its pen's trough stands for its whole diet, suckling included, and is valued as any
+    animal's: there is no milk to share out there. Without v2, calves under 6 months
+    are outside the budget (bodyCondition.xml calfLegacyUntilAgeMonth) and an older animal still
+    in a rearing pen keeps its own share there.
 
     enabled        Off: rearing pens feed like any pen.
     weaningMonth   Age (whole months) at which milk is being withdrawn. Housing moves at 2 months
@@ -28,6 +35,8 @@
     flat outside). With weaningMonth 3: 0-2 months PRE_WEANING, 3 WEANING, 4+ WEANED.
     milkMax    Most of the request that milk can cover.
     solidMax   Most of the request that solid feed can cover (rumen development).
+    solidEnergy What a liter of solid feed is worth to the calf against a weaned animal (v2 only;
+               must reach 1 after weaning). A design candidate, not a measured rumen curve.
 
     weaningMonth may be set per animalType, breed or subType below (same lookup as
     breedTraits.xml). Copy this file to modSettings/FS25_RealisticLivestockRM/calfRearing.xml to
@@ -48,4 +57,11 @@
         <point x="0" y="0.90"/>
         <point x="1" y="1.00"/>
     </solidMax>
+    <solidEnergy>
+        <point x="-3" y="0.40"/>
+        <point x="-2" y="0.55"/>
+        <point x="-1" y="0.75"/>
+        <point x="0" y="0.90"/>
+        <point x="1" y="1.00"/>
+    </solidEnergy>
 </calfRearing>

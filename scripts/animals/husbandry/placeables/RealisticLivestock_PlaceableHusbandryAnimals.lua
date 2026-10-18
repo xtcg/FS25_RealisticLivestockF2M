@@ -674,7 +674,8 @@ function RealisticLivestock_PlaceableHusbandryAnimals:onDayChanged()
 end
 
 --- After the day's ageing: outgrown residents of a profiled pen (logged, the owner told once),
---- animals in a pen that is not built yet (logged), and a calf rearing pen's feeding record. Its
+--- animals in a pen that is not built yet (logged), a calf rearing pen's feeding record and a
+--- pen's day in the real-equivalent nutrition mode (RLFeed). Its
 --- own safeCall, so none of them can stop the pen's daily tick.
 function RealisticLivestock_PlaceableHusbandryAnimals:onDayChangedPens()
     if not self.isServer then return end
@@ -682,6 +683,7 @@ function RealisticLivestock_PlaceableHusbandryAnimals:onDayChangedPens()
         RLHusbandryProfiles.checkResidents(self, "DAY")
         RLPenConstruction.checkResidents(self, "DAY")
         RLCalfRearing.onPenDayChanged(self)
+        RLFeed.onPenDayChanged(self)
     end)
 end
 

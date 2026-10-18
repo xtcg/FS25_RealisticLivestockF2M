@@ -52,9 +52,36 @@ function RLConsoleCommandManager.new()
         addConsoleCommand("rlTradeSaleMode", "T02 player/herdsman sale mode: OFF (old path), SHADOW (log only), TEST (transaction with money receipt; test saves only)",
             "saleMode", RLTradeReportConsole, "[OFF|SHADOW|TEST]")
     end
+    -- Animal identity ledger (RLIdentityConsole): status and report are read-only; the rest is server only.
+    addConsoleCommand("rlIdentityStatus", "Identity ledger: mode, state, generation, counts, shadow collisions (read-only)", "status", RLIdentityConsole, "")
+    addConsoleCommand("rlIdentityDump", "Identity evidence for the test cards: every live key, every ledger key, the host farm's money (log lines)", "dump", RLIdentityConsole, "")
+    addConsoleCommand("rlIdentityReport", "Identity ledger: what switching it on would find per herd domain (read-only)", "report", RLIdentityConsole, "")
+    if g_currentMission:getIsServer() then
+        addConsoleCommand("rlIdentityActivate", "Switch the identity ledger on; 'accept' takes the weaker guarantee for unprovable herds", "activate", RLIdentityConsole, "[accept]")
+        addConsoleCommand("rlIdentityMode", "Identity ledger back to OFF (old counters) or SHADOW (observe only)", "mode", RLIdentityConsole, "<OFF|SHADOW>")
+        addConsoleCommand("rlIdentityRecoveryClear", "Leave identity RECOVERY_REQUIRED after reading the evidence", "recoveryClear", RLIdentityConsole, "")
+    end
+    addConsoleCommand("rlDealerV2Status", "Dealer v2 channel: state, gate reason, stock counts (read-only)", "dealerStatus", RLIdentityConsole, "")
+    if g_currentMission:getIsServer() then
+        addConsoleCommand("rlDealerV2Enable", "Switch the dealer v2 channel on for this session (singleplayer cattle; needs the identity ledger ON)", "dealerEnable", RLIdentityConsole, "")
+        addConsoleCommand("rlDealerV2List", "Dealer v2 stock page (singleplayer test route)", "dealerList", RLIdentityConsole, "[cursor] [price|age|weight|breed]")
+        addConsoleCommand("rlDealerV2Detail", "Dealer v2 listing detail", "dealerDetail", RLIdentityConsole, "<saleId>")
+        addConsoleCommand("rlDealerV2Pens", "Dealer v2: your pens and trailers for a selection, with room and verdict", "dealerPens", RLIdentityConsole, "<saleId> [saleId...]")
+        addConsoleCommand("rlDealerV2Quote", "Dealer v2: formal quote for a selection into one pen (valid 15 s)", "dealerQuote", RLIdentityConsole, "<penRef> <saleId> [saleId...]")
+        addConsoleCommand("rlDealerV2Confirm", "Dealer v2: buy the last quote", "dealerConfirm", RLIdentityConsole, "")
+        addConsoleCommand("rlDealerV2Order", "Dealer v2: status of an order (default: the last)", "dealerOrder", RLIdentityConsole, "[orderId]")
+        addConsoleCommand("rlDealerV2Disable", "Switch the dealer v2 channel off for this session", "dealerDisable", RLIdentityConsole, "")
+    end
     addConsoleCommand("rlTradePlan", "Read-only whole-batch contract budget (shadow, no reservation or delivery)", "plan",
         RLTradeReportConsole, "<facility> <uniqueId|pen:NAME> [farmId]")
     addConsoleCommand("rlPenReport", "Log each profiled pen's rule, map filter, feed and animals (RLPEN PEN_REPORT)", "report", RLPenConsole, "[pen]")
+    addConsoleCommand("rlDealerCatalog", "Log what the dealer can sell per subtype (dealerStock.xml purposes, ages, gaps) and its pool (RLDEALER)", "catalog", RLDealerConsole, "[animalType]")
+    addConsoleCommand("rlWeightProfiles", "Log each cattle subtype's weight profile and where its weight settings come from (RLWEIGHT)", "consoleReport", RLWeightProfiles, "[filter]")
+    -- Real-equivalent nutrition (RLFeedConsole): report is read-only; the ration goes through its event.
+    addConsoleCommand("rlFeedReport", "Real-equivalent nutrition per cattle pen: mode, ration, trough per feed (L, real DM, ME, months left), animals", "report",
+        RLFeedConsole, "[animals] [pen]")
+    addConsoleCommand("rlFeedRation", "Set a cattle pen's ration for the real-equivalent nutrition mode", "ration", RLFeedConsole,
+        "<pen> [target=AUTO|FINISH|GROW|MAINTAIN] [grain=AUTO|NONE|MAIZE|WHEAT|BARLEY|OAT] [share=max|0..0.8] [substitute=yes|no]")
 
 	return self
 

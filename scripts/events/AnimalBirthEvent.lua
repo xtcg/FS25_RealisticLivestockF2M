@@ -85,6 +85,8 @@ function AnimalBirthEvent:run(connection)
         local parent = RLAnimalUtil.find(animals, identifiers.farmId, identifiers.uniqueId, country)
 
         if parent ~= nil then
+            -- The birth count (the server counted its own in reproduce; this runs on clients).
+            if g_server == nil and parent.resolveBirthCount ~= nil then parent.birthCount = parent:resolveBirthCount() + 1 end
             parent.isParent = true
             parent.monthsSinceLastBirth = 0
             parent.pregnancy = nil
@@ -92,7 +94,7 @@ function AnimalBirthEvent:run(connection)
             parent.isPregnant = false
             parent.reproduction = 0
 
-            if parent.animalTypeIndex == AnimalType.COW or parent.subType == "GOAT" then parent.isLactating = true end
+            if RLLactation.startsAtBirth(parent.animalTypeIndex, parent.subType) then parent.isLactating = true end
 
             if self.parentDied then RLAnimalUtil.findAndRemove(animals, identifiers.farmId, identifiers.uniqueId, country) end
         else
@@ -125,6 +127,7 @@ function AnimalBirthEvent:run(connection)
         local parent = RLAnimalUtil.find(clusterSystem.animals, identifiers.farmId, identifiers.uniqueId, country)
 
         if parent ~= nil then
+            if g_server == nil and parent.resolveBirthCount ~= nil then parent.birthCount = parent:resolveBirthCount() + 1 end
             parent.isParent = true
             parent.monthsSinceLastBirth = 0
             parent.pregnancy = nil
@@ -132,7 +135,7 @@ function AnimalBirthEvent:run(connection)
             parent.isPregnant = false
             parent.reproduction = 0
 
-            if parent.animalTypeIndex == AnimalType.COW or parent.subType == "GOAT" then parent.isLactating = true end
+            if RLLactation.startsAtBirth(parent.animalTypeIndex, parent.subType) then parent.isLactating = true end
         else
             Log:trace("BirthEvent:run parent not found uniqueId=%s (cluster)", tostring(identifiers.uniqueId))
         end

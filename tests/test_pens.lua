@@ -40,6 +40,16 @@ local SUBS = {
     { name = "BULL_WATERBUFFALO", gender = "male", breed = "WATER_BUFFALO" },
     { name = "COW_HIGHLAND_CATTLE", gender = "female", breed = "COW_HIGHLAND_CATTLE" }, -- the map's, DLC off
     { name = "BULL", gender = "male", breed = "BULL" },                                 -- the map's bull
+    -- FS25_CowBreedsRLRM: its six dairy breeds' cows, a dairy bull, and two of its beef/dual breeds
+    { name = "COW_REDHOLSTEIN_PACK", gender = "female", breed = "REDHOLSTEIN_PACK" },
+    { name = "COW_AYRSHIRE_PACK", gender = "female", breed = "AYRSHIRE_PACK" },
+    { name = "COW_JERSEY_PACK", gender = "female", breed = "JERSEY_PACK" },
+    { name = "COW_GUERNSEY_PACK", gender = "female", breed = "GUERNSEY_PACK" },
+    { name = "COW_KERRY_PACK", gender = "female", breed = "KERRY_PACK" },
+    { name = "COW_SHORTHORNMILKERS_PACK", gender = "female", breed = "SHORTHORNMILKERS_PACK" },
+    { name = "BULL_JERSEY_PACK", gender = "male", breed = "JERSEY_PACK" },
+    { name = "COW_CHAROLAIS_PACK", gender = "female", breed = "CHAROLAIS_PACK" },
+    { name = "COW_SIMMENTAL_PACK", gender = "female", breed = "SIMMENTAL_PACK" },
 }
 local VISUALS = { { minAge = 0, visualAnimalIndex = 5 }, { minAge = 6, visualAnimalIndex = 9 },
     { minAge = 12, visualAnimalIndex = 1 }, { minAge = 18, visualAnimalIndex = 1 } }
@@ -214,11 +224,20 @@ check("bull barn: 5 refused; 6, 11, 12, 13, 17, 24, 30 accepted by the map and t
 check("bull barn: cows and steers refused at any age",
     refusesAges(bulls, "COW_HOLSTEIN", { 6, 24 }) and refusesAges(bulls, "BULL_ANGUS", { 6, 30 }, true))
 check("bull barn: every breed's intact bull, the map's BULL too",
-    allowedNames(bulls) == "BULL BULL_ANGUS BULL_HEREFORD BULL_HOLSTEIN BULL_LIMOUSIN BULL_SWISS_BROWN BULL_WATERBUFFALO")
+    allowedNames(bulls) == "BULL BULL_ANGUS BULL_HEREFORD BULL_HOLSTEIN BULL_JERSEY_PACK BULL_LIMOUSIN BULL_SWISS_BROWN BULL_WATERBUFFALO")
 
 local dairy = pen("dairy")
-check("dairy barn: Holstein and Swiss Brown cows only",
-    allowedNames(dairy) == "COW_HOLSTEIN COW_SWISS_BROWN")
+check("dairy barn: dairy-breed cows only (Holstein, Swiss Brown and the Cow Breeds pack's six)",
+    allowedNames(dairy) == "COW_AYRSHIRE_PACK COW_GUERNSEY_PACK COW_HOLSTEIN COW_JERSEY_PACK COW_KERRY_PACK"
+        .. " COW_REDHOLSTEIN_PACK COW_SHORTHORNMILKERS_PACK COW_SWISS_BROWN")
+check("dairy barn: pack dairy cows from 6 accepted by the map and the pen rules; 5 refused",
+    acceptsAges(dairy, "COW_JERSEY_PACK", { 6, 24, 60 }) and acceptsAges(dairy, "COW_REDHOLSTEIN_PACK", { 24 })
+    and acceptsAges(dairy, "COW_AYRSHIRE_PACK", { 24 }) and acceptsAges(dairy, "COW_GUERNSEY_PACK", { 24 })
+    and acceptsAges(dairy, "COW_KERRY_PACK", { 24 }) and acceptsAges(dairy, "COW_SHORTHORNMILKERS_PACK", { 24 })
+    and refusesAges(dairy, "COW_JERSEY_PACK", { 5 }))
+check("dairy barn: pack beef cows (Charolais, Simmental) and a pack dairy bull refused",
+    refusesAges(dairy, "COW_CHAROLAIS_PACK", { 24 }) and refusesAges(dairy, "COW_SIMMENTAL_PACK", { 24 })
+    and refusesAges(dairy, "BULL_JERSEY_PACK", { 24 }) and refusesAges(dairy, "BULL_JERSEY_PACK", { 24 }, true))
 check("dairy barn: Holstein / Swiss Brown from 6 (6, 12, 24, 60) accepted; 5 refused",
     acceptsAges(dairy, "COW_HOLSTEIN", { 6, 12, 24, 60 }) and acceptsAges(dairy, "COW_SWISS_BROWN", { 24 })
     and refusesAges(dairy, "COW_HOLSTEIN", { 5 }))
@@ -231,7 +250,7 @@ check("dairy barn: Angus cow, Holstein bull and steer refused",
 local igloo = pen("igloo")
 check("igloo: NURSERY, every cattle subtype, map max 1",
     igloo.spec_husbandryAnimals.subtypeFilterAgeMax == 1 and igloo.spec_husbandryAnimals.subtypeFilterAgeMin == nil
-    and allowedNames(igloo) == "BULL BULL_ANGUS BULL_HEREFORD BULL_HOLSTEIN BULL_LIMOUSIN BULL_SWISS_BROWN BULL_WATERBUFFALO COW_ANGUS COW_HEREFORD COW_HIGHLAND_CATTLE COW_HOLSTEIN COW_LIMOUSIN COW_SWISS_BROWN COW_WATERBUFFALO")
+    and allowedNames(igloo) == "BULL BULL_ANGUS BULL_HEREFORD BULL_HOLSTEIN BULL_JERSEY_PACK BULL_LIMOUSIN BULL_SWISS_BROWN BULL_WATERBUFFALO COW_ANGUS COW_AYRSHIRE_PACK COW_CHAROLAIS_PACK COW_GUERNSEY_PACK COW_HEREFORD COW_HIGHLAND_CATTLE COW_HOLSTEIN COW_JERSEY_PACK COW_KERRY_PACK COW_LIMOUSIN COW_REDHOLSTEIN_PACK COW_SHORTHORNMILKERS_PACK COW_SIMMENTAL_PACK COW_SWISS_BROWN COW_WATERBUFFALO")
 check("H01 igloo: 0 and 1 month accepted (heifer, bull calf, steer); 2 and 5 refused",
     acceptsAges(igloo, "COW_HOLSTEIN", { 0, 1 }) and acceptsAges(igloo, "BULL_ANGUS", { 0, 1 })
     and acceptsAges(igloo, "BULL_HOLSTEIN", { 1 }, true)
@@ -444,6 +463,10 @@ check("H05 a pen without maxAge has no outgrown animals", RLHusbandryProfiles.ch
 
 -- Move screen: a pen refusal is its own reason and takes no slot. --------------------------------
 
+-- Move screen: a pen refusal is its own reason and takes no slot.
+RLDiseaseSaleGate = { check = function() return true end }
+loadMod("scripts/utils/RLEppAge.lua")
+loadMod("scripts/utils/RLMoveDestinationHelper.lua")
 local result = RLMoveDestinationHelper.buildMoveValidationResult(
     { cow("BULL_ANGUS", 20), cow("COW_ANGUS", 20) }, { name = "p", placeable = pen("pasture"), freeSlots = 1, isEPP = false }, 1)
 check("move screen: mature bull rejected as PEN_RULES, the cow takes the one slot",
@@ -458,3 +481,19 @@ local line = RLPenLog.emit("PEN_REPORT", { pen = { name = "big" }, list = long }
 check("RLPEN: an over-long record becomes a LINE_TOO_LONG marker naming the record and its length",
     #line <= RLPenLog.MAX_LINE and line:find('"kind":"LINE_TOO_LONG"', 1, true) ~= nil
     and line:find('"record":"PEN_REPORT"', 1, true) ~= nil)
+-- Butcher age window: Hof Bergmann's maximumAge 60 means no upper limit (RLRM animals age past 60).
+local window = RLEppAge.getWindow
+local minA, maxA = window({ minimumAge = 6, maximumAge = 60 })
+check("EPP window: maximumAge 60 is open-ended", minA == 6 and maxA == nil)
+minA, maxA = window({ minimumAge = 3, maximumAge = 6 })
+check("EPP window: a real maximum below 60 is kept", minA == 3 and maxA == 6)
+check("EPP window: no data -> 0 and open", select(1, window(nil)) == 0 and select(2, window(nil)) == nil)
+check("EPP age: 200-month cow accepted at a 6-60 butcher", RLEppAge.check(200, { minimumAge = 6, maximumAge = 60 }))
+check("EPP age: 4-month calf refused as too young",
+    select(2, RLEppAge.check(4, { minimumAge = 6, maximumAge = 60 })) == "AGE_TOO_YOUNG")
+check("EPP age: 7-month pig refused by a 3-6 grill", select(2, RLEppAge.check(7, { minimumAge = 3, maximumAge = 6 })) == "AGE_TOO_OLD")
+check("EPP window text", RLEppAge.format(6, nil) == "6+" and RLEppAge.format(3, 6) == "3-6")
+local butcher = { name = "b", isEPP = true, freeSlots = 5, minAge = 6, maxAge = nil }
+result = RLMoveDestinationHelper.buildMoveValidationResult({ cow("COW_HOLSTEIN", 150), cow("COW_HOLSTEIN", 4) }, butcher, 1)
+check("move screen: 150-month cow goes to the butcher, 4-month calf is too young",
+    #result.valid == 1 and #result.rejected == 1 and result.rejected[1].reason == "AGE_TOO_YOUNG")

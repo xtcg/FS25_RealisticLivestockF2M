@@ -117,7 +117,24 @@ function RLTrailerWorldService.convertRideableCluster(rideable, animalSystem, fa
         if farm and farm.stats then farm.stats.statistics.farmId = farmHerdId end
     end
     local animalTypeIndex = animalSystem:getTypeIndexBySubTypeIndex(cluster.subTypeIndex)
-    local rawId = farm and farm.stats and farm.stats:getNextAnimalId(animalTypeIndex) or math.random(1, 99999)
+    local allocCountry = nil
+    local rawId
+    if RLAnimalIdentityRuntime.authoritative() and farm and farm.stats then
+        -- The ledger numbers by the farm's real herd and the map country; the animal gets that country below.
+        farmHerdId = RLAnimalIdentityWorld.ensureHerd(farm)
+        allocCountry = RealisticLivestock.getMapCountryIndex()
+        rawId = RLAnimalIdentityWorld.nextStatsRaw("trailer-rideable", farm, animalTypeIndex, allocCountry, "auto")
+        if rawId == nil then
+            Log:error("RLTrailerWorldService.convertRideableCluster: the identity ledger gave no key; rideable not converted")
+            return nil
+        end
+    elseif farm and farm.stats and farm.stats.statistics.farmId ~= nil then
+        -- The farm's counter, past every key known to be taken in the map country (ID-COLLISION-01).
+        rawId = RLAnimalIdentityWorld.nextStatsRaw("trailer-rideable", farm, animalTypeIndex,
+            RealisticLivestock.getMapCountryIndex(), "auto")
+    else
+        rawId = farm and farm.stats and farm.stats:getNextAnimalId(animalTypeIndex) or math.random(1, 99999)
+    end
     local uniqueId = RLAnimalUtil.generateUniqueId(farmHerdId, rawId)
 
     -- Capture sell-protection from the vanilla cluster before conversion. Explicit
@@ -138,6 +155,8 @@ function RLTrailerWorldService.convertRideableCluster(rideable, animalSystem, fa
         uniqueId = uniqueId,
         canBeSold = canBeSoldFlag,
     })
+
+    if allocCountry ~= nil and animal.birthday ~= nil then animal.birthday.country = allocCountry end
 
     Log:debug("RLTrailerWorldService.convertRideableCluster: converted vanilla cluster to Animal (subType=%s, uniqueId=%s, name=%s, canBeSold=%s)",
         subType.name, uniqueId, tostring(animal.name), tostring(canBeSoldFlag))
