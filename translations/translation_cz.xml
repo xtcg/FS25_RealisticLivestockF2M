@@ -965,6 +965,10 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Prodat sperma %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="Obchodník tento měsíc koupí už jen %d pejet. Prodat je z %d v kontejneru za %s? Zbytek zůstane v kontejneru."/>
+        <text name="rl_semen_quotaFull" text="Prodat sperma (měsíční kvóta vyčerpána)"/>
+        <text name="rl_semen_quotaFullInfo" text="Obchodník tento měsíc už koupil všechno vlastní sperma tohoto druhu, které bere. Prodejte znovu příští měsíc."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_semen_collectionFee" text="Odběr spermatu"/>

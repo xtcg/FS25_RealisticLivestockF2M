@@ -957,6 +957,10 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Sperma verkopen %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="De handelaar koopt deze maand nog maar %d rietjes. Die verkopen van de %d in dit vat voor %s? De rest blijft in het vat."/>
+        <text name="rl_semen_quotaFull" text="Sperma verkopen (maandquotum op)"/>
+        <text name="rl_semen_quotaFullInfo" text="De handelaar heeft deze maand al het eigen sperma van deze diersoort gekocht dat hij afneemt. Verkoop volgende maand weer."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_semen_collectionFee" text="Spermawinning"/>

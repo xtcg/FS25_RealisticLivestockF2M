@@ -117,7 +117,7 @@ local elite = { collected = true, success = 0.9, country = 6, farmId = "12",
 local cheapDealer = { collected = false, success = 0.6, country = 6, farmId = "77",
     genetics = { fertility = 1, quality = 1, health = 1, metabolism = 1, productivity = 1 } }
 local averageValue = RLSemenCollection.getSellValue(average, 300)
-check("average sire, 300 straws = 300*4.65*0.6*1.55*0.7 = 908.145", near(averageValue, 908.145))
+check("average sire, 300 straws = 300*4.65*0.6*1.40*0.7 = 820.26", near(averageValue, 820.26))
 -- Elite, meat weights: .35*1.5 + .25*1.2 + .20*1.5 + .10*1.4 + .10*1.6 = 1.425; conception 0.9 vs 0.6
 check("elite sire worth 1.425^3 x 1.5 the average",
     near(RLSemenCollection.getSellValue(elite, 300) / averageValue, 1.425 ^ 3 * 1.5, 0.001))
@@ -134,8 +134,8 @@ check("index: missing productivity leaves the rest averaged",
     near(index({ genetics = { fertility = 0.5, quality = 0.5, health = 0.5, metabolism = 0.5 } }), 0.5))
 -- The playtest sire: every gene 0.67, 133 straws at conception 0.5
 local ordinary = { collected = true, success = 0.5, genetics = { fertility = 0.67, quality = 0.67, health = 0.67, metabolism = 0.67, productivity = 0.67 } }
-check("ordinary sire, 133 straws = 133*4.65*0.5*0.67^3*1.55*0.7 = 100.9",
-    near(RLSemenCollection.getSellValue(ordinary, 133), 133 * 4.65 * 0.5 * 0.67 ^ 3 * 1.55 * 0.7, 0.01))
+check("ordinary sire, 133 straws = 133*4.65*0.5*0.67^3*1.40*0.7",
+    near(RLSemenCollection.getSellValue(ordinary, 133), 133 * 4.65 * 0.5 * 0.67 ^ 3 * 1.40 * 0.7, 0.01))
 
 -- SemenSellEvent
 local alice = makeConnection("alice", false)
@@ -198,6 +198,7 @@ check("collect: second request in the same month refused", spawned == nil and se
 local bull2 = mkAnimal(1, 30, 1)
 pen = { farm = 1, getClusterSystem = function() return { animals = { bull2 } } end }
 LOAD_STATE = 1
+MONEY[1] = 10000 -- enough for the fee, so the load failure is what is tested
 request(bull2, pen):run(aliceClient)
 LOAD_STATE = 0
 check("collect: a failed dewar load releases the month", bull2.semenCollectedAge == nil and sent[3].resultKey == SemenCollectEvent.RESULT_FAILED)
@@ -415,6 +416,112 @@ g_currentMission.environment.currentPeriod = 5
 check("text: too young names the age", RLSemenCollection.getRefusalText(R.TOO_YOUNG, mkAnimal(1, 10, 1)) == "Young. From 12.")
 PREVIEW = RLSemenCollection.getPreviewText(mkAnimal(1, 30, 1.2))
 check("text: preview lists name, straws, factors, index and fee " .. PREVIEW, PREVIEW == "Max|360|300|1.20|1.00|1.00|1.04|$460")
+
+-- B4: species prices, species index weights, buy-back below the cheapest buy, dealer quota
+TYPES[4] = { name = "PIG" }
+SUBS[8] = { name = "BOAR_LANDRACE", typeIndex = 4, gender = "male", reproductionMinAgeMonth = 8, output = {} }
+local genes1 = { fertility = 1, quality = 1, health = 1, metabolism = 1, productivity = 1 }
+local function sire(typeIndex, extra)
+    local t = { collected = true, success = 0.5, country = 6, farmId = "12", uniqueId = "S" .. typeIndex, typeIndex = typeIndex,
+        genetics = table.clone(genes1) }
+    for k, v in pairs(extra or {}) do t[k] = v end
+    return t
+end
+local cowPrice = RLSemenCollection.getStrawPrice(sire(1), 1)
+check("B4 price: cattle straw keeps 4.65", near(cowPrice, 4.65 * 0.5, 1e-9))
+check("B4 price: ram straw 3.90, boar dose 1.30", near(RLSemenCollection.getStrawPrice(sire(3), 1), 3.90 * 0.5, 1e-9)
+    and near(RLSemenCollection.getStrawPrice(sire(4), 1), 1.30 * 0.5, 1e-9))
+check("B4 price: an animal (animalTypeIndex) prices like its snapshot",
+    near(RLSemenCollection.getStrawPrice({ animalTypeIndex = 4, success = 0.5, genetics = genes1 }, 1), 0.65, 1e-9))
+-- Dealer average sire: farm factor ~1.55, conception ~0.65, index ~1.53 -> ~18 / ~15 / ~5
+local dealerAvg = function(typeIndex) return RLSemenCollection.getStrawPrice(sire(typeIndex, { success = 0.65,
+    genetics = { fertility = 1.53, quality = 1.53, health = 1.53, metabolism = 1.53, productivity = 1.53 } }), 1.55) end
+-- (the dealer's mean over its spread of sires is ~18 for cattle, since the index is cubed)
+check("B4 price: dealer sire ram/boar at 15/18 and 5/18 of cattle", near(dealerAvg(3) / dealerAvg(1), 15 / 18, 0.01)
+    and near(dealerAvg(4) / dealerAvg(1), 5 / 18, 0.005))
+
+local pigGenes = { fertility = 1, quality = 1.5, health = 1, metabolism = 1.5 }
+check("B4 index: pig weights growth and lean 35% each", near(index({ typeIndex = 4, genetics = pigGenes }), 1.35, 1e-9))
+local ramGenes = { fertility = 1, quality = 1.5, health = 1, metabolism = 1, productivity = 1 }
+check("B4 index: sheep weights muscle 30%", near(index({ typeIndex = 3, genetics = ramGenes }), 1.15, 1e-9))
+check("B4 index: beef cattle keep the meat weights", near(index({ typeIndex = 1, subTypeIndex = 7, genetics = ramGenes }), 1.175, 1e-9))
+
+check("B4 buy-back: own semen sells under the cheapest dealer straw of the same genetics",
+    RLSemenCollection.COLLECTED_PRICE_FACTOR * RLSemenCollection.SELL_SHARE < RLSemenCollection.DEALER_MIN_PRICE_FACTOR)
+do
+    local worst = 0
+    for _, typeIndex in ipairs({ 1, 3, 4 }) do
+        for _, pf in ipairs({ 1.0125, 1.3, 2.1875 }) do
+            local s = sire(typeIndex, { collected = false })
+            g_currentMission.animalSystem.getFarmSemenPrice = function() return pf end
+            worst = math.max(worst, RLSemenCollection.getSellValue(s, 10) / (10 * RLSemenCollection.getStrawPrice(s, pf)))
+            local own = sire(typeIndex)
+            worst = math.max(worst, RLSemenCollection.getSellValue(own, 10) / (10 * RLSemenCollection.getStrawPrice(own, 1.0125)))
+        end
+    end
+    check("B4 buy-back: every sale under its buy price " .. worst, worst < 1)
+    g_currentMission.animalSystem.getFarmSemenPrice = function(_, country, farmId) return farmId == "77" and 0.2 or 1 end
+end
+
+-- Quota: 300 cattle straws per farm per month for collected semen
+RLSemenCollection.quotaUsed = {}
+local QS = RLSemenCollection.getSellableStraws
+check("B4 quota: 250 of a fresh month all sellable", QS(sire(1), 250, 1) == 250)
+check("B4 quota: 400 capped at 300", QS(sire(1), 400, 1) == 300)
+check("B4 quota: bought semen unlimited", QS(sire(1, { collected = false }), 400, 1) == 400)
+check("B4 quota: species without a quota unlimited", QS(sire(2), 400, 1) == 400)
+
+local qBroadcast = {}
+g_server = { broadcastEvent = function(_, e) qBroadcast[#qBroadcast + 1] = e end }
+RLSemenQuotaEvent = { new = function(entries) return { quota = entries } end }
+MONEY = {}
+local big = mkDewar(1, sire(1), 400)
+SemenSellEvent.new(big):run(alice)
+local soldValue = RLSemenCollection.getSellValue(sire(1), 300)
+check("B4 quota: partial sale pays 300 straws, leaves 100 in the dewar", near(MONEY[1], soldValue) and big.straws == 100
+    and not big.isDeleted)
+check("B4 quota: used recorded and broadcast", RLSemenCollection.getQuotaLeft(1, "COW") == 0 and #qBroadcast == 1
+    and qBroadcast[1].quota[1].used == 300 and qBroadcast[1].quota[1].typeName == "COW")
+SemenSellEvent.new(big):run(alice)
+check("B4 quota: full -> refused, dewar kept", near(MONEY[1], soldValue) and big.straws == 100 and #qBroadcast == 1)
+check("B4 quota: other farm and other species unaffected", RLSemenCollection.getQuotaLeft(2, "COW") == 300
+    and RLSemenCollection.getQuotaLeft(1, "SHEEP") == 200)
+local ramDewar = mkDewar(1, sire(3), 120)
+SemenSellEvent.new(ramDewar):run(alice)
+check("B4 quota: a ram dewar under quota sells whole", ramDewar.isDeleted and RLSemenCollection.getQuotaLeft(1, "SHEEP") == 80)
+g_currentMission.environment.currentPeriod = 6
+check("B4 quota: next month resets", RLSemenCollection.getQuotaLeft(1, "COW") == 300 and QS(sire(1), 100, 1) == 100)
+g_currentMission.environment.currentPeriod = 5
+
+-- Quota save/load: only the current month is kept
+do
+    local store = {}
+    local xml = { setInt = function(_, k, v) store[k] = v end, setString = function(_, k, v) store[k] = v end,
+        getInt = function(_, k, d) return store[k] or d end, getString = function(_, k) return store[k] end,
+        iterate = function(_, key, fn)
+            local i = 0
+            while store[string.format("%s(%d)#farmId", key, i)] ~= nil do fn(i, string.format("%s(%d)", key, i)); i = i + 1 end
+        end }
+    RLSemenCollection.setQuotaUsed(3, "PIG", RLSemenCollection.getMonthIndex() - 1, 50)
+    RLSemenCollection.saveQuotaToXMLFile(xml, "q")
+    RLSemenCollection.quotaUsed = { [9] = { COW = { month = 0, used = 1 } } }
+    RLSemenCollection.loadQuotaFromXMLFile(xml, "q")
+    check("B4 quota: save/load keeps this month, drops last month's",
+        RLSemenCollection.getQuotaLeft(1, "COW") == 0 and RLSemenCollection.getQuotaLeft(1, "SHEEP") == 80
+        and RLSemenCollection.quotaUsed[3] == nil and RLSemenCollection.quotaUsed[9] == nil)
+end
+
+-- Hand-tool insemination: the server checks eligibility before spending the straw
+do
+    local male = mkAnimal(1, 30, 1)
+    male.getCanBeInseminatedByAnimal = function() return false, "male" end
+    male.setInsemination = function(self, semen) self.insemination = semen end
+    local pen = { farm = 1, getClusterSystem = function() return { animals = { male } } end }
+    TakeStrawEvent.new(ownDewar):run(aliceClient)
+    local before = RLStrawLedger.count("alice")
+    AnimalInseminationEvent.new(pen, { farmId = male.farmId, uniqueId = male.uniqueId, country = 6 }, average):run(aliceClient)
+    check("B4 gate: ineligible animal refused, straw stays on record", male.insemination == nil and RLStrawLedger.count("alice") == before and before > 0)
+end
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end

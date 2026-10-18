@@ -105,6 +105,17 @@ function AnimalInseminationEvent:run(connection)
 		Log:trace("InseminationEvent:run branch=%s animal=%s", isServerBranch and "server" or "client", tostring(identifiers.uniqueId))
 
 		if isServerBranch then
+			-- The same eligibility the straw prompt checks (type, subtype group, age, close
+			-- relatives, ...), before the straw is spent: a refused straw stays on record.
+			if animal ~= nil and animal.insemination == nil and animal.getCanBeInseminatedByAnimal ~= nil then
+				local canInseminate, reason = animal:getCanBeInseminatedByAnimal(self.semen)
+				if not canInseminate then
+					Log:warning("InseminationEvent:run: refused uniqueId=%s by sire %s: %s", tostring(identifiers.uniqueId),
+						tostring(self.semen ~= nil and self.semen.uniqueId), tostring(reason))
+					return
+				end
+			end
+
 			-- The straw must be one the server handed this player; its recorded sire snapshot
 			-- replaces the genetics the client sent (RLStrawLedger).
 			local semen = RLStrawLedger.spendForSemen(RLStrawLedger.getUserId(connection), self.semen)

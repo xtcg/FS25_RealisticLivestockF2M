@@ -37,6 +37,20 @@ local function canSell(dewar)
 end
 
 
+--- The prompt for a dewar: its value, or how many of its straws the month's dealer quota takes,
+--- or that the quota is used up.
+function RLSemenSalePrompt.getPromptText(dewar)
+    local straws = RLSemenCollection.getSellableStraws(dewar:getAnimal(), dewar.straws, dewar:getOwnerFarmId())
+    if straws <= 0 then return g_i18n:getText("rl_semen_quotaFull") end
+
+    local value = g_i18n:formatMoney(RLSemenCollection.getSellValue(dewar:getAnimal(), straws), 0, true, true)
+    if straws < dewar.straws then
+        return string.format(g_i18n:getText("rl_semen_sellPromptPartial"), straws, dewar.straws, value)
+    end
+    return string.format(g_i18n:getText("rl_semen_sellPrompt"), value)
+end
+
+
 --- Show or hide the prompt for the dewar RLRM's targeting picked this frame.
 function RLSemenSalePrompt.update(playerInputComponent, _)
     local actionEventId = playerInputComponent.rlSellSemenActionId
@@ -46,9 +60,7 @@ function RLSemenSalePrompt.update(playerInputComponent, _)
     local active = canSell(dewar)
 
     if active then
-        local value = RLSemenCollection.getSellValue(dewar:getAnimal(), dewar.straws)
-        g_inputBinding:setActionEventText(actionEventId,
-            string.format(g_i18n:getText("rl_semen_sellPrompt"), g_i18n:formatMoney(value, 0, true, true)))
+        g_inputBinding:setActionEventText(actionEventId, RLSemenSalePrompt.getPromptText(dewar))
     end
     g_inputBinding:setActionEventActive(actionEventId, active)
 end
@@ -64,9 +76,16 @@ function RLSemenSalePrompt.onSell(playerInputComponent)
         return
     end
 
-    local value = RLSemenCollection.getSellValue(dewar:getAnimal(), dewar.straws)
-    local text = string.format(g_i18n:getText("rl_semen_sellConfirm"), dewar.straws,
-        g_i18n:formatMoney(value, 0, true, true))
+    local straws = RLSemenCollection.getSellableStraws(dewar:getAnimal(), dewar.straws, dewar:getOwnerFarmId())
+    if straws <= 0 then
+        InfoDialog.show(g_i18n:getText("rl_semen_quotaFullInfo"))
+        return
+    end
+
+    local value = g_i18n:formatMoney(RLSemenCollection.getSellValue(dewar:getAnimal(), straws), 0, true, true)
+    local text = straws < dewar.straws
+        and string.format(g_i18n:getText("rl_semen_sellConfirmPartial"), straws, dewar.straws, value)
+        or string.format(g_i18n:getText("rl_semen_sellConfirm"), dewar.straws, value)
 
     RLSemenSalePrompt.pendingDewar = dewar
     YesNoDialog.show(RLSemenSalePrompt.onSellConfirmed, RLSemenSalePrompt, text, g_i18n:getText("rl_semen_sell"))

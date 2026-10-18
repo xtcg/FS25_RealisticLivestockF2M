@@ -1274,6 +1274,8 @@ function AnimalSystem:loadFromXMLFile()
 
     -- Sold and dead ancestors (RLPedigree); live animals add theirs as they load.
     RLPedigree.loadFromXMLFile(xmlFile, rootKey .. ".pedigree")
+    -- Straws of the player's own semen the dealer bought this month (SALE_QUOTA).
+    RLSemenCollection.loadQuotaFromXMLFile(xmlFile, rootKey .. ".semenQuota")
 
     xmlFile:delete()
 
@@ -1394,6 +1396,7 @@ function AnimalSystem:saveToXMLFile(_)
     end)
 
     RLPedigree.saveToXMLFile(xmlFile, "rm_RlAnimalSystem.pedigree")
+    RLSemenCollection.saveQuotaToXMLFile(xmlFile, "rm_RlAnimalSystem.semenQuota")
 
     xmlFile:save(false, true)
     xmlFile:delete()

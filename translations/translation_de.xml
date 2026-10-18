@@ -959,6 +959,10 @@
         <text name="rl_semen_sell" text="Sperma verkaufen"/>
         <text name="rl_semen_sellPrompt" text="Sperma verkaufen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Diesen Behälter mit %d Pailletten für %s verkaufen?"/>
+        <text name="rl_semen_sellPromptPartial" text="Sperma verkaufen %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="Der Händler kauft diesen Monat nur noch %d Halme. Diese aus den %d im Behälter für %s verkaufen? Der Rest bleibt im Behälter."/>
+        <text name="rl_semen_quotaFull" text="Sperma verkaufen (Monatskontingent erschöpft)"/>
+        <text name="rl_semen_quotaFullInfo" text="Der Händler hat diesen Monat so viel hofeigenes Sperma dieser Tierart gekauft, wie er abnimmt. Nächsten Monat wieder verkaufen."/>
         <text name="rl_semen_saleValue" text="Verkaufswert"/>
         <text name="rl_semen_sale" text="Spermaverkauf"/>
         <text name="rl_semen_collectionFee" text="Samengewinnung"/>

@@ -960,6 +960,10 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Myy siemen %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="Kauppias ostaa tässä kuussa enää %d olkea. Myydäänkö ne säiliön %d oljesta hintaan %s? Loput jäävät säiliöön."/>
+        <text name="rl_semen_quotaFull" text="Myy siemen (kuukauden kiintiö täynnä)"/>
+        <text name="rl_semen_quotaFullInfo" text="Kauppias on ostanut tässä kuussa kaiken tämän lajin tilan oman siemenen, jonka se ottaa. Myy taas ensi kuussa."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_semen_collectionFee" text="Siemennesteen keräys"/>

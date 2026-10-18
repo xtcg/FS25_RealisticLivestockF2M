@@ -956,6 +956,10 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Продать семя %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="Торговец в этом месяце купит ещё только %d соломинок. Продать их из %d в сосуде за %s? Остальное останется в сосуде."/>
+        <text name="rl_semen_quotaFull" text="Продать семя (месячная квота исчерпана)"/>
+        <text name="rl_semen_quotaFullInfo" text="Торговец в этом месяце уже купил всё собственное семя этого вида, которое берёт. Продайте снова в следующем месяце."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_semen_collectionFee" text="Сбор семени"/>

@@ -969,6 +969,10 @@
         <text name="rl_semen_sell" text="出售精液"/>
         <text name="rl_semen_sellPrompt" text="出售精液（%s）"/>
         <text name="rl_semen_sellConfirm" text="出售这个装有 %d 支细管的精液罐，售价 %s？"/>
+        <text name="rl_semen_sellPromptPartial" text="出售精液 %d/%d 支（%s）"/>
+        <text name="rl_semen_sellConfirmPartial" text="本月商人只再收购 %d 支，罐里共 %d 支，售价 %s，其余留在罐中。确定出售？"/>
+        <text name="rl_semen_quotaFull" text="出售精液（本月收购额度已满）"/>
+        <text name="rl_semen_quotaFullInfo" text="商人本月已收满这个物种的自采精液，下个月再卖。"/>
         <text name="rl_semen_saleValue" text="出售价值"/>
         <text name="rl_semen_sale" text="精液销售"/>
         <text name="rl_semen_collectionFee" text="采精服务"/>

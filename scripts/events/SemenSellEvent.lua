@@ -53,11 +53,33 @@ function SemenSellEvent:run(connection)
             return
         end
 
-        local value = RLSemenCollection.getSellValue(dewar:getAnimal(), dewar.straws)
-        Log:info("SemenSellEvent: farmId=%d sold dewar uniqueId=%s straws=%d for %.2f",
-            farmId, tostring(dewar:getUniqueId()), dewar.straws or 0, value)
+        -- The player's own semen sells up to the month's dealer quota; the rest stays in the dewar.
+        local snapshot = dewar:getAnimal()
+        local straws, quotaType = RLSemenCollection.getSellableStraws(snapshot, dewar.straws, farmId)
+        if straws <= 0 then
+            Log:info("SemenSellEvent: refused, farmId=%d has no %s quota left this month (dewar=%s)",
+                farmId, tostring(quotaType), tostring(dewar:getUniqueId()))
+            return
+        end
+
+        local value = RLSemenCollection.getSellValue(snapshot, straws)
+        Log:info("SemenSellEvent: farmId=%d sold %d of %d straws from dewar uniqueId=%s for %.2f",
+            farmId, straws, dewar.straws or 0, tostring(dewar:getUniqueId()), value)
 
         g_currentMission:addMoney(value, farmId, MoneyType.SEMEN_SALE, true, true)
-        dewar:delete()
+
+        if quotaType ~= nil then
+            local used = RLSemenCollection.addQuotaUsed(farmId, quotaType, straws)
+            if g_server ~= nil and used ~= nil then
+                g_server:broadcastEvent(RLSemenQuotaEvent.new({ { farmId = farmId, typeName = quotaType,
+                    month = RLSemenCollection.getMonthIndex(), used = used } }))
+            end
+        end
+
+        if straws < dewar.straws then
+            dewar:changeStraws(-straws)
+        else
+            dewar:delete()
+        end
     end)
 end

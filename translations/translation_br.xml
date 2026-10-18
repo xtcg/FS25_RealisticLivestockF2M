@@ -958,6 +958,10 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Vender sêmen %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="O comerciante compra só mais %d palhetas este mês. Vendê-las das %d deste botijão por %s? O resto fica no botijão."/>
+        <text name="rl_semen_quotaFull" text="Vender sêmen (cota mensal esgotada)"/>
+        <text name="rl_semen_quotaFullInfo" text="O comerciante já comprou todo o sêmen próprio desta espécie que aceita este mês. Venda de novo no próximo mês."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_semen_collectionFee" text="Coleta de sêmen"/>
