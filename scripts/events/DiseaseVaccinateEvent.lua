@@ -25,7 +25,7 @@ DiseaseVaccinateEvent.PERMISSION = "tradeAnimals"
 ---@param animal table The live animal.
 ---@param title string The disease title requested.
 ---@return string|nil reason Nil when the dose is allowed.
----@return table|nil model The resolved registry entry, nil when diseases are off.
+---@return table|nil model The resolved registry entry, nil when diseases are off or the title is unknown.
 local function refusal(animal, title)
     if not g_diseaseManager.diseasesEnabled then
         Log:trace("DiseaseVaccinateEvent refusal: diseases off (title=%s farmId=%s uniqueId=%s)", tostring(title),
@@ -34,6 +34,7 @@ local function refusal(animal, title)
     end
 
     local model = g_diseaseManager:getDiseaseByTitle(title)
+    if model == nil then return "UNKNOWN_DISEASE", nil end
     local _, reason = RLDiseaseVaccination.check(animal, model)
     return reason, model
 end
