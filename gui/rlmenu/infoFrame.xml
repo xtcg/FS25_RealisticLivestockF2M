@@ -6,7 +6,7 @@
     Structure: fs25_subCategoryContainerBg (ThreePartBitmap background)
     and fs25_subCategoryContainer (Bitmap content) are SIBLINGS at the GUI
     root - the content is NOT nested inside the background. The content
-    container holds the husbandry selector, dot box, dot template, and the
+    container holds the species and husbandry selectors, counter, and the
     list container with its SmoothList.
 
     The SmoothList uses the multi-section data source API: `listSectionHeader`
@@ -35,26 +35,19 @@
     <!-- Left sidebar content (sibling to the background, not nested inside it) -->
     <Bitmap profile="fs25_subCategoryContainer">
 
-        <!-- Husbandry picker: centered label with left/right arrows -->
-        <MultiTextOption profile="fs25_subCategorySelector"
+        <!-- Two-level navigation: animal type, then a husbandry within that type. -->
+        <MultiTextOption profile="rlMenu_speciesSelector"
+                         id="speciesSelector"
+                         onClick="onSpeciesChanged"/>
+        <MultiTextOption profile="rlMenu_husbandrySelector"
                          id="subCategorySelector"
                          onClick="onHusbandryChanged"/>
+        <Text profile="rlMenu_husbandryCounter" id="husbandryCounter"/>
 
-        <!-- Dot indicators below the picker. Dot template is cloned at runtime
-             by refreshHusbandries, one clone per husbandry. -->
-        <BoxLayout profile="fs25_subCategorySelectorBox" id="subCategoryDotBox"/>
-        <RoundCorner profile="fs25_subCategorySelectorDot" id="subCategoryDotTemplate"/>
-
-        <!-- Filter chip: readonly readout of currently-active saved filter
-            . Positioned in the 30px empty strip between
-             the dot indicators (bottom at y=-115) and the animal list
-             container (top at y=-145). X=28 aligns with the left edge of
-             the husbandry selector body (fs25_subCategorySelector's
-             absoluteSizeOffset inset), in line with the left-arrow button. -->
-        <Text id="filterChip" profile="rlMenu_filterChip" text="$l10n_rl_menu_filter_chip_none" position="28px -125px"/>
+        <Text id="filterChip" profile="rlMenu_filterChip" text="$l10n_rl_menu_filter_chip_none" position="28px -157px"/>
 
         <!-- Animal list container -->
-        <GuiElement profile="fs25_subCategoryListContainer" id="animalListContainer">
+        <GuiElement profile="rlMenu_husbandryListContainer" id="animalListContainer">
             <Bitmap profile="fs25_subCategoryStartClipper" name="startClipper"/>
             <Bitmap profile="fs25_subCategoryStopClipper" name="endClipper"/>
 

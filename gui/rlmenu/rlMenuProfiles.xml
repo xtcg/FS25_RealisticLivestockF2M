@@ -8,6 +8,35 @@
 -->
 <GUIProfiles>
 
+    <!-- Farm navigation, shared by Info/Move/Sell. Keep the 42px arrow hit areas,
+         reserve separate rows for the counter and filter, and shorten only the list. -->
+    <Profile name="rlMenu_speciesSelector" extends="fs25_subCategorySelector">
+        <position value="0px -30px"/>
+        <defaultProfileText value="rlMenu_speciesSelectorText"/>
+        <useDynamicInputSteps value="false"/>
+    </Profile>
+    <Profile name="rlMenu_speciesSelectorText" extends="fs25_subCategorySelectorText">
+        <textSize value="24px"/>
+    </Profile>
+    <Profile name="rlMenu_husbandrySelector" extends="rlMenu_speciesSelector">
+        <position value="0px -85px"/>
+        <defaultProfileText value="rlMenu_husbandrySelectorText"/>
+    </Profile>
+    <Profile name="rlMenu_husbandrySelectorText" extends="fs25_subCategorySelectorText">
+        <textSize value="22px"/>
+    </Profile>
+    <Profile name="rlMenu_husbandryCounter" extends="fs25_textDefault" with="anchorTopLeft">
+        <position value="28px -133px"/>
+        <size value="354px 18px"/>
+        <textSize value="16px"/>
+        <textAlignment value="center"/>
+        <handleFocus value="false"/>
+    </Profile>
+    <Profile name="rlMenu_husbandryListContainer" extends="fs25_subCategoryListContainer">
+        <position value="23px -181px"/>
+        <absoluteSizeOffset value="52px 251px"/>
+    </Profile>
+
     <!-- =========================================================== -->
     <!-- Table/list profiles for RL Menu frames                      -->
     <!-- =========================================================== -->

@@ -340,6 +340,7 @@ source(modDirectory .. "scripts/gui/RealisticLivestock_InGameMenuAnimalsFrame.lu
 -- menu, so FrameReference refs resolve.
 source(modDirectory .. "scripts/gui/rlmenu/services/RLMessageService.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLAnimalQuery.lua")
+source(modDirectory .. "scripts/gui/rlmenu/services/RLHusbandrySelector.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLGeneticsFormatter.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLPenFeedForecast.lua")
 source(modDirectory .. "scripts/gui/rlmenu/services/RLFeedRationModel.lua")
