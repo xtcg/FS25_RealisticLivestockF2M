@@ -581,6 +581,39 @@
         pastures spawn only SHEEPWOOL_SHEARED and GOATMILK pallets.
     -->
     <palletRemap type="SHEEP" from="WOOL" to="SHEEPWOOL_SHEARED"/>
+
+    <!--
+        Model slots of Hof Bergmann's own subtypes. An animal pack's configOverride replaces the
+        whole model table of a type with its own, which keeps the base game's slots but not these:
+          SHEEP 16-19: the four sheared looks (LSFMSheepCluster swaps a sheared sheep to these
+                       subtypes). FS25_SheepBreedsRLRM has 18 slots, 16-18 its own breeds.
+          COW   19-21: the generic BULL's calf / young bull / bull. FS25_CowBreedsRLRM has 21
+                       slots of its own layout (19-21 = Highland cow/young/calf).
+        Only when a pack has replaced the table, after all packs load, RLRM writes the pack's
+        table plus these slots appended (modSettings/FS25_RealisticLivestockRM/generated/models_<TYPE>_<hash>.xml) and points
+        the subtypes below at the appended slots. Without a pack nothing changes.
+    -->
+    <keepModels type="SHEEP">
+        <subType name="LSFM_SHEEP_LANDRACE_SHEARED"/>
+        <subType name="LSFM_SHEEP_STEINSCHAF_SHEARED"/>
+        <subType name="LSFM_SHEEP_SWISS_MOUNTAIN_SHEARED"/>
+        <subType name="LSFM_SHEEP_BLACK_WELSH_SHEARED"/>
+    </keepModels>
+    <keepModels type="COW">
+        <subType name="BULL"/>
+    </keepModels>
+    <!--
+        RLRM's own Hereford (slots 16-18 of RLRM's cow table, Hereford-textured) has no model in
+        Hof Bergmann's table, where 16-18 are Highland. source="rlrm" appends those slots from
+        RLRM's own table (Phase 1) after HB's or a pack's table, whichever is in place: 21 + 3
+        without a pack. A pack that re-points the subtypes (CowBreeds does) leaves them alone.
+        RLRM's Highland (19-21 in RLRM's table) is re-pointed to HB's own Highland 16-18 below.
+    -->
+    <keepModels type="COW" source="rlrm">
+        <subType name="COW_HEREFORD"/>
+        <subType name="BULL_HEREFORD"/>
+    </keepModels>
+
     <animal type="SHEEP">
         <subType subType="SHEEP_LANDRACE">
             <output><pallets fillType="SHEEPWOOL_SHEARED"/></output>
@@ -695,6 +728,13 @@
         <!-- DLC-gated (highlandsFishingPack): if the DLC is absent the subtype is unregistered
              and the bridge simply skips this override - harmless. -->
         <subType subType="COW_HIGHLAND_CATTLE">
+            <!-- RLRM's 19-21 are Hof Bergmann's generic bull; HB's Highland is 16 baby, 17 kid, 18 adult -->
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="16"/>
+                <visual minAge="6" visualAnimalIndex="17"/>
+                <visual minAge="12" visualAnimalIndex="18"/>
+                <visual minAge="18" visualAnimalIndex="18"/>
+            </visuals>
             <output>
                 <pallets fillType="MILK">
                     <key ageMonth="0" value="0"/>
@@ -706,6 +746,14 @@
                     <key ageMonth="120" value="88"/>
                 </pallets>
             </output>
+        </subType>
+        <subType subType="BULL_HIGHLAND_CATTLE">
+            <visuals>
+                <visual minAge="0" visualAnimalIndex="16"/>
+                <visual minAge="6" visualAnimalIndex="17"/>
+                <visual minAge="12" visualAnimalIndex="18"/>
+                <visual minAge="18" visualAnimalIndex="18"/>
+            </visuals>
         </subType>
         <subType subType="COW_WATERBUFFALO">
             <output>
@@ -723,8 +771,18 @@
             by the sire's fertility and the dewar collection age curve (RLSemenCollection): nothing
             before 12 months, half at 12, full at 18, down from 70% of the fertility cutoff age (132
             months x fertility) toward 30% just before it, nothing from the cutoff on.
+            Switched off (2026-10-18): Animal.MAP_SEMEN_OUTPUT = false, semen only through RLRM's
+            dewar collection; the curve stays for when it is switched on. The generic BULL is not
+            for sale (shop and dealer); saved BULLs still load, and RLRM's breed bulls use the
+            bull stables (husbandryProfiles.xml BULL profile).
         -->
         <subType subType="BULL" gender="male">
+            <visuals>
+                <visual minAge="0" canBeBought="false"/>
+                <visual minAge="6" canBeBought="false"/>
+                <visual minAge="12" canBeBought="false"/>
+                <visual minAge="24" canBeBought="false"/>
+            </visuals>
             <output>
                 <milk fillType="BULLSPERM">
                     <key ageMonth="0" value="1"/>
