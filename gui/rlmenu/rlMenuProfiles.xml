@@ -397,12 +397,12 @@
          footer. Stretch the viewport with the column; content height is measured
          independently by ScrollingLayout. Share it across Info, Move and Transfer. -->
     <Profile name="rlMenu_penRequirementsLayout" extends="rlMenu_animalScrollLayout">
-        <absoluteSizeOffset value="0px -365px"/>
+        <absoluteSizeOffset value="0px 365px"/>
         <position value="0px -350px"/>
     </Profile>
 
     <Profile name="rlMenu_penRequirementsSliderBox" extends="fs25_listSliderBox" with="pivotTopRight">
-        <absoluteSizeOffset value="0px -365px"/>
+        <absoluteSizeOffset value="0px 365px"/>
         <position value="21px -350px"/>
     </Profile>
 
