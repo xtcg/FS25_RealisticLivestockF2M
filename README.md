@@ -34,7 +34,7 @@ Animal target weights, growth rates, finishing ages, and feed requirements have 
 
 Different breeds now have more meaningful distinctions. Angus, Limousin, Holstein, and Highland cattle, for example, differ in growth characteristics, feed efficiency, and their suitability for beef or dairy production.
 
-The same approach extends to pigs, sheep, and other supported livestock.
+This rebalancing currently focuses on cattle, pigs, and sheep. Horses are outside the scope of the meat-production overhaul. If the work is extended to smaller livestock in the future, the intention is to reuse simplified versions of the cattle, pig, and sheep models; no concrete development plan has been set.
 
 ### 2. More Meaningful Feeding and Fattening Decisions
 
