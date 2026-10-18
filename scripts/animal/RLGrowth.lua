@@ -442,12 +442,21 @@ function RLGrowth.getContinuousAge(animal)
 end
 
 
+--- A clock this close to a whole month is on it: the steps' increments (stepDays / 30, 1 / (24 x
+--- days)) are not exact in binary, and 120 steps of 0.25 days end at 0.9999999999999989, which every
+--- floor (the dam's milk month, a stage boundary) would still read as the month before.
+RLGrowth.AGE_CLOCK_SNAP = 1e-9
+
+
 --- Move the state's clock on by dtMonths of model time.
 --- @param state table
 --- @param age number Whole months
 --- @param dtMonths number
 function RLGrowth.advanceClock(state, age, dtMonths)
-    state.ageMonths = clockBase(state, age) + dtMonths
+    local value = clockBase(state, age) + dtMonths
+    local whole = math.floor(value + 0.5)
+    if math.abs(value - whole) < RLGrowth.AGE_CLOCK_SNAP then value = whole end
+    state.ageMonths = value
 end
 
 

@@ -214,3 +214,17 @@ do
     cow.rlGrowth.ageMonths = 31.6
     check("U43 a clock a little ahead (a birthday late in the month) is its own", G.getContinuousAge(cow) == 31.6)
 end
+
+-- Steps whose length is not exact in binary land on the whole month, not just under it: 120 steps of
+-- 0.25 days (RLFeed) or 48 hours of a 2-day month end at 1.0, so a floor (the dam's milk month) reads
+-- the new month at once (sheep calibration MILK gates).
+do
+    local cow = GrowthSim.makeAnimal("COW_ANGUS", { age = 0 })
+    cow.rlGrowth.ageMonths = 0
+    for _ = 1, 120 do G.advanceClock(cow.rlGrowth, 0, 0.25 / 30) end
+    local a = cow.rlGrowth.ageMonths
+    cow.rlGrowth.ageMonths = 0
+    for h = 1, 48 * 3 do G.advanceClock(cow.rlGrowth, math.floor((h - 1) / 48), 1 / 48) end
+    check(string.format("U43 120 steps of 0.25 days end on 1.0 (%.17g), 144 hours of a 2-day month on 3.0 (%.17g)", a, cow.rlGrowth.ageMonths),
+        a == 1 and math.floor(a) == 1 and cow.rlGrowth.ageMonths == 3)
+end
