@@ -2,7 +2,7 @@
     RLMenuMoveFrame.lua
     RL Tabbed Menu - Move tab.
 
-    Left-sidebar husbandry picker with dot indicators, multi-section
+    Left-sidebar species and husbandry pickers, multi-section
     SmoothList of animal cards with checkboxes for multi-select, and
     right-hand detail pane (pen column + animal column via RLDetailPaneHelper).
 
@@ -126,15 +126,9 @@ function RLMenuMoveFrame:onGuiSetupFinished()
 end
 
 
---- One-time per-clone setup. Unlinks the dot template from the element tree
---- so it can be cloned at runtime. Called by RLMenu:setupMenuPages.
+--- Called by RLMenu:setupMenuPages after the page is registered.
 function RLMenuMoveFrame:initialize()
-    if self.subCategoryDotTemplate ~= nil then
-        self.subCategoryDotTemplate:unlinkElement()
-        FocusManager:removeElement(self.subCategoryDotTemplate)
-    else
-        Log:warning("RLMenuMoveFrame:initialize: subCategoryDotTemplate missing")
-    end
+    -- Both selectors are static XML elements; no dot templates to detach.
 end
 
 
@@ -182,12 +176,17 @@ function RLMenuMoveFrame:onFrameOpen()
 
     -- Explicit focus links: several frames share this sidebar and list structure, so
     -- FocusManager auto-layout can otherwise resolve into another frame's elements.
-    if self.subCategorySelector ~= nil and self.animalList ~= nil then
-        FocusManager:linkElements(self.subCategorySelector, FocusManager.BOTTOM, self.animalList)
-        FocusManager:linkElements(self.animalList, FocusManager.TOP, self.subCategorySelector)
-    end
-    if self.animalList ~= nil then
+    RLHusbandrySelector.linkFocus(self)
+    -- An empty SmoothList refuses focus; without the selector fallback nothing in the sidebar
+    -- holds focus and the keys cannot reach the pen selector.
+    if self.animalList ~= nil and self.animalList:getItemCount() > 0 then
         FocusManager:setFocus(self.animalList)
+        Log:debug("RLMenuMoveFrame:onFrameOpen: focus on animalList (%d items)", self.animalList:getItemCount())
+    elseif self.speciesSelector ~= nil and #self.husbandryGroups > 1 and #self.sortedHusbandries < 2 then
+        FocusManager:setFocus(self.speciesSelector)
+    elseif self.subCategorySelector ~= nil then
+        FocusManager:setFocus(self.subCategorySelector)
+        Log:debug("RLMenuMoveFrame:onFrameOpen: list empty, focus on subCategorySelector")
     end
 
     -- Revalidate active saved filter against current scope + render chip.
@@ -232,37 +231,20 @@ end
 -- Husbandry selector
 -- =============================================================================
 
---- Repopulate the husbandry selector + dot indicators for the player's farm.
+--- Repopulate the species and husbandry selectors for the player's farm.
 function RLMenuMoveFrame:refreshHusbandries()
     local farmId = RLAnimalInfoService.getCurrentFarmId()
     self.farmId = farmId
 
-    self.sortedHusbandries = RLAnimalQuery.listHusbandriesForFarm(farmId)
-    Log:debug("RLMenuMoveFrame:refreshHusbandries: farmId=%s husbandries=%d",
-        tostring(farmId), #self.sortedHusbandries)
-
-    -- Consume the one-shot anchor NOW, before the empty-list guard below, so every path
-    -- consumes it exactly once and none leaks it into a later open.
-    local anchorHusbandry = nil
-    if g_rlMenu ~= nil then
-        anchorHusbandry = g_rlMenu.anchoredHusbandry
-        g_rlMenu.anchoredHusbandry = nil
-    end
-
-    if self.subCategoryDotBox ~= nil then
-        for i, dot in pairs(self.subCategoryDotBox.elements) do
-            dot:delete()
-            self.subCategoryDotBox.elements[i] = nil
-        end
-    end
-
-    if #self.sortedHusbandries == 0 then
+    if not RLHusbandrySelector.refresh(self, RLAnimalQuery.listHusbandriesForFarm(farmId)) then
         Log:trace("RLMenuMoveFrame:refreshHusbandries: no husbandries, showing empty state")
         if self.noHusbandriesText ~= nil then self.noHusbandriesText:setVisible(true) end
-        if self.subCategoryDotBox ~= nil then self.subCategoryDotBox:setVisible(false) end
         if self.subCategorySelector ~= nil then self.subCategorySelector:setTexts({}) end
         self.selectedHusbandry = nil
         self.items = {}
+        self.sectionOrder = {}
+        self.itemsBySection = {}
+        self.titlesBySection = {}
         self.selectedAnimals = {}
         if self.animalList ~= nil then self.animalList:reloadData() end
         self:updateEmptyState()
@@ -271,54 +253,13 @@ function RLMenuMoveFrame:refreshHusbandries()
         RLDetailPaneHelper.clearDetail(self)
         return
     end
-
-    if self.noHusbandriesText ~= nil then self.noHusbandriesText:setVisible(false) end
-
-    local names = {}
-    for index, husbandry in ipairs(self.sortedHusbandries) do
-        names[index] = RLAnimalQuery.formatHusbandryLabel(husbandry, index)
-
-        if self.subCategoryDotTemplate ~= nil and self.subCategoryDotBox ~= nil then
-            local dot = self.subCategoryDotTemplate:clone(self.subCategoryDotBox)
-            local dotIndex = index
-            function dot.getIsSelected()
-                return self.subCategorySelector ~= nil
-                    and self.subCategorySelector:getState() == dotIndex
-            end
-        end
-    end
-
-    if self.subCategoryDotBox ~= nil then
-        self.subCategoryDotBox:invalidateLayout()
-        self.subCategoryDotBox:setVisible(1 < #names)
-    end
-
-    -- Resolve initial husbandry: prefer the one-shot anchor, then the persistent
-    -- shared selection, then the first pen (all matched by placeable identity).
-    local sharedHusbandry = nil
-    if g_rlMenu ~= nil and g_rlMenu.sharedSelection ~= nil then
-        sharedHusbandry = g_rlMenu.sharedSelection.husbandry
-    end
-    local initialState, anchorMatched =
-        RLMenuHusbandryAnchor.resolveIndex(self.sortedHusbandries, anchorHusbandry, sharedHusbandry)
-    if anchorHusbandry ~= nil then
-        if anchorMatched then
-            Log:debug("RLMenuMoveFrame:refreshHusbandries: anchor resolved to state=%d", initialState)
-        else
-            Log:debug("RLMenuMoveFrame:refreshHusbandries: anchor not in current farm list, unanchored (state=%d)", initialState)
-        end
-    else
-        Log:trace("RLMenuMoveFrame:refreshHusbandries: husbandry resolved to state=%d (no anchor)", initialState)
-    end
-
-    if self.subCategorySelector ~= nil then
-        self.subCategorySelector:setTexts(names)
-        self.subCategorySelector:setState(initialState, true)
-    else
-        self:onHusbandryChanged(initialState)
-    end
 end
 
+
+--- Select an animal type, then restore that type's last selected husbandry.
+function RLMenuMoveFrame:onSpeciesChanged(state)
+    RLHusbandrySelector.selectGroup(self, state)
+end
 
 --- MultiTextOption onClick callback. Clears filters + selections on animal-type change.
 --- @param state number 1-based husbandry index
@@ -326,6 +267,7 @@ function RLMenuMoveFrame:onHusbandryChanged(state)
     if state == nil or state < 1 or state > #self.sortedHusbandries then return end
 
     self.selectedHusbandry = self.sortedHusbandries[state]
+    RLHusbandrySelector.remember(self, state)
     local newTypeIndex
     if self.selectedHusbandry ~= nil and self.selectedHusbandry.getAnimalTypeIndex ~= nil then
         newTypeIndex = self.selectedHusbandry:getAnimalTypeIndex()
@@ -933,6 +875,19 @@ function RLMenuMoveFrame:startMoveFlow(animals)
 end
 
 
+--- The "skipped for age" line for a butcher destination: its min-max window, or only its
+--- minimum when it takes animals of any age.
+---@param count number Animals skipped
+---@param entry table Destination entry with minAge and an optional maxAge
+---@return string
+function RLMenuMoveFrame.formatAgeRejection(count, entry)
+    if entry.maxAge ~= nil then
+        return string.format(g_i18n:getText("rl_ui_moveRejectedAge"), count, entry.minAge, entry.maxAge)
+    end
+    return string.format(g_i18n:getText("rl_ui_moveRejectedMinAge"), count, entry.minAge)
+end
+
+
 --- Callback from AnimalMoveDestinationDialog.
 --- @param entry table|nil Selected destination entry, or nil if cancelled
 function RLMenuMoveFrame:onMoveDestinationSelected(entry)
@@ -962,7 +917,7 @@ function RLMenuMoveFrame:onMoveDestinationSelected(entry)
     local ageTooYoung, ageTooOld, noCapacity, sick, penRules, notBuilt = 0, 0, 0, 0, 0, 0
     for _, r in ipairs(validationResult.rejected) do
         -- A pen's age window has no min/max on the entry to print, so it counts as a pen rule.
-        local isPenAge = (r.reason == "AGE_TOO_YOUNG" or r.reason == "AGE_TOO_OLD") and (entry.minAge == nil or entry.maxAge == nil)
+        local isPenAge = (r.reason == "AGE_TOO_YOUNG" or r.reason == "AGE_TOO_OLD") and entry.minAge == nil
         if r.reason == RLPenConstruction.REJECT then notBuilt = notBuilt + 1
         elseif r.reason == RLHusbandryProfiles.REJECT_PEN_RULES or isPenAge then penRules = penRules + 1
         elseif r.reason == "AGE_TOO_YOUNG" then ageTooYoung = ageTooYoung + 1
@@ -977,9 +932,8 @@ function RLMenuMoveFrame:onMoveDestinationSelected(entry)
     -- All rejected: show reason and abort
     if #validationResult.valid == 0 then
         local lines = { g_i18n:getText("rl_ui_moveAllRejected") }
-        if ageTooYoung + ageTooOld > 0 and entry.minAge ~= nil and entry.maxAge ~= nil then
-            table.insert(lines, string.format(g_i18n:getText("rl_ui_moveRejectedAge"),
-                ageTooYoung + ageTooOld, entry.minAge, entry.maxAge))
+        if ageTooYoung + ageTooOld > 0 and entry.minAge ~= nil then
+            table.insert(lines, RLMenuMoveFrame.formatAgeRejection(ageTooYoung + ageTooOld, entry))
         end
         if sick > 0 then
             table.insert(lines, string.format(g_i18n:getText("rl_ui_moveRejectedSick"), sick))
@@ -1008,9 +962,8 @@ function RLMenuMoveFrame:onMoveDestinationSelected(entry)
     table.insert(confirmLines, string.format(g_i18n:getText("rl_ui_moveValidSummary"), #validationResult.valid))
 
     if #validationResult.rejected > 0 then
-        if ageTooYoung + ageTooOld > 0 and entry.minAge ~= nil and entry.maxAge ~= nil then
-            table.insert(confirmLines, string.format(g_i18n:getText("rl_ui_moveRejectedAge"),
-                ageTooYoung + ageTooOld, entry.minAge, entry.maxAge))
+        if ageTooYoung + ageTooOld > 0 and entry.minAge ~= nil then
+            table.insert(confirmLines, RLMenuMoveFrame.formatAgeRejection(ageTooYoung + ageTooOld, entry))
         end
         if sick > 0 then
             table.insert(confirmLines, string.format(g_i18n:getText("rl_ui_moveRejectedSick"), sick))

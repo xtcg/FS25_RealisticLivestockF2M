@@ -12,7 +12,7 @@
         <text name="fillType_bull_hereford" text="Hereford Boğası"/>
         <text name="fillType_cow_highland_cattle" text="İskoç Sığırı"/>
         <text name="fillType_bull_highland_cattle" text="İskoç Sığırı Boğası"/>
-        <text name="animal_descriptionBullFeed" text="Boğalar çim, kuru ot ve TMR severler."/>
+        <text name="animal_descriptionBullFeed" text="Bulls eat grass, hay, silage and TMR. In real-equivalent mode, weaned cattle can receive maize or wheat as a supplement to roughage where the pen supports it. Grain limits and feed adaptation apply."/>
         <text name="animal_descriptionBullYoung" text="Bu erkek bir buzağıdır."/>
         <text name="animal_descriptionBullReproduction" text="12 aylıktan büyük ve sağlıklı boğalar üreyebilir."/>
         <text name="rl_descriptionCowReproduction" text="12 aylıktan büyük ve sağlıklı inekler üreyebilir."/>
@@ -141,6 +141,10 @@
         <text name="rl_ui_penCowsThinFat" text="Cows thin / fat"/>
         <text name="rl_ui_penBullsReady" text="Bulls ready"/>
         <text name="rl_ui_penBullsOverfat" text="Bulls overfat"/>
+        <text name="rl_ui_fatClass" text="Fat class"/>
+        <text name="rl_ui_penEwesThinFat" text="Ewes thin / fat"/>
+        <text name="rl_ui_penLambsReady" text="Lambs ready"/>
+        <text name="rl_ui_penLambsOverfat" text="Lambs over-fat"/>
         <text name="rl_ui_penFeedEaten" text="Feed eaten"/>
         <text name="rl_ui_penRationEnergy" text="Ration energy"/>
         <text name="rl_ui_penWater" text="Water cover"/>
@@ -206,8 +210,10 @@
         <text name="rl_ui_moveSelectDestination" text="Hedef Seçin"/>
         <text name="rl_ui_moveNoDestinations" text="Bu hayvan türü için kullanılabilir hedef yok."/>
         <text name="rl_ui_moveEPPAgeFormat" text="%d-%d aylık" tag="format"/>
+        <text name="rl_ui_moveEPPMinAgeFormat" text="%d+ aylık" tag="format"/>
         <text name="rl_ui_moveValidSummary" text="%d hayvan taşınacak" tag="format"/>
         <text name="rl_ui_moveRejectedAge" text="%d hayvan atlandı: yaş gereksinimini karşılamıyor (%d-%d ay)" tag="format"/>
+        <text name="rl_ui_moveRejectedMinAge" text="%d hayvan atlandı: minimum yaşın altında (%d ay)" tag="format"/>
         <text name="rl_ui_moveRejectedCapacity" text="%d hayvan atlandı: hedefte yeterli yer yok" tag="format"/>
         <text name="rl_ui_moveRejectedPenRules" text="%d animal(s) skipped: not allowed in this pen (breed, sex, castration or age)" tag="format"/>
         <text name="rl_ui_moveAllRejected" text="Bu hedefe hiçbir hayvan taşınamaz."/>
@@ -238,9 +244,10 @@
         <text name="rl_ui_output_pallets_eggs" text="Yumurta"/>
         <text name="rl_ui_output_pallets_wool" text="Yün"/>
         <text name="rl_ui_output_pallets_goatMilk" text="Keçi Sütü"/>
-        <text name="rl_ui_amountPerDay" text="%.0fL / gün" tag="format"/>
+        <text name="rl_ui_amountPerDay" text="%sL / gün" tag="format"/>
         <text name="rl_ui_amountPerMonth" text="%s L / ay" tag="format"/>
         <text name="rl_ui_feePerMonth" text="%s / ay" tag="format"/>
+        <text name="rl_ui_feePerDose" text="%s / dose" tag="format"/>
 
         <text name="rl_ui_animalType" text="Tür"/>
         <text name="rl_ui_amountMonitored" text="İzlendi"/>
@@ -490,6 +497,7 @@
         <text name="rl_settings_exportCSV_label" text="CSV Olarak Dışa Aktar"/>
         <text name="rl_settings_exportCSV_tooltip" text="İstatistikleri CSV olarak dışa aktar"/>
         <text name="rl_settings_exportCSV_text" text="CSV Olarak Dışa Aktar"/>
+        <text name="rl_settings_exportCSV_failed" text="Could not write %s. Close it in other programs and try again."/>
 
         <text name="rl_settings_maxNumMessages_label" text="Maksimum Mesaj Sayısı"/>
         <text name="rl_settings_maxNumMessages_tooltip" text="Daha yüksek bir miktar, kayıt (save) klasörünüzün daha fazla yer kaplamasına neden olur. Bu sınıra ulaşıldıktan sonra en eski mesajlar silinir."/>
@@ -565,11 +573,18 @@
 
 
         <text name="rl_ui_immune" text="Bağışık"/>
+        <text name="rl_ui_vaccinated" text="Vaccinated"/>
+        <text name="rl_ui_vaccinate" text="Vaccinate"/>
+        <text name="rl_ui_vaccinateConfirm" text="Vaccinate %s against %s? One dose costs %s."/>
+        <text name="rl_ui_notVaccinated" text="Not vaccinated"/>
         <text name="rl_ui_startTreatment" text="Tedaviyi Başlat"/>
         <text name="rl_ui_resumeTreatment" text="Tedaviye Devam Et"/>
         <text name="rl_ui_stopTreatment" text="Tedaviyi Durdur"/>
         <text name="rl_ui_cull" text="Cull"/>
         <text name="rl_ui_cullConfirm" text="Cull %s? It is removed from your herd for good, and you receive %s in compensation."/>
+        <text name="rl_ui_startTreatmentConfirm" text="Start treating %s for %s? The course lasts %s and costs %s a month."/>
+        <text name="rl_ui_resumeTreatmentConfirm" text="Resume treating %s for %s? The course has %s left and costs %s a month."/>
+        <text name="rl_ui_stopTreatmentConfirm" text="Stop treating %s for %s? No fee is charged while it is stopped, and the months already served are kept if you resume."/>
         <text name="rl_ui_duration" text="Süre"/>
         <text name="rl_ui_beingTreated" text="Tedavi ediliyor"/>
         <text name="rl_ui_notTreated" text="Tedavi edilmiyor"/>
@@ -588,6 +603,7 @@
         <text name="rl_disease_brd" text="BRD"/>
         <text name="rl_disease_clostridial" text="Pulpy Kidney"/>
         <text name="rl_disease_colic" text="Colic"/>
+        <text name="rl_disease_footRot" text="Footrot"/>
 
 
 
@@ -965,5 +981,118 @@
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
+        <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
+        <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>
+        <text name="rl_settings_nutritionMode_texts_2" text="Real-equivalent (feed saving)"/>
+        <text name="rl_feed_grainGroup" text="Grain (supplement)"/>
+
+        <!-- Feed UI: Chinese and English; English fallback for other languages. -->
+        <text name="rl_feed_penMode" text="Feed model"/>
+        <text name="rl_feed_modeReal" text="Real-equivalent"/>
+        <text name="rl_feed_penRation" text="Ration target"/>
+        <text name="rl_feed_penCoverage" text="ME plan covered"/>
+        <text name="rl_feed_penFirstOut" text="First to run out"/>
+        <text name="rl_feed_intake" text="DM / ME cover"/>
+        <text name="rl_feed_intakeFormat" text="%.1f kg/d (%.0f%%)"/>
+        <text name="rl_feed_ration" text="Grain DM / limit"/>
+        <text name="rl_feed_finish" text="Finish estimate"/>
+        <text name="rl_feed_finishReady" text="Ready"/>
+        <text name="rl_feed_finishStalled" text="Gain too low"/>
+        <text name="rl_feed_monthsShort" text="mo"/>
+        <text name="rl_feed_unconfigured" text="No feed data"/>
+        <text name="rl_feed_grainNotEaten" text="Not fed in legacy"/>
+        <text name="rl_feed_grain_AUTO" text="Auto grain"/>
+        <text name="rl_feed_grain_NONE" text="No grain"/>
+        <text name="rl_feed_feedShareFormat" text="%s (%.0f%% DM)"/>
+        <text name="rl_feed_feedPlanFormat" text="%s · plan %.0f L/%s"/>
+        <text name="rl_feed_reason_OK" text="Real-equivalent"/>
+        <text name="rl_feed_reason_MODE_OFF" text="Legacy mode"/>
+        <text name="rl_feed_reason_CONFIG_INVALID" text="Invalid feed data"/>
+        <text name="rl_feed_reason_MODEL_OFF" text="Weight model off"/>
+        <text name="rl_feed_reason_NOT_CATTLE" text="Cattle only"/>
+        <text name="rl_feed_reason_MILKCOW_LEGACY" text="Milk cows: legacy"/>
+        <text name="rl_feed_reason_NO_TROUGH" text="No supported trough"/>
+        <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="Unsupported animal"/>
+        <text name="rl_feed_reason_SUCKLING_CALF" text="Buzağı: anne veya bölme"/>
+        <text name="rl_feed_reason_PIG_BREEDING_LEGACY" text="Sow/piglets: old rules"/>
+        <text name="rl_feed_reason_UNKNOWN" text="Status unavailable"/>
+        <text name="rl_feed_limit_NONE" text="No limit"/>
+        <text name="rl_feed_limit_FIBRE" text="Fibre limit"/>
+        <text name="rl_feed_limit_STARCH" text="Starch limit"/>
+        <text name="rl_feed_limit_WHEAT" text="Wheat limit"/>
+        <text name="rl_feed_limit_FEED_CAP" text="Yem sınırı"/>
+        <text name="rl_feed_limit_NO_FORAGE" text="No roughage"/>
+        <text name="rl_feed_limit_TARGET" text="Target share"/>
+        <text name="rl_feed_limit_PROTEIN_OR_DEMAND" text="Protein/need"/>
+        <text name="rl_feed_limit_ADAPTATION" text="Adapting"/>
+        <text name="rl_feed_limit_STOCK" text="Grain short"/>
+        <text name="rl_feed_limit_NO_CONCENTRATE" text="No grain"/>
+        <text name="rl_feed_limit_NO_FEED" text="No feed"/>
+        <text name="rl_feed_limit_APPETITE" text="Intake limit"/>
+        <text name="rl_feed_limit_ENERGY" text="Energy cap"/>
+        <text name="rl_feed_limit_FEED_SHORT" text="Feed short"/>
+        <text name="rl_feed_limit_FILL" text="Rumen full"/>
+        <text name="rl_feed_limit_DEMAND" text="Needs met"/>
+        <text name="rl_feed_limit_PROTEIN" text="Low protein"/>
+        <text name="rl_feed_limit_UNKNOWN" text="Unknown limit"/>
+        <text name="rl_feed_limit_NO_CALF_MILK" text="No calf milk"/>
+        <text name="rl_feed_limit_CREEP" text="Creep cap"/>
+        <text name="rl_feed_limit_WATER" text="Water short"/>
+        <text name="rl_feed_penCalfMilk" text="Calves on milk"/>
+        <text name="rl_feed_calfMilkNone" text="%d without calf milk"/>
+        <text name="rl_feed_calfMilkLow" text="Calf milk for %s"/>
+        <text name="rl_feed_calfMilkAlert" text="%s: %d calves on milk have no calf milk - they will lose health and may die"/>
+        <text name="rl_feed_calfMilkLowAlert" text="%s: calf milk runs out in %s"/>
+        <text name="rl_feed_lambNoDam" text="%s: %d lambs on milk are away from their ewe - no milk for them; they lose health and may die"/>
+        <text name="rl_feed_penNotEaten" text="Not eaten (old rules)"/>
+        <text name="rl_feed_penNoBaseFeed" text="Base feed"/>
+        <text name="rl_feed_noBaseFeed" text="None - animals get no feed"/>
+        <text name="rl_feed_noBaseFeedAlert" text="%s: %s - the pen is fed by the old rules, which do not eat %s. Add its normal feed or the animals go without"/>
+        <text name="rl_feed_target_AUTO" text="Automatic"/>
+        <text name="rl_feed_target_GROW" text="Growth"/>
+        <text name="rl_feed_target_FINISH" text="Finishing"/>
+        <text name="rl_feed_target_MAINTAIN" text="Maintenance"/>
+        <text name="rl_feed_target_UNKNOWN" text="Unknown target"/>
+        <text name="input_RL_FEED_RATION" text="Bölme rasyonu"/>
+        <text name="rl_feed_rationButton" text="Rasyon"/>
+        <text name="rl_feed_dialogTitle" text="Rasyon ayarları"/>
+        <text name="rl_feed_labelTarget" text="Besleme hedefi"/>
+        <text name="rl_feed_labelGrain" text="Kesif yem"/>
+        <text name="rl_feed_labelShare" text="Kesif yem payı (KM)"/>
+        <text name="rl_feed_labelSubstitute" text="Bitince yerine koy"/>
+        <text name="rl_feed_share_AUTO" text="Otomatik (en yüksek)"/>
+        <text name="rl_feed_substitute_on" text="İzin verildi"/>
+        <text name="rl_feed_substitute_off" text="İzin verilmedi"/>
+        <text name="rl_feed_readOnly" text="Salt okunur: %s"/>
+        <text name="rl_feed_reason_NO_PERMISSION" text="Yetki yok"/>
+        <text name="rl_feed_statusClient" text="Sunucu onayladığında geçerli olur"/>
+        <text name="rl_feed_previewTarget" text="Hedef"/>
+        <text name="rl_feed_previewNow" text="Şimdi"/>
+        <text name="rl_feed_previewAdapted" text="Alıştıktan sonra"/>
+        <text name="rl_feed_previewIntake" text="%d baş · %.1f kg KM/baş/gün · enerji planı %.0f%%"/>
+        <text name="rl_feed_colFeed" text="Yem"/>
+        <text name="rl_feed_colMonth" text="L/ay"/>
+        <text name="rl_feed_colShare" text="KM payı"/>
+        <text name="rl_feed_colStock" text="Stok"/>
+        <text name="rl_feed_colLasts" text="Yeter"/>
+        <text name="rl_feed_previewNote" text="Yalnızca önizleme, hiçbir şey alınmaz. Pay bir hedeftir: lif, nişasta, buğday ve alışma sınırları geçerli kalır."/>
+        <text name="rl_feed_previewMore" text="+%d yem daha."/>
+        <text name="rl_feed_previewError" text="Önizleme kullanılamıyor"/>
+        <text name="rl_feed_previewNoAnimals" text="Bu bölmede hayvan yok"/>
+        <text name="rl_feed_previewNoFeed" text="Yemlikte kullanılabilir yem yok"/>
+        <text name="rl_feed_apply" text="Uygula"/>
+        <text name="rl_dealer_v2_stale" text="The listing has changed. Please choose again."/>
+        <text name="rl_dealer_v2_quote_expired" text="The quote has expired. Get a new quote and confirm it."/>
+        <text name="rl_dealer_v2_capacity" text="The destination cannot take these animals."/>
+        <text name="rl_dealer_v2_no_permission" text="You are not allowed to use this destination."/>
+        <text name="rl_dealer_v2_funds" text="Not enough money for this order."/>
+        <text name="rl_dealer_v2_updating" text="The stock is being updated. Please try again shortly."/>
+        <text name="rl_dealer_v2_checking" text="The result of this order is being checked. Trading is paused until then."/>
+        <text name="rl_dealer_v2_closed" text="The dealer's new stock is not available yet."/>
+        <text name="rl_dealer_v2_limit" text="At most 100 animals can be bought in one order."/>
+        <text name="rl_dealer_v2_generic" text="The order could not be completed."/>
+        <text name="rl_meadow_witherWarning" text="%s: the pasture grass dies back for winter in about %d days - put hay or silage in the trough"/>
+        <text name="rl_wool_shorn" text="%s: %d sheep shorn, %d l of wool waiting for pallets"/>
     </texts>
 </l10n>

@@ -114,12 +114,15 @@ local function width(text)
 end
 
 local STAT_LABELS = { "rl_ui_finish", "rl_ui_bodyCondition", "rl_ui_finishVerdict", "rl_ui_finishWeight",
-    "rl_ui_rationCoverage", "rl_ui_milkOfPotential", "rl_ui_conceptionCondition" }
+    "rl_ui_rationCoverage", "rl_ui_milkOfPotential", "rl_ui_conceptionCondition",
+    "rl_feed_intake", "rl_feed_ration", "rl_feed_finish", "rl_ui_fatClass" }
 local STAT_VALUES = { "rl_ui_conditionCalf", "rl_ui_finishVerdictReady", "rl_ui_finishVerdictNeedsFinish",
     "rl_ui_finishVerdictGrowing", "rl_ui_finishVerdictStore", "rl_ui_finishVerdictOverfat",
-    "rl_ui_finishVerdictTooYoung", "rl_ui_finishVerdictBlocked" }
+    "rl_ui_finishVerdictTooYoung", "rl_ui_finishVerdictBlocked", "rl_feed_finishReady", "rl_feed_finishStalled" }
 local PEN_KEYS = { "rl_ui_penBcs", "rl_ui_penCowsThinFat", "rl_ui_penBullsReady", "rl_ui_penBullsOverfat",
-    "rl_ui_penFeedEaten", "rl_ui_penRationEnergy", "rl_ui_penWater" }
+    "rl_ui_penEwesThinFat", "rl_ui_penLambsReady", "rl_ui_penLambsOverfat",
+    "rl_ui_penFeedEaten", "rl_ui_penRationEnergy", "rl_ui_penWater",
+    "rl_feed_penMode", "rl_feed_penRation", "rl_feed_penCoverage", "rl_feed_penFirstOut" }
 
 for _, lang in ipairs(LANGUAGES) do
     local _, texts = loadTranslation(lang)
@@ -132,6 +135,17 @@ for _, lang in ipairs(LANGUAGES) do
     limit(STAT_LABELS, 16)
     limit(STAT_VALUES, 20)
     limit(PEN_KEYS, 20)
+    -- Real-equivalent nutrition (RLFeedInfoService): stat grid labels, the forecast values, the
+    -- ration value "35 % · <limit>" (7 characters before the limit), and the pen box's mode row
+    -- with its longest reason on one line.
+    limit({ "rl_feed_intake", "rl_feed_ration", "rl_feed_finish" }, 16)
+    limit({ "rl_feed_finishReady", "rl_feed_finishStalled" }, 20)
+    limit({ "rl_feed_penMode", "rl_feed_penRation", "rl_feed_penCoverage", "rl_feed_penFirstOut" }, 20)
+    for key in pairs(texts) do
+        if key:find("^rl_feed_limit_") and texts[key] and width(texts[key]) > 13 then long[#long + 1] = key .. "=" .. texts[key] end
+        if key:find("^rl_feed_reason_") and texts[key] and texts.rl_feed_penMode
+            and width(texts.rl_feed_penMode) + width(texts[key]) > 36 then long[#long + 1] = key .. "=" .. texts[key] end
+    end
     check(lang .. ": body condition labels and values fit their cells", #long == 0)
     if #long > 0 then print(lang, "too long:", table.concat(long, " | ")) end
 end

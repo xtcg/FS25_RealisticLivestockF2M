@@ -37,6 +37,8 @@ function AnimalSerialization.writeStream(animal, streamId, connection)
     streamWriteFloat32(streamId, animal.health)
     streamWriteFloat32(streamId, animal.reproduction)
     streamWriteUInt16(streamId, animal.monthsSinceLastBirth)
+    -- Calvings so far; 255 = not on record.
+    streamWriteUInt8(streamId, math.min(animal.birthCount or 255, 255))
     streamWriteString(streamId, animal.gender)
 
     streamWriteBool(streamId, animal.isParent)
@@ -84,6 +86,8 @@ function AnimalSerialization.writeStream(animal, streamId, connection)
             streamWriteFloat32(streamId, impregnatedBy.quality or 1)
             streamWriteFloat32(streamId, impregnatedBy.health or 1)
             streamWriteFloat32(streamId, impregnatedBy.fertility or 1)
+            -- The sire's breed ("" when unknown), for a cross's birth weight (RLGrowth).
+            streamWriteString(streamId, impregnatedBy.breed or "")
         end
 
         local pregnancy = animal.pregnancy
@@ -177,6 +181,7 @@ function AnimalSerialization.writeStream(animal, streamId, connection)
     streamWriteBool(streamId, animal.canBeSold == false)
 
     RLBodyCondition.writeStream(animal.bodyCondition, streamId)
+    RLGrowth.writeStream(animal.rlGrowth, streamId)
 
     return true
 end
@@ -198,6 +203,8 @@ function AnimalSerialization.readStream(animal, streamId, connection)
     animal.health = streamReadFloat32(streamId)
     animal.reproduction = streamReadFloat32(streamId)
     animal.monthsSinceLastBirth = streamReadUInt16(streamId)
+    local birthCount = streamReadUInt8(streamId)
+    animal.birthCount = birthCount < 255 and birthCount or nil
     animal.gender = streamReadString(streamId)
 
     animal.isParent = streamReadBool(streamId)
@@ -242,6 +249,7 @@ function AnimalSerialization.readStream(animal, streamId, connection)
             local quality = streamReadFloat32(streamId)
             local health = streamReadFloat32(streamId)
             local fertility = streamReadFloat32(streamId)
+            local breed = streamReadString(streamId)
 
             animal.impregnatedBy = {
                 ["uniqueId"] = uniqueId,
@@ -249,7 +257,8 @@ function AnimalSerialization.readStream(animal, streamId, connection)
                 ["productivity"] = productivity,
                 ["quality"] = quality,
                 ["health"] = health,
-                ["fertility"] = fertility
+                ["fertility"] = fertility,
+                ["breed"] = breed ~= "" and breed or nil
             }
         end
 
@@ -414,6 +423,10 @@ function AnimalSerialization.readStream(animal, streamId, connection)
     if cannotBeSold then animal.canBeSold = false end
 
     animal.bodyCondition = RLBodyCondition.readStream(streamId)
+    -- Read on the server from a client (an animal it buys): kept within its breed, no legacy anchor.
+    local fromClient = g_server ~= nil and connection ~= nil and connection.getIsServer ~= nil and not connection:getIsServer()
+    animal.rlGrowth = RLGrowth.sanitizeState(animal, RLGrowth.readStream(streamId), fromClient)
+    animal.rlGrowthCurve, animal.rlGrowthPeek = nil, nil
 
     return true
 end

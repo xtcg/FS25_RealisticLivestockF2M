@@ -45,7 +45,7 @@
         <!-- DUCK_MALE: male variant for DUCK subtype -->
         <!-- DUCK uses visualAnimalIndex 5 (duckling) and 6 (adult) in HB 1.4's chicken config -->
         <subType subType="DUCK_MALE" fillTypeName="DUCK_MALE" gender="male" breed="DUCK"
-                 minWeight="1.0" targetWeight="3.5" maxWeight="5.5">
+                 minWeight="1.0" targetWeight="4.2" maxWeight="5.5">
             <visuals>
                 <visual minAge="0" visualAnimalIndex="5" image="character/animals/domesticated/chicken/store_duckling.png" name="$l10n_rl_bridge_drakeDuckling" canBeBought="false">
                     <description>$l10n_rl_bridge_drakeDucklingDesc</description>
@@ -56,12 +56,12 @@
             </visuals>
             <reproduction supported="false" minAgeMonth="6"/>
             <buyPrice>
-                <key ageMonth="0" value="30"/>
-                <key ageMonth="6" value="65"/>
+                <key ageMonth="0" value="9.7"/>
+                <key ageMonth="6" value="20.9"/>
             </buyPrice>
             <sellPrice>
-                <key ageMonth="0" value="15"/>
-                <key ageMonth="6" value="35"/>
+                <key ageMonth="0" value="4.8"/>
+                <key ageMonth="6" value="11.3"/>
             </sellPrice>
             <transportPrice>
                 <key ageMonth="0" value="5"/>
@@ -82,6 +82,9 @@
                 </water>
             </input>
         </subType>
+
+        <!-- Override: domestic duck grown weight (drake 4.2 kg above) -->
+        <subType subType="DUCK" targetWeight="3.6" maxWeight="5.0"/>
     </animal>
 
     <!-- GOOSE: new male subtype + weight fix for existing female -->
@@ -91,11 +94,11 @@
         <pregnancy average="3" max="6"/>
 
         <!-- Override: fix existing GOOSE (female) weights from navMesh-derived values -->
-        <subType subType="GOOSE" minWeight="0.5" targetWeight="5.0" maxWeight="8.0"/>
+        <subType subType="GOOSE" minWeight="0.5" targetWeight="6.5" maxWeight="9.5"/>
 
         <!-- New: GOOSE_MALE -->
         <subType subType="GOOSE_MALE" fillTypeName="GOOSE_MALE" gender="male" breed="GOOSE"
-                 minWeight="0.5" targetWeight="6.5" maxWeight="11.0">
+                 minWeight="0.5" targetWeight="8.0" maxWeight="11.0">
             <visuals>
                 <visual minAge="0" visualAnimalIndex="1" image="character/animals/domesticated/goose/store_gooseYoung.png" name="$l10n_rl_bridge_ganderYoung" canBeBought="false">
                     <description>$l10n_rl_bridge_ganderYoungDesc</description>
@@ -106,12 +109,12 @@
             </visuals>
             <reproduction supported="false" minAgeMonth="10"/>
             <buyPrice>
-                <key ageMonth="0" value="25"/>
-                <key ageMonth="12" value="55"/>
+                <key ageMonth="0" value="34"/>
+                <key ageMonth="12" value="74.7"/>
             </buyPrice>
             <sellPrice>
-                <key ageMonth="0" value="15"/>
-                <key ageMonth="12" value="30"/>
+                <key ageMonth="0" value="20.4"/>
+                <key ageMonth="12" value="40.7"/>
             </sellPrice>
             <transportPrice>
                 <key ageMonth="0" value="2"/>
@@ -185,11 +188,32 @@
         <pregnancy average="4" max="8"/>
 
         <!-- Override: fix RABBIT weights (navMesh h=0.1, r=0.1 gives max=7.5 - refine) -->
-        <subType subType="RABBIT" minWeight="0.1" targetWeight="2.5" maxWeight="5.0"/>
+        <subType subType="RABBIT" minWeight="0.1" targetWeight="5.0" maxWeight="7.0">
+            <buyPrice>
+                <key ageMonth="0" value="2.6"/>
+                <key ageMonth="4" value="14.7"/>
+                <key ageMonth="8" value="52"/>
+            </buyPrice>
+            <sellPrice>
+                <key ageMonth="0" value="2"/>
+                <key ageMonth="4" value="11.3"/>
+                <key ageMonth="8" value="40"/>
+            </sellPrice>
+        </subType>
 
-        <!-- Override: fix RABBIT_MALE reproduction age from default 18 -> 6 months -->
-        <subType subType="RABBIT_MALE" minWeight="0.1" targetWeight="3.0" maxWeight="5.5">
+        <!-- Override: fix RABBIT_MALE reproduction age from default 18 -> 6 months; the map sets no gender, which reads as female -->
+        <subType subType="RABBIT_MALE" gender="male" minWeight="0.1" targetWeight="4.6" maxWeight="6.5">
             <reproduction minAgeMonth="6"/>
+            <buyPrice>
+                <key ageMonth="0" value="2.6"/>
+                <key ageMonth="4" value="14.7"/>
+                <key ageMonth="8" value="19.9"/>
+            </buyPrice>
+            <sellPrice>
+                <key ageMonth="0" value="2"/>
+                <key ageMonth="4" value="11.3"/>
+                <key ageMonth="8" value="15.3"/>
+            </sellPrice>
         </subType>
     </animal>
 
@@ -552,7 +576,11 @@
         SHEEP type: HB 1.4 uses SHEEPWOOL_SHEARED instead of the base game's WOOL fillType.
         RLRM's bundled sheep subtypes produce WOOL. Remap output to match HB's building config
         so pallets actually spawn at the sheep stable/pasture.
+        The palletRemap does the same, after every animal pack has loaded, for any other sheep
+        subtype that makes WOOL (FS25_SheepBreedsRLRM's twelve breeds): HB's sheep stable and
+        pastures spawn only SHEEPWOOL_SHEARED and GOATMILK pallets.
     -->
+    <palletRemap type="SHEEP" from="WOOL" to="SHEEPWOOL_SHEARED"/>
     <animal type="SHEEP">
         <subType subType="SHEEP_LANDRACE">
             <output><pallets fillType="SHEEPWOOL_SHEARED"/></output>
@@ -604,11 +632,11 @@
                 <pallets fillType="MILK">
                     <key ageMonth="0" value="0"/>
                     <key ageMonth="12" value="0"/>
-                    <key ageMonth="12" value="226"/>
-                    <key ageMonth="36" value="226"/>
-                    <key ageMonth="36" value="320"/>
-                    <key ageMonth="72" value="320"/>
-                    <key ageMonth="120" value="138"/>
+                    <key ageMonth="12" value="589"/>
+                    <key ageMonth="36" value="589"/>
+                    <key ageMonth="36" value="833"/>
+                    <key ageMonth="72" value="833"/>
+                    <key ageMonth="120" value="359"/>
                 </pallets>
             </output>
         </subType>
@@ -617,11 +645,11 @@
                 <pallets fillType="MILK">
                     <key ageMonth="0" value="0"/>
                     <key ageMonth="12" value="0"/>
-                    <key ageMonth="12" value="223"/>
-                    <key ageMonth="36" value="223"/>
-                    <key ageMonth="36" value="378"/>
-                    <key ageMonth="72" value="378"/>
-                    <key ageMonth="120" value="206"/>
+                    <key ageMonth="12" value="590"/>
+                    <key ageMonth="36" value="590"/>
+                    <key ageMonth="36" value="1000"/>
+                    <key ageMonth="72" value="1000"/>
+                    <key ageMonth="120" value="545"/>
                 </pallets>
             </output>
         </subType>
@@ -630,11 +658,11 @@
                 <pallets fillType="MILK">
                     <key ageMonth="0" value="0"/>
                     <key ageMonth="12" value="0"/>
-                    <key ageMonth="12" value="44"/>
-                    <key ageMonth="36" value="44"/>
-                    <key ageMonth="36" value="70"/>
-                    <key ageMonth="72" value="70"/>
-                    <key ageMonth="120" value="31"/>
+                    <key ageMonth="12" value="168"/>
+                    <key ageMonth="36" value="168"/>
+                    <key ageMonth="36" value="267"/>
+                    <key ageMonth="72" value="267"/>
+                    <key ageMonth="120" value="118"/>
                 </pallets>
             </output>
         </subType>
@@ -643,11 +671,11 @@
                 <pallets fillType="MILK">
                     <key ageMonth="0" value="0"/>
                     <key ageMonth="12" value="0"/>
-                    <key ageMonth="12" value="39"/>
-                    <key ageMonth="36" value="39"/>
-                    <key ageMonth="36" value="60"/>
-                    <key ageMonth="72" value="60"/>
-                    <key ageMonth="120" value="21"/>
+                    <key ageMonth="12" value="152"/>
+                    <key ageMonth="36" value="152"/>
+                    <key ageMonth="36" value="233"/>
+                    <key ageMonth="72" value="233"/>
+                    <key ageMonth="120" value="82"/>
                 </pallets>
             </output>
         </subType>
@@ -656,11 +684,11 @@
                 <pallets fillType="MILK">
                     <key ageMonth="0" value="0"/>
                     <key ageMonth="12" value="0"/>
-                    <key ageMonth="12" value="57"/>
-                    <key ageMonth="36" value="57"/>
-                    <key ageMonth="36" value="80"/>
-                    <key ageMonth="72" value="80"/>
-                    <key ageMonth="120" value="38"/>
+                    <key ageMonth="12" value="166"/>
+                    <key ageMonth="36" value="166"/>
+                    <key ageMonth="36" value="233"/>
+                    <key ageMonth="72" value="233"/>
+                    <key ageMonth="120" value="111"/>
                 </pallets>
             </output>
         </subType>
@@ -671,11 +699,11 @@
                 <pallets fillType="MILK">
                     <key ageMonth="0" value="0"/>
                     <key ageMonth="12" value="0"/>
-                    <key ageMonth="12" value="31"/>
-                    <key ageMonth="36" value="31"/>
-                    <key ageMonth="36" value="50"/>
-                    <key ageMonth="72" value="50"/>
-                    <key ageMonth="120" value="22"/>
+                    <key ageMonth="12" value="124"/>
+                    <key ageMonth="36" value="124"/>
+                    <key ageMonth="36" value="200"/>
+                    <key ageMonth="72" value="200"/>
+                    <key ageMonth="120" value="88"/>
                 </pallets>
             </output>
         </subType>

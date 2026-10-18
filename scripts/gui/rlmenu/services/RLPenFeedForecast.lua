@@ -18,7 +18,6 @@ RLPenFeedForecast = {}
 local Log = RmLogging.getLogger("RLRM")
 
 RLPenFeedForecast.MAX_MONTHS         = 12   -- Projection cap; UI maps this to "~12+m".
-RLPenFeedForecast.LACTATION_CUTOFF   = 10   -- Mirrors Animal:onPeriodChanged.
 RLPenFeedForecast.WARNING_DAYS       = 2    -- < this many real days of feed -> orange alert (RLDetailPaneHelper).
 RLPenFeedForecast.DANGER_DAYS        = 1    -- < this many real days of feed -> red alert.
 
@@ -58,6 +57,9 @@ local function buildScratch(animal)
         reproduction         = animal.reproduction,
         pregnancy            = pregCopy,
         metabolism           = metabolism,
+        -- The gene the daily food is scaled by (the metabolism gene, or its maintenance factor
+        -- under the weight model v2, Animal:getIntakeGene).
+        intakeGene           = animal.getIntakeGene ~= nil and animal:getIntakeGene() or metabolism,
         fatherMetabolism     = fatherMetabolism,
         subTypeRef           = animal:getSubType(),
         subTypeName          = animal.subType,
@@ -88,7 +90,7 @@ local function sumDailyFood(scratch, foodScale)
                 s.isLactating,
                 s.reproduction,
                 numPregnancies,
-                s.metabolism,
+                s.intakeGene or s.metabolism,
                 baseCurveValue,
                 foodScale,
                 s.feedModifier
@@ -109,7 +111,8 @@ local function tickStateAdvance(scratch, daysPerPeriod)
         local s = scratch[i]
         s.age = s.age + 1
         s.monthsSinceLastBirth = s.monthsSinceLastBirth + 1
-        if s.isLactating and s.monthsSinceLastBirth >= RLPenFeedForecast.LACTATION_CUTOFF then
+        -- The game's milk rule (RLLactation), as Animal:advanceRecoveryPeriod applies it.
+        if s.isLactating and not RLLactation.isWithin(s.monthsSinceLastBirth, RLLactation.getMonths(s.subTypeRef)) then
             s.isLactating = false
         end
 
@@ -162,6 +165,10 @@ local function tickBirths(scratch, simMonth, simYear, maxNumAnimals)
 
             for _ = 1, actual do
                 local newbornMetabolism = (s.metabolism + s.fatherMetabolism) / 2
+                local newbornIntake = newbornMetabolism
+                if RLGrowth ~= nil and RLGrowth.coversSubType(s.subTypeRef) then
+                    newbornIntake = select(3, RLGrowth.getGeneFactors(newbornMetabolism, s.subTypeRef))
+                end
                 table.insert(scratch, {
                     age                  = 0,
                     isLactating          = false,
@@ -170,6 +177,7 @@ local function tickBirths(scratch, simMonth, simYear, maxNumAnimals)
                     reproduction         = 0,
                     pregnancy            = nil,
                     metabolism           = newbornMetabolism,
+                    intakeGene           = newbornIntake,
                     fatherMetabolism     = newbornMetabolism,
                     subTypeRef           = s.subTypeRef,
                     subTypeName          = s.subTypeName,
@@ -178,14 +186,12 @@ local function tickBirths(scratch, simMonth, simYear, maxNumAnimals)
                 })
             end
 
-            -- Mother post-birth state per AnimalReproduction (COW or GOAT lactates).
+            -- Mother post-birth state per the game's milk rule (RLLactation: cattle and goats).
             s.isPregnant           = false
             s.pregnancy            = nil
             s.reproduction         = 0
             s.monthsSinceLastBirth = 0
-            if (AnimalType ~= nil and s.animalTypeIndex == AnimalType.COW)
-                or s.subTypeName == "GOAT"
-            then
+            if RLLactation.startsAtBirth(s.animalTypeIndex, s.subTypeName) then
                 s.isLactating = true
             end
 
@@ -201,6 +207,18 @@ end
 -- Public API
 -- =============================================================================
 
+--- Months a pen running the real-equivalent nutrition mode is fed for (RLFeedInfoService: the
+--- first feed of its plan to run out, each at its own planned liters a month); nil for any other
+--- pen, or one with nothing planned yet - the curve simulation below then applies.
+--- @param husbandry table
+--- @return number|nil months
+function RLPenFeedForecast.getFeedModeMonths(husbandry)
+    if RLFeedInfoService == nil or not RLFeedInfoService.isCattlePen(husbandry) then return nil end
+    if not RLFeedInfoService.getPenState(husbandry).active then return nil end
+    local months = RLFeedInfoService.getMonthsLeft(husbandry)
+    return months
+end
+
 --- Estimate how many full game-months the pen's current food covers given
 --- the current herd's projected feed draw. Integer return; the UI renders
 --- the value as a range "~M-(M+1)m"; MAX_MONTHS maps to "~12+m"; 0 maps to
@@ -210,6 +228,10 @@ end
 --- @return number monthsRemaining integer in [0, MAX_MONTHS]
 function RLPenFeedForecast.getMonthsRemaining(husbandry, foodTotalLiters)
     foodTotalLiters = foodTotalLiters or 0
+
+    -- Real-equivalent nutrition: the first feed of the plan to run out, not one pooled liter count.
+    local feedMonths = RLPenFeedForecast.getFeedModeMonths(husbandry)
+    if feedMonths ~= nil then return math.min(math.floor(feedMonths), RLPenFeedForecast.MAX_MONTHS) end
 
     if husbandry == nil or husbandry.spec_husbandryAnimals == nil
         or husbandry.spec_husbandryAnimals.getClusters == nil
@@ -313,6 +335,12 @@ end
 ---         herd or zero daily consumption) so callers treat the pen as "plenty"
 function RLPenFeedForecast.getDaysRemaining(husbandry, foodTotalLiters)
     foodTotalLiters = foodTotalLiters or 0
+
+    local feedMonths = RLPenFeedForecast.getFeedModeMonths(husbandry)
+    if feedMonths ~= nil then
+        local environment = (g_currentMission ~= nil) and g_currentMission.environment or nil
+        return feedMonths * ((environment ~= nil and environment.daysPerPeriod) or 3)
+    end
 
     if husbandry == nil or husbandry.spec_husbandryAnimals == nil
         or husbandry.spec_husbandryAnimals.getClusters == nil

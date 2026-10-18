@@ -127,6 +127,11 @@ function loadAnimalSection(first, last)
     assert(load("local Log = RmLogging.getLogger()\n" .. text:sub(from, to), "Animal section " .. first))()
 end
 
+-- The game's milk rule (births, the monthly tick, yield, the forecast and the dealer).
+loadMod("scripts/animal/RLLactation.lua")
+-- Shared butcher age window, sourced by main.lua before move modules.
+loadMod("scripts/utils/RLEppAge.lua")
+
 -- Livestock prices at the calibration level (HARD, x1), so a test sees the calibrated prices;
 -- tests/test_livestockprices.lua loads the real module over it.
 RLLivestockPrices = { getMultiplier = function() return 1 end }
@@ -134,6 +139,9 @@ RLLivestockPrices = { getMultiplier = function() return 1 end }
 -- Body condition (scripts/nutrition). Loaded for every test: Animal and the price, carcass and
 -- reproduction code read it. Without an AnimalType global no animal is covered, so its factors
 -- are 1 and tests of other code see the old behaviour; tests/test_bodycondition.lua covers it.
+loadMod("scripts/animal/RLSpecies.lua")
+loadMod("scripts/animal/RLWeightMath.lua")
+loadMod("scripts/animal/RLMilkParity.lua")
 loadMod("scripts/nutrition/RLNutritionMath.lua")
 loadMod("scripts/nutrition/RLBodyConditionConfig.lua")
 loadMod("scripts/nutrition/RLBodyCondition.lua")
@@ -147,6 +155,22 @@ loadMod("scripts/animal/RLFacilityRules.lua")
 loadMod("scripts/utils/RLPenLog.lua")
 loadMod("scripts/bridge/RLPenConstruction.lua")
 loadMod("scripts/nutrition/RLCalfRearing.lua")
+
+-- Weight model v2 (RLGrowth). It covers only individual animals (isIndividual = true) of a
+-- covered subtype, with the breed traits config loaded; the other tests see the old rules.
+loadMod("scripts/animal/RLGrowthCurve.lua")
+loadMod("scripts/animal/RLGrowthMath.lua")
+loadMod("scripts/animal/RLWeightProfiles.lua")
+loadMod("scripts/animal/RLGrowth.lua")
+
+-- Real-equivalent nutrition (RLFeed). The mode is the legacy one unless a test switches it on
+-- (RLFeed.mode), so every other test sees the old rules; tests/test_feed.lua covers it.
+loadMod("scripts/feed/RLFeedUnits.lua")
+loadMod("scripts/feed/RLFeedProfiles.lua")
+loadMod("scripts/feed/RLFeedMath.lua")
+loadMod("scripts/feed/RLFeedRationPlanner.lua")
+loadMod("scripts/feed/RLFeed.lua")
+loadMod("scripts/feed/RLFeedInfoService.lua")
 
 -- RLPEN_DUMP=path: tests that capture RLPEN records append them there as log.txt lines.
 function DUMP(line)

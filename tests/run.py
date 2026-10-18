@@ -9,6 +9,7 @@ so it can loadMod() real mod scripts. Exits non-zero when any check fails.
 import glob
 import os
 import sys
+import xml.etree.ElementTree as ET
 
 import lupa
 
@@ -19,6 +20,9 @@ REPO = os.path.dirname(TESTS)
 def run(path):
     lua = lupa.LuaRuntime(unpack_returned_tuples=True)
     lua.globals().REPO = REPO + "/"
+    # Repository-relative paths of the .lua files under a directory (Lua has no directory listing here).
+    lua.globals().listRepoLua = lambda sub: lua.table_from(sorted(
+        os.path.relpath(p, REPO) for p in glob.glob(os.path.join(REPO, sub, "**", "*.lua"), recursive=True)))
     with open(os.path.join(TESTS, "stubs.lua"), encoding="utf-8") as f:
         lua.execute(f.read())
     with open(path, encoding="utf-8") as f:
@@ -27,6 +31,8 @@ def run(path):
 
 
 def main():
+    # The Lua XML stub is permissive; validate syntax with a standard parser first.
+    ET.parse(os.path.join(REPO, "xml", "breedTraits.xml"))
     failed = 0
     total = 0
     for path in sorted(glob.glob(os.path.join(TESTS, "test_*.lua"))):

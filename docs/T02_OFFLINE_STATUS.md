@@ -1,82 +1,40 @@
-# R0-T02 offline preparation
+# T02 当前状态与验收入口
 
-Base: PR #31 `7af1b27dd9690286b9f4aa5a38e86b88a4f13a65`, built on dev `9be3881`.
-Branch: `feat/contract-transaction` (batch 1); rebased onto PR #31 `6bbb74d` in `feat/contract-adapter`.
+整理日期：2026-10-14。当前集成基线：RLRM dev `bbb4573`；下述旧测试结果保留原提交归属。
 
-Batch 2 (PR #32, controlled live HB contract delivery): see [T02_BATCH2_STATUS.md](T02_BATCH2_STATUS.md).
-Batch 3 (PR #33, player/herdsman live sales with money receipts, herdsman wage actions): see [T02_BATCH3_STATUS.md](T02_BATCH3_STATUS.md).
-Batch 4 (PR #34, ledger saved with the savegame, checkpoint markers, load check and gate): see [T02_BATCH4_STATUS.md](T02_BATCH4_STATUS.md).
-The "Not enabled or complete" section below describes batch 1 alone.
+## 当前状态
 
-## Implemented and verified offline
+合同提交、来源移除与恢复、人工/AI活卖资金收据、工资去重、事务持久化与启动恢复、合同诊断均已进入 dev。
+原 PR31–34 的开发栈已合入，不再作为待开发或待合入任务。
 
-- `RLContractPlan`: pure whole-batch capacity/fee/credit/cash planning. Order credit is
-  consumed once across all animals and inputs, and all orders share the farm's wallet.
-  Unknown/non-authoritative/ambiguous quotes, missing orders, inconsistent snapshots,
-  duplicate identities, invalid amounts and insufficient resources refuse the batch.
-  Capacity and budget tolerances cannot authorize a partial live-animal conversion.
-- `RLContractPreview`: reads actual T01 quotes and aggregates the entire selection.
-- `rlTradePlan <facility number> <uniqueId|pen:NAME> [farmId]`: read-only server/host
-  shadow preview. Lists whole-batch fees, credit, cash, wallet and input demand/room.
-  No delivery, money mutation, reservation, recipe alignment or animal initialization.
-  A client receives NOT_AUTHORITATIVE; duplicate facility names/uniqueIds are refused.
-  Unlike `rlTradeReport`, it never silently truncates a batch to 40 animals.
-- `RLTradeTransaction`: adapter-driven offline coordinator with resource locks and
-  request-fingerprint replay protection. Contract order: target then source; sale order:
-  source then receipt-aware settlement. Every attempted mutation requires a verified
-  inverse. Unknown settlement or failed compensation retains locks for reconciliation.
-  Visual/notification failure after commit cannot retry economic work.
-- Ledger schema export/import: completed transactions remain replay-only; unfinished
-  transactions reload as NEEDS_RECONCILIATION and block new work pending asset checks.
-  These are serializable records, **not** an integrated savegame journal.
-- `tests/fixtures/hb_contract_delivery.lua`: exact excerpts of the supplied HB Beta2
-  service helpers and delivery method, with source SHA256. The production arithmetic
-  and mutation order are unchanged. Engine money/activation/visual calls are test stubs.
+`rlrm-t02` / `feat/contract-transaction` 是早期工作树，其业务代码仍停在第一批；
+本文和测试清单描述当前 dev，不能据此把该旧树打包用于验收。
 
-## Evidence
+历史 PR #46 集成验证为 2624/2624，GitHub CI 通过（PR #46）；这是本会话上一轮的验证记录，
+本次文档整理没有重跑代码测试。单机、联机主机、专服的游戏内验收均未完成。
 
-- PR #31 baseline independently rerun: 749/749.
-- This branch: 845/845, including 96 new checks.
-- Both new suites under Lua 5.1: 96/96. Test XML reading uses the Lua 5.1-compatible `*a`.
-- Real HB function: with 20 credit and 30 cash, a requested input of 1 accepts 0.5,
-  consumes both balances and mutates buffered/total-delivered fields plus activation.
-- Real HB function: a money throw before mutation still consumes credit; a throw after
-  mutation consumes cash and credit without adding input. Returning 0 alone cannot
-  compensate these outcomes.
-- Repeated shadow queries leave money, credit, input and activation unchanged.
-- Coordinator fault adapters cover partial mutation, false returns, throws, verification
-  failure, inverse failure, shared-resource reentrancy, replay and reload.
-  They prove coordinator behavior, **not GIANTS source rollback capabilities**.
+## 已实现的边界
 
-## Not enabled or complete
+- 合同与活卖开关独立，地图加载后回到 OFF；SHADOW 用于观测，TEST 用于复制的测试存档。
+- 第四批已经接入存档账本。模式回 OFF 不等于丢弃账本；加载核对后恢复终态去重和未完成事务隔离。
+- L1：正常完整保存后重载，保留终态并阻止重复成交；未完成事务保留待核对状态。
+- L2：保存失败、缺失或混代文件可检出并限制新的 T02 事务，仍需真实引擎验收。
+- L3：没有崩溃后自动补款、退款、复活动物或解锁能力。
+- 门禁只覆盖已接入 T02 的入口；不把旧路径、HB 加工及外部 mod 的动作视为已被统一锁定。
 
-Existing game delivery/sale paths are unchanged. No live commit or rollback adapter
-is installed, and the offline coordinator is not called by economic events. The
-existing partial-acceptance defect therefore still needs the live T02 adapter work.
+## 下一步
 
-Remaining offline implementation:
+按 [T02 游戏验收清单](T02_TEST_WORKFLOW.md)执行：只读冒烟 → 合同 → 活卖与工资 → 保存重载 → 联机与专服。
+记录实际测试提交、包哈希、地图/mod/config、前后动物和资金、事务状态、日志及结果。
+没有故障注入钩子的异常场景标为阻塞；自动测试通过不代替游戏结果。
 
-1. Bind a certified HB target adapter: freeze order/recipe revision and account for
-   feeCredit, order.fee, buffered, totalDelivered, totalDeliveredAmount, state and
-   activation/visual effects. A money exception needs an actual receipt or reconciliation.
-2. Bind source validation/removal/restoration to the real cluster system, including
-   identity maps, pending queues, idFull/visual bookkeeping and partial remove failures.
-3. Protect animal ownership/access/disease/age gates, order cancellation and recipe
-   revision; shadow budget success is not authorization to trade.
-4. Add controlled bridge versioning and historical order protection; quantity/fee
-   policy changes remain separate. No change to existing meat, condition or fee policy.
-5. Connect receipt-aware settlement to manual/AI sales and journal failures.
-6. Integrate ledger and asset save/load under one verified save boundary. Fingerprints
-   alone do not reconstruct an interrupted transaction; asset receipts and deltas must
-   also be persisted. Separate log files do not prove crash atomicity.
+## 实施证据
 
-## Later game acceptance
+下列 dev 文档包含各批次的历史实现和离线证据，批次内的旧 PR 状态、旧测试总数及“后续批次”描述应按本文的当前集成状态理解：
 
-Load a test build in a copied HB Beta2 save. First run `rlTradeReport`, then
-`rlTradePlan 1 pen:NAME FARM_ID` (replace facility number/name/farm). Compare the sum
-against per-animal reports and check repeated queries leave assets unchanged. A
-SHADOW_OK result confirms only budget/capacity calculation.
+- [合同适配器实施记录](https://github.com/xtcg/FS25_RealisticLivestockRM/blob/dev/docs/T02_BATCH2_STATUS.md)
+- [活卖与工资实施记录](https://github.com/xtcg/FS25_RealisticLivestockRM/blob/dev/docs/T02_BATCH3_STATUS.md)
+- [持久化与启动恢复实施记录](https://github.com/xtcg/FS25_RealisticLivestockRM/blob/dev/docs/T02_BATCH4_STATUS.md)
+- [活卖专项操作步骤](https://github.com/xtcg/FS25_RealisticLivestockRM/blob/dev/docs/T02_BATCH3_TEST_WORKFLOW.md)（其中“仅内存、不能重载”的第三批限制已由第四批实现取代）
 
-Actual delivery, rollback, source bookkeeping, save/reload and client synchronization
-must be checked after the live adapters exist, separately in SP, host and dedicated
-server. Do not label this branch complete T02 or game-accepted.
+旧开发方案和修正前评审不作为当前状态入口；现有回归测试及实施证据继续保留。

@@ -113,6 +113,36 @@ function RLDetailPaneHelper.updateMoneyDisplay(frame)
 end
 
 
+--- Most food rows the pen column shows (the XML has NUM_FOOD_ROWS; the rest are cloned).
+RLDetailPaneHelper.MAX_FOOD_ROWS = 10
+
+
+--- Make sure the frame has `count` food rows: clone the first row (label, value, status bar) into
+--- its layout for each one missing. A frame whose row cannot be cloned keeps the rows it has.
+--- @param frame table
+--- @param count number
+function RLDetailPaneHelper.ensureFoodRows(frame, count)
+    local template = frame.foodRow ~= nil and frame.foodRow[1] or nil
+    if template == nil or template.clone == nil or template.parent == nil then return end
+    frame.foodLabel, frame.foodValue, frame.foodStatusBar = frame.foodLabel or {}, frame.foodValue or {}, frame.foodStatusBar or {}
+    local added = false
+    for index = #frame.foodRow + 1, count do
+        local ok, row = pcall(function() return template:clone(template.parent) end)
+        if not ok or row == nil or row.elements == nil or row.elements[1] == nil or row.elements[2] == nil then
+            Log:debug("RLDetailPaneHelper.ensureFoodRows: could not clone food row %d (%s)", index, tostring(row))
+            break
+        end
+        frame.foodRow[index] = row
+        frame.foodLabel[index] = row.elements[1].elements[1]
+        frame.foodValue[index] = row.elements[1].elements[2]
+        frame.foodStatusBar[index] = row.elements[2].elements[1]
+        row:setVisible(false)
+        added = true
+    end
+    if added and template.parent.invalidateLayout ~= nil then template.parent:invalidateLayout() end
+end
+
+
 -- =============================================================================
 -- Pen column rendering
 -- =============================================================================
@@ -175,14 +205,16 @@ function RLDetailPaneHelper.updatePenDisplay(frame, husbandry, farmId)
         end
     end
 
-    -- Food rows
+    -- Food rows (one per feed in the real-equivalent nutrition mode: more than the XML's slots
+    -- are cloned from the first, up to MAX_FOOD_ROWS)
     if frame.foodRow ~= nil then
-        for index = 1, RLDetailPaneHelper.NUM_FOOD_ROWS do
+        RLDetailPaneHelper.ensureFoodRows(frame, math.min(#display.foodInfos, RLDetailPaneHelper.MAX_FOOD_ROWS))
+        for index = 1, math.max(#frame.foodRow, RLDetailPaneHelper.NUM_FOOD_ROWS) do
             local row = frame.foodRow[index]
             local info = display.foodInfos[index]
             if row ~= nil then row:setVisible(info ~= nil) end
             if info ~= nil and row ~= nil then
-                local valueText = g_i18n:formatVolume(info.value or 0, 0)
+                local valueText = info.valueText or g_i18n:formatVolume(info.value or 0, 0)
                 if frame.foodLabel and frame.foodLabel[index] then
                     frame.foodLabel[index]:setText(info.title or "")
                 end

@@ -4,6 +4,8 @@
 -- (feeding, then health), the RLRM hourly hook, the real food, water and milk spec overrides and
 -- the onHusbandryAnimalsUpdate event an AnimalClusterSystem flush raises. Health rates, genetics
 -- and requests are the ones of the 2026-10-08 game logs (EC0BC01_milk_stage1, EC0BC01_calf_moved_h1).
+-- The controls retain those archived rates, with 1.4.1.0's corrected loss genetics:
+-- the stale request still loses health, but good genes now slow rather than amplify the loss.
 
 g_currentModDirectory = REPO
 XMLFile = { loadIfExists = function(_, path) return loadXMLFileFromDisk(path) end }
@@ -229,8 +231,8 @@ local function buyCow(refresh)
 end
 
 local request, first, factor, eaten, second = buyCow(false)
-check(string.format("old behaviour reproduced: bought cow's first hour in a pen empty the hour before asks 0 L, factor 0, health 100 -> %d -> %d (game log 100 -> 68 -> 80)",
-    first, second), request == 0 and factor == 0 and eaten == 0 and first == 68 and second == 80)
+check(string.format("stale-request control: bought cow asks 0 L, factor 0, health 100 -> %d -> %d (1.4.1.0 genetics; archived game log 100 -> 68 -> 80)",
+    first, second), request == 0 and factor == 0 and eaten == 0 and first == 81 and second == 93)
 
 request, first, factor, eaten, second = buyCow(true)
 check(string.format("buy: the pen asks the cow's 15.4 L/h at once, first hour eats it at factor 1, health stays %d/%d",
@@ -256,9 +258,9 @@ local function moveCalf(refresh)
 end
 
 local calf, igloo, box, requests = moveCalf(false)
-check(string.format("old behaviour reproduced: box B asks 0 L, the empty igloo still 7.42 L, the calf drinks nothing, health 100 -> %d (game log 69)",
+check(string.format("stale-request control: box B asks 0 L, the empty igloo still 7.42 L, the calf drinks nothing, health 100 -> %d (1.4.1.0 genetics; archived game log 69)",
     calf.health), requests.box == 0 and near(requests.igloo, 7.4225) and calf.rlCalfFeed.factor == 0
-    and near(level(box, "CALFMILK"), 119.18) and calf.health == 69)
+    and near(level(box, "CALFMILK"), 119.18) and calf.health == 80)
 
 calf, igloo, box, requests = moveCalf(true)
 check("move: box B asks the calf's 7.42 L/h at once and the igloo it left asks nothing",

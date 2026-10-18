@@ -74,6 +74,8 @@ function Animal.new(config)
     self.age = cfg.age or 0
     self.health = cfg.health or 0
     self.monthsSinceLastBirth = cfg.monthsSinceLastBirth or 0
+    -- Calvings so far; nil = not on record (resolveBirthCount fills it).
+    self.birthCount = cfg.birthCount
     self.gender = cfg.gender or "female"
     local subType
     if config and not cfg.subTypeIndex then
@@ -186,17 +188,36 @@ function Animal.new(config)
     end
 
 
-    self.targetWeight = targetWeight + (((targetWeight * self.genetics.metabolism) - targetWeight) / 2.5)
+    -- Weight model v2 state: own copy, never a table shared with another animal. growthDropped:
+    -- saved with a state it cannot use, so taken over again without a legacy anchor.
+    self.rlGrowth = RLGrowth.copyState(cfg.growth)
+    self.rlGrowthDropped = cfg.growthDropped == true or nil
+
+    -- Under the weight model v2 (RLGrowth) an animal with no weight of its own gets its curve's at
+    -- its age, and its target weight (what the slaughter reference and finishing read) is set
+    -- once its state is known, below. Otherwise the old rules.
+    self.targetWeight = RLBreedTraits.getGeneTarget(targetWeight, self.genetics.metabolism)
+    -- A blank animal (config nil) is a shell readStream is about to fill, and an unborn one (age
+    -- below 0) has throwaway genes until its own are set and gets its state at birth
+    -- (RLGrowth.initBirth): neither gets a curve or a state here.
+    local growthCovered = config ~= nil and self.age >= 0 and RLGrowth.getTargetWeight(subType, self.genetics) ~= nil
+    local weightFromCurve = false
 
     if self.weight == nil then
-        self.weight = RLBreedTraits.getNewAnimalWeight(subType, self.gender, self.targetWeight, self.age,
-            self.genetics.metabolism)
+        if growthCovered then
+            self.weight = RLGrowth.getNewAnimalWeight(self)
+            weightFromCurve = true
+        else
+            self.weight = RLBreedTraits.getNewAnimalWeight(subType, self.gender, self.targetWeight, self.age,
+                self.genetics.metabolism)
+        end
     end
 
     local farmId = cfg.farmId
     self.farmId = farmId or nil
 
     local id = cfg.uniqueId
+    local deferredIdentity = nil
 
     if self.clusterSystem ~= nil then
         if id == nil then
@@ -207,18 +228,13 @@ function Animal.new(config)
             if farm == nil then
                 id = "1"
             else
-                id = farm.stats:getNextAnimalId(g_currentMission.animalSystem:getSubTypeByIndex(self.subTypeIndex)
-                .typeIndex)
-
-                local farmHerdId = farm.stats.statistics.farmId
-                if farmHerdId == nil then
-                    farmHerdId = math.random(100000, 999999)
-                    farm.stats.statistics.farmId = farmHerdId
-                end
-
+                -- Numbered once its birth country is known (below), through the identity runtime in
+                -- every mode: the ledger when it is the allocator, else the farm's counter past every
+                -- key known to be taken (ID-COLLISION-01).
+                local farmHerdId = RLAnimalIdentityWorld.ensureHerd(farm)
                 self.farmId = tostring(farmHerdId)
-
-                id = RLAnimalUtil.generateUniqueId(farmHerdId, id)
+                deferredIdentity = { farm = farm, herd = farmHerdId,
+                    typeIndex = g_currentMission.animalSystem:getSubTypeByIndex(self.subTypeIndex).typeIndex }
             end
         end
 
@@ -299,10 +315,27 @@ function Animal.new(config)
         }
     end
 
+    if deferredIdentity ~= nil then
+        local country = self.birthday ~= nil and self.birthday.country or RealisticLivestock.getMapCountryIndex()
+        local raw = RLAnimalIdentityWorld.nextStatsRaw("animal-new", deferredIdentity.farm, deferredIdentity.typeIndex, country, "auto")
+        if raw ~= nil then
+            self.uniqueId = RLAnimalUtil.generateUniqueId(deferredIdentity.herd, raw)
+        else
+            self.uniqueId, self.farmId = "1", "1"
+        end
+    end
+
     self.diseases = cfg.diseases or {}
 
     -- Body condition (RLBodyCondition): own copy, never a table shared with another animal.
     self.bodyCondition = RLBodyCondition.copyState(cfg.bodyCondition)
+
+    -- An animal whose weight its curve just gave starts on its curve (no old rules to take over);
+    -- its target weight follows its state (RLGrowth.getAnimalTargetWeight).
+    if growthCovered then
+        if weightFromCurve and self.rlGrowth == nil then self.rlGrowth = RLGrowth.createGeneratedState(self) end
+        self.targetWeight = RLGrowth.getAnimalTargetWeight(self)
+    end
 
     self:updateInput()
     self:updateOutput(g_currentMission.environment.weather.temperatureUpdater.currentMin or 20)
@@ -380,6 +413,7 @@ function Animal:clone()
         age = self.age,
         health = self.health,
         monthsSinceLastBirth = self.monthsSinceLastBirth,
+        birthCount = self.birthCount,
         gender = self.gender,
         subTypeIndex = self.subTypeIndex,
         reproduction = self.reproduction,
@@ -411,6 +445,7 @@ function Animal:clone()
         insemination = self.insemination,
         canBeSold = self.canBeSold,
         bodyCondition = self.bodyCondition,
+        growth = self.rlGrowth,
     })
 
     newAnimal:setBirthday(self.birthday)
@@ -448,6 +483,12 @@ function Animal:setUniqueId(farmId)
         local id = g_currentMission.animalSystem:getNextAnimalIdForFarm(self.birthday.country, self.animalTypeIndex,
             farmId)
 
+        if id == nil then
+            -- The identity ledger refused (it is the allocator and has no key): the old placeholder, repaired later.
+            self.uniqueId, self.farmId = "1", "1"
+            return
+        end
+
         self.farmId = tostring(farmId)
         self.uniqueId = RLAnimalUtil.generateUniqueId(farmId, id)
 
@@ -470,7 +511,14 @@ function Animal:setUniqueId(farmId)
         Log:trace("setUniqueId: farm is nil, fallback to 1/1")
         self.uniqueId, self.farmId = "1", "1"
     else
-        id = farm.stats:getNextAnimalId(g_currentMission.animalSystem:getSubTypeByIndex(self.subTypeIndex).typeIndex)
+        local typeIndex = g_currentMission.animalSystem:getSubTypeByIndex(self.subTypeIndex).typeIndex
+        local country = self.birthday ~= nil and self.birthday.country or RealisticLivestock.getMapCountryIndex()
+        id = RLAnimalIdentityWorld.nextStatsRaw("set-unique-id", farm, typeIndex, country, "birth")
+
+        if id == nil then
+            self.uniqueId, self.farmId = "1", "1"
+            return
+        end
 
         local farmHerdId = farm.stats.statistics.farmId
         if farmHerdId == nil then
@@ -1076,6 +1124,15 @@ function Animal:addGeneticsInfo()
     return texts
 end
 
+--- Localised daily amount, retaining the shared helper's small-amount precision.
+---@param amountPerHour number
+---@param daysPerMonth number
+---@return string
+function Animal.formatAmountPerDay(amountPerHour, daysPerMonth)
+    return RLAnimalDisplayHelper.formatAmountPerDay((amountPerHour * 24) / daysPerMonth)
+end
+
+
 function Animal:showMonitorInfo(box)
     if not self.monitor.active and not self.monitor.removed then return end
 
@@ -1087,6 +1144,11 @@ function Animal:showMonitorInfo(box)
     if self.clusterSystem ~= nil and self.clusterSystem.owner.spec_husbandryMilk ~= nil and self.gender ~= nil and self.gender == "female" and self.age >= 12 then
         if self.isLactating ~= nil then box:addLine(g_i18n:getText("rl_ui_lactating"),
                 self.isLactating and g_i18n:getText("rl_ui_yes") or g_i18n:getText("rl_ui_no")) end
+    elseif self.gender == "female" and self.isParent and RLFeed ~= nil and RLFeed.getNursingState ~= nil
+        and (RLFeed.getConfig(self).nursing ~= nil or RLFeed.getConfig(self).monogastric ~= nil) then
+        -- A ewe or sow: whether she nurses young now (lambs or a litter at foot), not the milk flag
+        -- (RLFeed.getNursingState); neither gives saleable milk.
+        box:addLine(g_i18n:getText("rl_ui_lactating"), self:getIsNursing() and g_i18n:getText("rl_ui_yes") or g_i18n:getText("rl_ui_no"))
     end
 
     box:addLine(g_i18n:getText("rl_ui_weight"), string.format("%.2f", self.weight) .. "kg")
@@ -1155,81 +1217,77 @@ function Animal:getCanReproduce() return AnimalReproduction.getCanReproduce(self
 
 function Animal:updateHealth(foodFactor) AnimalHealth.updateHealth(self, foodFactor) end
 
--- The disease multiplier scales positive growth only: an age-driven loss and the decrease terms
--- stay exactly as a healthy animal's.
---- Advance this animal's weight by one hour of growth, overweight regression and starvation.
+--- Advance this animal's weight by one hour of growth, overweight regression and starvation. All
+--- three are rates per period integrated over the hour (RLWeightMath), so a month gives the same
+--- weight at any days per period; at 1 day per period every hour is as it always was. Growth is the
+--- full-feed gain (getFullFeedGain) x nutrition, x 0.75 for a cow being milked. A disease scales
+--- the growth only: the decrease terms stay exactly as a healthy animal's.
 ---@param foodFactor number The pen's 0..1 food factor
 ---@return nil
-function Animal:updateWeight(foodFactor)
-    local subType = self:getSubType()
-    local minWeight = subType.minWeight
-    local targetWeight = self.targetWeight
-    local weight = self.weight
-    local metabolism = self.genetics.metabolism
-    local adultMonth = RLBreedTraits.getMatureAge(subType)
+---@param targetWeight number|nil The target the old rule runs to (default the animal's own; the
+---        weight model v2's fallback passes the old-rule target, RLGrowth.getLegacyTarget)
+function Animal:updateWeight(foodFactor, targetWeight)
+    local dtMonths = RLWeightMath.getHourMonths(g_currentMission.environment.daysPerPeriod)
+    targetWeight = targetWeight or self.targetWeight
 
-    local baseIncrease = ((targetWeight - minWeight) / adultMonth) / (24 * g_currentMission.environment.daysPerPeriod)
-    local increase = baseIncrease * (self.gender == "female" and RLBreedTraits.getFemaleGrowth(subType) or 1.0) *
-    (1 + ((adultMonth - self.age) / 75)) *
-    self:getGrowthNutrition(foodFactor)
-
-    if increase < 0 then
-        metabolism = 1 + (1 - metabolism)
-
-        Log:trace("updateWeight: animal=%s/%s age-driven loss (age=%s adultMonth=%s), metabolism inverted to %s",
-            tostring(self.farmId), tostring(self.uniqueId), tostring(self.age), tostring(adultMonth),
-            tostring(metabolism))
-    end
-
-    increase = increase * metabolism
-
-    if self.isCastrated then increase = increase * 1.15 end
-
-    if increase > 0 then increase = increase * RLBreedTraits.get(subType, "growth") end
+    local increase = self:getFullFeedGain(targetWeight) * self:getGrowthNutrition(foodFactor) * dtMonths
 
     if self.clusterSystem ~= nil and self.clusterSystem.owner ~= nil and self.clusterSystem.owner.spec_husbandryMilk ~= nil and self.isLactating then increase =
         increase * 0.75 end
 
-    if increase > 0 then
-        local multipliers, contributors = self:getDiseaseMultipliers("updateWeight")
-
-        if multipliers ~= nil then
-            local healthyIncrease = increase
-            increase = increase * multipliers.weightGain
-
-            if contributors > 0 then
-                Log:trace("updateWeight: animal=%s/%s disease weightGain=%s increase %s -> %s (contributors=%s)",
-                    tostring(self.farmId), tostring(self.uniqueId), tostring(multipliers.weightGain),
-                    tostring(healthyIncrease), tostring(increase), tostring(contributors))
-            end
-        end
-    end
-
-    local decrease = 0
-    if weight > targetWeight then decrease = (weight - targetWeight) / (metabolism * 25) end
-
     if foodFactor == 0 then
         Log:trace("updateWeight: animal=%s/%s starving, weight=%s targetWeight=%s",
-            tostring(self.farmId), tostring(self.uniqueId), tostring(weight), tostring(targetWeight))
-
-        if weight < targetWeight then
-            decrease = (targetWeight - weight) / ((1 - (metabolism - 1)) * 150)
-        elseif weight > targetWeight then
-            decrease = decrease + ((weight - targetWeight) / ((1 - (metabolism - 1)) * 150))
-        end
+            tostring(self.farmId), tostring(self.uniqueId), tostring(self.weight), tostring(self.targetWeight))
     end
 
-    self.weight = math.max(self.weight + increase - decrease, 0.001)
+    self.weight = RLWeightMath.stepLegacy(self.weight, targetWeight, increase, self.genetics.metabolism,
+        foodFactor == 0, dtMonths)
 
     self:applyUnderweightPenalty()
 end
 
+--- What this animal gains in a period on full feed: its full-feed line's gain at its age
+--- (RLBreedTraits.getLineGain: base gain x sex x age x metabolism x breed growth, never negative)
+--- x 1.15 for a steer x the disease weight gain. The old weight rule and the body condition budget
+--- both start from it.
+---@param targetWeight number|nil Default the animal's own
+---@return number gainKg per period (>= 0)
+---@return number healthyGainKg the same without the disease (>= 0)
+function Animal:getFullFeedGain(targetWeight)
+    local gain = RLBreedTraits.getLineGain(self:getSubType(), self.gender, targetWeight or self.targetWeight, self.age,
+        self.genetics.metabolism)
+
+    if self.isCastrated then gain = gain * 1.15 end
+
+    local healthy = gain
+    if gain > 0 then
+        local multipliers, contributors = self:getDiseaseMultipliers("updateWeight")
+
+        if multipliers ~= nil then
+            gain = gain * multipliers.weightGain
+
+            if contributors > 0 then
+                Log:trace("getFullFeedGain: animal=%s/%s disease weightGain=%s gain %s -> %s (contributors=%s)",
+                    tostring(self.farmId), tostring(self.uniqueId), tostring(multipliers.weightGain),
+                    tostring(healthy), tostring(gain), tostring(contributors))
+            end
+        end
+    end
+
+    return gain, healthy
+end
+
 --- An animal far below the weight for its age loses health. Run after every weight change, the
---- old one above and the body condition step (AnimalHealth.updateHealth).
+--- old one above and the budget steps (AnimalHealth.updateHealth). Under the weight model v2 the
+--- weight for its age is its own growth curve's (RLGrowth.getUnderweightThreshold).
 function Animal:applyUnderweightPenalty()
-    local subType = self:getSubType()
-    local minWeightForAge = subType.minWeight * (math.min(self.age, subType.reproductionMinAgeMonth * 1.5) + 0.5) * 0.5
-    if self.weight < minWeightForAge then self.health = math.clamp(
+    local minWeightForAge
+    if RLGrowth.covers(self) then
+        minWeightForAge = RLGrowth.getUnderweightThreshold(self)
+    else
+        minWeightForAge = RLGrowth.getLegacyUnderweight(self:getSubType(), self.age)
+    end
+    if minWeightForAge > 0 and self.weight < minWeightForAge then self.health = math.clamp(
         self.health - (((minWeightForAge - self.weight) / minWeightForAge) * 0.2), 0, 100) end
 end
 
@@ -1249,10 +1307,12 @@ end
 
 --- Advance post-birth recovery by one period: bump monthsSinceLastBirth and,
 --- once it reaches the lactation cutoff, stop lactating. Pure and deterministic
---- -- reads/writes only these two fields, touches no game state and sets no
---- dirty flag -- so MP clients can run it locally in lockstep with the server,
---- the same property that lets aging run client-side. The isLactating flip is
---- one-directional at >= 10; re-enabling lactation is AnimalBirthEvent's job.
+--- -- reads/writes only these two fields (and reads the breed's lactation length,
+--- RLLactation.getMonths), touches no game state and sets no dirty flag -- so MP
+--- clients can run it locally in lockstep with the server, the same property that
+--- lets aging run client-side. The isLactating flip is one-directional at the end of
+--- the lactation (RLLactation.MONTHS, a suckler breed's suckling period); re-enabling
+--- lactation is AnimalBirthEvent's job.
 --- @see RealisticLivestock_PlaceableHusbandryAnimals.onPeriodChanged (client branch)
 function Animal:advanceRecoveryPeriod()
     -- A legacy/corrupt savegame may carry a nil counter (Animal.new coerces it to
@@ -1261,7 +1321,7 @@ function Animal:advanceRecoveryPeriod()
 
     self.monthsSinceLastBirth = self.monthsSinceLastBirth + 1
 
-    if self.isLactating and self.monthsSinceLastBirth >= 10 then
+    if self.isLactating and not RLLactation.isWithin(self.monthsSinceLastBirth, RLLactation.getMonths(self:getSubType())) then
         self.isLactating = false
     end
 
@@ -1500,6 +1560,9 @@ function Animal:onDayChanged(spec, isServer, day, month, year, currentDayInPerio
         self:increaseAge()
     end
 
+    -- A pool animal takes no hourly step: its continuous age takes the day's model time here.
+    if isSaleAnimal and RLGrowth ~= nil then RLGrowth.advancePoolDay(self, daysPerPeriod) end
+
 
     if self:isHorse() and not isSaleAnimal then
         AnimalHorse.processRidingUpdate(self)
@@ -1511,7 +1574,7 @@ function Animal:onDayChanged(spec, isServer, day, month, year, currentDayInPerio
 
     -- Death evaluation: low health -> old age -> random accidents (with AnimalDeathEvent broadcast)
     local lowHealthDeath, oldDeath, randomDeath, randomDeathMoney =
-        AnimalHealth.evaluateDaily(self, spec)
+        AnimalHealth.evaluateDaily(self, spec, daysPerPeriod)
 
     return children, deadAnimals, childrenSold, childrenSoldAmount, lowHealthDeath, oldDeath, randomDeath,
         randomDeathMoney
@@ -1523,8 +1586,8 @@ function Animal:createPregnancy(childNum, month, year, father) AnimalReproductio
 
 function Animal:generateRandomOffspring() return AnimalReproduction.generateRandomOffspring(self) end
 
-function Animal:reproduce(spec, day, month, year, isSaleAnimal) return AnimalReproduction.reproduce(self, spec, day,
-        month, year, isSaleAnimal) end
+function Animal:reproduce(spec, day, month, year, isSaleAnimal, sourceContext) return AnimalReproduction.reproduce(self, spec, day,
+        month, year, isSaleAnimal, sourceContext) end
 
 function Animal:getAnimalTypeIndex()
     return g_currentMission.animalSystem:getTypeIndexBySubTypeIndex(self.subTypeIndex)
@@ -1533,12 +1596,14 @@ end
 -- Health/death delegates -> AnimalHealth module
 function Animal:die(reason) AnimalHealth.die(self, reason) end
 
-function Animal:calculateLowHealthMonthlyAnimalDeaths() return AnimalHealth.calculateLowHealthMonthlyAnimalDeaths(self) end
+function Animal:calculateLowHealthDailyAnimalDeaths(hazard) return AnimalHealth.calculateLowHealthDailyAnimalDeaths(self,
+        hazard) end
 
-function Animal:calculateOldAgeMonthlyAnimalDeaths() return AnimalHealth.calculateOldAgeMonthlyAnimalDeaths(self) end
+function Animal:calculateOldAgeMonthlyAnimalDeaths(daysPerPeriod) return AnimalHealth.calculateOldAgeMonthlyAnimalDeaths(
+        self, daysPerPeriod) end
 
-function Animal:calculateRandomMonthlyAnimalDeaths(spec) return AnimalHealth.calculateRandomMonthlyAnimalDeaths(self,
-        spec) end
+function Animal:calculateRandomMonthlyAnimalDeaths(spec, daysPerPeriod) return AnimalHealth.calculateRandomMonthlyAnimalDeaths(
+        self, spec, daysPerPeriod) end
 
 -- ##################################
 --             HORSES
@@ -1569,6 +1634,43 @@ function Animal:changeDirt(delta) AnimalHorse.changeDirt(self, delta) end
 
 function Animal:getSellPrice()
     local subType = self:getSubType()
+
+    -- Cattle are priced by RLBreedingValue (PRICE-BREED-03): the curve price below with genes at
+    -- the standard as the base, an asymmetric premium for genes that pay over the animal's
+    -- production and breeding life, and the meat route as the floor. Live trade only: the meat an
+    -- animal gives at slaughter (carcass yield) does not read this price.
+    if RLBreedingValue ~= nil and RLBreedingValue.covers(self, subType) then
+        return RLBreedingValue.getQuote(self, subType).price
+    end
+
+    local price = self:getCurvePrice(subType, true)
+    if self:isHorse() then return price end
+
+    -- Never below what a slaughterhouse pays for its meat (RLMeatValue); a disease lowers both.
+    local slaughterValue = RLMeatValue ~= nil and RLMeatValue.getSlaughterValue(self) or 0
+    if slaughterValue > price then
+        for _, disease in pairs(self.diseases) do slaughterValue = disease:modifyValue(slaughterValue) end
+        price = math.max(price, slaughterValue)
+    end
+
+    return price
+end
+
+
+--- The curve price of the animal: its subtype's price curve for its age, moved by its weight against
+--- its line, its meat gene, health and body condition, disease and (a male meat animal) the meat
+--- market. withStateBonuses adds the old fixed parts: +15% castrated, +15% lactating, +25% pregnant
+--- (RLBreedingValue values those states itself and passes false). subType and gender may name
+--- another subtype to price the animal on (a heifer on her breed's bull curve: the fattening route).
+--- quality replaces the meat gene (RLBreedingValue prices a cow's meat gene through her meat value).
+--- @param subType table|nil Defaults to the animal's own
+--- @param withStateBonuses boolean
+--- @param gender string|nil Defaults to the animal's own
+--- @param quality number|nil Defaults to the animal's meat gene
+--- @return number
+function Animal:getCurvePrice(subType, withStateBonuses, gender, quality)
+    subType = subType or self:getSubType()
+    gender = gender or self.gender
     -- Every animal's price, the dealer's too, follows the difficulty like meat and milk (RLLivestockPrices).
     local sellPrice = subType.sellPrice:get(self.age < 0 and 0 or self.age) * RLLivestockPrices.getMultiplier()
 
@@ -1579,12 +1681,19 @@ function Animal:getSellPrice()
 
     -- Cattle are priced on their own reference line, not the target weights and growth lines the
     -- pens use, so that setting those to real weights leaves prices where they were calibrated.
+    -- Under the weight model v2 an animal's share of its own growth curve is put on that line
+    -- (its breed's price line, else the old full-feed line), so an animal on its curve fetches
+    -- what one on the old line did (RLGrowth.getPriceWeight).
     local priceTarget, priceMatureAge = RLBreedTraits.getPriceModel(subType)
+    local growthPriced = RLGrowth.covers(self)
+    if growthPriced then weight, ownTarget = RLGrowth.getPriceWeight(self, subType) end
     if priceTarget ~= nil then
-        weight = RLBreedTraits.toPriceWeight(subType, self.gender, self.targetWeight, self.age, self.genetics.metabolism, weight)
+        if not growthPriced then
+            weight = RLBreedTraits.toPriceWeight(subType, gender, self.targetWeight, self.age, self.genetics.metabolism, weight)
+        end
         matureAge = priceMatureAge
         baseTarget = priceTarget
-        ownTarget = priceTarget + (((priceTarget * self.genetics.metabolism) - priceTarget) / 2.5)
+        ownTarget = RLBreedTraits.getGeneTarget(priceTarget, self.genetics.metabolism)
     end
 
     local targetWeightForAge = ((ownTarget - subType.minWeight) / matureAge) *
@@ -1592,13 +1701,13 @@ function Animal:getSellPrice()
 
     local weightFactor = 1 + ((weight - targetWeightForAge) / targetWeightForAge)
 
-    local meatFactor = self.genetics.quality
+    local meatFactor = quality or self.genetics.quality
 
     sellPrice = sellPrice + (sellPrice * 0.25 * (meatFactor - 1))
 
     sellPrice = math.max(sellPrice + (((sellPrice * 0.6) / baseTarget) * weight * (-1 + meatFactor)), 0.5)
 
-    if self.isCastrated then sellPrice = sellPrice + sellPrice * 0.15 end
+    if withStateBonuses and self.isCastrated then sellPrice = sellPrice + sellPrice * 0.15 end
 
     for _, disease in pairs(self.diseases) do sellPrice = disease:modifyValue(sellPrice) end
 
@@ -1611,19 +1720,12 @@ function Animal:getSellPrice()
     -- cut as meat. The lactation and pregnancy parts are not touched.
     local base = sellPrice * 0.6
     local body = sellPrice * 0.4 * weightFactor * (0.75 * self:getHealthFactor()) * RLBodyCondition.getMarketFactor(self)
-    local lactation = sellPrice * (self.isLactating and 0.15 or 0)
-    local pregnancy = sellPrice * (self.isPregnant and 0.25 or 0)
+    local lactation = sellPrice * ((withStateBonuses and self.isLactating) and 0.15 or 0)
+    local pregnancy = sellPrice * ((withStateBonuses and self.isPregnant) and 0.25 or 0)
     local price = math.max(base + body + lactation + pregnancy, sellPrice * 0.05)
 
-    -- A bull's price follows the beef market through the seasons (RLMeatValue.getMarketFactor).
-    if RLMeatValue ~= nil then price = price * RLMeatValue.getMarketFactor(subType, self.gender) end
-
-    -- Never below what a slaughterhouse pays for its meat (RLMeatValue); a disease lowers both.
-    local slaughterValue = RLMeatValue ~= nil and RLMeatValue.getSlaughterValue(self) or 0
-    if slaughterValue > price then
-        for _, disease in pairs(self.diseases) do slaughterValue = disease:modifyValue(slaughterValue) end
-        price = math.max(price, slaughterValue)
-    end
+    -- A meat animal's price follows its meat market through the seasons (RLMeatValue.getMarketFactor).
+    if RLMeatValue ~= nil then price = price * RLMeatValue.getMarketFactor(subType, gender) end
 
     return price
 end
@@ -1697,9 +1799,21 @@ end
 ---@return number
 function Animal:getFeedModifier()
     local subType = self:getSubType()
-    return RLBreedTraits.get(subType, "feed")
-        * RLBreedTraits.getBodyFeedFactor(subType, self.weight, self.targetWeight, self.age)
-        * RLBodyCondition.getIntakeFactor(self)
+    local body
+    if RLGrowth.covers(self) then
+        body = RLGrowth.getBodyFeedFactor(self, self.weight)
+    else
+        body = RLBreedTraits.getBodyFeedFactor(subType, self.weight, self.targetWeight, self.age)
+    end
+    return RLBreedTraits.get(subType, "feed") * body * RLBodyCondition.getIntakeFactor(self)
+end
+
+
+--- The gene the daily food is scaled by: the metabolism gene, or under the weight model v2 its
+--- maintenance factor (RLGrowth.getIntakeGene).
+---@return number
+function Animal:getIntakeGene()
+    return RLGrowth.getIntakeGene(self)
 end
 
 function Animal:updateInput()
@@ -1717,11 +1831,15 @@ function Animal:updateInput()
                 self.isLactating,
                 self.reproduction,
                 numPregnancies,
-                self.genetics.metabolism,
+                self:getIntakeGene(),
                 litersPerDay,
                 RealisticLivestock_PlaceableHusbandryFood.foodScale,
                 self:getFeedModifier()
             )
+            -- Real-equivalent nutrition (RLFeed): the liters a month its pen's last plan gave it,
+            -- in place of the curve (foodScale and the old feed factors are not applied to it).
+            local planned = RLFeed ~= nil and RLFeed.getRequestLitersPerPeriod(self) or nil
+            if planned ~= nil then litersPerDay = planned end
         end
 
         if fillType == "water" then
@@ -1746,10 +1864,15 @@ end
 -- The disease multipliers come from getDiseaseMultipliers once per call, above the fill-type loop;
 -- it answers nil for an animal without records or with diseases off, and output then stays unscaled.
 --- Recompute this animal's per-hour output for every fill type its subtype produces.
----@param temp number The day's minimum temperature, read by the wool cold gate.
+---@param temp number The day's minimum temperature, read by the cold gate of a wool curve breedTraits does not scale.
 ---@return nil
 --- Fill types a map produces through a subtype's milk output that are semen, not milk.
 Animal.SEMEN_FILL_TYPE_NAMES = { BULLSPERM = true }
+
+--- Whether a map's own semen output (Hof Bergmann's BULL filling BULLSPERM into its bull stable)
+--- produces anything. Off (2026-10-18, user decision): semen comes only from RLRM's dewar
+--- collection (RLSemenCollection), which works for every breed's sire in any pen.
+Animal.MAP_SEMEN_OUTPUT = false
 
 --- Whether a milk-output fill type is semen (Hof Bergmann's BULLSPERM) rather than milk.
 ---@param fillTypeIndex number|nil
@@ -1781,16 +1904,71 @@ function Animal.isCowMilkPalletFillType(fillTypeIndex)
     return name ~= nil and Animal.COW_MILK_PALLET_FILL_TYPE_NAMES[name] == true
 end
 
---- Milk yield through the lactation: 0.8 at birth, rising to 1.3 at 3 months, falling to about
---- 0.93 at 9 months, and 0 from 10 months on or for an animal not lactating or never a mother.
+--- Subtypes already warned about an unscaled wool curve (once per subtype a session).
+Animal.unscaledWoolWarned = {}
+
+--- Warn once that a subtype's wool curve has no breedTraits woolScale, so it keeps the cold gate.
+---@param subType table|nil
+function Animal.warnUnscaledWool(subType)
+    local name = subType ~= nil and subType.name or "?"
+    if Animal.unscaledWoolWarned[name] then return end
+    Animal.unscaledWoolWarned[name] = true
+    Log:warning("updateOutput: %s makes WOOL on a curve no breedTraits woolScale configures; it keeps the 12 C cold gate", tostring(name))
+end
+
+--- Whether she nurses young now (RLFeed.getNursingState): a cow or goat in milk (isLactating), a ewe
+--- whose lambs on milk are with her, a sow with her unweaned litter. Display and reports only; the
+--- saleable milk and the milk flag stay isLactating's.
+---@return boolean
+function Animal:getIsNursing()
+    if RLFeed ~= nil and RLFeed.getNursingState ~= nil then return (RLFeed.getNursingState(self)) end
+    return self.isLactating == true
+end
+
+--- Milk yield through the lactation (RLLactation.getYieldFactor: 0.8 at birth, 1.3 at 3 months,
+--- about 0.93 at 9 months, 0 from 10 months on); 0 for an animal not lactating or never a mother.
 ---@return number
 function Animal:getLactationFactor()
-    local monthsSinceLastBirth = self.monthsSinceLastBirth or 12
-
-    if monthsSinceLastBirth >= 10 or not self.isLactating or not self.isParent then return 0 end
-    if monthsSinceLastBirth <= 3 then return 0.8 + (monthsSinceLastBirth / 6) end
-    return 0.8 + ((11 - monthsSinceLastBirth) / 15)
+    if not self.isLactating or not self.isParent then return 0 end
+    return RLLactation.getYieldFactor(self.monthsSinceLastBirth or 12, RLLactation.getMonths(self:getSubType()))
 end
+
+--- Cattle's milk level by lactation number (RLMilkParity): 1 for other animals and for any output
+--- that is not milk. The milk curve is read at the mature age at the earliest for cattle's milk.
+---@param fillType string
+---@param output table
+---@return boolean
+function Animal:isCattleMilkOutput(fillType, output)
+    if AnimalType == nil or self.animalTypeIndex ~= AnimalType.COW then return false end
+    if fillType == "milk" then return not Animal.isSemenFillType(output.fillType) end
+    return fillType == "pallets" and Animal.isCowMilkPalletFillType(output.fillType)
+end
+
+
+--- The animal's calvings so far. Its own count (birthCount, saved and streamed with it, +1 at every
+--- birth); an animal with none on record (dealer stock, a cow that came in, an old savegame's
+--- animal) is taken from what its record says: 0 for one that has never calved, its calves on
+--- record (animal.children) if it has any, else what its age implies (RLMilkParity.getImpliedBirths).
+--- The server keeps what it works out; a client counts the same without keeping it.
+---@return number
+function Animal:resolveBirthCount()
+    if self.birthCount ~= nil then return self.birthCount end
+    local count = 0
+    if self.isParent then
+        count = self.children ~= nil and #self.children or 0
+        if count == 0 then count = RLMilkParity.getImpliedBirths(self.age) end
+    end
+    if g_server ~= nil then self.birthCount = count end
+    return count
+end
+
+
+---@return number
+function Animal:getParityFactor()
+    if not self.isParent then return 1 end
+    return RLMilkParity.getFactor(RLMilkParity.getParity(self:resolveBirthCount()))
+end
+
 
 function Animal:updateOutput(temp)
     local subType = self:getSubType()
@@ -1816,10 +1994,17 @@ function Animal:updateOutput(temp)
         local litersPerDay = 0
         local palletMilkCurve
 
+        -- Cattle's milk is read at its mature age: the lactation number sets the level, not a step of the curve.
+        local cattleMilk = self:isCattleMilkOutput(fillType, output)
+        local curveAge = cattleMilk and RLMilkParity.getCurveAge(self.age) or self.age
+        local parityFactor = cattleMilk and self:getParityFactor() or 1
+        -- A breed whose milk curve is not on this mod's scale (a pack's own animals.xml) is scaled to it (breedTraits milkScale).
+        local milkScale = cattleMilk and RLBreedTraits.get(subType, "milkScale") or 1
+
         if output.curve ~= nil then
-            litersPerDay = output.curve:get(self.age)
+            litersPerDay = output.curve:get(curveAge)
         else
-            litersPerDay = output:get(self.age)
+            litersPerDay = output:get(curveAge)
         end
 
         if litersPerDay == nil then
@@ -1827,22 +2012,31 @@ function Animal:updateOutput(temp)
                 tostring(self.uniqueId), fillType, self.age, tostring(output.curve ~= nil), tostring(subType.name))
             litersPerDay = 0
         end
+        litersPerDay = litersPerDay * milkScale
 
         if fillType == "pallets" then
             local fillTypeIndex = output.fillType
             local productivity = self.genetics.productivity or 1
 
             if fillTypeIndex == FillType.WOOL then
-                if temp < 12 then litersPerDay = 0 end
-
-                Log:trace("updateOutput[wool]: animal=%s/%s temp=%s coldGateClosed=%s",
-                    tostring(self.farmId), tostring(self.uniqueId), tostring(temp), tostring(temp < 12))
+                -- A fleece grows every month (sheep S3, 2026-10-11): a curve breedTraits woolScale configured is
+                -- 1.2 x the real fleece a year spread over 12 months, with no cold gate, as Hof Bergmann's
+                -- SHEEPWOOL_SHEARED, never gated, already was. A wool curve nothing configured (an old breedTraits
+                -- copy in modSettings, a sheep pack the file does not list) is still on the raw scale, 100x real
+                -- and more, so it keeps the old gate: no wool below a 12 C minimum.
+                local configured = RLCurveScale ~= nil and RLCurveScale.isConfigured(output.curve)
+                if not configured then
+                    if temp < 12 then litersPerDay = 0 end
+                    Animal.warnUnscaledWool(subType)
+                end
+                Log:trace("updateOutput[wool]: animal=%s/%s temp=%s configured=%s", tostring(self.farmId),
+                    tostring(self.uniqueId), tostring(temp), tostring(configured))
             elseif Animal.isLactationPalletFillType(fillTypeIndex) then
                 -- Milk sold in cans or pallets: goat milk, and cow and buffalo milk in Hof
                 -- Bergmann's pallet-spawner cattle buildings. Gated like the tank milk below, so a
                 -- dry or never-calved animal fills none.
-                local factor = self:getLactationFactor()
-                palletMilkCurve = litersPerDay
+                local factor = self:getLactationFactor() * parityFactor
+                palletMilkCurve = litersPerDay * parityFactor
 
                 litersPerDay = litersPerDay * factor
 
@@ -1866,11 +2060,13 @@ function Animal:updateOutput(temp)
             -- lactation, so the mother gate below would zero it for good; the sire's fertility
             -- scales it instead, and a castrated or infertile sire produces none. Only a semen fill
             -- type takes this branch, so no other male starts producing milk. A month in which
-            -- the sire was collected into a dewar (RLSemenCollection) yields nothing here. The age
+            -- the sire was collected into a dewar (RLSemenCollection) yields nothing here, and
+            -- nothing at all while Animal.MAP_SEMEN_OUTPUT is off (the default). The age
             -- shape is dewar collection's (RLSemenCollection.getAgeOutputFactor); the XML curve
             -- only sets the peak amount.
             local collectedThisMonth = self.semenCollectedAge ~= nil and self.semenCollectedAge >= self.age
-            local fertility = (self.isCastrated or collectedThisMonth) and 0 or (self.genetics.fertility or 1)
+            local fertility = (self.isCastrated or collectedThisMonth or not Animal.MAP_SEMEN_OUTPUT) and 0
+                or (self.genetics.fertility or 1)
             local ageFactor = RLSemenCollection.getAgeOutputFactor(self)
             local curveLitersPerDay = litersPerDay
 
@@ -1882,16 +2078,16 @@ function Animal:updateOutput(temp)
 
             isMilk = false
         elseif isMilk then
-            local factor = self:getLactationFactor()
+            local factor = self:getLactationFactor() * parityFactor
             local productivity = self.genetics.productivity or 1
-            local curveLitersPerDay = litersPerDay
+            local curveLitersPerDay = litersPerDay * parityFactor
 
             litersPerDay = litersPerDay * factor * productivity
 
             milkCurve, milkFactor, milkProductivity, milkPreDisease = curveLitersPerDay, factor, productivity, litersPerDay
         end
 
-        local diseaseFactor = 1
+        local diseaseFactor, healthyLitersPerDay = 1, litersPerDay
         if multipliers ~= nil then
             -- Cow and buffalo milk cans are the same milk as a tank, so a disease scales them the
             -- same. Goat milk keeps the pallets modifier: sheep diseases set only that one.
@@ -1905,9 +2101,14 @@ function Animal:updateOutput(temp)
         -- It is recorded for her budget; in an hour the budget covers, the store deposits what
         -- the budget paid for instead (RLBodyCondition.depositMilk), otherwise this as before.
         if isMilk then
-            litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, milkCurve, diseaseFactor)
+            litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, milkCurve, diseaseFactor, healthyLitersPerDay)
         elseif palletMilkCurve ~= nil and Animal.isCowMilkPalletFillType(output.fillType) then
-            litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, palletMilkCurve, diseaseFactor)
+            litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, palletMilkCurve, diseaseFactor, healthyLitersPerDay)
+        end
+        -- A suckler (beef) breed's milk is for her calf, not the store (breedTraits milkCollect 0):
+        -- the store takes only that share. The budget above still has her full milk (her calf's).
+        if cattleMilk then
+            litersPerDay = litersPerDay * RLBreedTraits.getMilkCollect(subType)
         end
 
         if isMilk then

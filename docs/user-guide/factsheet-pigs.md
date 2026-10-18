@@ -156,7 +156,7 @@ Pig litters are the largest of any animal - typically around 12 piglets, and up 
 | Old age deaths begin | 180 months (15 years) |
 | Maximum lifespan | ~240 months (20 years) |
 
-*Death can be toggled off in settings. Accidents can happen at any age (affected by weather).*
+*Death can be toggled off in settings. A healthy animal keeps a very low background accident risk at any age (not raised by the weather); an accident pays nothing.*
 
 ---
 
@@ -171,6 +171,8 @@ Pig litters are the largest of any animal - typically around 12 piglets, and up 
 
 > **PED warning:** Porcine Epidemic Diarrhoea hits young piglets hardest - newborn piglets in their first month catch it most often, and young piglets are the most at risk from it. Older pigs rarely catch it on their own, but any pig can catch it from a sick pen mate - treat quickly. See the [Disease Guide](guide-diseases.md).
 
+Pigs can be vaccinated against PED, and the piglets of a protected sow are born protected for their first month - see [Vaccination](guide-diseases.md#vaccination).
+
 ---
 
 ## Tips
@@ -181,6 +183,6 @@ Pig litters are the largest of any animal - typically around 12 piglets, and up 
 
 3. **Berkshire for profit, Black Pied for volume.** Berkshire piglets sell for noticeably more but eat more. Black Pied are cheaper to maintain for large-scale operations.
 
-4. **Watch for PED.** Newborn piglets catch it most often and young piglets are the most at risk, so treat every case at once ($150). If it keeps recurring, a lower **Diseases** setting can protect your investment.
+4. **Watch for PED.** Newborn piglets catch it most often and young piglets are the most at risk, so treat every case at once ($150). Vaccinate your sows ($15) so the protection still runs when they farrow: their piglets are then born protected for that first month. If it keeps recurring, a lower **Diseases** setting can protect your investment.
 
 5. **Pen capacity matters.** If a pen is full when piglets are born, the excess are automatically sold. Make sure you have room for those 11-16 piglet litters.

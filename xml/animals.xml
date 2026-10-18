@@ -47,6 +47,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="12" durationMonth="10" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="225"/>
 				<key ageMonth="12" value="1550"/>
@@ -83,11 +84,11 @@
 				<milk fillType="MILK">
 					<key ageMonth="0" value="0"/>
 					<key ageMonth="12" value="0"/>
-					<key ageMonth="12" value="226"/>
-					<key ageMonth="36" value="226"/>
-					<key ageMonth="36" value="320"/>
-					<key ageMonth="72" value="320"/>
-					<key ageMonth="120" value="138"/>
+					<key ageMonth="12" value="589"/>
+					<key ageMonth="36" value="589"/>
+					<key ageMonth="36" value="833"/>
+					<key ageMonth="72" value="833"/>
+					<key ageMonth="120" value="359"/>
 				</milk>
 				<manure>
 					<key ageMonth="0" value="20"/>
@@ -99,7 +100,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BULL_SWISS_BROWN" fillTypeName="BULL_SWISS_BROWN" gender="male" minWeight="40.0" targetWeight="1000.0" maxWeight="1400.0" breed="SWISS_BROWN">
+		<subType subType="BULL_SWISS_BROWN" fillTypeName="BULL_SWISS_BROWN" gender="male" minWeight="42.8" targetWeight="1000.0" maxWeight="1400.0" breed="SWISS_BROWN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="5" image="$dataS/character/animals/domesticated/cow/store_cowSwissBrownBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionBullFeed</description>
@@ -126,6 +127,7 @@
 				</visual>
 			</visuals>
 			<reproduction supported="false" minAgeMonth="12"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="263"/>
 				<key ageMonth="12" value="1719"/>
@@ -202,6 +204,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="12" durationMonth="10" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="225"/>
 				<key ageMonth="12" value="1500"/>
@@ -238,11 +241,11 @@
 				<milk fillType="MILK">
 					<key ageMonth="0" value="0"/>
 					<key ageMonth="12" value="0"/>
-					<key ageMonth="12" value="223"/>
-					<key ageMonth="36" value="223"/>
-					<key ageMonth="36" value="378"/>
-					<key ageMonth="72" value="378"/>
-					<key ageMonth="120" value="206"/>
+					<key ageMonth="12" value="590"/>
+					<key ageMonth="36" value="590"/>
+					<key ageMonth="36" value="1000"/>
+					<key ageMonth="72" value="1000"/>
+					<key ageMonth="120" value="545"/>
 				</milk>
 				<manure>
 					<key ageMonth="0" value="20"/>
@@ -281,6 +284,7 @@
 				</visual>
 			</visuals>
 			<reproduction supported="false" minAgeMonth="12"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="238"/>
 				<key ageMonth="12" value="1668"/>
@@ -358,6 +362,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="12" durationMonth="10" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="300"/>
 				<key ageMonth="12" value="1650"/>
@@ -394,11 +399,11 @@
 				<milk fillType="MILK">
 					<key ageMonth="0" value="0"/>
 					<key ageMonth="12" value="0"/>
-					<key ageMonth="12" value="44"/>
-					<key ageMonth="36" value="44"/>
-					<key ageMonth="36" value="70"/>
-					<key ageMonth="72" value="70"/>
-					<key ageMonth="120" value="31"/>
+					<key ageMonth="12" value="168"/>
+					<key ageMonth="36" value="168"/>
+					<key ageMonth="36" value="267"/>
+					<key ageMonth="72" value="267"/>
+					<key ageMonth="120" value="118"/>
 				</milk>
 				<manure>
 					<key ageMonth="0" value="25"/>
@@ -410,7 +415,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BULL_ANGUS" fillTypeName="BULL_ANGUS" gender="male" minWeight="35.0" targetWeight="1000.0" maxWeight="1400.0" breed="ANGUS">
+		<subType subType="BULL_ANGUS" fillTypeName="BULL_ANGUS" gender="male" minWeight="34.2" targetWeight="1000.0" maxWeight="1400.0" breed="ANGUS">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_cowAngusBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionBullFeed</description>
@@ -437,6 +442,7 @@
 				</visual>
 			</visuals>
 			<reproduction supported="false" minAgeMonth="12"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="291"/>
 				<key ageMonth="12" value="1749"/>
@@ -482,7 +488,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="COW_LIMOUSIN" fillTypeName="COW_LIMOUSIN" gender="female" minWeight="36.0" targetWeight="780.0" maxWeight="1200.0" breed="LIMOUSIN">
+		<subType subType="COW_LIMOUSIN" fillTypeName="COW_LIMOUSIN" gender="female" minWeight="38.0" targetWeight="780.0" maxWeight="1200.0" breed="LIMOUSIN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="8" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_cowLimousinBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionCowProfit</description>
@@ -513,6 +519,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="12" durationMonth="10" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="340"/>
 				<key ageMonth="12" value="1750"/>
@@ -549,11 +556,11 @@
 				<milk fillType="MILK">
 					<key ageMonth="0" value="0"/>
 					<key ageMonth="12" value="0"/>
-					<key ageMonth="12" value="39"/>
-					<key ageMonth="36" value="39"/>
-					<key ageMonth="36" value="60"/>
-					<key ageMonth="72" value="60"/>
-					<key ageMonth="120" value="21"/>
+					<key ageMonth="12" value="152"/>
+					<key ageMonth="36" value="152"/>
+					<key ageMonth="36" value="233"/>
+					<key ageMonth="72" value="233"/>
+					<key ageMonth="120" value="82"/>
 				</milk>
 				<manure>
 					<key ageMonth="0" value="25"/>
@@ -565,7 +572,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BULL_LIMOUSIN" fillTypeName="BULL_LIMOUSIN" gender="male" minWeight="39.0" targetWeight="1200.0" maxWeight="1400.0" breed="LIMOUSIN">
+		<subType subType="BULL_LIMOUSIN" fillTypeName="BULL_LIMOUSIN" gender="male" minWeight="40.7" targetWeight="1200.0" maxWeight="1400.0" breed="LIMOUSIN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="8" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_cowLimousinBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionBullFeed</description>
@@ -592,6 +599,7 @@
 				</visual>
 			</visuals>
 			<reproduction supported="false" minAgeMonth="12"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="325"/>
 				<key ageMonth="12" value="1819"/>
@@ -637,7 +645,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="COW_HEREFORD" fillTypeName="COW_HEREFORD" gender="female" minWeight="33.0" targetWeight="660.0" maxWeight="1200.0" breed="HEREFORD">
+		<subType subType="COW_HEREFORD" fillTypeName="COW_HEREFORD" gender="female" minWeight="34.0" targetWeight="660.0" maxWeight="1200.0" breed="HEREFORD">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="18" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_cowLimousinBaby.png" monitor="0|0|0|0|0|0|0|0|0|1|0|1" canBeBought="true" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionCowProfit</description>
@@ -668,6 +676,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="12" durationMonth="10" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="250"/>
 				<key ageMonth="12" value="1500"/>
@@ -704,11 +713,11 @@
 				<milk fillType="MILK">
 					<key ageMonth="0" value="0"/>
 					<key ageMonth="12" value="0"/>
-					<key ageMonth="12" value="57"/>
-					<key ageMonth="36" value="57"/>
-					<key ageMonth="36" value="80"/>
-					<key ageMonth="72" value="80"/>
-					<key ageMonth="120" value="38"/>
+					<key ageMonth="12" value="166"/>
+					<key ageMonth="36" value="166"/>
+					<key ageMonth="36" value="233"/>
+					<key ageMonth="72" value="233"/>
+					<key ageMonth="120" value="111"/>
 				</milk>
 				<manure>
 					<key ageMonth="0" value="20"/>
@@ -720,7 +729,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BULL_HEREFORD" fillTypeName="BULL_HEREFORD" gender="male" minWeight="35.0" targetWeight="950.0" maxWeight="1400.0" breed="HEREFORD">
+		<subType subType="BULL_HEREFORD" fillTypeName="BULL_HEREFORD" gender="male" minWeight="36.4" targetWeight="950.0" maxWeight="1400.0" breed="HEREFORD">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="18" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_cowLimousinBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionBullFeed</description>
@@ -747,6 +756,7 @@
 				</visual>
 			</visuals>
 			<reproduction supported="false" minAgeMonth="12"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="252"/>
 				<key ageMonth="12" value="1653"/>
@@ -792,7 +802,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="COW_HIGHLAND_CATTLE" fillTypeName="COW_HIGHLAND_CATTLE" gender="female" minWeight="35.0" targetWeight="500.0" maxWeight="1200.0" statsBreeding="breedCowsCount" breed="HIGHLAND" requiredDLC="highlandsFishingPack">
+		<subType subType="COW_HIGHLAND_CATTLE" fillTypeName="COW_HIGHLAND_CATTLE" gender="female" minWeight="27.0" targetWeight="500.0" maxWeight="1200.0" statsBreeding="breedCowsCount" breed="HIGHLAND" requiredDLC="highlandsFishingPack">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="19" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_highlandCattleBaby.png" canBeBought="true">
 					<description>$l10n_animal_descriptionCowProfit</description>
@@ -823,6 +833,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="12" durationMonth="10" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="300"/>
 				<key ageMonth="12" value="1300"/>
@@ -858,11 +869,11 @@
 				<milk fillType="MILK">
 					<key ageMonth="0" value="0"/>
 					<key ageMonth="12" value="0"/>
-					<key ageMonth="12" value="31"/>
-					<key ageMonth="36" value="31"/>
-					<key ageMonth="36" value="50"/>
-					<key ageMonth="72" value="50"/>
-					<key ageMonth="120" value="22"/>
+					<key ageMonth="12" value="124"/>
+					<key ageMonth="36" value="124"/>
+					<key ageMonth="36" value="200"/>
+					<key ageMonth="72" value="200"/>
+					<key ageMonth="120" value="88"/>
 				</milk>
 				<manure>
 					<key ageMonth="0" value="25"/>
@@ -874,7 +885,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BULL_HIGHLAND_CATTLE" fillTypeName="BULL_HIGHLAND_CATTLE" gender="male" minWeight="35.0" targetWeight="780.0" maxWeight="1600.0" statsBreeding="breedCowsCount" breed="HIGHLAND" requiredDLC="highlandsFishingPack">
+		<subType subType="BULL_HIGHLAND_CATTLE" fillTypeName="BULL_HIGHLAND_CATTLE" gender="male" minWeight="28.9" targetWeight="780.0" maxWeight="1600.0" statsBreeding="breedCowsCount" breed="HIGHLAND" requiredDLC="highlandsFishingPack">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="19" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/cow/store_highlandCattleBaby.png" canBeBought="true">
 					<description>$l10n_animal_descriptionBullFeed</description>
@@ -901,6 +912,7 @@
 				</visual>
 			</visuals>
 			<reproduction supported="false" minAgeMonth="12"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="306"/>
 				<key ageMonth="12" value="1267"/>
@@ -945,7 +957,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="COW_WATERBUFFALO" fillTypeName="COW_WATERBUFFALO" gender="female" statsBreeding="breedWaterBuffaloCount" minWeight="35.0" targetWeight="590.0" maxWeight="1200.0" breed="WATER_BUFFALO">
+		<subType subType="COW_WATERBUFFALO" fillTypeName="COW_WATERBUFFALO" gender="female" statsBreeding="breedWaterBuffaloCount" minWeight="34.0" targetWeight="590.0" maxWeight="1200.0" breed="WATER_BUFFALO">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="13" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/waterBuffalo/store_waterBuffaloBaby.png" monitor="0|0|0|0|0|0|0|0|0|1|0|1" canBeBought="true" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionBuffaloMilk</description>
@@ -976,6 +988,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="12" durationMonth="10" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="200"/>
 				<key ageMonth="12" value="1100"/>
@@ -1023,7 +1036,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BULL_WATERBUFFALO" fillTypeName="BULL_WATERBUFFALO" gender="male" statsBreeding="breedWaterBuffaloCount" minWeight="36.0" targetWeight="720.0" maxWeight="1400.0" breed="WATER_BUFFALO">
+		<subType subType="BULL_WATERBUFFALO" fillTypeName="BULL_WATERBUFFALO" gender="male" statsBreeding="breedWaterBuffaloCount" minWeight="36.4" targetWeight="720.0" maxWeight="1400.0" breed="WATER_BUFFALO">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="13" name="$l10n_animal_visual_baby" image="$dataS/character/animals/domesticated/waterBuffalo/store_waterBuffaloBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0" marker="0|0|0|4">
 					<description>$l10n_animal_descriptionBuffaloFeed</description>
@@ -1050,6 +1063,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="12" supported="false"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="221"/>
 				<key ageMonth="12" value="1191"/>
@@ -1111,7 +1125,7 @@
 			<key ageMonth="96" value="540"/>
 			<key ageMonth="96" value="0"/>
 		</fertility>
-		<subType subType="PIG_LANDRACE" fillTypeName="PIG_LANDRACE" gender="female" minWeight="1.36" targetWeight="240.0" maxWeight="1050.0" breed="LANDRACE">
+		<subType subType="PIG_LANDRACE" fillTypeName="PIG_LANDRACE" gender="female" minWeight="1.40" targetWeight="280.0" maxWeight="1050.0" breed="LANDRACE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/pig/store_pigLandraceBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionPigProfit</description>
@@ -1136,14 +1150,15 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="6" durationMonth="4" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
-				<key ageMonth="0" value="55"/>
-				<key ageMonth="6" value="220"/>
+				<key ageMonth="0" value="63"/>
+				<key ageMonth="6" value="252"/>
 				<key ageMonth="12" value="1100"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="40"/>
-				<key ageMonth="6" value="190"/>
+				<key ageMonth="0" value="46"/>
+				<key ageMonth="6" value="218"/>
 				<key ageMonth="24" value="1400"/>
 			</sellPrice>
 			<transportPrice>
@@ -1162,9 +1177,9 @@
 					<key ageMonth="24" value="75"/>
 				</water>
 				<food>
-					<key ageMonth="0" value="14"/>
-					<key ageMonth="6" value="52"/>
-					<key ageMonth="24" value="95"/>
+					<key ageMonth="0" value="12.7"/>
+					<key ageMonth="6" value="47"/>
+					<key ageMonth="24" value="86"/>
 				</food>
 			</input>
 			<output>
@@ -1178,7 +1193,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BOAR_LANDRACE" fillTypeName="BOAR_LANDRACE" gender="male" minWeight="1.4" targetWeight="300.0" maxWeight="1200.0" breed="LANDRACE">
+		<subType subType="BOAR_LANDRACE" fillTypeName="BOAR_LANDRACE" gender="male" minWeight="1.45" targetWeight="320.0" maxWeight="1200.0" breed="LANDRACE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/pig/store_pigLandraceBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionBoarFeed</description>
@@ -1200,6 +1215,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="8" supported="false"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="65"/>
 				<key ageMonth="6" value="245"/>
@@ -1226,9 +1242,9 @@
 					<key ageMonth="24" value="80"/>
 				</water>
 				<food>
-					<key ageMonth="0" value="14"/>
-					<key ageMonth="6" value="52"/>
-					<key ageMonth="24" value="105"/>
+					<key ageMonth="0" value="12"/>
+					<key ageMonth="6" value="45"/>
+					<key ageMonth="24" value="90"/>
 				</food>
 			</input>
 			<output>
@@ -1242,7 +1258,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="PIG_BLACK_PIED" fillTypeName="PIG_BLACK_PIED" gender="female" minWeight="1.65" targetWeight="180.0" maxWeight="1050.0" breed="BLACK_PIED">
+		<subType subType="PIG_BLACK_PIED" fillTypeName="PIG_BLACK_PIED" gender="female" minWeight="1.30" targetWeight="200.0" maxWeight="1050.0" breed="BLACK_PIED">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/pig/store_pigBlackPiedBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionPigProfit</description>
@@ -1267,14 +1283,15 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="6" durationMonth="4" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
-				<key ageMonth="0" value="45"/>
-				<key ageMonth="6" value="200"/>
+				<key ageMonth="0" value="58"/>
+				<key ageMonth="6" value="258"/>
 				<key ageMonth="12" value="1000"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="35"/>
-				<key ageMonth="6" value="170"/>
+				<key ageMonth="0" value="45"/>
+				<key ageMonth="6" value="219"/>
 				<key ageMonth="24" value="1200"/>
 			</sellPrice>
 			<transportPrice>
@@ -1309,7 +1326,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BOAR_BLACK_PIED" fillTypeName="BOAR_BLACK_PIED" gender="male" minWeight="1.75" targetWeight="250.0" maxWeight="1200.0" breed="BLACK_PIED">
+		<subType subType="BOAR_BLACK_PIED" fillTypeName="BOAR_BLACK_PIED" gender="male" minWeight="1.35" targetWeight="270.0" maxWeight="1200.0" breed="BLACK_PIED">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/pig/store_pigBlackPiedBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionBoarFeed</description>
@@ -1331,15 +1348,16 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="8" supported="false"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
-				<key ageMonth="0" value="55"/>
-				<key ageMonth="6" value="220"/>
-				<key ageMonth="12" value="1200"/>
+				<key ageMonth="0" value="61"/>
+				<key ageMonth="6" value="244"/>
+				<key ageMonth="12" value="1332"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="45"/>
-				<key ageMonth="6" value="190"/>
-				<key ageMonth="24" value="1500"/>
+				<key ageMonth="0" value="50"/>
+				<key ageMonth="6" value="211"/>
+				<key ageMonth="24" value="1665"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="40"/>
@@ -1373,7 +1391,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="PIG_BERKSHIRE" fillTypeName="PIG_BERKSHIRE" gender="female" minWeight="1.6" targetWeight="220.0" maxWeight="1050.0" breed="BERKSHIRE">
+		<subType subType="PIG_BERKSHIRE" fillTypeName="PIG_BERKSHIRE" gender="female" minWeight="1.30" targetWeight="240.0" maxWeight="1050.0" breed="BERKSHIRE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/pig/store_pigBerkshireBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionPigProfit</description>
@@ -1398,14 +1416,15 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="6" durationMonth="4" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
-				<key ageMonth="0" value="65"/>
-				<key ageMonth="6" value="250"/>
+				<key ageMonth="0" value="61"/>
+				<key ageMonth="6" value="236"/>
 				<key ageMonth="12" value="1200"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="45"/>
-				<key ageMonth="6" value="215"/>
+				<key ageMonth="0" value="43"/>
+				<key ageMonth="6" value="203"/>
 				<key ageMonth="24" value="1600"/>
 			</sellPrice>
 			<transportPrice>
@@ -1424,9 +1443,9 @@
 					<key ageMonth="24" value="80"/>
 				</water>
 				<food>
-					<key ageMonth="0" value="12"/>
-					<key ageMonth="6" value="42"/>
-					<key ageMonth="24" value="78"/>
+					<key ageMonth="0" value="12.9"/>
+					<key ageMonth="6" value="45"/>
+					<key ageMonth="24" value="84"/>
 				</food>
 			</input>
 			<output>
@@ -1440,7 +1459,7 @@
 				</liquidManure>
 			</output>
 		</subType>
-		<subType subType="BOAR_BERKSHIRE" fillTypeName="BOAR_BERKSHIRE" gender="male" minWeight="1.7" targetWeight="280.0" maxWeight="1200.0" breed="BERKSHIRE">
+		<subType subType="BOAR_BERKSHIRE" fillTypeName="BOAR_BERKSHIRE" gender="male" minWeight="1.35" targetWeight="300.0" maxWeight="1200.0" breed="BERKSHIRE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/pig/store_pigBerkshireBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionBoarFeed</description>
@@ -1462,15 +1481,16 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="8" supported="false"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
-				<key ageMonth="0" value="75"/>
-				<key ageMonth="6" value="280"/>
-				<key ageMonth="12" value="1500"/>
+				<key ageMonth="0" value="61"/>
+				<key ageMonth="6" value="229"/>
+				<key ageMonth="12" value="1226"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="60"/>
-				<key ageMonth="6" value="240"/>
-				<key ageMonth="24" value="1850"/>
+				<key ageMonth="0" value="49"/>
+				<key ageMonth="6" value="196"/>
+				<key ageMonth="24" value="1512"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="40"/>
@@ -1488,9 +1508,9 @@
 					<key ageMonth="24" value="85"/>
 				</water>
 				<food>
-					<key ageMonth="0" value="13"/>
-					<key ageMonth="6" value="44"/>
-					<key ageMonth="24" value="84"/>
+					<key ageMonth="0" value="13.2"/>
+					<key ageMonth="6" value="45"/>
+					<key ageMonth="24" value="85"/>
 				</food>
 			</input>
 			<output>
@@ -1521,7 +1541,7 @@
 			<key ageMonth="120" value="130"/>
 			<key ageMonth="120" value="0"/>
 		</fertility>
-		<subType subType="SHEEP_LANDRACE" fillTypeName="SHEEP_LANDRACE" gender="female" minWeight="4.4" targetWeight="55.0" maxWeight="135.0" breed="LANDRACE">
+		<subType subType="SHEEP_LANDRACE" fillTypeName="SHEEP_LANDRACE" gender="female" minWeight="6.40" targetWeight="88.0" maxWeight="135.0" breed="LANDRACE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/sheep/store_sheepLandraceBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionSheepProfit</description>
@@ -1546,6 +1566,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="8" durationMonth="5" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="50"/>
 				<key ageMonth="6" value="165"/>
@@ -1573,9 +1594,9 @@
 					<key ageMonth="18" value="60"/>
 				</water>
 				<food>
-					<key ageMonth="0" value="4"/>
-					<key ageMonth="5" value="40"/>
-					<key ageMonth="18" value="100"/>
+					<key ageMonth="0" value="5.3"/>
+					<key ageMonth="5" value="53"/>
+					<key ageMonth="18" value="132"/>
 				</food>
 			</input>
 			<output>
@@ -1591,7 +1612,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_LANDRACE" fillTypeName="RAM_LANDRACE" gender="male" minWeight="4.7" targetWeight="75.0" maxWeight="150.0" breed="LANDRACE">
+		<subType subType="RAM_LANDRACE" fillTypeName="RAM_LANDRACE" gender="male" minWeight="6.85" targetWeight="144.0" maxWeight="180.0" breed="LANDRACE">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/sheep/store_sheepLandraceBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -1613,15 +1634,16 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="5" supported="false"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
-				<key ageMonth="0" value="60"/>
-				<key ageMonth="6" value="205"/>
-				<key ageMonth="36" value="800"/>
+				<key ageMonth="0" value="57"/>
+				<key ageMonth="6" value="194"/>
+				<key ageMonth="36" value="758"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="50"/>
-				<key ageMonth="6" value="170"/>
-				<key ageMonth="36" value="675"/>
+				<key ageMonth="0" value="47"/>
+				<key ageMonth="6" value="161"/>
+				<key ageMonth="36" value="640"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="50"/>
@@ -1658,7 +1680,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="SHEEP_STEINSCHAF" fillTypeName="SHEEP_STEINSCHAF" gender="female" minWeight="4.8" targetWeight="80.0" maxWeight="135.0" breed="STEINSCHAF">
+		<subType subType="SHEEP_STEINSCHAF" fillTypeName="SHEEP_STEINSCHAF" gender="female" minWeight="3.30" targetWeight="55.0" maxWeight="135.0" breed="STEINSCHAF">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/sheep/store_sheepSteinschafBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionSheepProfit</description>
@@ -1683,6 +1705,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="8" durationMonth="5" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="90"/>
 				<key ageMonth="6" value="220"/>
@@ -1710,9 +1733,9 @@
 					<key ageMonth="18" value="70"/>
 				</water>
 				<food>
-					<key ageMonth="0" value="6"/>
-					<key ageMonth="5" value="45"/>
-					<key ageMonth="18" value="98"/>
+					<key ageMonth="0" value="4.5"/>
+					<key ageMonth="5" value="34"/>
+					<key ageMonth="18" value="74"/>
 				</food>
 			</input>
 			<output>
@@ -1728,7 +1751,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_STEINSCHAF" fillTypeName="RAM_STEINSCHAF" gender="male" minWeight="5.3" targetWeight="95.0" maxWeight="150.0" breed="STEINSCHAF">
+		<subType subType="RAM_STEINSCHAF" fillTypeName="RAM_STEINSCHAF" gender="male" minWeight="3.53" targetWeight="75.0" maxWeight="150.0" breed="STEINSCHAF">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/sheep/store_sheepSteinschafBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -1750,15 +1773,16 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="5" supported="false"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
-				<key ageMonth="0" value="125"/>
-				<key ageMonth="6" value="255"/>
-				<key ageMonth="36" value="1200"/>
+				<key ageMonth="0" value="85"/>
+				<key ageMonth="6" value="173"/>
+				<key ageMonth="36" value="815"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="100"/>
-				<key ageMonth="6" value="210"/>
-				<key ageMonth="36" value="1050"/>
+				<key ageMonth="0" value="68"/>
+				<key ageMonth="6" value="143"/>
+				<key ageMonth="36" value="713"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="50"/>
@@ -1777,9 +1801,9 @@
 					<key ageMonth="18" value="76"/>
 				</water>
 				<food>
-					<key ageMonth="0" value="6"/>
-					<key ageMonth="5" value="50"/>
-					<key ageMonth="18" value="107"/>
+					<key ageMonth="0" value="3.7"/>
+					<key ageMonth="5" value="31"/>
+					<key ageMonth="18" value="65"/>
 				</food>
 			</input>
 			<output>
@@ -1795,7 +1819,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="SHEEP_SWISS_MOUNTAIN" fillTypeName="SHEEP_SWISS_MOUNTAIN" gender="female" minWeight="5.8" targetWeight="75.0" maxWeight="135.0" breed="SWISS_MOUNTAIN">
+		<subType subType="SHEEP_SWISS_MOUNTAIN" fillTypeName="SHEEP_SWISS_MOUNTAIN" gender="female" minWeight="6.01" targetWeight="72.0" maxWeight="135.0" breed="SWISS_MOUNTAIN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/sheep/store_sheepSwissMountainBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionSheepProfit</description>
@@ -1820,6 +1844,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="8" durationMonth="5" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="115"/>
 				<key ageMonth="6" value="235"/>
@@ -1847,9 +1872,9 @@
 					<key ageMonth="18" value="85"/>
 				</water>
 				<food>
-					<key ageMonth="0" value="6"/>
-					<key ageMonth="5" value="39"/>
-					<key ageMonth="18" value="78"/>
+					<key ageMonth="0" value="6.6"/>
+					<key ageMonth="5" value="43"/>
+					<key ageMonth="18" value="86"/>
 				</food>
 			</input>
 			<output>
@@ -1865,7 +1890,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_SWISS_MOUNTAIN" fillTypeName="RAM_SWISS_MOUNTAIN" gender="male" minWeight="6.5" targetWeight="100.0" maxWeight="150.0" breed="SWISS_MOUNTAIN">
+		<subType subType="RAM_SWISS_MOUNTAIN" fillTypeName="RAM_SWISS_MOUNTAIN" gender="male" minWeight="6.43" targetWeight="108.0" maxWeight="180.0" breed="SWISS_MOUNTAIN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/sheep/store_sheepSwissMountainBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -1887,15 +1912,16 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="5" supported="false"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
-				<key ageMonth="0" value="145"/>
-				<key ageMonth="6" value="270"/>
-				<key ageMonth="36" value="1350"/>
+				<key ageMonth="0" value="98"/>
+				<key ageMonth="6" value="182"/>
+				<key ageMonth="36" value="909"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="120"/>
-				<key ageMonth="6" value="220"/>
-				<key ageMonth="36" value="1200"/>
+				<key ageMonth="0" value="81"/>
+				<key ageMonth="6" value="148"/>
+				<key ageMonth="36" value="808"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="50"/>
@@ -1914,9 +1940,9 @@
 					<key ageMonth="18" value="89"/>
 				</water>
 				<food>
-					<key ageMonth="0" value="6"/>
-					<key ageMonth="5" value="42"/>
-					<key ageMonth="18" value="84"/>
+					<key ageMonth="0" value="5.7"/>
+					<key ageMonth="5" value="40"/>
+					<key ageMonth="18" value="79"/>
 				</food>
 			</input>
 			<output>
@@ -1932,7 +1958,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="SHEEP_BLACK_WELSH" fillTypeName="SHEEP_BLACK_WELSH" gender="female" minWeight="4.2" targetWeight="45.0" maxWeight="135.0" breed="BLACK_WELSH">
+		<subType subType="SHEEP_BLACK_WELSH" fillTypeName="SHEEP_BLACK_WELSH" gender="female" minWeight="4.00" targetWeight="50.0" maxWeight="135.0" breed="BLACK_WELSH">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="10" image="$dataS/character/animals/domesticated/sheep/store_sheepBlackWelshBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionSheepProfit</description>
@@ -1957,6 +1983,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="8" durationMonth="5" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="45"/>
 				<key ageMonth="6" value="150"/>
@@ -1984,9 +2011,9 @@
 					<key ageMonth="18" value="54"/>
 				</water>
 				<food>
-					<key ageMonth="0" value="2"/>
-					<key ageMonth="5" value="29"/>
-					<key ageMonth="18" value="70"/>
+					<key ageMonth="0" value="2.2"/>
+					<key ageMonth="5" value="31"/>
+					<key ageMonth="18" value="76"/>
 				</food>
 			</input>
 			<output>
@@ -2002,7 +2029,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_BLACK_WELSH" fillTypeName="RAM_BLACK_WELSH" gender="male" minWeight="4.6" targetWeight="62.0" maxWeight="150.0" breed="BLACK_WELSH">
+		<subType subType="RAM_BLACK_WELSH" fillTypeName="RAM_BLACK_WELSH" gender="male" minWeight="4.28" targetWeight="68.0" maxWeight="150.0" breed="BLACK_WELSH">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="10" image="$dataS/character/animals/domesticated/sheep/store_sheepBlackWelshBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -2024,15 +2051,16 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="5" supported="false"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
-				<key ageMonth="0" value="55"/>
-				<key ageMonth="6" value="185"/>
-				<key ageMonth="36" value="650"/>
+				<key ageMonth="0" value="57"/>
+				<key ageMonth="6" value="192"/>
+				<key ageMonth="36" value="674"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="45"/>
-				<key ageMonth="6" value="155"/>
-				<key ageMonth="36" value="600"/>
+				<key ageMonth="0" value="47"/>
+				<key ageMonth="6" value="161"/>
+				<key ageMonth="36" value="622"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="50"/>
@@ -2051,9 +2079,9 @@
 					<key ageMonth="18" value="58"/>
 				</water>
 				<food>
-					<key ageMonth="0" value="2"/>
-					<key ageMonth="5" value="32"/>
-					<key ageMonth="18" value="74"/>
+					<key ageMonth="0" value="2.2"/>
+					<key ageMonth="5" value="35"/>
+					<key ageMonth="18" value="82"/>
 				</food>
 			</input>
 			<output>
@@ -2069,7 +2097,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="GOAT" fillTypeName="GOAT" statsBreeding="breedGoatsCount" gender="female" minWeight="3.75" targetWeight="60.0" maxWeight="90.0" breed="GOAT">
+		<subType subType="GOAT" fillTypeName="GOAT" statsBreeding="breedGoatsCount" gender="female" minWeight="3.50" targetWeight="65.0" maxWeight="90.0" breed="GOAT">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="13" image="$dataS/character/animals/domesticated/goat/store_goatBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionGoatProfit</description>
@@ -2094,6 +2122,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="8" durationMonth="5" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="200"/>
 				<key ageMonth="6" value="450"/>
@@ -2137,7 +2166,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="RAM_GOAT" fillTypeName="RAM_GOAT" statsBreeding="breedGoatsCount" gender="male" minWeight="4.0" targetWeight="75.0" maxWeight="115.0" breed="GOAT">
+		<subType subType="RAM_GOAT" fillTypeName="RAM_GOAT" statsBreeding="breedGoatsCount" gender="male" minWeight="3.74" targetWeight="90.0" maxWeight="130.0" breed="GOAT">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="13" image="$dataS/character/animals/domesticated/goat/store_goatBaby.png" canBeBought="true" monitor="0|0|0|0|0|0|0|0|0|1|0|1" earTagLeft="0|0|0|0|0|0|0|0|0|1|0|0" earTagRight="0|0|0|0|0|0|0|0|0|2|0|0">
 					<description>$l10n_animal_descriptionRamFeed</description>
@@ -2159,15 +2188,16 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="5" supported="false"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
-				<key ageMonth="0" value="225"/>
-				<key ageMonth="6" value="500"/>
-				<key ageMonth="36" value="1750"/>
+				<key ageMonth="0" value="89"/>
+				<key ageMonth="6" value="197"/>
+				<key ageMonth="36" value="690"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="150"/>
-				<key ageMonth="6" value="350"/>
-				<key ageMonth="36" value="1500"/>
+				<key ageMonth="0" value="59"/>
+				<key ageMonth="6" value="138"/>
+				<key ageMonth="36" value="591"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="30"/>
@@ -2213,7 +2243,7 @@
 			<key ageMonth="264" value="150"/>
 			<key ageMonth="264" value="0"/>
 		</fertility>
-		<subType subType="HORSE_GRAY" fillTypeName="HORSE_GRAY" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="GRAY">
+		<subType subType="HORSE_GRAY" fillTypeName="HORSE_GRAY" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="GRAY">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/horse/store_horseGray.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2224,7 +2254,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="22" durationMonth="11" minHealthFactor="0.75"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="500"/>
@@ -2260,7 +2290,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_GRAY" fillTypeName="STALLION_GRAY" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="GRAY">
+		<subType subType="STALLION_GRAY" fillTypeName="STALLION_GRAY" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="GRAY">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="1" image="$dataS/character/animals/domesticated/horse/store_horseGray.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2271,7 +2301,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="24" supported="false"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="650"/>
@@ -2307,7 +2337,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_PINTO" fillTypeName="HORSE_PINTO" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="PINTO">
+		<subType subType="HORSE_PINTO" fillTypeName="HORSE_PINTO" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="PINTO">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="2" image="$dataS/character/animals/domesticated/horse/store_horsePinto.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2318,7 +2348,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="22" durationMonth="11" minHealthFactor="0.75"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="500"/>
@@ -2354,7 +2384,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_PINTO" fillTypeName="STALLION_PINTO" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="PINTO">
+		<subType subType="STALLION_PINTO" fillTypeName="STALLION_PINTO" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="PINTO">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="2" image="$dataS/character/animals/domesticated/horse/store_horsePinto.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2365,7 +2395,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="24" supported="false"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="650"/>
@@ -2401,7 +2431,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_PALOMINO" fillTypeName="HORSE_PALOMINO" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="PALOMINO">
+		<subType subType="HORSE_PALOMINO" fillTypeName="HORSE_PALOMINO" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="PALOMINO">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="3" image="$dataS/character/animals/domesticated/horse/store_horsePalomino.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2412,7 +2442,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="22" durationMonth="11" minHealthFactor="0.75"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="500"/>
@@ -2448,7 +2478,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_PALOMINO" fillTypeName="STALLION_PALOMINO" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="PALOMINO">
+		<subType subType="STALLION_PALOMINO" fillTypeName="STALLION_PALOMINO" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="PALOMINO">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="3" image="$dataS/character/animals/domesticated/horse/store_horsePalomino.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2459,7 +2489,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="24" supported="false"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="650"/>
@@ -2495,7 +2525,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_CHESTNUT" fillTypeName="HORSE_CHESTNUT" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="CHESTNUT">
+		<subType subType="HORSE_CHESTNUT" fillTypeName="HORSE_CHESTNUT" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="CHESTNUT">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/horse/store_horseChestnut.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2506,7 +2536,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="22" durationMonth="11" minHealthFactor="0.75"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="500"/>
@@ -2542,7 +2572,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_CHESTNUT" fillTypeName="STALLION_CHESTNUT" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="CHESTNUT">
+		<subType subType="STALLION_CHESTNUT" fillTypeName="STALLION_CHESTNUT" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="CHESTNUT">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="4" image="$dataS/character/animals/domesticated/horse/store_horseChestnut.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2553,7 +2583,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="24" supported="false"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="650"/>
@@ -2589,7 +2619,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_BAY" fillTypeName="HORSE_BAY" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="BAY">
+		<subType subType="HORSE_BAY" fillTypeName="HORSE_BAY" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="BAY">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="5" image="$dataS/character/animals/domesticated/horse/store_horseBay.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2600,7 +2630,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="22" durationMonth="11" minHealthFactor="0.75"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="500"/>
@@ -2636,7 +2666,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_BAY" fillTypeName="STALLION_BAY" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="BAY">
+		<subType subType="STALLION_BAY" fillTypeName="STALLION_BAY" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="BAY">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="5" image="$dataS/character/animals/domesticated/horse/store_horseBay.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2647,7 +2677,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="24" supported="false"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="650"/>
@@ -2683,7 +2713,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_BLACK" fillTypeName="HORSE_BLACK" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="BLACK">
+		<subType subType="HORSE_BLACK" fillTypeName="HORSE_BLACK" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="BLACK">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="6" image="$dataS/character/animals/domesticated/horse/store_horseBlack.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2694,7 +2724,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="22" durationMonth="11" minHealthFactor="0.75"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="500"/>
@@ -2730,7 +2760,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_BLACK" fillTypeName="STALLION_BLACK" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="BLACK">
+		<subType subType="STALLION_BLACK" fillTypeName="STALLION_BLACK" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="BLACK">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="6" image="$dataS/character/animals/domesticated/horse/store_horseBlack.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2741,7 +2771,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="24" supported="false"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="650"/>
@@ -2777,7 +2807,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_SEAL_BROWN" fillTypeName="HORSE_SEAL_BROWN" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="SEAL_BROWN">
+		<subType subType="HORSE_SEAL_BROWN" fillTypeName="HORSE_SEAL_BROWN" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="SEAL_BROWN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/horse/store_horseSealBrown.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2788,7 +2818,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="22" durationMonth="11" minHealthFactor="0.75"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="500"/>
@@ -2824,7 +2854,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_SEAL_BROWN" fillTypeName="STALLION_SEAL_BROWN" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="SEAL_BROWN">
+		<subType subType="STALLION_SEAL_BROWN" fillTypeName="STALLION_SEAL_BROWN" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="SEAL_BROWN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="7" image="$dataS/character/animals/domesticated/horse/store_horseSealBrown.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2835,7 +2865,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="24" supported="false"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="650"/>
@@ -2871,7 +2901,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="HORSE_DUN" fillTypeName="HORSE_DUN" gender="female" minWeight="45" targetWeight="500.0" maxWeight="900.0" breed="DUN">
+		<subType subType="HORSE_DUN" fillTypeName="HORSE_DUN" gender="female" minWeight="50.0" targetWeight="500.0" maxWeight="900.0" breed="DUN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="8" image="$dataS/character/animals/domesticated/horse/store_horseDun.png" canBeBought="true">
 					<description>$l10n_animal_descriptionHorseProfit</description>
@@ -2882,7 +2912,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="22" durationMonth="11" minHealthFactor="0.75"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="500"/>
@@ -2918,7 +2948,7 @@
 				</manure>
 			</output>
 		</subType>
-		<subType subType="STALLION_DUN" fillTypeName="STALLION_DUN" gender="male" minWeight="48" targetWeight="575.0" maxWeight="1000.0" breed="DUN">
+		<subType subType="STALLION_DUN" fillTypeName="STALLION_DUN" gender="male" minWeight="52.0" targetWeight="575.0" maxWeight="1000.0" breed="DUN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="8" image="$dataS/character/animals/domesticated/horse/store_horseDun.png" canBeBought="true">
 					<description>$l10n_animal_descriptionStallionProfit</description>
@@ -2929,7 +2959,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="24" supported="false"/>
-			<health increasePerHour="10" decreasePerHour="25" thresholdFactor="0.45"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.45"/>
 			<rideable filename="$dataS/character/animals/domesticated/horse/horse.xml"/>
 			<buyPrice>
 				<key ageMonth="0" value="650"/>
@@ -2982,7 +3012,7 @@
 			<key ageMonth="60" value="100"/>
 			<key ageMonth="60" value="0"/>
 		</fertility>
-		<subType subType="CHICKEN" fillTypeName="CHICKEN" gender="female" minWeight="0.04" targetWeight="3.25" maxWeight="4.5" breed="CHICKEN">
+		<subType subType="CHICKEN" fillTypeName="CHICKEN" gender="female" minWeight="0.040" targetWeight="3.25" maxWeight="4.5" breed="CHICKEN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="3" image="$dataS/character/animals/domesticated/chicken/store_chickenChick.png" canBeBought="true">
 					<description>$l10n_animal_descriptionChickenProfit</description>
@@ -2998,6 +3028,7 @@
 				</visual>
 			</visuals>
 			<reproduction minAgeMonth="6" durationMonth="2" minHealthFactor="0.75"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
 				<key ageMonth="0" value="3"/>
 				<key ageMonth="6" value="30"/>
@@ -3039,7 +3070,7 @@
 				</pallets>
 			</output>
 		</subType>
-		<subType subType="CHICKEN_ROOSTER" fillTypeName="CHICKEN_ROOSTER" gender="male" minWeight="0.045" targetWeight="4.25" maxWeight="5.5" breed="CHICKEN">
+		<subType subType="CHICKEN_ROOSTER" fillTypeName="CHICKEN_ROOSTER" gender="male" minWeight="0.042" targetWeight="4.25" maxWeight="5.5" breed="CHICKEN">
 			<visuals>
 				<visual minAge="0" visualAnimalIndex="3" image="$dataS/character/animals/domesticated/chicken/store_chickenChick.png" canBeBought="true">
 					<description>$l10n_animal_descriptionChickenRooster</description>
@@ -3052,13 +3083,14 @@
 				</visual>
 			</visuals>
 			<reproduction supported="false" minAgeMonth="6"/>
+			<health increasePerHour="10" decreasePerHour="8" thresholdFactor="0.2"/>
 			<buyPrice>
-				<key ageMonth="0" value="3"/>
-				<key ageMonth="6" value="30"/>
+				<key ageMonth="0" value="1.5"/>
+				<key ageMonth="6" value="14.5"/>
 			</buyPrice>
 			<sellPrice>
-				<key ageMonth="0" value="2"/>
-				<key ageMonth="6" value="25"/>
+				<key ageMonth="0" value="1"/>
+				<key ageMonth="6" value="12.1"/>
 			</sellPrice>
 			<transportPrice>
 				<key ageMonth="0" value="1"/>

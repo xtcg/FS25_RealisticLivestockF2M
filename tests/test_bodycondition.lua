@@ -169,7 +169,7 @@ for i = 1, 400 do
     local input = {
         dtMonths = 1 / 24 * (1 + math.floor(rand() * 3)), weight = 300 + rand() * 500, reserve = rand(),
         capacityKg = 60 + rand() * 160, targetWeight = 500 + rand() * 600, potentialGrowthKg = rand() * 40,
-        ageLossKg = rand() < 0.1 and rand() * 5 or 0, potentialMilk = lactating and rand() * 500 or 0,
+        potentialMilk = lactating and rand() * 500 or 0,
         anchorMilk = lactating and rand() * 450 or 0, isLactating = lactating,
         pregnancyProgress = rand(), numFetuses = rand() < 0.3 and 1 or 0, intakeLiters = rand() * 1.5 * 300,
         referenceLiters = 300, intakeCapacity = 0.9 + rand() * 0.7, minWeight = rand() * 300,
@@ -181,7 +181,7 @@ for i = 1, 400 do
     if math.abs(left - right) > 1e-6 * math.max(1, left) then ledgerOk = false end
     if r.reserve < 0 or r.reserve > 1 or r.weight <= 0 or r.milkFraction < 0 or r.milkFraction > 1 + 1e-9 then boundsOk = false end
     if r.depositNU > 1e-9 and r.mobilizedNU > 1e-9 then directionOk = false end
-    local expected = input.weight + r.frameGainKg + r.reserveKg - input.ageLossKg * input.dtMonths - r.catabolismKg - r.excessDecayKg
+    local expected = input.weight + r.frameGainKg + r.reserveKg - r.catabolismKg - r.excessDecayKg
     if math.abs(r.weight - expected) > 1e-6 then weightOk = false end
 end
 check("step: supply + mobilised + catabolism = paid + deposited + lost, for any input", ledgerOk)
@@ -191,7 +191,7 @@ check("step: weight moves by frame gain + reserve kg - losses, nothing else", we
 
 do
     local base = { dtMonths = 1 / 24, weight = 600, reserve = config.minReserve, capacityKg = 140, targetWeight = 700,
-        potentialGrowthKg = 20, ageLossKg = 0, potentialMilk = 400, anchorMilk = 400, isLactating = true,
+        potentialGrowthKg = 20, potentialMilk = 400, anchorMilk = 400, isLactating = true,
         pregnancyProgress = 0, numFetuses = 0, intakeLiters = 0, referenceLiters = 300, intakeCapacity = 1, reserveCeiling = 0.75 }
     local r = M.step(base, config)
     check("step: no food and no reserve: no gain, no milk, no reserve, maintenance unmet",
@@ -634,11 +634,11 @@ end
 
 do
     local input = { dtMonths = 1, weight = 60, minWeight = 58, reserve = 0.5, capacityKg = 140, targetWeight = 700,
-        potentialGrowthKg = 0, ageLossKg = 5, potentialMilk = 0, anchorMilk = 0, isLactating = false,
+        potentialGrowthKg = 0, potentialMilk = 0, anchorMilk = 0, isLactating = false,
         pregnancyProgress = 0, numFetuses = 0, intakeLiters = 0, referenceLiters = 100, intakeCapacity = 1,
         reserveCeiling = 0.5 }
     local r = M.step(input, config)
-    local expected = input.weight + r.frameGainKg + r.reserveKg - r.ageLossKg - r.catabolismKg - r.excessDecayKg
+    local expected = input.weight + r.frameGainKg + r.reserveKg - r.catabolismKg - r.excessDecayKg
     check(string.format("floor: a starving animal near its minimum weight stops there (%.2f kg), and the weight still adds up",
         r.weight), r.weight >= input.minWeight - 1e-9 and near(r.weight, expected, 1e-9)
         and near(r.supplyNU + r.mobilizedNU + r.catabolismNU, r.paidNU + r.depositNU + r.lostNU, 1e-9))
@@ -818,8 +818,9 @@ do
     local savedServer = g_server
     g_server = nil
     RLBodyConditionStateEvent.emptyNew():readStream(1, serverConn)
+    -- The reserve travels on its canonical 1e-6 grid (SHEEP-FATCLASS-BOUNDARY-01): what the server reads.
     check("network: the hourly state event gives the client the server's weight, reserve and budget",
-        clientCow.weight == cow.weight and clientCow.bodyCondition.reserve == cow.bodyCondition.reserve
+        clientCow.weight == cow.weight and clientCow.bodyCondition.reserve == RLBodyCondition.getReserve(cow)
         and near(clientCow.rlNutrition.coverage, cow.rlNutrition.coverage, 1e-12) and clientPen.spec_husbandryFood.rlPenSummary ~= nil)
 
     -- A client sending it to the server changes nothing.

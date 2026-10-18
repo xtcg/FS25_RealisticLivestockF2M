@@ -24,7 +24,8 @@
         breeds      replaces the profile's breeds for this building
 
     construction:
-        filename    a building with a construction state machine, matched as above
+        filename    a building with a construction state machine (a husbandry, or a production
+                    point that takes animals), matched as above
         readyStates the construction states in which it takes animals (state names from the
                     building's own XML, space separated). In any other state no animal is bought
                     or moved in; animals already there stay and can be moved out. A building
@@ -35,7 +36,7 @@
     OVERAGE_RESIDENT, the owner gets a message), and births are never blocked.
 
     Calf path on the home farm: igloo (0-1 months) -> rearing box A/B (0-5, heifers, bull calves
-    and steers, 3 each) -> dairy barn (Holstein / Swiss Brown cows from 6) or bull barn (intact bulls
+    and steers, 3 each) -> dairy barn (dairy-breed cows from 6) or bull barn (intact bulls
     from 6). The farm 2 barn takes weaned calves from 3 months.
 
     Hof Bergmann's MVB dairy (MILKCOW) is the map's own system and is left as it is.
@@ -43,7 +44,10 @@
 <husbandryProfiles>
     <profile name="NURSERY"    female="true"  steer="true"  intactMale="true"        maxAge="1" rearing="true"/>
     <profile name="GROUP_CALF" female="true"  steer="true"  intactMale="true"        maxAge="5" rearing="true"/>
-    <profile name="DAIRY"      female="true"  steer="false" intactMale="false"       minAge="6" breeds="HOLSTEIN SWISS_BROWN"/>
+    <!-- DAIRY breeds: the base game's two, then the dairy breeds of FS25_CowBreedsRLRM (a name
+         whose pack is not installed matches no subtype). The pack's beef breeds stay out. -->
+    <profile name="DAIRY"      female="true"  steer="false" intactMale="false"       minAge="6"
+        breeds="HOLSTEIN SWISS_BROWN REDHOLSTEIN_PACK AYRSHIRE_PACK JERSEY_PACK GUERNSEY_PACK KERRY_PACK SHORTHORNMILKERS_PACK"/>
     <profile name="BULL"       female="false" steer="false" intactMale="true"        minAge="6"/>
     <profile name="MIXED"      female="true"  steer="true"  intactMale="untilMature" minAge="3"/>
     <profile name="PASTURE"    female="true"  steer="true"  intactMale="untilMature"/>
@@ -86,4 +90,9 @@
     <construction filename="placeables/animalHusbandry/calfIglus/calfIglu05.xml" readyStates="DONE"/>
     <construction filename="placeables/constructibles/constructible_cowPasture.xml" readyStates="DONE"/>
     <construction filename="placeables/animalHusbandry/cowHusbandryOldFarm/cowHusbandryOldFarm.xml" readyStates="STEP1 STEP2 FINALIZE DONE"/>
+
+    <!-- The farm butcher is a production point that takes animals (SETUP, STATE_1-3, FINALIZE, DONE).
+         The map hides its production and animal trigger until FINALIZE, which passes to DONE on the
+         next update; RLRM's move menu and herdsman open it at DONE. -->
+    <construction filename="placeables/productionPoints/farmButcher/farmButcher.xml" readyStates="DONE"/>
 </husbandryProfiles>

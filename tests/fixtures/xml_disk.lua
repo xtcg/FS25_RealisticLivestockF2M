@@ -134,6 +134,8 @@ function XMLDisk.save(filename, body)
     XMLDisk.saves[#XMLDisk.saves + 1] = filename
     return true
 end
+--- saveXMLFileToMemory: the document as text (XMLFile:getAsString).
+function Doc:getAsString() return self:toText() end
 function Doc:save()
     -- A document created without a filename (the career document) cannot be saved by path.
     if self.filename == nil or self.filename == "" then return false end
