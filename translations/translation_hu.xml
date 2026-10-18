@@ -239,6 +239,7 @@
         <text name="rl_ui_output_pallets_wool" text="Gyapjú"/>
         <text name="rl_ui_output_pallets_goatMilk" text="Kecsketej"/>
         <text name="rl_ui_amountPerDay" text="%.0f l / nap" tag="format"/>
+        <text name="rl_ui_amountPerMonth" text="%s l / hónap" tag="format"/>
         <text name="rl_ui_feePerMonth" text="%s / hónap" tag="format"/>
 
         <text name="rl_ui_animalType" text="Típus"/>
