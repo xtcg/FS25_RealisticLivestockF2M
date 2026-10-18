@@ -125,17 +125,4 @@ function RLAnimalDisplayHelper.formatAmountPerDay(litresPerDay)
     return text
 end
 
---- Render an animal input/output rate as litres per game month. Animal rates
---- store the monthly curve divided by 24; hourly settlement additionally applies
---- timeAdjustment = 1 / daysPerPeriod. Do not apply that day divisor to this UI.
----@param hourlyRate number normalised input/output rate (before timeAdjustment)
----@return string text localised monthly amount
-function RLAnimalDisplayHelper.formatMonthlyAmount(hourlyRate)
-    local amount = hourlyRate * 24
-    local size = math.abs(amount)
-    local precision = (size > 0 and size < 1) and 2 or ((size > 0 and size < 10) and 1 or 0)
-    local rounded = MathUtil.round(amount, precision)
-    return string.format(g_i18n:getText("rl_ui_amountPerMonth"), g_i18n:formatNumber(rounded, precision))
-end
-
 Log:trace("RLAnimalDisplayHelper: loaded")

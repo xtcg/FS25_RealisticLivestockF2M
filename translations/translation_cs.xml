@@ -234,7 +234,6 @@
         <text name="rl_ui_output_pallets_wool" text="羊毛"/>
         <text name="rl_ui_output_pallets_goatMilk" text="羊奶"/>
         <text name="rl_ui_amountPerDay" text="%s 升/天" tag="format"/>
-        <text name="rl_ui_amountPerMonth" text="%s 升/月" tag="format"/>
         <text name="rl_ui_feePerMonth" text="%s/月" tag="format"/>
         <text name="rl_ui_feePerDose" text="%s/剂" tag="format"/>
 

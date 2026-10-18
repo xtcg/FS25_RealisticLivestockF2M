@@ -1136,6 +1136,7 @@ end
 function Animal:showMonitorInfo(box)
     if not self.monitor.active and not self.monitor.removed then return end
 
+    local daysPerMonth = g_currentMission.environment.daysPerPeriod
 
     box:addLine(g_i18n:getText("rl_ui_monitorFee"),
         string.format(g_i18n:getText("rl_ui_feePerMonth"), g_i18n:formatMoney(self.monitor.fee, 2, true, true)))
@@ -1158,7 +1159,7 @@ function Animal:showMonitorInfo(box)
 
     for fillType, amount in pairs(self.input) do
         box:addLine(g_i18n:getText("rl_ui_input_" .. fillType),
-            RLAnimalDisplayHelper.formatMonthlyAmount(amount))
+            RLAnimalDisplayHelper.formatAmountPerDay((amount * 24) / daysPerMonth))
     end
 
     for fillType, amount in pairs(self.output) do
@@ -1174,7 +1175,7 @@ function Animal:showMonitorInfo(box)
         end
 
         box:addLine(g_i18n:getText("rl_ui_output_" .. outputText),
-            RLAnimalDisplayHelper.formatMonthlyAmount(amount))
+            RLAnimalDisplayHelper.formatAmountPerDay((amount * 24) / daysPerMonth))
     end
 end
 

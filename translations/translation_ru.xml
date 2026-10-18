@@ -229,7 +229,6 @@
         <text name="rl_ui_output_pallets_wool" text="Шерсть"/>
         <text name="rl_ui_output_pallets_goatMilk" text="Козье молоко"/>
         <text name="rl_ui_amountPerDay" text="%sл / день" tag="format"/>
-        <text name="rl_ui_amountPerMonth" text="%s л / месяц" tag="format"/>
         <text name="rl_ui_feePerMonth" text="%s / мес." tag="format"/>
         <text name="rl_ui_feePerDose" text="%s / dose" tag="format"/>
 
