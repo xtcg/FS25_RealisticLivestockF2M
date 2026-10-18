@@ -711,7 +711,7 @@
         <text name="input_RL_MENU" text="RL-menu openen"/>
         <text name="input_RL_RENAME" text="Hernoemen"/>
         <text name="input_RL_CYCLE_FILTER" text="Opgeslagen filter wisselen"/>
-        <text name="rl_bridge_version_unknown" text="Realistic Livestock: %s versie %s is niet getest met versie %s van Realistic Livestock. Configuratie '%s' wordt gebruikt. Meld problemen met exotische dieren op %s."/>
+        <text name="rl_welcome_feedback" text="Welcome to Realistic Livestock: Farm to Market! If you encounter any problems, please open an issue: https://github.com/xtcg/FS25_RealisticLivestockF2M/issues"/>
         <!-- TODO: localise -->
         <text name="rl_bridge_configoverride_conflict_header" text="Realistic Livestock: Conflict gedetecteerd. Twee of meer bruggen/packs hebben de configuratie voor hetzelfde dierentype vervangen. De laatst geladen mod wint. Als je doorgaat, krijg je visuele fouten en spookdieren."/>
         <!-- TODO: localise -->
