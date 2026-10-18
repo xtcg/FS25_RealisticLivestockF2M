@@ -1076,5 +1076,7 @@
         <text name="rl_dealer_v2_closed" text="商人的新库存暂未开放。"/>
         <text name="rl_dealer_v2_limit" text="每份订单最多购买100头动物。"/>
         <text name="rl_dealer_v2_generic" text="订单未能完成。"/>
+        <text name="rl_meadow_witherWarning" text="%s：牧场鲜草约%d天后入冬枯退，请在食槽补充干草或青贮"/>
+        <text name="rl_wool_shorn" text="%s：已为%d只羊剪毛，共%d升羊毛等待装托盘"/>
     </texts>
 </l10n>

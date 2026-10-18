@@ -583,6 +583,7 @@ function RLMapBridge.loadBridgeAnimals(animalSystem)
     Log:trace("MapBridge: loadBridgeAnimals: reset configOverrideHistory and pendingConfigOverrideConflictWarning")
 
     RLMapBridge.pendingPalletRemaps = {}
+    RLMapBridge.palletAliases = {}
 
     if #RLMapBridge.activeBridges == 0 then
         Log:info("MapBridge: No active bridges, skipping animal loading")
@@ -763,6 +764,11 @@ function RLMapBridge.applyPalletRemaps(animalSystem)
             Log:warning("MapBridge: '%s' palletRemap %s %s -> %s: type or fill type unknown, skipped",
                 remap.bridgeName, remap.typeName, remap.from, remap.to)
         else
+            -- Kept for the buildings: one that spawns only `from` spawns `to` in its place
+            -- (RLWoolShearing.installPalletAliases; base-game sheep barns on Hof Bergmann).
+            RLMapBridge.palletAliases = RLMapBridge.palletAliases or {}
+            table.insert(RLMapBridge.palletAliases, { typeName = remap.typeName, from = fromIndex, to = toIndex,
+                bridgeName = remap.bridgeName })
             for _, subTypeIndex in ipairs(animalType.subTypes) do
                 local subType = animalSystem.subTypes[subTypeIndex]
                 local pallets = subType ~= nil and subType.output ~= nil and subType.output.pallets or nil
