@@ -235,6 +235,9 @@ function Repair.run(mission)
                 animal.uniqueId = newUniqueId
                 if animal.setDirty ~= nil then pcall(animal.setDirty, animal) end
                 local newText = Repair.identifiers(animal.birthday.country, animal.farmId, newUniqueId)
+                -- A child repaired later may already name this parent's new key. Keep the
+                -- original group too: unresolved old references must retain their ambiguity.
+                if newText ~= nil then byIdentifiers[newText] = { animal } end
                 summary.renumbered = summary.renumbered + 1
                 summary.changes[#summary.changes + 1] = { where = e.where, type = typeIndex, old = key,
                     new = I.keyString(animal.farmId, newUniqueId, animal.birthday.country), keeperType = typeOf(keeper) }

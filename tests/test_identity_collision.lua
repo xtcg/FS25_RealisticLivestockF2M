@@ -256,3 +256,30 @@ do
     check("owned before listed: the pen's cow keeps the key, the sale listing is renumbered", s.renumbered == 1 and key(owned) == ownedKey
         and key(listed) ~= ownedKey)
 end
+
+-- Both parents and their lamb need new keys: the parent's new identifiers must still
+-- resolve when the lamb's children-list entry is repaired, in either group order.
+for _, parentFirst in ipairs({ true, false }) do
+    local mission, farm = world()
+    farm.stats.statistics.pigId, farm.stats.statistics.sheepId = 3, 3
+    local dam = animal(AnimalType.SHEEP, 1, { age = 30 })
+    local sire = animal(AnimalType.SHEEP, 2, { age = 30, gender = "male" })
+    local lamb = animal(AnimalType.SHEEP, 3, { age = 10, motherId = ident(dam), fatherId = ident(sire) })
+    dam.children = { { farmId = lamb.farmId, uniqueId = lamb.uniqueId } }
+    sire.children = { { farmId = lamb.farmId, uniqueId = lamb.uniqueId } }
+    local pigs = {}
+    for raw = 1, 3 do pigs[raw] = animal(AnimalType.PIG, raw, { age = 40 }) end
+    pen(mission, parentFirst and { pigs[1], pigs[2], pigs[3], dam, sire, lamb }
+        or { pigs[3], pigs[2], pigs[1], lamb, sire, dam })
+    ready(R.SHADOW, mission)
+    local summary = Repair.run(mission)
+    local order = parentFirst and "parents first" or "lamb first"
+    check("family repair (" .. order .. "): both parent references follow their new keys",
+        summary.renumbered == 3 and summary.conflicts == 0 and lamb.motherId == ident(dam) and lamb.fatherId == ident(sire))
+    check("family repair (" .. order .. "): both parents list the lamb's new key",
+        dam.children[1].uniqueId == lamb.uniqueId and sire.children[1].uniqueId == lamb.uniqueId)
+    local again = Repair.run(mission)
+    check("family repair (" .. order .. "): a repeat leaves the family consistent",
+        again.renumbered == 0 and lamb.motherId == ident(dam) and lamb.fatherId == ident(sire)
+        and dam.children[1].uniqueId == lamb.uniqueId and sire.children[1].uniqueId == lamb.uniqueId)
+end
