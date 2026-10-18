@@ -1,17 +1,33 @@
 <modDesc descVersion="110">
-    <author>Ritter</author>
+    <author>xtcg; based on work by Arrow-kb, Ritter and Renfordt</author>
     <version>1.4.0.1-dev.7</version>
     <title>
-        <en>Realistic Livestock - Ritter version</en>
-        <it>Allevamento Realistico - Versione Ritter</it>
+        <en>Realistic Livestock: Farm to Market</en>
+        <de>Realistic Livestock: Farm to Market</de>
+        <it>Realistic Livestock: Farm to Market</it>
+        <ct>真实畜牧：从牧场到市场</ct>
     </title>
     <description>
         <en>
-            <![CDATA[Replaces FS25's simple animal clusters with individually tracked animals - each with unique genetics, breeding, diseases, and production traits. A maintained version of Arrow-kb's Realistic Livestock mod.
+            <![CDATA[Realistic Livestock: Farm to Market
+A Realistic Livestock Production & Economy Expansion for Farming Simulator 25
+
+Livestock farming is more than feeding animals, waiting for them to grow, and selling them. Breed characteristics, genetics, feeding strategies, growth, reproduction, processing costs and market conditions all matter.
+
+Primarily developed and tested with Hof Bergmann: breed-specific growth and milk curves, meaningful feeding decisions, weight-based meat yields, livestock and processing economics referenced to the British market, breeding-stock value, and deeper integration with the map's livestock facilities.
+
+An unofficial community extension by xtcg, built on Arrow-kb's Realistic Livestock and Ritter's Realistic Livestock RM, with disease-system contributions from Renfordt. Special thanks to LSFM / FarmerAndy for Hof Bergmann. The map is not included; obtain it separately through its official channels. GPL-3.0; original attribution retained.
+
+Why a German map and British market references? Clarkson's Farm inspired my interest in real farming, and Hof Bergmann provides an extensive farm-to-market production chain. Bugs, balance suggestions, farming knowledge and feature ideas are welcome on GitHub Issues.
+
+Full English and Chinese introduction: https://github.com/xtcg/FS25_RealisticLivestockRM
+Issues: https://github.com/xtcg/FS25_RealisticLivestockRM/issues
+
+The underlying animal management systems:
 
 Every animal is tracked separately with its own identity, genetic makeup, health status, and production output. Genetics are inherited through breeding, diseases can spread and require treatment, and production is driven by each animal's individual traits. Everything is managed from the RL Menu - a dedicated tabbed interface for browsing, trading, moving, filtering, and automating your herds.
 
-This is a maintained version of the original Realistic Livestock mod by Arrow-kb, who has discontinued development. The goal is to keep the mod working, fix bugs, and make improvements where needed.
+This project extends the upstream animal management systems with livestock production and economic rebalancing.
 
 Notes:
 - Based on Arrow-kb's Realistic Livestock mod (v1.2.0.5), released under GPL-3 license
@@ -21,8 +37,8 @@ Notes:
 - Incompatible with FS25_EnhancedLivestock, FS25_MoreVisualAnimals, and FS25_EnhancedAnimalSystem
 - Works on virtually any map; maps that add their own custom animals or breeds have built-in support (see docs)
 
-Documentation: https://rittermod.github.io/FS25_RealisticLivestockRM
-Source code and issue tracker: https://github.com/rittermod/FS25_RealisticLivestockRM
+Documentation: https://xtcg.github.io/FS25_RealisticLivestockRM/
+Source code and issue tracker: https://github.com/xtcg/FS25_RealisticLivestockRM
 
 Changelog
 
@@ -147,6 +163,21 @@ Documentation:
 
 ]]>
         </en>
+        <ct><![CDATA[真实畜牧：从牧场到市场
+
+让畜牧经营成为需要考虑品种、遗传、饲料、生产周期、加工成本和市场行情的完整经营过程。
+
+主要基于 Hof Bergmann 开发和测试：真实品种生长与产奶曲线、饲料与育肥选择、按体重和遗传估算肉品产出、参考英国市场的畜牧经济，以及地图畜牧设施的深度适配。
+
+由 xtcg 在 Arrow-kb 的 Realistic Livestock 和 Ritter 的 Realistic Livestock RM 基础上继续开发，保留原有动物管理系统。感谢 Renfordt 的疾病系统贡献，以及 LSFM / FarmerAndy 创作 Hof Bergmann。本项目为非官方社区扩展，采用 GPL-3.0；不包含地图本体。
+
+为什么德国地图采用英国市场参考？因为《克拉克森的农场》激发了我对真实农业的兴趣，而 Hof Bergmann 的完整产业链是实现这些想法的理想平台。
+
+欢迎提交 Bug、平衡建议、畜牧知识及玩法创意！
+中英文完整介绍及源码：https://github.com/xtcg/FS25_RealisticLivestockRM
+Issue：https://github.com/xtcg/FS25_RealisticLivestockRM/issues
+
+内部 Mod 标识及安装包名保持 FS25_RealisticLivestockRM，以兼容旧存档。]]></ct>
         <it>
             <![CDATA[Sostituisce i semplici cluster di animali di FS25 con animali individualmente tracciati, ciascuno con genetica unica, allevamento, malattie e tratti produttivi. Una versione mantenuta del mod Realistic Livestock di Arrow-kb.
 

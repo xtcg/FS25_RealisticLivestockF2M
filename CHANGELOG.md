@@ -18,6 +18,10 @@
 - tests/test_bodycondition.lua: the budget's energy ledger and bounds, the calibration against the old growth line for every bull and against the milk yield for both dairy breeds, 1/3/7 days per period, the feed ledger, conception, the carcass factor, save and stream round trips and the milk deposit.
 ## Unreleased (xtcg fork, Hof Bergmann)
 
+### Project identity
+
+- 2026-10-18: Renamed the xtcg extension to Realistic Livestock: Farm to Market (真实畜牧：从牧场到市场). Published English and Chinese introductions, contributor credits, developer notes and the fork's Issue links. Internal mod ID, ZIP filename, savegame paths and version are unchanged. Original upstream README retained in docs/UPSTREAM_README.md; GPL-3.0 license retained.
+
 ### Added
 
 - T02 development, batch 2 (off by default): a controlled delivery of animals to Hof Bergmann 1.5.0.0 Beta2's public slaughterhouse as one server transaction, whole batch or nothing. `rlTradeTxMode [OFF|SHADOW|TEST]` (server, this run only; OFF on every load): OFF keeps the old delivery; SHADOW only logs what TEST would do; TEST (test saves only) delivers a supported batch - cattle with an aligned recipe, from the requesting farm's own pen or livestock trailer, with trade permission, healthy, old enough, the order's credit and the farm's money covering the whole batch - through the map's own deliver call once, checks every order field and the money against the map's arithmetic for the full amount, then takes the animals out of the pen through the normal queue and checks exactly they left. A part, zero or failed delivery, or a failed removal, is undone (the order's fields and the fee put back, cash refunded once, the same animal objects put back with their genes, weight, condition and pregnancy, and new visual animals); what cannot be proven undone is held as needing reconciliation with its animals, order and money locked, never retried. Anything unsupported is refused, never passed to the old per-head path. `rlTradeTxReport [txId]` shows the transactions, stages, receipts and held locks (read-only). Records are not saved. Meat, fees, prices and recipes are unchanged. See docs/T02_BATCH2_STATUS.md.
