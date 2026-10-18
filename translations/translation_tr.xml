@@ -995,6 +995,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Satın alındı"/>
         <text name="rl_semen_sourceLEGACY" text="Eski stok"/>
         <text name="rl_semen_batchMonth" text="Parti ayı"/>
+        <text name="rl_insemination_incompatible" text="Sperma bu ırka uygun değil"/>
+        <text name="rl_pedigree_forbidden" text="Akrabalık %s: çok yakın akraba, izin verilmez"/>
+        <text name="rl_pedigree_adviseAgainst" text="Akrabalık %s: yakın akraba, önerilmez"/>
+        <text name="rl_pedigree_info" text="Yavrunun akrabalık katsayısı %s"/>
+        <text name="rl_pedigree_none" text="Ortak ata bulunamadı"/>
+        <text name="rl_ai_chance" text="Parti kalitesi %s | Bu dişi için beklenen gebelik %s (doğurganlık %s x döllenme %s x parti %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

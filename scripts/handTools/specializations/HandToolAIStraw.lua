@@ -325,7 +325,10 @@ function HandToolAIStraw:updateStraw(dT)
 				
 	spec.actionContext = "inseminate"
 	g_inputBinding:setActionEventActive(spec.activateActionEventId, true)
-	g_inputBinding:setActionEventText(spec.activateActionEventId, string.format(spec.inseminateText, animal:getIdentifiers()))
+	local actionText = string.format(spec.inseminateText, animal:getIdentifiers())
+	local inbreeding = RLPedigree.getText(RLPedigree.checkMating(animal, spec.animal))
+	if inbreeding ~= nil then actionText = actionText .. " - " .. inbreeding end
+	g_inputBinding:setActionEventText(spec.activateActionEventId, actionText)
 
 end
 

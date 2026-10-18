@@ -976,6 +976,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Ostettu"/>
         <text name="rl_semen_sourceLEGACY" text="Vanha varasto"/>
         <text name="rl_semen_batchMonth" text="Erän kuukausi"/>
+        <text name="rl_insemination_incompatible" text="Siemen ei sovi tälle rodulle"/>
+        <text name="rl_pedigree_forbidden" text="Sukusiitos %s: liian läheistä sukua, ei sallittu"/>
+        <text name="rl_pedigree_adviseAgainst" text="Sukusiitos %s: läheistä sukua, ei suositella"/>
+        <text name="rl_pedigree_info" text="Jälkeläisen sukusiitos %s"/>
+        <text name="rl_pedigree_none" text="Yhteistä esivanhempaa ei löytynyt"/>
+        <text name="rl_ai_chance" text="Erän laatu %s | Odotettu tiinehtyminen tälle naaraalle %s (hedelmällisyys %s x hedelmöitys %s x erä %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

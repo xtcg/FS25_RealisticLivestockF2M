@@ -974,6 +974,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Kupione"/>
         <text name="rl_semen_sourceLEGACY" text="Stary zapas"/>
         <text name="rl_semen_batchMonth" text="Miesiąc partii"/>
+        <text name="rl_insemination_incompatible" text="Nasienie nie pasuje do tej rasy"/>
+        <text name="rl_pedigree_forbidden" text="Inbred %s: zbyt bliskie pokrewieństwo, niedozwolone"/>
+        <text name="rl_pedigree_adviseAgainst" text="Inbred %s: bliskie pokrewieństwo, odradzane"/>
+        <text name="rl_pedigree_info" text="Inbred potomstwa %s"/>
+        <text name="rl_pedigree_none" text="Nie znaleziono wspólnego przodka"/>
+        <text name="rl_ai_chance" text="Jakość partii %s | Oczekiwane zacielenie tej samicy %s (płodność %s x zapłodnienie %s x partia %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

@@ -985,6 +985,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Vásárolt"/>
         <text name="rl_semen_sourceLEGACY" text="Régi készlet"/>
         <text name="rl_semen_batchMonth" text="Tétel hónapja"/>
+        <text name="rl_insemination_incompatible" text="A sperma nem illik ehhez a fajtához"/>
+        <text name="rl_pedigree_forbidden" text="Beltenyésztés %s: túl közeli rokon, nem engedélyezett"/>
+        <text name="rl_pedigree_adviseAgainst" text="Beltenyésztés %s: közeli rokon, nem ajánlott"/>
+        <text name="rl_pedigree_info" text="Utód beltenyésztettsége %s"/>
+        <text name="rl_pedigree_none" text="Nincs közös ős"/>
+        <text name="rl_ai_chance" text="Tétel minősége %s | Várható vemhesülés ennél a nőstényénél %s (termékenység %s x fogamzás %s x tétel %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

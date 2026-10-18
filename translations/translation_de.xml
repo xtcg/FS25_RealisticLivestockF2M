@@ -975,6 +975,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Gekauft"/>
         <text name="rl_semen_sourceLEGACY" text="Altbestand"/>
         <text name="rl_semen_batchMonth" text="Chargenmonat"/>
+        <text name="rl_insemination_incompatible" text="Sperma passt nicht zu dieser Rasse"/>
+        <text name="rl_pedigree_forbidden" text="Inzucht %s: zu nah verwandt, nicht erlaubt"/>
+        <text name="rl_pedigree_adviseAgainst" text="Inzucht %s: nah verwandt, nicht empfohlen"/>
+        <text name="rl_pedigree_info" text="Inzucht der Nachkommen %s"/>
+        <text name="rl_pedigree_none" text="Kein gemeinsamer Vorfahre gefunden"/>
+        <text name="rl_ai_chance" text="Chargenqualität %s | Erwartete Trächtigkeit für dieses Tier %s (Fruchtbarkeit %s x Empfängnis %s x Charge %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Ernährungsmodell"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Rinder: Alt behält die alten Futterregeln. Real-äquivalent rechnet Aufnahme und Ration in echter Trockenmasse und Energie Der Standardverbrauch beträgt 1/8 des realen Äquivalentvolumens, nicht des alten Verbrauchs."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Alt"/>

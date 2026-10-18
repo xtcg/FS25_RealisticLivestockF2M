@@ -973,6 +973,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Gekocht"/>
         <text name="rl_semen_sourceLEGACY" text="Oude voorraad"/>
         <text name="rl_semen_batchMonth" text="Partijmaand"/>
+        <text name="rl_insemination_incompatible" text="Sperma past niet bij dit ras"/>
+        <text name="rl_pedigree_forbidden" text="Inteelt %s: te nauw verwant, niet toegestaan"/>
+        <text name="rl_pedigree_adviseAgainst" text="Inteelt %s: nauw verwant, afgeraden"/>
+        <text name="rl_pedigree_info" text="Inteelt van de nakomeling %s"/>
+        <text name="rl_pedigree_none" text="Geen gemeenschappelijke voorouder gevonden"/>
+        <text name="rl_ai_chance" text="Partijkwaliteit %s | Verwachte dracht voor dit dier %s (vruchtbaarheid %s x bevruchting %s x partij %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

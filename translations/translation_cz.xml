@@ -981,6 +981,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Koupeno"/>
         <text name="rl_semen_sourceLEGACY" text="Starší zásoba"/>
         <text name="rl_semen_batchMonth" text="Měsíc šarže"/>
+        <text name="rl_insemination_incompatible" text="Sperma se nehodí pro toto plemeno"/>
+        <text name="rl_pedigree_forbidden" text="Příbuzenská plemenitba %s: příliš blízký příbuzný, nepovoleno"/>
+        <text name="rl_pedigree_adviseAgainst" text="Příbuzenská plemenitba %s: blízký příbuzný, nedoporučeno"/>
+        <text name="rl_pedigree_info" text="Příbuzenská plemenitba potomka %s"/>
+        <text name="rl_pedigree_none" text="Nenalezen žádný společný předek"/>
+        <text name="rl_ai_chance" text="Kvalita šarže %s | Očekávané zabřeznutí této samice %s (plodnost %s x početí %s x šarže %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

@@ -1272,6 +1272,9 @@ function AnimalSystem:loadFromXMLFile()
     end)
 
 
+    -- Sold and dead ancestors (RLPedigree); live animals add theirs as they load.
+    RLPedigree.loadFromXMLFile(xmlFile, rootKey .. ".pedigree")
+
     xmlFile:delete()
 
     return hasData
@@ -1389,6 +1392,8 @@ function AnimalSystem:saveToXMLFile(_)
         end
 
     end)
+
+    RLPedigree.saveToXMLFile(xmlFile, "rm_RlAnimalSystem.pedigree")
 
     xmlFile:save(false, true)
     xmlFile:delete()
@@ -3385,7 +3390,7 @@ function AnimalSystem:createNewAIAnimal(animalTypeIndex)
     animal.variation = variationIndex
 
     animal.favouritedBy = {}
-    animal.success = math.clamp((math.random(35, 50) * genetics.fertility) / 100, 0.5, 1)
+    animal.success = RLSemenCollection.getBatchQuality(genetics.fertility)
     animal.isAIAnimal = true
 
     return animal

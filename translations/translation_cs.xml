@@ -985,6 +985,12 @@
         <text name="rl_semen_sourcePURCHASED" text="购买"/>
         <text name="rl_semen_sourceLEGACY" text="旧库存"/>
         <text name="rl_semen_batchMonth" text="批次月份"/>
+        <text name="rl_insemination_incompatible" text="精液与这个品种不配"/>
+        <text name="rl_pedigree_forbidden" text="近交系数 %s：亲缘太近，禁止配种"/>
+        <text name="rl_pedigree_adviseAgainst" text="近交系数 %s：亲缘较近，建议禁止"/>
+        <text name="rl_pedigree_info" text="后代近交系数 %s"/>
+        <text name="rl_pedigree_none" text="未发现共同的上代"/>
+        <text name="rl_ai_chance" text="批次品质 %s | 这头母畜预计受胎率 %s（繁殖力 %s x 受孕 %s x 批次 %s）"/>
         <text name="rl_settings_nutritionMode_label" text="营养模型"/>
         <text name="rl_settings_nutritionMode_tooltip" text="牛：旧版沿用原饲料规则。现实等效按现实干物质与能量计算采食和日粮，默认扣料为现实等效体积的1/8，不是旧版用量的1/8。"/>
         <text name="rl_settings_nutritionMode_texts_1" text="旧版"/>

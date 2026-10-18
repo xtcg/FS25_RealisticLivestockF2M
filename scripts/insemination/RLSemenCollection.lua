@@ -329,9 +329,17 @@ function RLSemenCollection.getPreviewText(animal)
 end
 
 
---- Conception rate of a collection: the same roll the AI dealer gives its bulls.
-function RLSemenCollection.rollSuccess(animal)
-    return math.clamp((math.random(35, 50) * (animal.genetics.fertility or 1)) / 100, 0.5, 1)
+--- A batch's quality (the conception rate it adds to an insemination) from the sire's
+--- fertility gene, with no random: the mean of the old roll, clamp(k x fertility / 100, 0.5, 1)
+--- over k = 35..50, so a sire's batches keep the old average and all of them are the same.
+--- Collected batches and the AI dealer's bulls both use it.
+--- @param fertility number|nil the sire's fertility gene (1 when unknown)
+--- @return number quality 0.5..1
+function RLSemenCollection.getBatchQuality(fertility)
+    fertility = fertility or 1
+    local sum = 0
+    for k = 35, 50 do sum = sum + math.clamp(k * fertility / 100, 0.5, 1) end
+    return sum / 16
 end
 
 
@@ -346,7 +354,7 @@ function RLSemenCollection.createSnapshot(animal)
         typeIndex = animal.animalTypeIndex,
         subTypeIndex = animal.subTypeIndex,
         genetics = table.clone(animal.genetics, 3),
-        success = RLSemenCollection.rollSuccess(animal),
+        success = RLSemenCollection.getBatchQuality(animal.genetics.fertility),
         collected = true,
     }, RLSemenBatch.SOURCE.COLLECTED, RLSemenCollection.getMonthIndex(), animal)
 end

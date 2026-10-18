@@ -972,6 +972,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Куплено"/>
         <text name="rl_semen_sourceLEGACY" text="Старый запас"/>
         <text name="rl_semen_batchMonth" text="Месяц партии"/>
+        <text name="rl_insemination_incompatible" text="Семя не подходит для этой породы"/>
+        <text name="rl_pedigree_forbidden" text="Инбридинг %s: слишком близкое родство, запрещено"/>
+        <text name="rl_pedigree_adviseAgainst" text="Инбридинг %s: близкое родство, не рекомендуется"/>
+        <text name="rl_pedigree_info" text="Инбридинг потомства %s"/>
+        <text name="rl_pedigree_none" text="Общих предков не найдено"/>
+        <text name="rl_ai_chance" text="Качество партии %s | Ожидаемое оплодотворение этой самки %s (плодовитость %s x зачатие %s x партия %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

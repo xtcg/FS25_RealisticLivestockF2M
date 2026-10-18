@@ -969,6 +969,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Købt"/>
         <text name="rl_semen_sourceLEGACY" text="Gammelt lager"/>
         <text name="rl_semen_batchMonth" text="Partimåned"/>
+        <text name="rl_insemination_incompatible" text="Sæden passer ikke til denne race"/>
+        <text name="rl_pedigree_forbidden" text="Indavl %s: for nær slægt, ikke tilladt"/>
+        <text name="rl_pedigree_adviseAgainst" text="Indavl %s: nær slægt, frarådes"/>
+        <text name="rl_pedigree_info" text="Afkommets indavl %s"/>
+        <text name="rl_pedigree_none" text="Ingen fælles forfader fundet"/>
+        <text name="rl_ai_chance" text="Partikvalitet %s | Forventet drægtighed for dette dyr %s (frugtbarhed %s x undfangelse %s x parti %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

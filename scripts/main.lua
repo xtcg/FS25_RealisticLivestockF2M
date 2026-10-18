@@ -151,6 +151,7 @@ source(modDirectory .. "scripts/animals/shop/RealisticLivestock_AnimalItemStock.
 source(modDirectory .. "scripts/events/HusbandryMessageStateEvent.lua")
 source(modDirectory .. "scripts/events/RLBodyConditionStateEvent.lua")
 source(modDirectory .. "scripts/events/RLBodyConditionConfigEvent.lua")
+source(modDirectory .. "scripts/events/RLPedigreeStateEvent.lua")
 source(modDirectory .. "scripts/events/RLFeedRationEvent.lua")
 source(modDirectory .. "scripts/events/HusbandryMessageAddEvent.lua")
 source(modDirectory .. "scripts/events/HusbandryMessageDeleteEvent.lua")
@@ -177,6 +178,7 @@ source(modDirectory .. "scripts/bridge/RLPenConstruction.lua")
 
 -- SECTION 11b: Breeding Mathematics
 source(modDirectory .. "scripts/animal/BreedingMath.lua")
+source(modDirectory .. "scripts/animal/RLPedigree.lua")
 source(modDirectory .. "scripts/animal/RLBreedingValue.lua")
 source(modDirectory .. "scripts/animal/RLGeneticsDraw.lua")
 -- Reads RLConstants at file scope, so it must follow SECTION 2c; a consumer binding one of

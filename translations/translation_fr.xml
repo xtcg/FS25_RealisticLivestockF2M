@@ -996,6 +996,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Acheté"/>
         <text name="rl_semen_sourceLEGACY" text="Ancien stock"/>
         <text name="rl_semen_batchMonth" text="Mois du lot"/>
+        <text name="rl_insemination_incompatible" text="La semence ne convient pas à cette race"/>
+        <text name="rl_pedigree_forbidden" text="Consanguinité %s : parenté trop proche, interdit"/>
+        <text name="rl_pedigree_adviseAgainst" text="Consanguinité %s : parenté proche, déconseillé"/>
+        <text name="rl_pedigree_info" text="Consanguinité de la descendance %s"/>
+        <text name="rl_pedigree_none" text="Aucun ancêtre commun trouvé"/>
+        <text name="rl_ai_chance" text="Qualité du lot %s | Gestation attendue pour cette femelle %s (fertilité %s x conception %s x lot %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>
