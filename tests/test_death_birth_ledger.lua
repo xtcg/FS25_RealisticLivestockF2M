@@ -70,10 +70,10 @@ do
     local a = animal(AnimalType.PIG, 0, { rlGrowth = { ageMonths = 0.95 } })
     local from, to = H.getAccidentAgeSpan(a, 1 / 28)
     check("span: ends at the growth clock", near(to, 0.95, 1e-12) and near(from, 0.95 - 1 / 28, 1e-12))
-    local b = animal(AnimalType.COW, 6, { rlGrowth = { ageMonths = 5.999 } })
+    local b = animal(AnimalType.COW, 5, { rlGrowth = { ageMonths = 5.5 } })
     local f2, t2 = H.getAccidentAgeSpan(b, 1 / 28)
-    check("span: a birthday's day change (clock capped at 5.999, age 6) counts the day in month 5's last day",
-        near(f2, 6 - 1 / 28, 1e-12) and near(t2, 6, 1e-12))
+    check("span: mid-month, the day ends at the clock, not at the whole months",
+        near(f2, 5.5 - 1 / 28, 1e-12) and near(t2, 5.5, 1e-12))
     local c = animal(AnimalType.SHEEP, 5)
     local f3, t3 = H.getAccidentAgeSpan(c, 1)
     check("span: without a clock, from the start of the whole month of age", f3 == 5 and t3 == 6)
