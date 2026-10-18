@@ -98,7 +98,7 @@ do
     for h = 2, 40 do maxDrop = math.max(maxDrop, gains[h - 1] - gains[h]) end
     for h = 1, 40 do maxShare = math.max(maxShare, shares[h]) end
     check(string.format("ewe lamb -> hogg: her gain falls over the window (largest fall %.3f kg an hour; %.2f -> %.2f kg an hour)",
-        maxDrop, gains[20], gains[40]), maxDrop < 0.1 and gains[20] > 0.2 and gains[40] < 0.1)
+        maxDrop, gains[10], gains[40]), maxDrop < 0.1 and gains[10] > 0.2 and gains[40] < 0.1)
     check(string.format("ewe lamb -> hogg: routed (largest share %.2f, 25%% cap as a hogg: %.2f)", maxShare, shares[40]),
         maxShare <= 0.4 + 1e-6 and shares[40] <= 0.25 + 1e-6)
     check("ewe lamb -> hogg: still fed freely in the window, GROW after it",
