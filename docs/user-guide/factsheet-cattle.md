@@ -240,7 +240,7 @@ Cattle almost always produce a single calf. Twins and triplets can happen, more 
 | Old age deaths begin | 180 months (15 years) |
 | Maximum lifespan | ~240 months (20 years) |
 
-*Death can be toggled off in settings. Accidents can happen at any age (affected by weather).*
+*Death can be toggled off in settings. A healthy animal keeps a very low background accident risk at any age (not raised by the weather); an accident pays nothing.*
 
 ---
 

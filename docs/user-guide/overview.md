@@ -79,7 +79,7 @@ Animals can die from:
 
 - **Old age** - Each species has a natural lifespan (chickens ~5-8 years, horses ~25-30 years)
 - **Low health** - Unhealthy animals face increasing death risk
-- **Accidents** - Random events affected by weather conditions
+- **Accidents** - A very low background risk by species and age (per in-game month, the same whatever the days per month), not raised by weather, disease or low health; nothing is paid for the carcass
 - **Disease** - A sick animal can die of its disease (see the [Disease Guide](guide-diseases.md#death-risk))
 
 Death mechanics can be fully disabled or adjusted in the mod settings.
