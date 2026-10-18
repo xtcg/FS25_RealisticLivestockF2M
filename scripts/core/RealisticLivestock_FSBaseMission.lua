@@ -315,6 +315,17 @@ function RealisticLivestock_FSBaseMission:onStartMission()
         Log:info("onStartMission: repaired %d animal(s) with fallback IDs (load-order race)", fallbackRepairCount)
     end
 
+    -- ID-COLLISION-01: live animals sharing one full key (the old per-species counters) - the later one
+    -- gets a new key, unambiguous parent references follow; counted with the repairs above.
+    if isServer and RLAnimalIdentityRepair ~= nil then
+        local repaired, summary = pcall(RLAnimalIdentityRepair.run, self)
+        if not repaired then
+            Log:error("onStartMission: duplicate identity repair failed: %s", tostring(summary))
+        elseif summary.renumbered > 0 then
+            fallbackRepairCount = fallbackRepairCount + summary.renumbered
+        end
+    end
+
     -- T02 ledger: check the saved ledger against the files the game just loaded, after the
     -- identity repair above and before the first herdsman day; opens or keeps closed the T02 gate.
     if isServer then

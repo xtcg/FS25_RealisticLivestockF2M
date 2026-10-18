@@ -211,7 +211,8 @@ do
         not RLFeed.acceptsFill(mixed, silage) and not RLFeed.acceptsFill(mixed, barley) and RLFeed.acceptsFill(mixed, grass)
         and mixed.spec_husbandryFood.rlFeedPen.reason == "UNCOVERED_ANIMAL")
     -- A sheep in that pen keeps the old weight rule: no budget on the old feeding (its ME
-    -- calibration needs the mode), so its development clock stands still.
+    -- calibration needs the mode), so its development clock stands still. Its age clock runs on
+    -- model time (U43-AGE-01): six hours of a one-day month.
     local mixedLamb = SheepSim.grown("RAM_LANDRACE", "T3", 2.0)
     local mixedPen = SheepSim.makePen({ mixedLamb, goat }, GRASS)
     local development, ageClock, weight = mixedLamb.rlGrowth.developmentMonths, mixedLamb.rlGrowth.ageMonths, mixedLamb.weight
@@ -220,7 +221,8 @@ do
     check(string.format("mixed pen: a lamb with a goat takes the old weight rule (development %.4f -> %.4f, age clock %.4f -> %.4f, last step %s, weight %.2f -> %.2f)",
         development, mixedLamb.rlGrowth.developmentMonths, ageClock, mixedLamb.rlGrowth.ageMonths, tostring(mixedLamb.rlGrowth.lastTick), weight, mixedLamb.weight),
         not mixedPen.spec_husbandryFood.rlFeedPen.active and mixedLamb.rlGrowth.developmentMonths == development
-        and mixedLamb.rlGrowth.ageMonths == ageClock and mixedLamb.rlGrowth.lastTick == lastTick and mixedLamb.weight > weight)
+        and math.abs(mixedLamb.rlGrowth.ageMonths - (ageClock + 6 / 24)) < 1e-9 and mixedLamb.rlGrowth.lastTick == lastTick
+        and mixedLamb.weight > weight)
     FeedSim.setMode(false)
     GrowthSim.advanceHour()
     check("troughs: under the old model the sheep pen takes neither", not RLFeed.acceptsFill(pen, silage) and not RLFeed.acceptsFill(pen, barley))

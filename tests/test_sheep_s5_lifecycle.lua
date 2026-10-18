@@ -99,7 +99,8 @@ do
     B.ensureState(lamb, "test").reserve = 0.60
     local stock = { SILAGE = 4000, BARLEY = 4000 }
     local rows = {}
-    -- Her whole months move on at the month change (the clock waits at 11.999 until then).
+    -- Her continuous clock crosses 12 months on model time (U43-AGE-01: it no longer waits at
+    -- 11.999 for her whole months); her intake and reserve rules change there, her weight does not step.
     local crossed
     for h = 1, 30 do
         local w, r, fin = lamb.weight, B.getReserve(lamb), B.isFinishingYoungFemale(lamb)
@@ -118,8 +119,11 @@ do
     if crossed ~= nil then
         local prev = rows[math.max(crossed - 1, 1)]
         local row = rows[crossed]
-        check(string.format("crossing: the hour she crosses moves weight %+.3f kg and reserve %+.4f, as the hour before (%+.3f kg, %+.4f): no jump",
-            row.dw, row.dr, prev.dw, prev.dr), math.abs(row.dw - prev.dw) < 0.1 and math.abs(row.dr - prev.dr) < 0.01)
+        local nextRow = rows[crossed + 1] or row
+        local function between(v, a, b) return v >= math.min(a, b) - 1e-6 and v <= math.max(a, b) + 1e-6 end
+        check(string.format("crossing: the hour she crosses moves weight %+.3f kg and reserve %+.4f, between the hour before (%+.3f kg, %+.4f) "
+            .. "and after (%+.3f kg, %+.4f): no jump, nothing cut", row.dw, row.dr, prev.dw, prev.dr, nextRow.dw, nextRow.dr),
+            between(row.dw, prev.dw, nextRow.dw) and between(row.dr, prev.dr, nextRow.dr) and row.dw > 0 and row.dr > -1e-3)
         check(string.format("crossing: above the hogg's ceiling (reserve %.3f > %.2f) her reserve is not cut to it", B.getReserve(lamb),
             B.getConfig(lamb).heiferReserveCeiling), B.getReserve(lamb) > B.getConfig(lamb).heiferReserveCeiling)
         check("crossing: afterwards AUTO grows her (GROW), no fat class", auto(lamb) == "GROW" and B.getFatClass(lamb) == nil)

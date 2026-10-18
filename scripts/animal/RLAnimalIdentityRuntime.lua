@@ -4,12 +4,20 @@
     dealer's sale animals, sale births, legacy AI bulls) call R.raw(ctx, legacyFn) instead of their own
     counter. One switch decides for all of them, never a mix:
 
-        OFF     legacyFn() runs, nothing else.
-        SHADOW  legacyFn() runs and its full key is only compared with the keys known to exist
-                (the world at load, plus everything seen since): collisions are counted and logged.
-                The default. It changes no animal, counter, RNG or file.
+        OFF     legacyFn() numbers, past every key known to be taken (below), nothing else.
+        SHADOW  as OFF, and every key legacyFn produced that was taken is counted and logged.
+                The default. It changes no RNG or file.
         ON      the ledger (RLAnimalIdentity) hands out the key; legacyFn is NOT called; the native
                 counter is moved up to the raw value (mirror) so old tools still see a high-water mark.
+
+    Taken keys (ID-COLLISION-01). A full key has no species and the native counters are per species
+    (FarmStats cowId/pigId/sheepId..., a sale farm's ids per type), so the Nth lamb of a herd got the
+    full key of its Nth pig. Whatever the mode, on the server a key is never handed out while it is
+    known to be taken: a live animal of the world scan at load, a parent a live animal names, or a
+    key handed out since (R.isTaken; ON also vetoes them in the ledger). Off the ledger the native
+    counter skips such a key: on the first one it moves up to the highest counter of any species in
+    the domain (mirror), then on one by one. The scan is the world at load; the load repair
+    (RLAnimalIdentityRepair) renumbers duplicates the old counters left.
 
     ON is entered only by R.activate (console rlIdentityActivate), on a READY server, after the world
     scan: every live key is imported as CONSUMED, every domain is registered. A domain whose counter
@@ -52,6 +60,7 @@ function R.reset(isServer)
     R.litters, R.current = {}, nil
     R.journal, R.journalSent = {}, 0
     R.live = nil
+    R.issued, R.skipLines = {}, 0
     R.shadow = { observed = 0, collisions = 0, byEntry = {}, lines = 0, seen = {} }
     R.held = {}
     R.allocations = 0
@@ -82,8 +91,9 @@ end
 -- Shadow
 -- -------------------------------------------------------------------------------------------
 
---- Remember the world's keys (from R.scan) as the shadow reference.
-function R.setLive(records)
+--- Remember the world's keys (from R.scan) as the reference of taken keys; `refs` (the scan's) are
+--- the full keys live animals name as their parents.
+function R.setLive(records, refs)
     local live, herds = {}, {}
     for _, r in ipairs(records or {}) do
         if r.farmId ~= nil and r.uniqueId ~= nil and r.country ~= nil then
@@ -92,22 +102,66 @@ function R.setLive(records)
             herds[hk] = (herds[hk] or 0) + 1
         end
     end
-    R.live = { keys = live, herds = herds }
+    local named = {}
+    for _, key in ipairs(refs or {}) do named[key] = true end
+    R.live = { keys = live, herds = herds, refs = named }
 end
 
 
-local function observe(ctx, raw)
+--- Whether a full key is known to be taken: a live animal of the last scan, a parent one names, or
+--- a key handed out since (any mode).
+function R.isTaken(key)
+    local live = R.live
+    return (live ~= nil and (live.keys[key] ~= nil or (live.refs ~= nil and live.refs[key] ~= nil)))
+        or (R.issued ~= nil and R.issued[key] ~= nil)
+end
+
+
+--- The native counter's next raw that is not taken (R.isTaken). Returns raw and how many taken keys it
+--- passed. Without a domain (no country or herd) the counter's value as it is.
+function R.freeRaw(ctx, legacyFn)
+    local raw = legacyFn()
+    if raw == nil or ctx == nil or ctx.country == nil or ctx.herd == nil then return raw, 0 end
+    local key = liveKey(ctx.herd, I.format(ctx.herd, raw), ctx.country)
+    local skipped, first = 0, key
+    while R.isTaken(key) and skipped <= I.MAX_RAW do
+        if skipped == 0 and ctx.counterMax ~= nil and ctx.mirror ~= nil then
+            -- Keys carry no species: past the domain's highest counter of any species at once.
+            local max = ctx.counterMax()
+            if type(max) == "number" and max > raw then ctx.mirror(max) end
+        end
+        skipped = skipped + 1
+        raw = legacyFn()
+        if raw == nil then return nil, skipped end
+        key = liveKey(ctx.herd, I.format(ctx.herd, raw), ctx.country)
+    end
+    R.issued = R.issued or {}
+    if skipped > 0 then
+        R.skipLines = R.skipLines or 0
+        if R.isTaken(key) then
+            log("error", "IDENTITY: %s found no free key in %s/%s after %d taken key(s)", tostring(ctx.entry), tostring(ctx.country), tostring(ctx.herd), skipped)
+        elseif R.skipLines < R.MAX_SHADOW_LINES then
+            R.skipLines = R.skipLines + 1
+            log("info", "IDENTITY: %s passed %d taken key(s) from %s, numbered %s (type %s)", tostring(ctx.entry), skipped, first, key, tostring(ctx.typeKey))
+        end
+    end
+    R.issued[key] = tostring(ctx.typeKey or "?")
+    return raw, skipped, first
+end
+
+
+local function observe(ctx, raw, skipped, first)
     local sh = R.shadow
     sh.observed = sh.observed + 1
     sh.byEntry[ctx.entry or "?"] = (sh.byEntry[ctx.entry or "?"] or 0) + 1
     if ctx.country == nil or ctx.herd == nil or raw == nil then return end
     local key = liveKey(ctx.herd, I.format(ctx.herd, raw), ctx.country)
-    local known = (R.live ~= nil and R.live.keys[key]) or sh.seen[key]
-    if known then
-        sh.collisions = sh.collisions + 1
+    if (skipped or 0) > 0 then
+        sh.collisions = sh.collisions + skipped
         if sh.lines < R.MAX_SHADOW_LINES then
             sh.lines = sh.lines + 1
-            log("warning", "IDENTITY_SHADOW: %s produced %s which already exists (%s, entry type %s)", tostring(ctx.entry), key, tostring(known), tostring(ctx.typeKey))
+            log("warning", "IDENTITY_SHADOW: %s produced %s which already exists (%d taken, entry type %s, numbered %s)", tostring(ctx.entry),
+                tostring(first), skipped, tostring(ctx.typeKey), key)
         end
     end
     sh.seen[key] = ctx.typeKey or "?"
@@ -162,7 +216,7 @@ local function allocateOne(ctx)
     local requestId = "a" .. I.nextOp(l)
     local plan = { country = ctx.country, farmId = tostring(ctx.herd), items = { { role = ctx.role or "auto", type = tostring(ctx.typeKey or "?") } } }
     local res
-    res, why = I.reserveBatch(l, requestId, plan)
+    res, why = I.reserveBatch(l, requestId, plan, { isOccupied = R.isTaken })
     if res == nil then return nil, why end
     local key = res.keys[1]
     assert(I.bindMaterialization(l, requestId, "auto"))
@@ -191,12 +245,14 @@ end
 --- The raw counter value an entry must use. Returns raw, or nil and why when ON refuses.
 --- ctx = { entry, country, herd, typeKey, role, counterMax = fn, mirror = fn(raw), litter = litter }
 function R.raw(ctx, legacyFn)
-    if not R.server or R.state ~= "READY" or R.mode == R.OFF then return legacyFn() end
-    if R.mode == R.ON and R.ledger == nil then return legacyFn() end
-    if R.mode ~= R.ON then
-        local raw = legacyFn()
-        local ok, err = pcall(observe, ctx, raw)
-        if not ok then log("warning", "IDENTITY_SHADOW failed: %s", tostring(err)) end
+    if not R.server then return legacyFn() end
+    if not R.authoritative() then
+        -- Not the allocator (OFF, SHADOW, loading, recovery): the native counter, past taken keys.
+        local raw, skipped, first = R.freeRaw(ctx, legacyFn)
+        if R.mode == R.SHADOW and R.state == "READY" then
+            local ok, err = pcall(observe, ctx, raw, skipped, first)
+            if not ok then log("warning", "IDENTITY_SHADOW failed: %s", tostring(err)) end
+        end
         return raw
     end
     if ctx.country == nil or ctx.herd == nil then return nil, "NO_DOMAIN" end
@@ -230,7 +286,7 @@ local function reserveLitter(ctx, eventId, n)
     for attempt = 1, 5 do
         local requestId = "L" .. eventId .. "@" .. I.domainKey(ctx.country, ctx.herd) .. (attempt > 1 and ("#" .. attempt) or "")
         local res
-        res, why = I.reserveBatch(l, requestId, { country = ctx.country, farmId = tostring(ctx.herd), items = items })
+        res, why = I.reserveBatch(l, requestId, { country = ctx.country, farmId = tostring(ctx.herd), items = items }, { isOccupied = R.isTaken })
         if res == nil then return nil, why end
         local untouched = true
         for _, k in ipairs(res.keys) do if k.state ~= I.RESERVED and k.state ~= I.MATERIALIZED then untouched = false end end
@@ -427,7 +483,7 @@ function R.reconcile(scan)
     local why = I.validate(work)
     if why ~= nil then return nil, "RECONCILE_INVALID:" .. why end
     R.ledger = work
-    R.setLive(scan.records)
+    R.setLive(scan.records, scan.refs)
     log("info", "IDENTITY: ledger reconciled with the world (%d live record(s))", #scan.records)
     return true, report
 end
@@ -480,7 +536,7 @@ function R.activate(scan, options)
     ledger.policy.acceptWeak = (options.accept == true or ledger.policy.acceptWeak == true) or nil
     ledger.policy.activatedGeneration = ledger.generation
     R.ledger, R.mode = ledger, R.ON
-    R.setLive(scan.records)
+    R.setLive(scan.records, scan.refs)
     log("info", "IDENTITY: ON - %d live keys imported, %d domain(s) under the MIGRATION_POINT guarantee", #scan.records, #unproven)
     return true, nil, unproven, report
 end

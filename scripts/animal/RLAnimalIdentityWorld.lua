@@ -108,7 +108,7 @@ end
 function W.nextStatsRaw(entry, farm, animalTypeIndex, country, role)
     local R = RLAnimalIdentityRuntime
     local function legacy() return farm.stats:getNextAnimalId(animalTypeIndex) end
-    if not R.authoritative() and (R.mode == R.OFF or R.state ~= "READY") then return legacy() end
+    if not R.server then return legacy() end
     local ctx = W.statsContext(entry, farm, animalTypeIndex, country, role, role == "birth" and R.currentLitter() or nil)
     if ctx == nil then
         if R.authoritative() then return nil, "NO_DOMAIN" end
@@ -121,7 +121,7 @@ end
 --- The raw value for an entry that numbers by a country farm table of AnimalSystem; `legacy` is the old increment.
 function W.nextSystemRaw(entry, animalSystem, countryIndex, farm, animalTypeIndex, role, legacy)
     local R = RLAnimalIdentityRuntime
-    if not R.authoritative() and (R.mode == R.OFF or R.state ~= "READY") then return legacy() end
+    if not R.server then return legacy() end
     local ctx = W.systemContextForFarm(entry, countryIndex, farm, animalTypeIndex, role, role == "birth" and R.currentLitter() or nil)
     return R.raw(ctx, legacy)
 end
@@ -175,12 +175,34 @@ end
 -- Scan
 -- -------------------------------------------------------------------------------------------
 
-local function addRecord(records, animal, where)
+--- The full key ("farmId uniqueId country") of an identifiers text as Animal:getIdentifiers writes it
+--- ("DE 916632 210003": area code, farm, unique id; motherId, fatherId, impregnatedBy), or nil.
+function W.refKey(text)
+    if type(text) ~= "string" then return nil end
+    local code, farmId, uniqueId = text:match("^(%u%u+) (%S+) (%S+)$")
+    local country = code ~= nil and RLConstants ~= nil and RLConstants.AREA_CODES_BY_CODE ~= nil and RLConstants.AREA_CODES_BY_CODE[code] or nil
+    if country == nil then return nil end
+    return RLAnimalIdentity.keyString(farmId, uniqueId, country)
+end
+
+
+-- The full keys an animal names as its parents (and as its pregnancy's sire): taken, whether or not
+-- the parent still lives, so a new animal never takes one.
+local function addRefs(refs, animal)
+    for _, text in ipairs({ animal.motherId, animal.fatherId, type(animal.impregnatedBy) == "table" and animal.impregnatedBy.uniqueId or nil }) do
+        local key = W.refKey(text)
+        if key ~= nil then refs[#refs + 1] = key end
+    end
+end
+
+
+local function addRecord(records, animal, where, refs)
     if type(animal) ~= "table" or animal.uniqueId == nil or animal.farmId == nil then return end
     local birthday = animal.birthday
     local country = type(birthday) == "table" and birthday.country or nil
     records[#records + 1] = { farmId = animal.farmId, uniqueId = animal.uniqueId, country = country,
         type = animal.animalTypeIndex ~= nil and tostring(animal.animalTypeIndex) or "?", where = where }
+    if refs ~= nil then addRefs(refs, animal) end
 end
 
 
@@ -188,7 +210,7 @@ end
 --- missing parts: `partial` lists what could not be read. Returns { records, counters, partial }.
 function W.scan(mission)
     mission = mission or g_currentMission
-    local records, counters, partial, uncovered, herdNext = {}, {}, {}, {}, {}
+    local records, counters, partial, uncovered, herdNext, refs = {}, {}, {}, {}, {}, {}
     local function try(name, fn)
         local ok, err = pcall(fn)
         if not ok then partial[#partial + 1] = name .. ":" .. tostring(err) end
@@ -198,8 +220,8 @@ function W.scan(mission)
             local spec = placeable.spec_husbandryAnimals
             local cs = spec ~= nil and spec.clusterSystem or (placeable.spec_livestockTrailer ~= nil and placeable.spec_livestockTrailer.clusterSystem) or nil
             if cs ~= nil then
-                for _, animal in ipairs(cs.animals or {}) do addRecord(records, animal, "pen") end
-                for _, animal in ipairs(cs.clustersToAdd or {}) do addRecord(records, animal, "pen-queue") end
+                for _, animal in ipairs(cs.animals or {}) do addRecord(records, animal, "pen", refs) end
+                for _, animal in ipairs(cs.clustersToAdd or {}) do addRecord(records, animal, "pen-queue", refs) end
             end
         end
     end)
@@ -207,17 +229,17 @@ function W.scan(mission)
         for _, vehicle in pairs(mission.vehicleSystem.vehicles) do
             local spec = vehicle.spec_livestockTrailer
             if spec ~= nil and spec.clusterSystem ~= nil then
-                for _, animal in ipairs(spec.clusterSystem.animals or {}) do addRecord(records, animal, "trailer") end
-                for _, animal in ipairs(spec.clusterSystem.clustersToAdd or {}) do addRecord(records, animal, "trailer-queue") end
+                for _, animal in ipairs(spec.clusterSystem.animals or {}) do addRecord(records, animal, "trailer", refs) end
+                for _, animal in ipairs(spec.clusterSystem.clustersToAdd or {}) do addRecord(records, animal, "trailer-queue", refs) end
             end
         end
     end)
     try("animalSystem", function()
         for _, animals in pairs(mission.animalSystem.animals) do
-            for _, animal in pairs(animals) do addRecord(records, animal, "sale") end
+            for _, animal in pairs(animals) do addRecord(records, animal, "sale", refs) end
         end
         for _, animals in pairs(mission.animalSystem.aiAnimals) do
-            for _, animal in pairs(animals) do addRecord(records, animal, "ai") end
+            for _, animal in pairs(animals) do addRecord(records, animal, "ai", refs) end
         end
         for countryIndex, country in pairs(mission.animalSystem.countries) do
             for _, farm in pairs(country.farms) do
@@ -258,5 +280,6 @@ function W.scan(mission)
         end
     end)
     -- herdNext[herd] = the herd's highest counter of any species + 1, also for a herd that holds no animal now.
-    return { records = records, counters = counters, partial = partial, uncoveredHerds = uncovered, herdNext = herdNext }
+    -- refs = the full keys live animals name as parents (R.setLive: taken).
+    return { records = records, counters = counters, partial = partial, uncoveredHerds = uncovered, herdNext = herdNext, refs = refs }
 end
