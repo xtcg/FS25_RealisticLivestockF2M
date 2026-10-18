@@ -975,6 +975,12 @@
         <text name="rl_semen_nextCollection" text="Další odběr možný v měsíci %s."/>
         <text name="rl_semen_minAge" text="Odběr od věku %d měsíců."/>
         <text name="rl_semen_preview" text="Odebrat sperma od %s?&#10;&#10;Očekávané pejety: %d&#10;(základ %d x plodnost %.2f x věk %.2f x kondice %.2f)&#10;Plemenný index: %.2f&#10;Poplatek za službu: %s"/>
+        <text name="rl_semen_batch" text="Šarže"/>
+        <text name="rl_semen_source" text="Původ"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Vlastní odběr"/>
+        <text name="rl_semen_sourcePURCHASED" text="Koupeno"/>
+        <text name="rl_semen_sourceLEGACY" text="Starší zásoba"/>
+        <text name="rl_semen_batchMonth" text="Měsíc šarže"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

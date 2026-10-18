@@ -56,13 +56,22 @@ function RLStrawLedger.count(userId)
 end
 
 
---- Spend one of the user's straws from `dewar` to put it back. False when the user holds none.
+--- Spend one of the user's straws to put it back into `dewar`: a straw taken from that dewar, or
+--- one of the same batch (RLSemenBatch). False when the user holds none.
 function RLStrawLedger.spendForReturn(userId, dewar)
     local list = RLStrawLedger.held[userId]
     local dewarId = dewar ~= nil and dewar:getUniqueId() or nil
+    local dewarAnimal = dewar ~= nil and dewar.getAnimal ~= nil and dewar:getAnimal() or nil
 
     for i, entry in ipairs(list or {}) do
         if entry.dewarId == dewarId then
+            table.remove(list, i)
+            return true
+        end
+    end
+
+    for i, entry in ipairs(list or {}) do
+        if dewarAnimal ~= nil and dewarAnimal.batchId ~= nil and entry.snapshot.batchId == dewarAnimal.batchId then
             table.remove(list, i)
             return true
         end
@@ -72,22 +81,14 @@ function RLStrawLedger.spendForReturn(userId, dewar)
 end
 
 
---- Whether a semen record names the same sire as a snapshot (ear tag: country, herd, id).
-local function isSameSire(a, b)
-    return a ~= nil and b ~= nil
-        and tostring(a.country) == tostring(b.country)
-        and tostring(a.farmId) == tostring(b.farmId)
-        and tostring(a.uniqueId) == tostring(b.uniqueId)
-end
-
-
---- Spend one of the user's straws of the sire `semen` names, for an insemination.
---- @return table|nil snapshot The server's copy of that sire, or nil when the user holds none
+--- Spend one of the user's straws of the batch `semen` names (or, for data without batch ids,
+--- the sire), for an insemination.
+--- @return table|nil snapshot The server's copy of that straw's sire and batch, or nil when the user holds none
 function RLStrawLedger.spendForSemen(userId, semen)
     local list = RLStrawLedger.held[userId]
 
     for i, entry in ipairs(list or {}) do
-        if isSameSire(entry.snapshot, semen) then
+        if RLSemenBatch.isSameBatch(entry.snapshot, semen) then
             table.remove(list, i)
             return entry.snapshot
         end

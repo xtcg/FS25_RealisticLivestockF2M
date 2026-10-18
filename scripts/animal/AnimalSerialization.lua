@@ -177,6 +177,7 @@ function AnimalSerialization.writeStream(animal, streamId, connection)
         streamWriteFloat32(streamId, animal.insemination.genetics.fertility)
         streamWriteFloat32(streamId, animal.insemination.genetics.quality)
         streamWriteFloat32(streamId, animal.insemination.genetics.productivity or 0)
+        RLSemenBatch.writeStream(streamId, animal.insemination)
     end
 
     streamWriteBool(streamId, animal.canBeSold == false)
@@ -409,6 +410,7 @@ function AnimalSerialization.readStream(animal, streamId, connection)
         insemination.genetics.productivity = streamReadFloat32(streamId)
 
         if insemination.genetics.productivity == 0 then insemination.genetics.productivity = nil end
+        RLSemenBatch.readStream(streamId, insemination)
 
         local animalSystem = g_currentMission.animalSystem
         local st = animalSystem:getSubTypeByIndex(insemination.subTypeIndex)

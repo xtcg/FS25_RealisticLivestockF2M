@@ -60,6 +60,7 @@ function mkDewar(owner, snapshot, straws)
     return d
 end
 
+loadMod("scripts/insemination/RLSemenBatch.lua")
 loadMod("scripts/insemination/RLSemenCollection.lua")
 loadMod("scripts/insemination/RLStrawLedger.lua")
 loadMod("scripts/events/SemenSellEvent.lua")
@@ -300,6 +301,17 @@ got, left = roundTrip(SemenCollectEvent.newState(pen, { uniqueId = "X" }, 42, ni
 check("wire: state without a month record round-trips as nil", left == 0 and got.collectedMonth == nil)
 got, left = roundTrip(SemenCollectEvent.newResult("", 360, 460))
 check("wire: result round-trips", left == 0 and got.resultKey == "" and got.straws == 360 and got.fee == 460)
+
+streamWriteUInt8, streamReadUInt8 = function(_, v) w(v) end, function() return r() end
+local strawSemen = RLSemenBatch.stamp({ country = 6, farmId = "12", uniqueId = "U1", name = "Max", typeIndex = 1, subTypeIndex = 1,
+    success = 0.5, genetics = { metabolism = 1, fertility = 1, health = 1, quality = 1, productivity = 1 } }, "COLLECTED", 41, { fatherId = "F" })
+q = {}
+AnimalInseminationEvent.new(pen, { uniqueId = "COW" }, strawSemen):writeStream(1, nil)
+local insEvent = AnimalInseminationEvent.emptyNew()
+insEvent.run = function() end
+insEvent:readStream(1, nil)
+check("wire: hand-tool insemination carries the straw's batch", #q == 0 and insEvent.semen.batchId == strawSemen.batchId
+    and insEvent.semen.batchMonth == 41 and insEvent.semen.sireFatherId == "F")
 
 -- Batch 1: calendar month record, body condition, no made-up straw, service fee, dialog texts
 g_currentMission.environment = { currentYear = 3, currentPeriod = 5 }

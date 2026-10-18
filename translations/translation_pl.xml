@@ -968,6 +968,12 @@
         <text name="rl_semen_nextCollection" text="Następny pobór możliwy w: %s."/>
         <text name="rl_semen_minAge" text="Pobór od wieku %d miesięcy."/>
         <text name="rl_semen_preview" text="Pobrać nasienie od %s?&#10;&#10;Przewidywane słomki: %d&#10;(baza %d x płodność %.2f x wiek %.2f x kondycja %.2f)&#10;Indeks hodowlany: %.2f&#10;Opłata za usługę: %s"/>
+        <text name="rl_semen_batch" text="Partia"/>
+        <text name="rl_semen_source" text="Pochodzenie"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Własny pobór"/>
+        <text name="rl_semen_sourcePURCHASED" text="Kupione"/>
+        <text name="rl_semen_sourceLEGACY" text="Stary zapas"/>
+        <text name="rl_semen_batchMonth" text="Miesiąc partii"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

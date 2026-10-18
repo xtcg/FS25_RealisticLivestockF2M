@@ -83,6 +83,8 @@ function HandToolAIStraw:onPostLoad(savegame)
 		animal.typeIndex = xmlFile:getInt(animalKey .. "#typeIndex")
 		animal.subTypeIndex = xmlFile:getInt(animalKey .. "#subTypeIndex")
 		animal.success = xmlFile:getFloat(animalKey .. "#success")
+		RLSemenBatch.loadFromXML(xmlFile, animalKey, animal)
+		RLSemenBatch.ensure(animal, spec.dewarUniqueId)
 
 		animal.genetics = {
 			["metabolism"] = xmlFile:getFloat(animalKey .. ".genetics#metabolism"),
@@ -143,6 +145,7 @@ function HandToolAIStraw:saveToXMLFile(xmlFile, key)
 		xmlFile:setInt(key .. ".animal#typeIndex", animal.typeIndex)
 		xmlFile:setInt(key .. ".animal#subTypeIndex", animal.subTypeIndex)
 		xmlFile:setFloat(key .. ".animal#success", animal.success)
+		RLSemenBatch.saveToXML(xmlFile, key .. ".animal", animal)
 		
 		for type, value in pairs(animal.genetics) do
 			xmlFile:setFloat(key .. ".animal.genetics#" .. type, value)
@@ -185,6 +188,7 @@ function HandToolAIStraw:onReadStream(streamId, connection)
 		animal.genetics.productivity = streamReadFloat32(streamId)
 
 		if animal.genetics.productivity < 0 then animal.genetics.productivity = nil end
+		RLSemenBatch.readStream(streamId, animal)
 
 	end
 
@@ -229,6 +233,7 @@ function HandToolAIStraw:onWriteStream(streamId, connection)
 		streamWriteFloat32(streamId, animal.genetics.health)
 		streamWriteFloat32(streamId, animal.genetics.quality)
 		streamWriteFloat32(streamId, animal.genetics.productivity or -1)
+		RLSemenBatch.writeStream(streamId, animal)
 
 	end
 
@@ -397,6 +402,7 @@ function HandToolAIStraw:showInfo(box)
     box:addLine(g_i18n:getText("infohud_type"), g_fillTypeManager:getFillTypeTitleByIndex(subType.fillTypeIndex))
 	box:addLine(g_i18n:getText("infohud_name"), animal.name)
 	box:addLine(g_i18n:getText("rl_ui_earTag"), string.format("%s %s %s", RLConstants.AREA_CODES[animal.country].code, animal.farmId, animal.uniqueId))
+	for _, line in ipairs(RLSemenBatch.getInfoLines(animal)) do box:addLine(line[1], line[2]) end
 
 	for type, value in pairs(animal.genetics) do
 
@@ -536,11 +542,18 @@ function HandToolAIStraw:renderErrorText(text)
 end
 
 
+--- A straw goes back to the dewar it came from, or to another dewar of the same batch (its own
+--- may be empty and gone). Batches never mix: a legacy straw without a batch id returns to its
+--- own dewar only.
 function HandToolAIStraw:getBelongsToDewar(dewar)
 
 	local spec = self[specName]
 
-	return dewar:getUniqueId() == spec.dewarUniqueId
+	if dewar:getUniqueId() == spec.dewarUniqueId then return true end
+
+	local dewarAnimal = dewar.getAnimal ~= nil and dewar:getAnimal() or nil
+	return spec.animal ~= nil and dewarAnimal ~= nil and spec.animal.batchId ~= nil
+		and dewarAnimal.batchId == spec.animal.batchId and dewar:getOwnerFarmId() == self:getOwnerFarmId()
 
 end
 

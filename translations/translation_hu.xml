@@ -979,6 +979,12 @@
         <text name="rl_semen_nextCollection" text="Következő gyűjtés lehetséges: %s."/>
         <text name="rl_semen_minAge" text="Gyűjtés %d hónapos kortól."/>
         <text name="rl_semen_preview" text="Spermagyűjtés innen: %s?&#10;&#10;Várható szalmák: %d&#10;(alap %d x termékenység %.2f x kor %.2f x kondíció %.2f)&#10;Tenyészérték-index: %.2f&#10;Szolgáltatási díj: %s"/>
+        <text name="rl_semen_batch" text="Tétel"/>
+        <text name="rl_semen_source" text="Eredet"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Saját gyűjtés"/>
+        <text name="rl_semen_sourcePURCHASED" text="Vásárolt"/>
+        <text name="rl_semen_sourceLEGACY" text="Régi készlet"/>
+        <text name="rl_semen_batchMonth" text="Tétel hónapja"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

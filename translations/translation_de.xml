@@ -969,6 +969,12 @@
         <text name="rl_semen_nextCollection" text="Nächste Gewinnung möglich im %s."/>
         <text name="rl_semen_minAge" text="Gewinnung ab einem Alter von %d Monaten."/>
         <text name="rl_semen_preview" text="Samen von %s gewinnen?&#10;&#10;Erwartete Röhrchen: %d&#10;(Basis %d x Fruchtbarkeit %.2f x Alter %.2f x Kondition %.2f)&#10;Zuchtindex: %.2f&#10;Servicegebühr: %s"/>
+        <text name="rl_semen_batch" text="Charge"/>
+        <text name="rl_semen_source" text="Herkunft"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Eigene Gewinnung"/>
+        <text name="rl_semen_sourcePURCHASED" text="Gekauft"/>
+        <text name="rl_semen_sourceLEGACY" text="Altbestand"/>
+        <text name="rl_semen_batchMonth" text="Chargenmonat"/>
         <text name="rl_settings_nutritionMode_label" text="Ernährungsmodell"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Rinder: Alt behält die alten Futterregeln. Real-äquivalent rechnet Aufnahme und Ration in echter Trockenmasse und Energie Der Standardverbrauch beträgt 1/8 des realen Äquivalentvolumens, nicht des alten Verbrauchs."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Alt"/>

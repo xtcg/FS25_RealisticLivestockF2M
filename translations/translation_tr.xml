@@ -989,6 +989,12 @@
         <text name="rl_semen_nextCollection" text="Sonraki toplama: %s."/>
         <text name="rl_semen_minAge" text="Toplama %d aylıktan itibaren yapılır."/>
         <text name="rl_semen_preview" text="%s hayvanından sperma toplansın mı?&#10;&#10;Beklenen payet: %d&#10;(taban %d x doğurganlık %.2f x yaş %.2f x kondisyon %.2f)&#10;Damızlık indeksi: %.2f&#10;Hizmet ücreti: %s"/>
+        <text name="rl_semen_batch" text="Parti"/>
+        <text name="rl_semen_source" text="Kaynak"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Kendi toplama"/>
+        <text name="rl_semen_sourcePURCHASED" text="Satın alındı"/>
+        <text name="rl_semen_sourceLEGACY" text="Eski stok"/>
+        <text name="rl_semen_batchMonth" text="Parti ayı"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

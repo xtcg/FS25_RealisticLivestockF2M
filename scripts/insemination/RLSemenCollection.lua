@@ -335,9 +335,10 @@ function RLSemenCollection.rollSuccess(animal)
 end
 
 
---- The dewar snapshot of a collected sire, in the shape DewarData:setAnimal stores.
+--- The dewar snapshot of a collected sire, in the shape DewarData:setAnimal stores, stamped as
+--- this month's batch of his (RLSemenBatch).
 function RLSemenCollection.createSnapshot(animal)
-    return {
+    return RLSemenBatch.stamp({
         country = animal.birthday.country,
         farmId = animal.farmId,
         uniqueId = animal.uniqueId,
@@ -347,7 +348,7 @@ function RLSemenCollection.createSnapshot(animal)
         genetics = table.clone(animal.genetics, 3),
         success = RLSemenCollection.rollSuccess(animal),
         collected = true,
-    }
+    }, RLSemenBatch.SOURCE.COLLECTED, RLSemenCollection.getMonthIndex(), animal)
 end
 
 

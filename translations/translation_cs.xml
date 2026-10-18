@@ -979,6 +979,12 @@
         <text name="rl_semen_nextCollection" text="下次可采集：%s。"/>
         <text name="rl_semen_minAge" text="满 %d 个月龄后可采精。"/>
         <text name="rl_semen_preview" text="从 %s 采集精液？&#10;&#10;预计细管：%d 支&#10;（基础 %d x 繁殖力 %.2f x 年龄 %.2f x 体况 %.2f）&#10;育种指数：%.2f&#10;采集服务费：%s"/>
+        <text name="rl_semen_batch" text="批次"/>
+        <text name="rl_semen_source" text="来源"/>
+        <text name="rl_semen_sourceCOLLECTED" text="自行采集"/>
+        <text name="rl_semen_sourcePURCHASED" text="购买"/>
+        <text name="rl_semen_sourceLEGACY" text="旧库存"/>
+        <text name="rl_semen_batchMonth" text="批次月份"/>
         <text name="rl_settings_nutritionMode_label" text="营养模型"/>
         <text name="rl_settings_nutritionMode_tooltip" text="牛：旧版沿用原饲料规则。现实等效按现实干物质与能量计算采食和日粮，默认扣料为现实等效体积的1/8，不是旧版用量的1/8。"/>
         <text name="rl_settings_nutritionMode_texts_1" text="旧版"/>

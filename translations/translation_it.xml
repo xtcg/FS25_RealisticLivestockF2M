@@ -949,6 +949,12 @@
         <text name="rl_semen_nextCollection" text="Prossima raccolta possibile a %s."/>
         <text name="rl_semen_minAge" text="La raccolta inizia a %d mesi di età."/>
         <text name="rl_semen_preview" text="Raccogliere il seme di %s?&#10;&#10;Paillette previste: %d&#10;(base %d x fertilità %.2f x età %.2f x condizione %.2f)&#10;Indice genetico: %.2f&#10;Costo del servizio: %s"/>
+        <text name="rl_semen_batch" text="Lotto"/>
+        <text name="rl_semen_source" text="Origine"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Raccolta propria"/>
+        <text name="rl_semen_sourcePURCHASED" text="Acquistato"/>
+        <text name="rl_semen_sourceLEGACY" text="Vecchie scorte"/>
+        <text name="rl_semen_batchMonth" text="Mese del lotto"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

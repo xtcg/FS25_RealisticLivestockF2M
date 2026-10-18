@@ -1209,6 +1209,7 @@ function AnimalReproduction.setInsemination(animal, strawAnimal)
         ["subTypeIndex"] = strawAnimal.subTypeIndex,
         ["success"] = strawAnimal.success,
     }
+    RLSemenBatch.copyFields(strawAnimal, animal.insemination)
 
 end
 

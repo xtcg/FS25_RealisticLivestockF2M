@@ -145,6 +145,8 @@ function DewarData:loadDewarFromSavegame(xmlFile, key)
         animal.subTypeIndex = xmlFile:getInt(animalKey .. "#subTypeIndex")
         animal.success = xmlFile:getFloat(animalKey .. "#success")
         animal.collected = xmlFile:getBool(animalKey .. "#collected", false)
+        RLSemenBatch.loadFromXML(xmlFile, animalKey, animal)
+        RLSemenBatch.ensure(animal, self:getUniqueId())
 
         animal.genetics = {
             ["metabolism"] = xmlFile:getFloat(animalKey .. ".genetics#metabolism"),
@@ -225,6 +227,7 @@ function DewarData:saveToXMLFile(xmlFile, key, usedModNames)
         xmlFile:setInt(animalKey .. "#subTypeIndex", animal.subTypeIndex)
         xmlFile:setFloat(animalKey .. "#success", animal.success)
         if animal.collected then xmlFile:setBool(animalKey .. "#collected", true) end
+        RLSemenBatch.saveToXML(xmlFile, animalKey, animal)
 
         for type, value in pairs(animal.genetics) do
             xmlFile:setFloat(animalKey .. ".genetics#" .. type, value)
@@ -258,6 +261,7 @@ function DewarData:onWriteStream(streamId, connection)
         streamWriteFloat32(streamId, animal.genetics.quality)
         streamWriteFloat32(streamId, animal.genetics.productivity or -1)
         streamWriteBool(streamId, animal.collected == true)
+        RLSemenBatch.writeStream(streamId, animal)
     end
 
     Log:trace("DewarData:onWriteStream uniqueId=%s straws=%d hasAnimal=%s",
@@ -287,6 +291,7 @@ function DewarData:onReadStream(streamId, connection)
         animal.genetics.productivity = streamReadFloat32(streamId)
         if animal.genetics.productivity < 0 then animal.genetics.productivity = nil end
         animal.collected = streamReadBool(streamId)
+        RLSemenBatch.readStream(streamId, animal)
 
         spec.animal = animal
     end
@@ -348,10 +353,10 @@ end
 function DewarData:setAnimal(animal)
     local spec = self[DewarData.SPEC_TABLE_NAME]
 
-    -- Accept either a live Animal object or a raw table
+    -- Accept either a live Animal object (a dealer bull: a purchase) or a raw table
     if animal.birthday ~= nil then
-        -- Live Animal object - extract snapshot
-        spec.animal = {
+        -- Live Animal object - extract snapshot, a purchased batch of this month
+        spec.animal = RLSemenBatch.stamp({
             ["country"] = animal.birthday.country,
             ["farmId"] = animal.farmId,
             ["uniqueId"] = animal.uniqueId,
@@ -360,10 +365,11 @@ function DewarData:setAnimal(animal)
             ["subTypeIndex"] = animal.subTypeIndex,
             ["genetics"] = table.clone(animal.genetics, 3),
             ["success"] = animal.success
-        }
+        }, RLSemenBatch.SOURCE.PURCHASED, RLSemenCollection.getMonthIndex(), animal)
     else
-        -- Raw table (from network/migration) - store directly
+        -- Raw table (collection/storage/migration) - store directly; old data gets a batch id
         spec.animal = animal
+        RLSemenBatch.ensure(animal, self:getUniqueId())
     end
 
     DewarData.syncCompatProperties(self)
@@ -453,6 +459,7 @@ function DewarData:showInfo(superFunc, box)
     box:addLine(g_i18n:getText("infohud_type"), g_fillTypeManager:getFillTypeTitleByIndex(subType.fillTypeIndex))
     box:addLine(g_i18n:getText("infohud_name"), animal.name)
     box:addLine(g_i18n:getText("rl_ui_earTag"), string.format("%s %s %s", RLConstants.AREA_CODES[animal.country].code, animal.farmId, animal.uniqueId))
+    for _, line in ipairs(RLSemenBatch.getInfoLines(animal)) do box:addLine(line[1], line[2]) end
 
     for type, value in pairs(animal.genetics) do
         local valueText

@@ -970,6 +970,12 @@
         <text name="rl_semen_nextCollection" text="Seuraava keräys mahdollinen: %s."/>
         <text name="rl_semen_minAge" text="Keräys alkaa %d kuukauden iässä."/>
         <text name="rl_semen_preview" text="Kerätäänkö siemenneste eläimestä %s?&#10;&#10;Odotetut pillit: %d&#10;(perus %d x hedelmällisyys %.2f x ikä %.2f x kunto %.2f)&#10;Jalostusindeksi: %.2f&#10;Palvelumaksu: %s"/>
+        <text name="rl_semen_batch" text="Erä"/>
+        <text name="rl_semen_source" text="Lähde"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Oma keräys"/>
+        <text name="rl_semen_sourcePURCHASED" text="Ostettu"/>
+        <text name="rl_semen_sourceLEGACY" text="Vanha varasto"/>
+        <text name="rl_semen_batchMonth" text="Erän kuukausi"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

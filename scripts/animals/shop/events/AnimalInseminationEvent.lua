@@ -47,6 +47,7 @@ function AnimalInseminationEvent:readStream(streamId, connection)
 	self.semen.genetics.productivity = streamReadFloat32(streamId)
 
 	if self.semen.genetics.productivity < 0 then self.semen.genetics.productivity = nil end
+	RLSemenBatch.readStream(streamId, self.semen)
 
 	Log:trace("InseminationEvent:readStream semen.country=%s", tostring(self.semen.country))
 
@@ -75,6 +76,7 @@ function AnimalInseminationEvent:writeStream(streamId, connection)
 	streamWriteFloat32(streamId, semen.genetics.health)
 	streamWriteFloat32(streamId, semen.genetics.quality)
 	streamWriteFloat32(streamId, semen.genetics.productivity or -1)
+	RLSemenBatch.writeStream(streamId, semen)
 
 end
 

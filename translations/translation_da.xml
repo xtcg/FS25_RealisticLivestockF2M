@@ -963,6 +963,12 @@
         <text name="rl_semen_nextCollection" text="Næste opsamling mulig i %s."/>
         <text name="rl_semen_minAge" text="Opsamling fra %d måneders alderen."/>
         <text name="rl_semen_preview" text="Opsamle sæd fra %s?&#10;&#10;Forventede strå: %d&#10;(basis %d x frugtbarhed %.2f x alder %.2f x huld %.2f)&#10;Avlsindeks: %.2f&#10;Servicegebyr: %s"/>
+        <text name="rl_semen_batch" text="Parti"/>
+        <text name="rl_semen_source" text="Oprindelse"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Egen opsamling"/>
+        <text name="rl_semen_sourcePURCHASED" text="Købt"/>
+        <text name="rl_semen_sourceLEGACY" text="Gammelt lager"/>
+        <text name="rl_semen_batchMonth" text="Partimåned"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

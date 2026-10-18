@@ -947,6 +947,12 @@
         <text name="rl_semen_nextCollection" text="Наступний збір можливий: %s."/>
         <text name="rl_semen_minAge" text="Збір з віку %d міс."/>
         <text name="rl_semen_preview" text="Зібрати сперму у %s?&#10;&#10;Очікується соломинок: %d&#10;(база %d x плодючість %.2f x вік %.2f x вгодованість %.2f)&#10;Племінний індекс: %.2f&#10;Плата за послугу: %s"/>
+        <text name="rl_semen_batch" text="Партія"/>
+        <text name="rl_semen_source" text="Джерело"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Власний збір"/>
+        <text name="rl_semen_sourcePURCHASED" text="Куплено"/>
+        <text name="rl_semen_sourceLEGACY" text="Старий запас"/>
+        <text name="rl_semen_batchMonth" text="Місяць партії"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>
