@@ -1023,8 +1023,6 @@
         <text name="rl_feed_calfMilkAlert" text="%s: %d calves on milk have no calf milk - they will lose health and may die"/>
         <text name="rl_feed_calfMilkLowAlert" text="%s: calf milk runs out in %s"/>
         <text name="rl_feed_lambNoDam" text="%s: %d Lämmer, die noch Milch brauchen, sind nicht bei ihrem Mutterschaf - sie verlieren Gesundheit und können sterben"/>
-        <text name="rl_meadow_witherWarning" text="%s: Das Weidegras stirbt in etwa %d Tagen für den Winter ab - Heu oder Silage in den Trog geben"/>
-        <text name="rl_wool_shorn" text="%s: %d Schafe geschoren, %d l Wolle warten auf Paletten"/>
         <text name="rl_feed_target_AUTO" text="Automatic"/>
         <text name="rl_feed_target_GROW" text="Growth"/>
         <text name="rl_feed_target_FINISH" text="Finishing"/>
@@ -1068,5 +1066,7 @@
         <text name="rl_dealer_v2_closed" text="Der neue Bestand des Händlers ist noch nicht verfügbar."/>
         <text name="rl_dealer_v2_limit" text="Pro Bestellung sind höchstens 100 Tiere möglich."/>
         <text name="rl_dealer_v2_generic" text="Die Bestellung konnte nicht abgeschlossen werden."/>
+        <text name="rl_meadow_witherWarning" text="%s: Das Weidegras stirbt in etwa %d Tagen für den Winter ab - Heu oder Silage in den Trog geben"/>
+        <text name="rl_wool_shorn" text="%s: %d Schafe geschoren, %d l Wolle warten auf Paletten"/>
     </texts>
 </l10n>

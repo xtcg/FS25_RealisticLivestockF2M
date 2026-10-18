@@ -1033,8 +1033,6 @@
         <text name="rl_feed_calfMilkAlert" text="%s：%d 头吃奶小牛没有小牛奶，会掉健康甚至死亡"/>
         <text name="rl_feed_calfMilkLowAlert" text="%s：小牛奶约 %s 后用完"/>
         <text name="rl_feed_lambNoDam" text="%s：%d 只仍需喝奶的小羊不在母羊身边，没有奶可喝，会掉健康甚至死亡"/>
-        <text name="rl_meadow_witherWarning" text="%s：牧场鲜草约%d天后入冬枯退，请在食槽补充干草或青贮"/>
-        <text name="rl_wool_shorn" text="%s：已为%d只羊剪毛，共%d升羊毛等待装托盘"/>
         <text name="rl_feed_target_AUTO" text="自动"/>
         <text name="rl_feed_target_GROW" text="生长"/>
         <text name="rl_feed_target_FINISH" text="育肥"/>
@@ -1078,5 +1076,7 @@
         <text name="rl_dealer_v2_closed" text="商人的新库存暂未开放。"/>
         <text name="rl_dealer_v2_limit" text="每份订单最多购买100头动物。"/>
         <text name="rl_dealer_v2_generic" text="订单未能完成。"/>
+        <text name="rl_meadow_witherWarning" text="%s：牧场鲜草约%d天后入冬枯退，请在食槽补充干草或青贮"/>
+        <text name="rl_wool_shorn" text="%s：已为%d只羊剪毛，共%d升羊毛等待装托盘"/>
     </texts>
 </l10n>
