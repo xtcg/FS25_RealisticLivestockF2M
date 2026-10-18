@@ -98,3 +98,7 @@
 其实原因很简单：我非常喜欢《克拉克森的农场》（Clarkson's Farm）这部纪录真人秀，它让我对真实的农业经营产生了浓厚的兴趣。Hof Bergmann 恰好拥有非常完整的畜牧产业链，因此成为了实现这些想法的理想平台。
 
 本项目仍在持续开发和完善中。非常欢迎大家在 [GitHub 提交 Issue](https://github.com/xtcg/FS25_RealisticLivestockF2M/issues)，无论是 Bug 反馈、数值平衡建议、现实畜牧知识的补充，还是新玩法的想法，都非常欢迎交流！
+
+## 请我喝杯咖啡
+
+如果你喜欢这个 Mod，也愿意支持后续开发，欢迎[通过 PayPal 请我喝杯咖啡](https://paypal.me/XTXTCG)。感谢你的支持！

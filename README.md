@@ -119,3 +119,7 @@ You might wonder why a German map uses the British livestock market as its econo
 The answer is quite simple: I really enjoyed watching Clarkson's Farm. The show sparked my interest in real-world farming and inspired me to explore how realistic livestock management could work in Farming Simulator. Hof Bergmann, with its extensive livestock production chains, turned out to be the perfect place to bring these ideas to life.
 
 This project is still evolving, and [GitHub Issues](https://github.com/xtcg/FS25_RealisticLivestockF2M/issues) are always welcome! Whether you've found a bug, have suggestions for balancing, want to share real-world farming knowledge, or have ideas for new features, I'd love to hear your feedback.
+
+## Buy Me a Coffee
+
+If you enjoy this mod and would like to support its continued development, you're welcome to [buy me a coffee via PayPal](https://paypal.me/XTXTCG). Thank you for your support!
