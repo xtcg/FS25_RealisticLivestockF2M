@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0.0 — 2026-10-18
+
+- First release in the Farm to Market 0.1 version series; continues the earlier 1.4.0.1-dev builds.
+- Release package renamed to `FS25_RealisticLivestockF2M.zip`. Back up saves and remove the former `FS25_RealisticLivestockRM.zip` before updating; old mod-ID compatibility needs in-game verification.
+- Includes the integrated livestock nutrition, body condition and economic changes, upstream 1.4.1.0 integration, Hof Bergmann animal-model fixes, species navigation, monthly input/output display and scrollable pen requirements.
+- Replaces map-version startup warnings with a one-time invitation to report feedback on GitHub Issues.
+- Features still disabled by default retain their existing switches and validation limits described below.
+
 - T02 contract review fixes: recheck source ownership/queues across callbacks, verify the live target again before commit/compensation, refuse stale capacity, and certify production-cost receipts rather than refunding an interrupted money call from its balance alone. Added 46 regressions; transactions remain OFF by default and game validation is pending.
 
 ## Unreleased

@@ -27,10 +27,10 @@ jobs:
             # Same file set as the upstream release zip: modDesc.xml at the root, no docs or repo files.
             - name: Build mod zip
               run: |
-                  zip -r -q -X FS25_RealisticLivestockRM.zip \
+                  zip -r -q -X FS25_RealisticLivestockF2M.zip \
                       modDesc.xml LICENSE icon_RealisticLivestock.dds \
                       animals fonts gui mod_support objects scripts translations xml
-                  unzip -l FS25_RealisticLivestockRM.zip | tail -1
+                  unzip -l FS25_RealisticLivestockF2M.zip | tail -1
 
             - name: Create release
               env:
@@ -38,5 +38,5 @@ jobs:
               run: |
                   prerelease=""
                   case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease" ;; esac
-                  gh release create "$GITHUB_REF_NAME" FS25_RealisticLivestockRM.zip \
+                  gh release create "$GITHUB_REF_NAME" FS25_RealisticLivestockF2M.zip \
                       --title "$GITHUB_REF_NAME" --generate-notes $prerelease
