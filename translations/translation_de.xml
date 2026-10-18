@@ -231,6 +231,7 @@
         <text name="rl_ui_output_pallets_wool" text="Wolle"/>
         <text name="rl_ui_output_pallets_goatMilk" text="Ziegenmilch"/>
         <text name="rl_ui_amountPerDay" text="%sL / Tag" tag="format"/>
+        <text name="rl_ui_amountPerMonth" text="%s L / Monat" tag="format"/>
         <text name="rl_ui_feePerMonth" text="%s / Monat" tag="format"/>
         <text name="rl_ui_feePerDose" text="%s / dose" tag="format"/>
 
