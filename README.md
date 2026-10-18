@@ -2,7 +2,7 @@
 
 A Realistic Livestock Production & Economy Expansion for Farming Simulator 25
 
-[中文版](README.zh-CN.md) · [User Guide](https://xtcg.github.io/FS25_RealisticLivestockRM/) · [GitHub Issues](https://github.com/xtcg/FS25_RealisticLivestockRM/issues) · [Downloads](https://github.com/xtcg/FS25_RealisticLivestockRM/releases)
+[中文版](README.zh-CN.md) · [User Guide](https://xtcg.github.io/FS25_RealisticLivestockF2M/) · [GitHub Issues](https://github.com/xtcg/FS25_RealisticLivestockF2M/issues) · [Downloads](https://github.com/xtcg/FS25_RealisticLivestockF2M/releases)
 
 Livestock farming is more than feeding animals, waiting for them to grow, and selling them.
 
@@ -101,7 +101,7 @@ Raise with purpose. Finish with care. Sell with strategy.
 
 Place `FS25_RealisticLivestockRM.zip` in your FS25 mods folder without extracting it, then enable it in the game. Back up your savegame before updating and replace the previous ZIP rather than loading both versions.
 
-For inherited animal management features, compatibility details and original migration instructions, see the [upstream README](docs/UPSTREAM_README.md) and [user guide](https://xtcg.github.io/FS25_RealisticLivestockRM/).
+For inherited animal management features, compatibility details and original migration instructions, see the [upstream README](docs/UPSTREAM_README.md) and [user guide](https://xtcg.github.io/FS25_RealisticLivestockF2M/).
 
 ## Special Thanks
 
@@ -118,4 +118,4 @@ You might wonder why a German map uses the British livestock market as its econo
 
 The answer is quite simple: I really enjoyed watching Clarkson's Farm. The show sparked my interest in real-world farming and inspired me to explore how realistic livestock management could work in Farming Simulator. Hof Bergmann, with its extensive livestock production chains, turned out to be the perfect place to bring these ideas to life.
 
-This project is still evolving, and [GitHub Issues](https://github.com/xtcg/FS25_RealisticLivestockRM/issues) are always welcome! Whether you've found a bug, have suggestions for balancing, want to share real-world farming knowledge, or have ideas for new features, I'd love to hear your feedback.
+This project is still evolving, and [GitHub Issues](https://github.com/xtcg/FS25_RealisticLivestockF2M/issues) are always welcome! Whether you've found a bug, have suggestions for balancing, want to share real-world farming knowledge, or have ideas for new features, I'd love to hear your feedback.

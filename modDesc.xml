@@ -20,8 +20,8 @@ An unofficial community extension by xtcg, built on Arrow-kb's Realistic Livesto
 
 Why a German map and British market references? Clarkson's Farm inspired my interest in real farming, and Hof Bergmann provides an extensive farm-to-market production chain. Bugs, balance suggestions, farming knowledge and feature ideas are welcome on GitHub Issues.
 
-Full English and Chinese introduction: https://github.com/xtcg/FS25_RealisticLivestockRM
-Issues: https://github.com/xtcg/FS25_RealisticLivestockRM/issues
+Full English and Chinese introduction: https://github.com/xtcg/FS25_RealisticLivestockF2M
+Issues: https://github.com/xtcg/FS25_RealisticLivestockF2M/issues
 
 The underlying animal management systems:
 
@@ -37,8 +37,8 @@ Notes:
 - Incompatible with FS25_EnhancedLivestock, FS25_MoreVisualAnimals, and FS25_EnhancedAnimalSystem
 - Works on virtually any map; maps that add their own custom animals or breeds have built-in support (see docs)
 
-Documentation: https://xtcg.github.io/FS25_RealisticLivestockRM/
-Source code and issue tracker: https://github.com/xtcg/FS25_RealisticLivestockRM
+Documentation: https://xtcg.github.io/FS25_RealisticLivestockF2M/
+Source code and issue tracker: https://github.com/xtcg/FS25_RealisticLivestockF2M
 
 Changelog
 
@@ -174,8 +174,8 @@ Documentation:
 为什么德国地图采用英国市场参考？因为《克拉克森的农场》激发了我对真实农业的兴趣，而 Hof Bergmann 的完整产业链是实现这些想法的理想平台。
 
 欢迎提交 Bug、平衡建议、畜牧知识及玩法创意！
-中英文完整介绍及源码：https://github.com/xtcg/FS25_RealisticLivestockRM
-Issue：https://github.com/xtcg/FS25_RealisticLivestockRM/issues
+中英文完整介绍及源码：https://github.com/xtcg/FS25_RealisticLivestockF2M
+Issue：https://github.com/xtcg/FS25_RealisticLivestockF2M/issues
 
 内部 Mod 标识及安装包名保持 FS25_RealisticLivestockRM，以兼容旧存档。]]></ct>
         <it>

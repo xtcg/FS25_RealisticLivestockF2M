@@ -2,7 +2,7 @@
 
 真实畜牧：从牧场到市场
 
-[English](README.md) · [用户指南](https://xtcg.github.io/FS25_RealisticLivestockRM/) · [提交 Issue](https://github.com/xtcg/FS25_RealisticLivestockRM/issues) · [下载](https://github.com/xtcg/FS25_RealisticLivestockRM/releases)
+[English](README.md) · [用户指南](https://xtcg.github.io/FS25_RealisticLivestockF2M/) · [提交 Issue](https://github.com/xtcg/FS25_RealisticLivestockF2M/issues) · [下载](https://github.com/xtcg/FS25_RealisticLivestockF2M/releases)
 
 让畜牧经营不再只是喂养动物、等待成长和出售，而是一个需要考虑品种、遗传、饲料、生产周期、加工成本和市场行情的完整经营过程。
 
@@ -85,7 +85,7 @@
 
 将 `FS25_RealisticLivestockRM.zip` 放入 FS25 的 mods 文件夹，无需解压，然后在游戏中启用。更新前请备份存档，替换旧安装包，避免同时加载两个版本。
 
-原有动物管理功能、兼容性及旧版迁移说明见[上游 README](docs/UPSTREAM_README.md) 和[用户指南](https://xtcg.github.io/FS25_RealisticLivestockRM/)。
+原有动物管理功能、兼容性及旧版迁移说明见[上游 README](docs/UPSTREAM_README.md) 和[用户指南](https://xtcg.github.io/FS25_RealisticLivestockF2M/)。
 
 特别感谢：Arrow-kb、Ritter，以及为相关开源系统作出贡献的 [Renfordt](https://github.com/renfordt/FS25_EnhancedLivestock)。感谢 LSFM / FarmerAndy 创作 Hof Bergmann，为更深入的畜牧模拟提供了丰富的游戏环境。
 
@@ -97,4 +97,4 @@
 
 其实原因很简单：我非常喜欢《克拉克森的农场》（Clarkson's Farm）这部纪录真人秀，它让我对真实的农业经营产生了浓厚的兴趣。Hof Bergmann 恰好拥有非常完整的畜牧产业链，因此成为了实现这些想法的理想平台。
 
-本项目仍在持续开发和完善中。非常欢迎大家在 [GitHub 提交 Issue](https://github.com/xtcg/FS25_RealisticLivestockRM/issues)，无论是 Bug 反馈、数值平衡建议、现实畜牧知识的补充，还是新玩法的想法，都非常欢迎交流！
+本项目仍在持续开发和完善中。非常欢迎大家在 [GitHub 提交 Issue](https://github.com/xtcg/FS25_RealisticLivestockF2M/issues)，无论是 Bug 反馈、数值平衡建议、现实畜牧知识的补充，还是新玩法的想法，都非常欢迎交流！
