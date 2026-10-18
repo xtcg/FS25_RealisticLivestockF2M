@@ -38,6 +38,19 @@ end
 PlaceableHusbandry.onHourChanged = Utils.appendedFunction(PlaceableHusbandry.onHourChanged, RL_PlaceableHusbandry.onHourChanged)
 
 
+--- A husbandry's HOUR_CHANGED runs once per game hour: the engine raises it twice at a midnight
+--- whose last frame lands in its 0.36 s pre-roll (RLBodyCondition.claimHour), which fed, aged and
+--- settled the pen's hour twice. Other placeables keep the engine's callback as it is.
+function RL_PlaceableHusbandry.hourChanged(self, superFunc, ...)
+	if self.spec_husbandry ~= nil and not RLBodyCondition.claimHour(self) then return end
+	return superFunc(self, ...)
+end
+
+if Placeable ~= nil then
+	Placeable.hourChanged = Utils.overwrittenFunction(Placeable.hourChanged, RL_PlaceableHusbandry.hourChanged)
+end
+
+
 --- The animals in a pen changed (bought, moved, sold, born, died): set the pen's food, water,
 --- straw, manure, milk and pallet liters per hour for the animals in it now, from each animal's
 --- current per-hour input and output. The hourly hook above sets them after the hour's feeding,

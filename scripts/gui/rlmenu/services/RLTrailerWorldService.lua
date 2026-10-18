@@ -128,6 +128,10 @@ function RLTrailerWorldService.convertRideableCluster(rideable, animalSystem, fa
             Log:error("RLTrailerWorldService.convertRideableCluster: the identity ledger gave no key; rideable not converted")
             return nil
         end
+    elseif farm and farm.stats and farm.stats.statistics.farmId ~= nil then
+        -- The farm's counter, past every key known to be taken in the map country (ID-COLLISION-01).
+        rawId = RLAnimalIdentityWorld.nextStatsRaw("trailer-rideable", farm, animalTypeIndex,
+            RealisticLivestock.getMapCountryIndex(), "auto")
     else
         rawId = farm and farm.stats and farm.stats:getNextAnimalId(animalTypeIndex) or math.random(1, 99999)
     end

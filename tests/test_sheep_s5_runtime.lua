@@ -80,9 +80,10 @@ do
     local goatOk = true
     for i = 4, 6 do goatOk = goatOk and not hours[i].active and hours[i].reason == "UNCOVERED_ANIMAL" and hours[i].steps == 0 and hours[i].legacy == 1 end
     check("mixed pen: with a goat the pen leaves the mode; the lamb takes the old weight rule once an hour, no step", goatOk)
-    check(string.format("mixed pen: its state is kept as it was (development %.4f, age clock %.4f, reserve %.3f kg, last step %s); only the weight moves (%.2f -> %.2f kg)",
-        development, ageClock, reserve, tostring(lastTick), weightIn, lamb.weight),
-        state.developmentMonths == development and state.ageMonths == ageClock and state.reserveMassKg == reserve
+    -- Its age clock alone runs on, on model time (U43-AGE-01): three hours of a one-day month.
+    check(string.format("mixed pen: its state is kept as it was (development %.4f, age clock %.4f + 3 h -> %.4f, reserve %.3f kg, last step %s); only the weight moves (%.2f -> %.2f kg)",
+        development, ageClock, state.ageMonths, reserve, tostring(lastTick), weightIn, lamb.weight),
+        state.developmentMonths == development and math.abs(state.ageMonths - (ageClock + 3 / 24)) < 1e-9 and state.reserveMassKg == reserve
         and state.lastTick == lastTick and lamb.weight ~= weightIn)
     check("mixed pen: profile coverage is unchanged by the goat (covers is the profile, the pen decides the run)",
         RLGrowth.covers(lamb) and not RLFeed.runsFor(lamb))

@@ -74,13 +74,47 @@ end
 --- Hours the console's rlBcFastForward has run on top of game time (RLBodyConditionConsole).
 RLBodyCondition.debugTickOffset = 0
 
+--- Whether the clock stands in the engine's midnight pre-roll: Environment:updateTimeValues (FS25
+--- v1.23.1) takes the hour from dayTime + 0.36 s, so in the last 0.36 s of a day it already sets
+--- hour 0 and raises HOUR_CHANGED while the day (dayTime <= 24 h) has not rolled yet; the frame the
+--- day rolls raises HOUR_CHANGED once more. Hour 0 with dayTime in the day's second half is only
+--- ever that state.
+--- @param environment table
+--- @return boolean
+function RLBodyCondition.isMidnightPreRoll(environment)
+    return environment ~= nil and environment.currentHour == 0 and (environment.dayTime or 0) >= 12 * 3600000
+end
+
+
 --- Current game hour as a number that only grows: monotonic day x 24 + hour (+ any hours the
---- console fast-forward simulated this session).
+--- console fast-forward simulated this session). The midnight pre-roll counts as the next day's
+--- hour 0 (RLBodyCondition.isMidnightPreRoll), never as this day's: the same id as the callback of
+--- the frame the day rolls, so the clock never steps back and both callbacks are one hour.
 --- @return number|nil
 function RLBodyCondition.getTickId()
     local environment = g_currentMission ~= nil and g_currentMission.environment or nil
     if environment == nil or environment.currentMonotonicDay == nil then return nil end
-    return environment.currentMonotonicDay * 24 + (environment.currentHour or 0) + RLBodyCondition.debugTickOffset
+    local day = environment.currentMonotonicDay
+    if RLBodyCondition.isMidnightPreRoll(environment) then day = day + 1 end
+    return day * 24 + (environment.currentHour or 0) + RLBodyCondition.debugTickOffset
+end
+
+
+--- Whether a husbandry runs this HOUR_CHANGED (Placeable:hourChanged): once per game hour. The
+--- midnight pre-roll callback is left out - the frame the day rolls raises the hour again, with the
+--- new day and period in place, as at every other midnight - and a second callback for an hour
+--- already run is ignored, so no feeding, pen model clock, health, age, weight or output is
+--- settled twice.
+--- @param placeable table
+--- @return boolean
+function RLBodyCondition.claimHour(placeable)
+    local environment = g_currentMission ~= nil and g_currentMission.environment or nil
+    if RLBodyCondition.isMidnightPreRoll(environment) then return false end
+    local tick = RLBodyCondition.getTickId()
+    if tick == nil then return true end
+    if placeable.rlHourTick == tick then return false end
+    placeable.rlHourTick = tick
+    return true
 end
 
 
