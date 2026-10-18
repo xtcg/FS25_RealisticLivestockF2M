@@ -81,3 +81,17 @@ check("disease: eggs keep the pallets modifier", near(perDay("pallets", 4, heife
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") then check("no script error: " .. line, false) end
 end
+
+-- Hof Bergmann's BULL fills BULLSPERM through its milk output; that map semen is off (Animal.MAP_SEMEN_OUTPUT).
+RLSemenCollection = { getAgeOutputFactor = function() return 1 end }
+FILL[6] = "BULLSPERM"
+local function semenPerDay()
+    local a = cow("milk", 6, { isParent = false, isLactating = false })
+    a.genetics.fertility = 1
+    a:updateOutput(20)
+    return a.output.milk * 24
+end
+check("semen: map semen output off by default, the BULL fills no BULLSPERM", Animal.MAP_SEMEN_OUTPUT == false and semenPerDay() == 0)
+Animal.MAP_SEMEN_OUTPUT = true
+check("semen: switched on, a fertile sire at peak age fills the curve", near(semenPerDay(), 100))
+Animal.MAP_SEMEN_OUTPUT = false
