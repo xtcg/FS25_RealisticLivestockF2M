@@ -719,7 +719,7 @@
         <text name="rm_rl_migration_continue" text="Devam Et"/>
         <text name="rm_rl_migration_quit" text="Çık"/>
 
-        <text name="rl_bridge_version_unknown" text="Realistic Livestock: %s %s sürümü, Realistic Livestock'in %s sürümü ile test edilmedi. '%s' yapılandırması kullanılıyor. Egzotik hayvanlarla ilgili sorun yaşarsanız lütfen bunları %s adresinden bildirin."/>
+        <text name="rl_welcome_feedback" text="Welcome to Realistic Livestock: Farm to Market! If you encounter any problems, please open an issue: https://github.com/xtcg/FS25_RealisticLivestockF2M/issues"/>
         <text name="rl_bridge_configoverride_conflict_header" text="Realistic Livestock: Çakışma tespit edildi. İki veya daha fazla köprü/paket (bridge/pack), aynı hayvan türü için yapılandırmayı değiştirdi. En son yüklenen mod geçerli olur. Devam ederseniz görsel hatalar (glitches) ve hayalet hayvanlar yaşayabilirsiniz."/>
         <text name="rl_bridge_configoverride_conflict_line" text="%s: %s tarafından uygulandı"/>
 

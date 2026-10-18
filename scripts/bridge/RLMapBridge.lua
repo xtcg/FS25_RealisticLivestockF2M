@@ -40,9 +40,6 @@ RLMapBridge.SUPPORTED_MAPS = {
 --- Tracks which bridges were activated (for logging/diagnostics)
 RLMapBridge.activeBridges = {}
 
---- Queued warning text to display via InfoDialog in onStartMission (nil = no warning)
-RLMapBridge.pendingVersionWarning = nil
-
 --- Per-type configOverride application history.
 --- typeName -> ordered list of { bridgeName, atSubtypeCount } entries, one per
 --- successful loadConfigOverrides append. Used by _summariseConfigOverrideConflicts
@@ -396,21 +393,6 @@ function RLMapBridge.loadBridgeFillTypes()
 
                     Log:info("MapBridge: %s v%s -> config '%s' (%s)",
                         bridge.name, tostring(mapVersion), config.id, status)
-
-                    if status == "unknown" then
-                        local rlrmMod = g_modManager:getModByName(modName)
-                        local rlrmVersion = rlrmMod and rlrmMod.version or "?"
-                        local warningText = string.format(
-                            g_i18n:getText("rl_bridge_version_unknown"),
-                            bridge.name,
-                            tostring(mapVersion),
-                            rlrmVersion,
-                            config.id,
-                            "https://github.com/rittermod/FS25_RealisticLivestockRM/issues"
-                        )
-                        Log:warning("MapBridge: %s", warningText)
-                        RLMapBridge.pendingVersionWarning = warningText
-                    end
                 else
                     -- Should not happen with valid configs, but guard defensively
                     Log:error("MapBridge: Version resolution returned nil for '%s', skipping bridge", bridge.name)

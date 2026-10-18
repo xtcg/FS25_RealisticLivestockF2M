@@ -724,7 +724,7 @@
         <text name="rm_rl_migration_continue" text="Continuer"/>
         <text name="rm_rl_migration_quit" text="Quitter"/>
 
-        <text name="rl_bridge_version_unknown" text="Realistic Livestock : la version %s de %s n'a pas été testée avec la version %s de Realistic Livestock. Utilisation de la configuration '%s'. Si vous rencontrez des problèmes avec les animaux exotiques, veuillez les signaler à %s."/>
+        <text name="rl_welcome_feedback" text="Welcome to Realistic Livestock: Farm to Market! If you encounter any problems, please open an issue: https://github.com/xtcg/FS25_RealisticLivestockF2M/issues"/>
         <!-- TODO: localise -->
         <text name="rl_bridge_configoverride_conflict_header" text="Realistic Livestock : Conflit détecté. Deux bridges/packs ou plus ont remplacé la configuration du même type d’animal. Le dernier mod chargé sera utilisé. Si vous continuez, vous aurez des bugs visuels et des animaux fantômes."/>
         <!-- TODO: localise -->
