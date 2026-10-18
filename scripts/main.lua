@@ -162,6 +162,7 @@ source(modDirectory .. "scripts/fillTypes/RealisticLivestock_FillTypeManager.lua
 
 -- SECTION 11a: Map Bridge System
 source(modDirectory .. "scripts/bridge/RLVersionSpec.lua")
+source(modDirectory .. "scripts/bridge/RLModelMerge.lua")
 source(modDirectory .. "scripts/bridge/RLMapBridge.lua")
 source(modDirectory .. "scripts/bridge/RLModBridge.lua")
 source(modDirectory .. "scripts/bridge/RLHusbandryProfiles.lua")

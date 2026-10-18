@@ -581,6 +581,28 @@
         pastures spawn only SHEEPWOOL_SHEARED and GOATMILK pallets.
     -->
     <palletRemap type="SHEEP" from="WOOL" to="SHEEPWOOL_SHEARED"/>
+
+    <!--
+        Model slots of Hof Bergmann's own subtypes. An animal pack's configOverride replaces the
+        whole model table of a type with its own, which keeps the base game's slots but not these:
+          SHEEP 16-19: the four sheared looks (LSFMSheepCluster swaps a sheared sheep to these
+                       subtypes). FS25_SheepBreedsRLRM has 18 slots, 16-18 its own breeds.
+          COW   19-21: the generic BULL's calf / young bull / bull. FS25_CowBreedsRLRM has 21
+                       slots of its own layout (19-21 = Highland cow/young/calf).
+        Only when a pack has replaced the table, after all packs load, RLRM writes the pack's
+        table plus these slots appended (modSettings/FS25_RealisticLivestockRM/generated/models_<TYPE>_<hash>.xml) and points
+        the subtypes below at the appended slots. Without a pack nothing changes.
+    -->
+    <keepModels type="SHEEP">
+        <subType name="LSFM_SHEEP_LANDRACE_SHEARED"/>
+        <subType name="LSFM_SHEEP_STEINSCHAF_SHEARED"/>
+        <subType name="LSFM_SHEEP_SWISS_MOUNTAIN_SHEARED"/>
+        <subType name="LSFM_SHEEP_BLACK_WELSH_SHEARED"/>
+    </keepModels>
+    <keepModels type="COW">
+        <subType name="BULL"/>
+    </keepModels>
+
     <animal type="SHEEP">
         <subType subType="SHEEP_LANDRACE">
             <output><pallets fillType="SHEEPWOOL_SHEARED"/></output>
