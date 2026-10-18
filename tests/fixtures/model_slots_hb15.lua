@@ -3,13 +3,14 @@
 --     character/animals/domesticated/sheep/animalsShearing.xml, character/animals/domesticated/cow/animalsWithBulls.xml
 --   FS25_SheepBreedsRLRM 79c7248: animals.xml + its configOverride table
 --   FS25_CowBreedsRLRM cfb1f59: animals.xml + its configOverride table
---   RLRM xml/animals.xml (the repo's own subtypes)
--- slots[i] = model of slot i (asset file name); subTypes[name] = { { minAge, visualAnimalIndex }, ... }.
+--   RLRM xml/animals.xml and its own model tables
+-- slots[i] = slot i as "model|u,v,n" (asset file name, first texture tile u,v of an n x n atlas);
+-- subTypes[name] = { { minAge, visualAnimalIndex }, ... }.
 
 MODEL_SLOTS = {
     HB = {
         SHEEP = {
-            slots = { "sheepLambBaby", "sheepLamb", "sheepEwe", "sheepLambBaby", "sheepLamb", "sheepEwe", "sheepLambBaby", "sheepLamb", "sheepEwe", "sheepLambBaby", "sheepLamb", "sheepEwe", "goatBaby", "goatKid", "goat", "sheepSheared", "sheepSheared", "sheepSheared", "sheepSheared" },
+            slots = { "sheepLambBaby|0,1,2", "sheepLamb|0,1,2", "sheepEwe|0,1,2", "sheepLambBaby|0,0,2", "sheepLamb|0,0,2", "sheepEwe|0,0,2", "sheepLambBaby|1,1,2", "sheepLamb|1,1,2", "sheepEwe|1,1,2", "sheepLambBaby|1,0,2", "sheepLamb|1,0,2", "sheepEwe|1,0,2", "goatBaby|0,0,2", "goatKid|0,0,2", "goat|0,0,2", "sheepSheared|0,1,2", "sheepSheared|0,0,2", "sheepSheared|1,1,2", "sheepSheared|1,0,2" },
             subTypes = {
                 GOAT = { { 0, 13 }, { 3, 14 }, { 16, 15 } },
                 LSFM_SHEEP_BLACK_WELSH_SHEARED = { { 0, 19 } },
@@ -23,7 +24,7 @@ MODEL_SLOTS = {
             },
         },
         COW = {
-            slots = { "cattleHolstein", "cattleHolstein", "cattleAngus", "cattleAngus", "cattleCalfBabyHolstein", "cattleCalfBabyHolstein", "cattleCalfBaby", "cattleCalfBaby", "cattleCalfHolstein", "cattleCalfHolstein", "cattleCalf", "cattleCalf", "waterBuffaloCalfBaby", "waterBuffaloCalf", "waterBuffalo", "cattleCalfHighlandBaby", "cattleCalfHighland", "cattleHighland", "calf", "bullYoung", "bull" },
+            slots = { "cattleHolstein|0,0,2", "cattleHolstein|0,1,2", "cattleAngus|0,1,2", "cattleAngus|0,0,2", "cattleCalfBabyHolstein|0,0,2", "cattleCalfBabyHolstein|0,1,2", "cattleCalfBaby|0,1,2", "cattleCalfBaby|0,0,2", "cattleCalfHolstein|0,0,2", "cattleCalfHolstein|0,1,2", "cattleCalf|0,1,2", "cattleCalf|0,0,2", "waterBuffaloCalfBaby|0,0,2", "waterBuffaloCalf|0,0,2", "waterBuffalo|0,0,2", "cattleCalfHighlandBaby|0,0,1", "cattleCalfHighland|0,0,1", "cattleHighland|0,0,1", "calf|0,0,2", "bullYoung|0,0,2", "bull|0,0,2" },
             subTypes = {
                 BULL = { { 0, 19 }, { 6, 20 }, { 12, 21 }, { 24, 21 } },
                 COW_ANGUS = { { 0, 7 }, { 6, 11 }, { 12, 3 }, { 18, 3 } },
@@ -37,6 +38,7 @@ MODEL_SLOTS = {
     },
     RLRM = {
         SHEEP = {
+            slots = { "sheepLambBaby|0,1,2", "sheepLamb|0,1,2", "sheepEwe|0,1,2", "sheepLambBaby|0,0,2", "sheepLamb|0,0,2", "sheepEwe|0,0,2", "sheepLambBaby|1,1,2", "sheepLamb|1,1,2", "sheepEwe|1,1,2", "sheepLambBaby|1,0,2", "sheepLamb|1,0,2", "sheepEwe|1,0,2", "goatBaby|0,0,2", "goatKid|0,0,2", "goat|0,0,2" },
             subTypes = {
                 GOAT = { { 0, 13 }, { 3, 14 }, { 8, 15 } },
                 RAM_BLACK_WELSH = { { 0, 10 }, { 3, 11 }, { 8, 12 } },
@@ -51,6 +53,7 @@ MODEL_SLOTS = {
             },
         },
         COW = {
+            slots = { "cattleHolstein|0,0,2", "cattleHolstein|0,1,2", "cattleAngus|0,1,2", "cattleAngus|0,0,2", "cattleCalfBabyHolstein|0,0,2", "cattleCalfBabyHolstein|0,1,2", "cattleCalfBaby|0,1,2", "cattleCalfBaby|0,0,2", "cattleCalfHolstein|0,0,2", "cattleCalfHolstein|0,1,2", "cattleCalf|0,1,2", "cattleCalf|0,0,2", "waterBuffaloCalfBaby|0,0,2", "waterBuffaloCalf|0,0,2", "waterBuffalo|0,0,2", "cattleAngus|1,1,2", "cattleCalf|1,1,2", "cattleCalfBaby|1,1,2", "cattleCalfHighlandBaby|0,0,1", "cattleCalfHighland|0,0,1", "cattleHighland|0,0,1" },
             subTypes = {
                 BULL_ANGUS = { { 0, 7 }, { 6, 11 }, { 12, 3 }, { 18, 3 } },
                 BULL_HEREFORD = { { 0, 18 }, { 6, 17 }, { 12, 16 }, { 18, 16 } },
@@ -71,7 +74,7 @@ MODEL_SLOTS = {
     },
     SheepBreeds = {
         SHEEP = {
-            slots = { "sheepLambBaby", "sheepLamb", "sheepEwe", "sheepLambBaby", "sheepLamb", "sheepEwe", "sheepLambBaby", "sheepLamb", "sheepEwe", "sheepLambBaby", "sheepLamb", "sheepEwe", "goatBaby", "goatKid", "goat", "sheepLambBaby", "sheepLamb", "sheepEwe" },
+            slots = { "sheepLambBaby|0,1,4", "sheepLamb|0,1,4", "sheepEwe|0,1,4", "sheepLambBaby|0,0,4", "sheepLamb|0,0,4", "sheepEwe|0,0,4", "sheepLambBaby|1,1,4", "sheepLamb|1,1,4", "sheepEwe|1,1,4", "sheepLambBaby|1,0,4", "sheepLamb|1,0,4", "sheepEwe|1,0,4", "goatBaby|0,0,2", "goatKid|0,0,2", "goat|0,0,2", "sheepLambBaby|3,1,4", "sheepLamb|3,1,4", "sheepEwe|3,1,4" },
             subTypes = {
                 RAM_BELCLARE = { { 0, 16 }, { 3, 17 }, { 8, 18 } },
                 RAM_BLACKFACE = { { 0, 16 }, { 3, 17 }, { 8, 18 } },
@@ -102,7 +105,7 @@ MODEL_SLOTS = {
     },
     CowBreeds = {
         COW = {
-            slots = { "waterBuffalo", "cattleHolstein", "waterBuffaloCalfBaby", "cattleCalfBabyHolstein", "waterBuffaloCalf", "cattleCalfHolstein", "cattleAngus", "cattleCalf", "cattleCalfBaby", "cattleCalfHighlandBaby", "cattleCalfHighland", "cattleHighland", "cattleHolsteinBull", "cattleCalfHolsteinBull", "cattleAngusBull", "cattleCalfBull", "cattleHighlandBull", "cattleCalfHighlandBull", "cattleHighland", "cattleCalfHighland", "cattleCalfHighlandBaby" },
+            slots = { "waterBuffalo|0,0,2", "cattleHolstein|0,1,4", "waterBuffaloCalfBaby|0,0,2", "cattleCalfBabyHolstein|0,1,4", "waterBuffaloCalf|0,0,2", "cattleCalfHolstein|0,1,4", "cattleAngus|1,1,4", "cattleCalf|1,1,4", "cattleCalfBaby|1,1,4", "cattleCalfHighlandBaby|0,0,2", "cattleCalfHighland|0,0,2", "cattleHighland|0,0,2", "cattleHolsteinBull|0,1,4", "cattleCalfHolsteinBull|0,1,4", "cattleAngusBull|1,1,4", "cattleCalfBull|1,1,4", "cattleHighlandBull|0,0,2", "cattleCalfHighlandBull|0,0,2", "cattleHighland|0,0,2", "cattleCalfHighland|0,0,2", "cattleCalfHighlandBaby|0,0,2" },
             subTypes = {
                 BULL_ANGUS = { { 0, 9 }, { 6, 16 }, { 12, 15 }, { 18, 15 } },
                 BULL_AYRSHIRE_PACK = { { 0, 4 }, { 6, 14 }, { 12, 13 }, { 18, 13 } },

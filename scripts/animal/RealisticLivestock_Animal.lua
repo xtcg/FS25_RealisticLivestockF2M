@@ -1879,6 +1879,11 @@ end
 --- Fill types a map produces through a subtype's milk output that are semen, not milk.
 Animal.SEMEN_FILL_TYPE_NAMES = { BULLSPERM = true }
 
+--- Whether a map's own semen output (Hof Bergmann's BULL filling BULLSPERM into its bull stable)
+--- produces anything. Off (2026-10-18, user decision): semen comes only from RLRM's dewar
+--- collection (RLSemenCollection), which works for every breed's sire in any pen.
+Animal.MAP_SEMEN_OUTPUT = false
+
 --- Whether a milk-output fill type is semen (Hof Bergmann's BULLSPERM) rather than milk.
 ---@param fillTypeIndex number|nil
 ---@return boolean
@@ -2056,11 +2061,13 @@ function Animal:updateOutput(temp)
             -- lactation, so the mother gate below would zero it for good; the sire's fertility
             -- scales it instead, and a castrated or infertile sire produces none. Only a semen fill
             -- type takes this branch, so no other male starts producing milk. A month in which
-            -- the sire was collected into a dewar (RLSemenCollection) yields nothing here. The age
+            -- the sire was collected into a dewar (RLSemenCollection) yields nothing here, and
+            -- nothing at all while Animal.MAP_SEMEN_OUTPUT is off (the default). The age
             -- shape is dewar collection's (RLSemenCollection.getAgeOutputFactor); the XML curve
             -- only sets the peak amount.
             local collectedThisMonth = self.semenCollectedAge ~= nil and self.semenCollectedAge >= self.age
-            local fertility = (self.isCastrated or collectedThisMonth) and 0 or (self.genetics.fertility or 1)
+            local fertility = (self.isCastrated or collectedThisMonth or not Animal.MAP_SEMEN_OUTPUT) and 0
+                or (self.genetics.fertility or 1)
             local ageFactor = RLSemenCollection.getAgeOutputFactor(self)
             local curveLitersPerDay = litersPerDay
 

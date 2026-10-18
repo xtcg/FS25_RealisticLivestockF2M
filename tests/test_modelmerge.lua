@@ -69,138 +69,196 @@ check("isRelative: windows and unix absolute, $ paths, empty",
 
 -- ---------------------------------------------------------------- part 2: Hof Bergmann 1.5 + packs
 
--- The keepModels the shipped Hof Bergmann bridge declares.
+-- What the shipped Hof Bergmann bridge declares: keepModels entries (in order) and visual index overrides.
 local bridge = loadXMLFileFromDisk(REPO .. "mod_support/FS25_HofBergmann/v1.5/animals.xml")
-local KEEP = {}
+local KEEP, OVERRIDES = {}, {}
 bridge:iterate("animals.keepModels", function(_, key)
+    local entry = { typeName = bridge:getString(key .. "#type"), source = (bridge:getString(key .. "#source") or "map"):lower(), names = {} }
+    bridge:iterate(key .. ".subType", function(_, subKey) table.insert(entry.names, bridge:getString(subKey .. "#name")) end)
+    table.insert(KEEP, entry)
+end)
+bridge:iterate("animals.animal", function(_, key)
     local typeName = bridge:getString(key .. "#type")
-    KEEP[typeName] = {}
-    bridge:iterate(key .. ".subType", function(_, subKey) table.insert(KEEP[typeName], bridge:getString(subKey .. "#name")) end)
+    bridge:iterate(key .. ".subType", function(_, subKey)
+        local name = bridge:getString(subKey .. "#subType")
+        bridge:iterate(subKey .. ".visuals.visual", function(_, vKey)
+            local index = bridge:getInt(vKey .. "#visualAnimalIndex")
+            if index ~= nil then
+                table.insert(OVERRIDES, { typeName = typeName, name = name, minAge = bridge:getInt(vKey .. "#minAge"), index = index })
+            end
+        end)
+    end)
 end)
 
-local function copyVisuals(pairs_)
-    local out = {}
-    for _, p in ipairs(pairs_) do out[#out + 1] = { minAge = p[1], index = p[2] } end
-    return out
-end
+local function sigModel(sig) return sig ~= nil and sig:match("^([^|]*)") or nil end
 
--- Effective visuals as the loaders layer them: RLRM's own subtypes, then the map's NEW subtypes
--- (an existing name is skipped), then the pack (new subtypes, and per-minAge overrides of existing ones).
-local function layered(typeName, pack)
-    local subTypes, from = {}, {}
-    for name, v in pairs(MODEL_SLOTS.RLRM[typeName].subTypes) do subTypes[name] = copyVisuals(v); from[name] = "RLRM" end
-    for name, v in pairs(MODEL_SLOTS.HB[typeName].subTypes) do
-        if subTypes[name] == nil then subTypes[name] = copyVisuals(v); from[name] = "HB" end
-    end
-    local snapshot = {}
-    for name, v in pairs(subTypes) do snapshot[name] = copyVisuals({}); for i, x in ipairs(v) do snapshot[name][i] = { minAge = x.minAge, index = x.index } end end
-    local packWrote = {}
-    for name, v in pairs(pack[typeName].subTypes) do
-        packWrote[name] = true
-        if subTypes[name] == nil then
-            subTypes[name] = copyVisuals(v); from[name] = "pack"
-        else
-            for _, p in ipairs(v) do
-                local hit = false
-                for _, x in ipairs(subTypes[name]) do if x.minAge == p[1] then x.index = p[2]; hit = true end end
-                if not hit then table.insert(subTypes[name], { minAge = p[1], index = p[2] }) end
-            end
-        end
-    end
-    return subTypes, snapshot, packWrote, from
-end
-
-local function slotText(names, dir)
+-- Synthetic config whose slots carry the fixture's signatures ("model|u,v,n"), and the signatures read back.
+local function slotText(sigs)
     local list = {}
-    for _, name in ipairs(names) do list[#list + 1] = animalXml(name .. ".i3d") end
+    for _, sig in ipairs(sigs) do
+        local model, u, v, n = sig:match("^([^|]*)|(%d+),(%d+),(%d+)$")
+        model = model or sigModel(sig)
+        list[#list + 1] = string.format('<animal><assets filename="%s.i3d"><texture tileUIndex="%s" tileVIndex="%s" numTilesU="%s"/></assets>'
+            .. '<audio yellSoundGroup="yell"/></animal>', model, u or "0", v or "0", n or "1")
+    end
     return configXml(list, { "eat", "yell" })
 end
+local function readSigs(text)
+    local list = {}
+    for _, element in ipairs(RLModelMerge.animals(text)) do
+        local model = element.text:match('<assets filename="[^"]-([^/"]+)%.i3d"')
+        local u, v, n = element.text:match('<texture tileUIndex="(%d+)" tileVIndex="(%d+)" numTilesU="(%d+)"')
+        list[#list + 1] = u ~= nil and string.format("%s|%s,%s,%s", model, u, v, n) or model .. "|-"
+    end
+    return list
+end
 
-local function modelName(path) return path:match("([^/]+)%.i3d$") end
+local stampSerial = 0
+local function stamp() stampSerial = stampSerial + 1; return stampSerial end
+local function visualsOf(pairs_, layer, tableName)
+    local out = {}
+    for _, p in ipairs(pairs_) do out[#out + 1] = { minAge = p[1], index = p[2], layer = layer, table = tableName, stamp = stamp() } end
+    return out
+end
+local function write(visuals, minAge, index, layer, tableName)
+    for _, x in ipairs(visuals) do
+        if x.minAge == minAge then x.index = index; x.layer = layer; x.table = tableName; x.stamp = stamp(); return end
+    end
+    table.insert(visuals, { minAge = minAge, index = index, layer = layer, table = tableName, stamp = stamp() })
+end
 
+-- Replays the loaders on Hof Bergmann, optionally with one pack, with or without keepModels.
+-- Each visual remembers the table its index was written for (`table`), so the model it should show
+-- is that table's slot: RLRM subtypes RLRM's, map subtypes HB's, pack-written visuals the pack's.
 local function replay(typeName, packLabel, withKeep)
-    local pack = MODEL_SLOTS[packLabel]
-    local hbSlots, packSlots = MODEL_SLOTS.HB[typeName].slots, pack[typeName].slots
-    local subTypes, snapshot, packWrote, from = layered(typeName, pack)
-    local table_ = packSlots
+    local tables = { RLRM = MODEL_SLOTS.RLRM[typeName].slots, HB = MODEL_SLOTS.HB[typeName].slots }
+    local subTypes = {}
+    for name, v in pairs(MODEL_SLOTS.RLRM[typeName].subTypes) do subTypes[name] = visualsOf(v, "RLRM", "RLRM") end
+    for name, v in pairs(MODEL_SLOTS.HB[typeName].subTypes) do
+        if subTypes[name] == nil then subTypes[name] = visualsOf(v, "HB", "HB") end
+    end
+    for _, o in ipairs(OVERRIDES) do        -- the bridge writes indices of HB's table
+        if o.typeName == typeName and subTypes[o.name] ~= nil then write(subTypes[o.name], o.minAge, o.index, "bridge", "HB") end
+    end
+
+    local entries = {}                      -- keepModels snapshots, taken as the map bridge loads
+    for _, keep in ipairs(KEEP) do
+        if keep.typeName == typeName then
+            local entry = { source = keep.source, snaps = {} }
+            for _, name in ipairs(keep.names) do
+                for _, x in ipairs(subTypes[name] or {}) do table.insert(entry.snaps, { visual = x, index = x.index, stamp = x.stamp }) end
+            end
+            table.insert(entries, entry)
+        end
+    end
+
+    local current, packCount = tables.HB, nil
+    if packLabel ~= nil then
+        local pack = MODEL_SLOTS[packLabel][typeName]
+        tables.pack, current, packCount = pack.slots, pack.slots, #pack.slots
+        for name, v in pairs(pack.subTypes) do
+            if subTypes[name] == nil then
+                subTypes[name] = visualsOf(v, "pack", "pack")
+            else
+                for _, p in ipairs(v) do write(subTypes[name], p[1], p[2], "pack", "pack") end
+            end
+        end
+    end
+
+    local currentName = packLabel ~= nil and "pack" or "HB"
     if withKeep then
-        local slots = {}
-        for _, name in ipairs(KEEP[typeName] or {}) do
-            for i, x in ipairs(subTypes[name]) do
-                if x.index == snapshot[name][i].index then slots[#slots + 1] = x.index end
-            end
-        end
-        local res = RLModelMerge.merge(slotText(packSlots), "/pack/", slotText(hbSlots), "/hb/", slots)
-        assert(res ~= nil, "merge failed for " .. typeName)
-        table_ = {}
-        for i, path in ipairs(assets(res.text)) do table_[i] = modelName(path) end
-        for _, name in ipairs(KEEP[typeName]) do
-            for i, x in ipairs(subTypes[name]) do
-                if x.index == snapshot[name][i].index then x.index = res.indexMap[x.index] end
+        for _, entry in ipairs(entries) do
+            local sourceName = entry.source == "rlrm" and "RLRM" or "HB"
+            if sourceName ~= currentName then
+                local slots, live = {}, {}
+                for _, snap in ipairs(entry.snaps) do
+                    if snap.visual.index == snap.index and snap.visual.stamp == snap.stamp then
+                        slots[#slots + 1] = snap.index; live[#live + 1] = snap
+                    end
+                end
+                if #slots > 0 then
+                    local res = assert(RLModelMerge.merge(slotText(current), "/cur/", slotText(tables[sourceName]), "/src/", slots))
+                    current = readSigs(res.text)
+                    for _, snap in ipairs(live) do snap.visual.index = res.indexMap[snap.index]; snap.visual.merged = true end
+                    tables.merged = current
+                    currentName = "merged"
+                end
             end
         end
     end
-    return { subTypes = subTypes, snapshot = snapshot, packWrote = packWrote, from = from, table = table_, hb = hbSlots,
-        packCount = #packSlots }
+    return { subTypes = subTypes, tables = tables, current = current, packCount = packCount }
 end
 
--- Every visual has a slot; a subtype the pack did not re-point shows the model it showed on the map's own table.
-local function audit(r, keep)
-    local outOfRange, changed, packMoved = {}, {}, {}
+-- Every visual has a slot, and shows the model its index was written for. A visual moved onto an
+-- appended slot is checked against its source slot (exact signature); one left on a pack's own
+-- slot is checked by model only (packs re-texture the base breeds on their own atlas).
+local function audit(r)
+    local outOfRange, wrong = {}, {}
     for name, v in pairs(r.subTypes) do
-        for i, x in ipairs(v) do
-            if r.table[x.index] == nil then outOfRange[#outOfRange + 1] = name .. "@" .. x.index end
-            local snap = r.snapshot[name] and r.snapshot[name][i]
-            if snap ~= nil and not r.packWrote[name] and r.table[x.index] ~= r.hb[snap.index] then
-                changed[#changed + 1] = string.format("%s %s->%s", name, tostring(r.hb[snap.index]), tostring(r.table[x.index]))
+        for _, x in ipairs(v) do
+            local shown = r.current[x.index]
+            if shown == nil then
+                outOfRange[#outOfRange + 1] = name .. "@" .. x.index
+            elseif x.table ~= "pack" and not x.merged then
+                local meant = r.tables[x.table][x.index]
+                local same = (r.packCount ~= nil and x.index <= r.packCount) and sigModel(shown) == sigModel(meant) or shown == meant
+                if not same then wrong[#wrong + 1] = string.format("%s@%d %s->%s", name, x.minAge, tostring(meant), shown) end
             end
-            if r.packWrote[name] and r.from[name] == "pack" and x.index > r.packCount then packMoved[#packMoved + 1] = name end
         end
     end
-    table.sort(outOfRange); table.sort(changed)
-    return outOfRange, changed, packMoved
+    table.sort(outOfRange); table.sort(wrong)
+    return outOfRange, wrong
+end
+local function shows(r, name, minAge)
+    for _, x in ipairs(r.subTypes[name]) do if x.minAge == minAge then return sigModel(r.current[x.index]), x.index end end
 end
 
-check("HB bridge declares keepModels: the 4 sheared sheep, the generic BULL",
-    KEEP.SHEEP ~= nil and #KEEP.SHEEP == 4 and KEEP.COW ~= nil and #KEEP.COW == 1 and KEEP.COW[1] == "BULL")
+local keepTypes = {}
+for _, e in ipairs(KEEP) do keepTypes[#keepTypes + 1] = e.typeName .. ":" .. e.source .. ":" .. table.concat(e.names, ",") end
+check("HB bridge keepModels: sheared sheep (map), BULL (map), Hereford (rlrm)",
+    table.concat(keepTypes, " ") == "SHEEP:map:LSFM_SHEEP_LANDRACE_SHEARED,LSFM_SHEEP_STEINSCHAF_SHEARED,LSFM_SHEEP_SWISS_MOUNTAIN_SHEARED,LSFM_SHEEP_BLACK_WELSH_SHEARED"
+        .. " COW:map:BULL COW:rlrm:COW_HEREFORD,BULL_HEREFORD")
 
--- The bug as reported: the pack's table alone.
-local rawSheep = replay("SHEEP", "SheepBreeds", false)
-local outS, changedS = audit(rawSheep)
-check("without keepModels (sheep): Black Welsh sheared slot 19 missing from the 18-slot pack table",
-    #rawSheep.table == 18 and #outS == 1 and outS[1] == "LSFM_SHEEP_BLACK_WELSH_SHEARED@19")
-check("without keepModels (sheep): the other three sheared looks show pack lambs/ewes",
-    #changedS == 4 and changedS[2] == "LSFM_SHEEP_LANDRACE_SHEARED sheepSheared->sheepLambBaby"
-    and changedS[3] == "LSFM_SHEEP_STEINSCHAF_SHEARED sheepSheared->sheepLamb"
-    and changedS[4] == "LSFM_SHEEP_SWISS_MOUNTAIN_SHEARED sheepSheared->sheepEwe")
-local rawCow = replay("COW", "CowBreeds", false)
-local outC, changedC = audit(rawCow)
-check("without keepModels (cow): BULL in range but shows Highland models",
-    #outC == 0 and #changedC == 4 and changedC[4] == "BULL calf->cattleHighland"
-    and changedC[3] == "BULL bullYoung->cattleCalfHighland" and changedC[1] == "BULL bull->cattleCalfHighlandBaby")
+-- Without keepModels: the reported bugs.
+local o, w = audit(replay("SHEEP", "SheepBreeds", false))
+check("without keepModels, SheepBreeds: Black Welsh sheared @19 out of range, the other sheared looks wrong",
+    #o == 1 and o[1] == "LSFM_SHEEP_BLACK_WELSH_SHEARED@19" and #w == 3)
+o, w = audit(replay("COW", "CowBreeds", false))
+check("without keepModels, CowBreeds: BULL shows Highland cattle (4 stages)", #o == 0 and #w == 4 and w[1]:find("^BULL@") ~= nil)
+o, w = audit(replay("COW", nil, false))
+local herefordWrong = 0
+for _, line in ipairs(w) do if line:find("HEREFORD") then herefordWrong = herefordWrong + 1 end end
+check("without keepModels, no pack: Hereford shows HB's Highland (8 stages)", #o == 0 and #w == 8 and herefordWrong == 8)
 
--- With the shipped keepModels.
+-- With the shipped bridge.
+local sheepPlain = replay("SHEEP", nil, true)
+o, w = audit(sheepPlain)
+check("HB sheep, no pack: unchanged 19-slot table, every visual right", #sheepPlain.current == 19 and #o == 0 and #w == 0)
+
 local sheep = replay("SHEEP", "SheepBreeds", true)
-local outS2, changedS2, movedS2 = audit(sheep)
-check("sheep: pack 18 + 4 sheared = 22 slots (<= 32)", #sheep.table == 22)
-check("sheep: every subtype visual index exists", #outS2 == 0)
-check("sheep: no subtype outside the pack's own changed model (sheared looks kept, base breeds/goats same model)",
-    #changedS2 == 0)
-check("sheep: sheared subtypes on 19-22, each the sheared model",
-    sheep.subTypes.LSFM_SHEEP_LANDRACE_SHEARED[1].index == 19 and sheep.subTypes.LSFM_SHEEP_BLACK_WELSH_SHEARED[1].index == 22
-    and sheep.table[19] == "sheepSheared" and sheep.table[22] == "sheepSheared")
-check("sheep: the pack's own breeds untouched (16-18)", #movedS2 == 0
-    and sheep.subTypes.SHEEP_TEXEL ~= nil and sheep.subTypes.SHEEP_TEXEL[1].index == 16)
+o, w = audit(sheep)
+check("HB + SheepBreeds: 18 + 4 = 22 slots, every visual in range and right", #sheep.current == 22 and #o == 0 and #w == 0)
+check("HB + SheepBreeds: sheared looks on 19-22", select(2, shows(sheep, "LSFM_SHEEP_LANDRACE_SHEARED", 0)) == 19
+    and select(2, shows(sheep, "LSFM_SHEEP_BLACK_WELSH_SHEARED", 0)) == 22 and shows(sheep, "LSFM_SHEEP_BLACK_WELSH_SHEARED", 0) == "sheepSheared")
+check("HB + SheepBreeds: the pack's breeds keep their slots", select(2, shows(sheep, "SHEEP_TEXEL", 0)) == 16)
+
+local cowPlain = replay("COW", nil, true)
+o, w = audit(cowPlain)
+check("HB cow, no pack: 21 + 3 Hereford = 24 slots, every visual in range and right", #cowPlain.current == 24 and #o == 0 and #w == 0)
+check("HB cow, no pack: Hereford on RLRM's Hereford models (appended 22-24)",
+    select(2, shows(cowPlain, "COW_HEREFORD", 12)) == 22 and cowPlain.current[22] == MODEL_SLOTS.RLRM.COW.slots[16]
+    and select(2, shows(cowPlain, "BULL_HEREFORD", 0)) == 24 and cowPlain.current[24] == MODEL_SLOTS.RLRM.COW.slots[18])
+check("HB cow, no pack: Highland on HB's own Highland 16-18, BULL on its bull models 19-21",
+    shows(cowPlain, "COW_HIGHLAND_CATTLE", 0) == "cattleCalfHighlandBaby" and shows(cowPlain, "BULL_HIGHLAND_CATTLE", 12) == "cattleHighland"
+    and shows(cowPlain, "BULL", 0) == "calf" and shows(cowPlain, "BULL", 24) == "bull")
 
 local cow = replay("COW", "CowBreeds", true)
-local outC2, changedC2, movedC2 = audit(cow)
-check("cow: pack 21 + 3 bull = 24 slots (<= 32)", #cow.table == 24)
-check("cow: every subtype visual index exists", #outC2 == 0)
-check("cow: no subtype outside the pack's own changed model", #changedC2 == 0)
-check("cow: BULL calf/young/adult on 22/23/24 = calf, bullYoung, bull",
-    cow.subTypes.BULL[1].index == 22 and cow.subTypes.BULL[2].index == 23 and cow.subTypes.BULL[3].index == 24
-    and cow.table[22] == "calf" and cow.table[23] == "bullYoung" and cow.table[24] == "bull")
-check("cow: the pack's own subtypes untouched", #movedC2 == 0)
+o, w = audit(cow)
+check("HB + CowBreeds: 21 + 3 bull = 24 slots, every visual in range and right", #cow.current == 24 and #o == 0 and #w == 0)
+check("HB + CowBreeds: BULL on 22/23/24 = calf, bullYoung, bull",
+    select(2, shows(cow, "BULL", 0)) == 22 and shows(cow, "BULL", 0) == "calf" and shows(cow, "BULL", 6) == "bullYoung" and shows(cow, "BULL", 12) == "bull")
+check("HB + CowBreeds: Hereford/Highland stay on the pack's own slots (no Hereford slots appended)",
+    select(2, shows(cow, "COW_HEREFORD", 12)) == 7 and select(2, shows(cow, "BULL_HIGHLAND_CATTLE", 12)) == 17)
 
 check("hash: stable 8 hex digits, differs on change",
     RLModelMerge.hash("abc") == RLModelMerge.hash("abc") and #RLModelMerge.hash("abc") == 8

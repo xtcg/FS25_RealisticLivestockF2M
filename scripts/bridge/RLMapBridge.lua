@@ -58,10 +58,20 @@ RLMapBridge.configOverrideHistory = {}
 RLMapBridge.pendingConfigOverrideConflictWarning = nil
 
 --- Map model slots to keep when an animal pack replaces a type's model config (animals.keepModels
---- of a map bridge). Ordered list of { typeName, bridgeName, configFilename, animalCount,
+--- of a map bridge). Ordered list of { typeName, bridgeName, source, configFilename,
 --- subTypes = { { name, visuals = { { visual, index } } } } }, captured when the map bridge loads;
 --- applied by applyKeptModels after every pack. Cleared at the start of loadBridgeAnimals.
 RLMapBridge.pendingKeptModels = {}
+
+--- Serial of visualAnimalIndex writes by bridges and packs (visual.rlIndexWrite): a kept visual is
+--- re-pointed by a later pack when its stamp changed, whatever index the pack chose.
+RLMapBridge.indexWriteSerial = 0
+
+---@return number
+function RLMapBridge.nextIndexWrite()
+    RLMapBridge.indexWriteSerial = RLMapBridge.indexWriteSerial + 1
+    return RLMapBridge.indexWriteSerial
+end
 
 --- Breeding group data: subTypeName -> groupName
 RLMapBridge.breedingGroupBySubType = {}
@@ -806,9 +816,20 @@ function RLMapBridge.readKeptModels(animalSystem, xmlFile, bridgeName)
         local animalType = rawTypeName ~= nil and animalSystem.nameToType[rawTypeName:upper()] or nil
         if animalType == nil then
             Log:warning("MapBridge: '%s' keepModels type '%s' unknown; skipped", bridgeName, tostring(rawTypeName))
+        elseif (xmlFile:getString(key .. "#source") or "map"):lower() == "rlrm"
+            and (animalSystem.configFilenameSnapshot == nil or animalSystem.configFilenameSnapshot[animalType.name] == nil) then
+            Log:warning("MapBridge: '%s' keepModels %s source=rlrm: no RLRM config recorded; skipped", bridgeName, rawTypeName:upper())
         else
-            local entry = { typeName = rawTypeName:upper(), bridgeName = bridgeName,
-                configFilename = animalType.configFilename, animalCount = #animalType.animals, subTypes = {} }
+            -- source="map" (default): slots of the config in place now (the map's); source="rlrm":
+            -- slots of RLRM's own config, as Phase 1 loaded it, for RLRM subtypes the map's table lacks.
+            local source = (xmlFile:getString(key .. "#source") or "map"):lower()
+            local configFilename = animalType.configFilename
+            if source == "rlrm" then
+                configFilename = animalSystem.configFilenameSnapshot ~= nil
+                    and animalSystem.configFilenameSnapshot[animalType.name] or nil
+            end
+            local entry = { typeName = rawTypeName:upper(), bridgeName = bridgeName, source = source,
+                configFilename = configFilename, subTypes = {} }
             for _, subKey in xmlFile:iterator(key .. ".subType") do
                 local name = (xmlFile:getString(subKey .. "#name") or ""):upper()
                 local subType = animalSystem.nameToSubType ~= nil and animalSystem.nameToSubType[name] or nil
@@ -819,15 +840,15 @@ function RLMapBridge.readKeptModels(animalSystem, xmlFile, bridgeName)
                     local visuals = {}
                     for _, visual in pairs(subType.visuals) do
                         if visual.visualAnimalIndex ~= nil then
-                            table.insert(visuals, { visual = visual, index = visual.visualAnimalIndex })
+                            table.insert(visuals, { visual = visual, index = visual.visualAnimalIndex, stamp = visual.rlIndexWrite })
                         end
                     end
                     table.insert(entry.subTypes, { name = name, subType = subType, visuals = visuals })
                 end
             end
             table.insert(RLMapBridge.pendingKeptModels, entry)
-            Log:info("MapBridge: '%s' keepModels %s: %d subtype(s) on '%s' (%d slots)",
-                bridgeName, entry.typeName, #entry.subTypes, tostring(entry.configFilename), entry.animalCount)
+            Log:info("MapBridge: '%s' keepModels %s (source %s): %d subtype(s), slots from '%s'",
+                bridgeName, entry.typeName, source, #entry.subTypes, tostring(entry.configFilename))
         end
     end
 end
@@ -883,7 +904,8 @@ function RLMapBridge.applyKeptModels(animalSystem)
                 local current = {}
                 for _, visual in pairs(kept.subType.visuals or {}) do current[visual] = true end
                 for _, snap in ipairs(kept.visuals) do
-                    if current[snap.visual] and snap.visual.visualAnimalIndex == snap.index then
+                    if current[snap.visual] and snap.visual.visualAnimalIndex == snap.index
+                        and snap.visual.rlIndexWrite == snap.stamp then
                         table.insert(slots, snap.index)
                         table.insert(live, snap)
                     else
@@ -1718,6 +1740,7 @@ function RLMapBridge.applySubTypeOverrides(subType, animalSystem, xmlFile, key, 
                             local newVisual = {
                                 minAge = minAge,
                                 visualAnimalIndex = newIndex,
+                                rlIndexWrite = RLMapBridge.nextIndexWrite(),
                                 visualAnimal = newAnimal,
                                 store = {
                                     imageFilename = Utils.getFilename(xmlFile:getString(visualKey .. "#image") or "", mapModDir),
@@ -1748,6 +1771,7 @@ function RLMapBridge.applySubTypeOverrides(subType, animalSystem, xmlFile, key, 
                         if newAnimal ~= nil then
                             matchedVisual.visualAnimalIndex = newIndex
                             matchedVisual.visualAnimal = newAnimal
+                            matchedVisual.rlIndexWrite = RLMapBridge.nextIndexWrite()
                         else
                             Log:warning("MapBridge: Visual override for '%s' minAge=%d: visualAnimalIndex %d not found in animalType.animals", subTypeName, minAge, newIndex)
                         end

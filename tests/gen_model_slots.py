@@ -19,10 +19,14 @@ TYPES = ("SHEEP", "COW")
 
 
 def slots(root):
+    """Slot signatures "model|u,v,n": asset file name and the first texture tile (u, v of n x n)."""
     names = []
     for animal in root.find("animals").findall("animal"):
-        filename = animal.find("assets").get("filename")
-        names.append(os.path.splitext(filename.replace("\\", "/").split("/")[-1])[0])
+        assets = animal.find("assets")
+        name = os.path.splitext(assets.get("filename").replace("\\", "/").split("/")[-1])[0]
+        tex = assets.find("texture")
+        tile = "-" if tex is None else f'{tex.get("tileUIndex", "0")},{tex.get("tileVIndex", "0")},{tex.get("numTilesU", "1")}'
+        names.append(f"{name}|{tile}")
     return names
 
 
@@ -97,7 +101,9 @@ def main(hb_zip, sheep_dir, cow_dir):
     with open(hb_zip, "rb") as f:
         hb_sha = sha(f.read())
 
-    rlrm = {t: {"subTypes": visuals(ET.parse(os.path.join(HERE, "..", "xml", "animals.xml")).getroot(), t)} for t in TYPES}
+    rlrm_root = ET.parse(os.path.join(HERE, "..", "xml", "animals.xml")).getroot()
+    rlrm = {t: {"slots": slots(ET.parse(os.path.join(HERE, "..", config_path(rlrm_root, t))).getroot()),
+                "subTypes": visuals(rlrm_root, t)} for t in TYPES}
 
     packs = {}
     for label, directory, type_name in (("SheepBreeds", sheep_dir, "SHEEP"), ("CowBreeds", cow_dir, "COW")):
@@ -114,8 +120,9 @@ def main(hb_zip, sheep_dir, cow_dir):
     for label, (directory, _) in packs.items():
         out.append(f"--   FS25_{label}RLRM {git_head(directory)}: animals.xml + its configOverride table")
     out += [
-        "--   RLRM xml/animals.xml (the repo's own subtypes)",
-        "-- slots[i] = model of slot i (asset file name); subTypes[name] = { { minAge, visualAnimalIndex }, ... }.",
+        "--   RLRM xml/animals.xml and its own model tables",
+        "-- slots[i] = slot i as \"model|u,v,n\" (asset file name, first texture tile u,v of an n x n atlas);",
+        "-- subTypes[name] = { { minAge, visualAnimalIndex }, ... }.",
         "",
         "MODEL_SLOTS = {",
         "    HB = {",
