@@ -224,6 +224,18 @@
     the twin row, at most maxSuckled counted); breeds name their system, the rest use default.
     Her milk is never sold or stored: she makes what her young drink from it, paid by her budget.
 
+    water: water first, then intake (a first game fit, not a real formula; it needs a real
+    water cut and recovery to check it). Each hour a pen's water coverage is read off its water
+    spec before the feeding (the engine draws water after the food): an automatic supply covers all;
+    otherwise the water stock in the pen - filled by hand, a pipeline or a rain water tank's
+    deliveries - over the hour's need. Water in fresh feed is not counted (version 1); the milk a
+    young animal still drinks is (its milkMax of the diet counts as covered). From fullFrom of its
+    water an animal eats freely; at halfCoverage at most halfIntake of its dry intake; with none
+    minIntake. A shortage takes that much off within dropHours model hours, and once water is back
+    the intake comes back over recoveryDays model days (rlGrowth waterIntake, saved). Milk follows
+    the coverage, and health the coverage too (reason WATER, kept apart from feed shortfall in the
+    records). Water amounts themselves (animals.xml input water) are not changed here.
+
     Copy this file to modSettings/FS25_RealisticLivestockRM/feedProfiles.xml to change it; that
     copy replaces this file. A file that fails a check keeps the mode off and logs why; a single
     feed that fails is left uneaten and listed.
@@ -255,6 +267,8 @@
     <calfMilk realLitersPerDay="5" density="1.03" dm="0.50" sizeExponent="0.75" nursingLitersPerDay="10" earlyWeaningMonth="3"/>
 
     <damMilk dm="0.125" me="22.5" cp="0.25"/>
+
+    <water fullFrom="0.9" halfCoverage="0.5" halfIntake="0.6" minIntake="0.2" dropHours="6" recoveryDays="2"/>
 
     <protein maintenance="0.065" calf="0.18" young="0.14" growing="0.12" finishing="0.105"
         lactating="0.16" dry="0.10" youngUntilMonth="8" growingUntilMonth="14" lactatingAtKg="30"
@@ -435,6 +449,18 @@
             <class name="LACTATING" peNdfMin="0.18" fermentableMax="0.35"/>
             <class name="DRY" peNdfMin="0.20" fermentableMax="0.30"/>
         </ration>
+        <!-- Concentrate routes (SHEEP-RAM-CONC-01, 2026-10-18): a weaned male's concentrate share of the ration's
+             DM on AUTO, apart from his rumen's adaptation (14 days above). A ram lamb grows on 20% (up to 40% as his
+             needs want), a breeding ram from 12 months is kept on 10% (up to 25%; good forage alone is enough),
+             moving between the two over 14 model days; an explicit FINISH target or share is intensive finishing,
+             at most 80% (at least 20% forage DM, a conservative game rule); the share rises by at most 5 points a
+             model day. Real practice: concentrate is built up over 2-3 weeks (Teagasc, finishing store lambs on
+             all-concentrate diets; SRUC), and an all-concentrate finishing diet exists - 95% is not wrong as such,
+             only as the default for a breeding ram. Rams are fed for condition before tupping (Teagasc Sheep
+             Newsletter Dec 2023). The targets and caps are game fits, not a recommendation of those bodies.
+             Ewe lambs and ewes are not routed here. -->
+        <concentrate lambTarget="0.20" lambCap="0.40" ramTarget="0.10" ramCap="0.25" finishingCap="0.80"
+            adultFromMonth="12" transitionDays="14" targetRisePerDay="0.05"/>
         <milk realKgPerDay="2.1" meMJPerKg="8.3"/>
         <damMilk dm="0.19" me="25.0" cp="0.28"/>
         <nursing weaningMonth="3" earlyWeaningMonth="2" readyCreepKgPerDay="0.25" readyDays="3.5"
@@ -492,7 +518,9 @@
           each % at its diet ME (3300-3400 kcal/kg, 90% DM) / 4.184; growth falls linearly to nothing at 0.05 g/MJ (the
           gut and skin losses of Eqs. 8-40 to 8-42 at about 60 kg).
         - A pen with a pig under 28 model days (not weaned, design D3), a pregnant female or one that has farrowed keeps
-          the old rules (PIG_BREEDING_LEGACY): the sow's milk, pregnancy and body condition are P6/P7.
+          the old rules (PIG_BREEDING_LEGACY): the sow's milk, pregnancy and body condition are P6/P7. Its covered pigs'
+          weight still follows their own curve there (RLFeed.stepFallback: the budget pays their needs x the pen's food
+          factor), never the old fixed gain; an approximation until the sow's milk and litter budget exist.
         - Feeds: INRA-CIRAD-AFZ tables (feedtables.com) and Feedipedia, read 2026-10-16, pig ME and SID lysine on DM;
           density the engine's massPerLiter (Hof Bergmann 1.5b1). A pig eats every feed in its trough it may, mixed as
           stocked (a mixed trough), each at most its maxShare; PIGLETFOOD only up to 25 kg.

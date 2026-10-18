@@ -340,6 +340,44 @@ function RLFeed.isNursingDam(animal)
 end
 
 
+--- Whether a dam is nursing young now, and how - what a display or a report should call
+--- "lactating". Three different things share that word:
+---   isLactating (the saved flag): the game's milk rule (RLLactation.startsAtBirth): a cow or goat
+---     in milk after giving birth - the flag the saleable milk output, the cattle feed class, the
+---     cattle dam's calf milk (RLFeed.canNurse) and the mastitis prerequisite read. Never set for a
+---     ewe or a sow: they give no saleable milk.
+---   A ewe nursing: her lambs on milk by their age are in her pen (RLFeed.isNursingDam): the milk
+---     her budget pays for them (nursing rules, sheep); none when they are away or weaned.
+---   A sow nursing: a litter of hers under the pen gate's weaning age (feedProfiles monogastric
+---     youngLegacyUntilMonth) is in her pen. Shown only: no sow milk is modelled yet (the pen keeps
+---     the old feeding rules, RLFeed.stepFallback), so no milk is made or paid for it.
+--- Reads only; nothing here makes milk.
+--- @param animal table
+--- @return boolean nursing
+--- @return string|nil kind "MILK" (isLactating), "NURSING" (a ewe's lambs drink her milk), "SUCKLING" (a sow's litter, not modelled)
+function RLFeed.getNursingState(animal)
+    if animal == nil or animal.isDead then return false, nil end
+    if animal.isLactating == true then return true, "MILK" end
+    if animal.gender ~= "female" or not animal.isParent then return false, nil end
+    local config = RLFeed.getConfig(animal)
+    if config.nursing ~= nil then
+        if RLFeed.isNursingDam(animal) then return true, "NURSING" end
+        return false, nil
+    end
+    local mono = config.monogastric
+    local owner = getOwner(animal)
+    if mono == nil or owner == nil or owner.getClusters == nil or animal.getIdentifiers == nil then return false, nil end
+    local id = animal:getIdentifiers()
+    for _, young in ipairs(owner:getClusters() or {}) do
+        if young ~= animal and not young.isDead and (young.numAnimals or 1) > 0 and young.motherId ~= nil and young.motherId == id
+            and getFeedAge(young) < mono.youngLegacyUntilMonth then
+            return true, "SUCKLING"
+        end
+    end
+    return false, nil
+end
+
+
 --- A nursing dam's milk at full feed now (real kg a day, as drunk; nursing lactation rows: her
 --- system, single or twin by the young she suckles here - more share the twin row - in the month
 --- of her youngest's age), the young she suckles and their age. 0 when she suckles none.
@@ -504,7 +542,8 @@ end
 --- A monogastric pen (pigs): it runs the mode when it has a trough and every animal in it is covered
 --- and growing - none younger than youngLegacyUntilMonth (continuous months: not weaned), none
 --- pregnant, no female that has given birth. Otherwise the whole pen keeps the old rules
---- (PIG_BREEDING_LEGACY): the sow's milk, pregnancy and body condition are a later batch.
+--- (PIG_BREEDING_LEGACY): the sow's milk, pregnancy and body condition are a later batch. Its covered
+--- pigs' weight still follows their curves (RLFeed.stepFallback, from AnimalHealth.updateHealth).
 --- @return boolean active
 --- @return string reason
 function RLFeed.evaluateMonogastricPen(placeable, section)
@@ -609,11 +648,80 @@ function RLFeed.getAnimalTarget(animal, ration, class)
     if target == "AUTO" then
         if animal.gender == "male" then return "FINISH" end
         -- A species whose young females are finished too (sheep: ewe lambs, by the body
-        -- condition's one rule; a maiden ewe from youngUntilMonth grows as a ewe hogg).
-        if RLBodyCondition.isFinishingYoungFemale(animal) then return "FINISH" end
+        -- condition's one rule; a maiden ewe from youngUntilMonth grows as a ewe hogg, after her
+        -- lamb -> hogg window: RLFeed.getYoungTransition).
+        if RLBodyCondition.isFinishingYoungFemale(animal) or RLFeed.getYoungTransition(animal) ~= nil then return "FINISH" end
         return "GROW"
     end
     return target
+end
+
+
+--- A weaned male's or maiden female's concentrate route (a species with concentrate routes: sheep;
+--- nil for any other animal, and for a ewe that lambed or is in lamb): what share of the ration's DM his concentrate is aimed at and capped at, apart from what
+--- his rumen is adapted to (the ration's adaptation still limits him too). On AUTO a ram lamb's growth
+--- route (lambTarget / lambCap) moving to a breeding ram's maintenance route (ramTarget / ramCap) over
+--- transitionDays model days from adultFromMonth - his age alone, so the change neither clears his
+--- adaptation nor touches his weight. An explicit FINISH target or share on the pen is the intensive
+--- route: at most finishingCap (the rest forage). When the pen's forage cannot fill the route's
+--- forage share, concentrate makes up the missing forage up to finishingCap (the planner). maxNow:
+--- the most he may eat this step, his last step's routed share (else what his rumen is adapted
+--- to) + targetRisePerDay a model day.
+--- @return table|nil { target (nil: the intensive route), cap, maxNow }
+function RLFeed.getConcentrateRoute(animal, ration, class, dtDays)
+    local config = RLFeed.getConfig(animal)
+    local route = config.concentrate
+    if route == nil or class == "CALF" then return nil end
+    -- Rams and ram lambs, and maiden ewe lambs and hoggs (a ewe that lambed or is in lamb eats for
+    -- her pregnancy and milk on AUTO as before).
+    if animal.gender ~= "male" and (animal.isParent or animal.isPregnant) then return nil end
+    local state = RLGrowth.peekState(animal)
+    local last = state ~= nil and (state.concTarget or state.feedAdapted) or 0
+    local maxNow = last + route.targetRisePerDay * math.max(dtDays or 0, 0)
+    if ration ~= nil and (ration.share ~= nil or ration.target == "FINISH") then
+        return { cap = route.finishingCap, finishingCap = route.finishingCap, maxNow = maxNow }
+    end
+    local t = math.clamp((getFeedAge(animal) - route.adultFromMonth) * config.realDaysPerPeriod / route.transitionDays, 0, 1)
+    return { target = route.lambTarget + (route.ramTarget - route.lambTarget) * t,
+        cap = route.lambCap + (route.ramCap - route.lambCap) * t, finishingCap = route.finishingCap, maxNow = maxNow }
+end
+
+
+--- A maiden female of a species with concentrate routes (sheep) crossing her body condition's
+--- youngUntilMonth (a ewe lamb becoming a hogg): how far through the route's transitionDays she is
+--- (0..1), by her continuous age; nil outside that window. In it she is still fed freely (FINISH on
+--- AUTO) and what she may lay down fades out to the hogg's ceiling (RLFeed.getTransitionCeiling),
+--- so her gain falls over the window, not in the hour she turns 12
+--- months (before, FINISH -> GROW and 0.82 -> 0.55 at once: about 0.45 -> 0.08 kg an hour at a
+--- one-day month).
+--- @return number|nil t
+function RLFeed.getYoungTransition(animal)
+    local config = RLFeed.getConfig(animal)
+    local route = config.concentrate
+    if route == nil or animal.gender ~= "female" or animal.isParent then return nil end
+    local body = RLBodyCondition.getConfig(animal)
+    if (body.femaleFinishShift or 0) <= 0 or (body.youngUntilMonth or 0) <= 0 then return nil end
+    local days = (getFeedAge(animal) - body.youngUntilMonth) * config.realDaysPerPeriod
+    if days < 0 or days >= route.transitionDays then return nil end
+    return days / route.transitionDays
+end
+
+
+--- The reserve ceiling of a maiden female in her lamb -> hogg window (RLFeed.getYoungTransition)
+--- for a step of dtMonths: what she may still lay down fades from the ewe lamb's rate (her ceiling
+--- as the ewe lamb she was, read on a copy of her just under youngUntilMonth) to none above the
+--- hogg's ceiling over the window - a gain that falls day by day, not in one hour; never below the
+--- hogg's ceiling. nil outside the window.
+function RLFeed.getTransitionCeiling(animal, dtMonths)
+    local t = RLFeed.getYoungTransition(animal)
+    if t == nil then return nil end
+    local body = RLBodyCondition.getConfig(animal)
+    local state = setmetatable({ ageMonths = body.youngUntilMonth - 1e-6 }, { __index = animal.rlGrowth })
+    local young = setmetatable({ age = math.max(math.ceil(body.youngUntilMonth) - 1, 0), rlGrowth = state }, { __index = animal })
+    local from, to = RLBodyCondition.getReserveCeiling(young), RLBodyCondition.getReserveCeiling(animal)
+    if from == nil or to == nil or to >= from then return to end
+    local reserve = RLBodyCondition.getReserve(animal) or to
+    return math.max(to, math.min(from, reserve + (1 - t) * body.gainRatePerMonth * math.max(dtMonths or 0, 0)))
 end
 
 
@@ -733,6 +841,7 @@ end
 local function buildEnergyInput(animal, dtMonths)
     local state = RLGrowth.peekState(animal)
     local input = RLGrowth.buildStepInput(animal, state, 0, 1, dtMonths, true)
+    input.reserveCeiling = RLFeed.getTransitionCeiling(animal, dtMonths) or input.reserveCeiling
     local config = RLFeed.getConfig(animal)
     input.maintenanceFactor = (input.maintenanceFactor or 1) * RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
     input.growthCostPerKg = RLFeed.getGrowthCost(animal, dtMonths)
@@ -812,16 +921,21 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
         appetiteCtx.milkKgPerDay = milkKg + 1
         appetitePerMilkKg = RLFeedMath.getAppetite(weight, class, config.intake, appetiteCtx) - appetite
     end
+    -- Water first: short of it an animal eats less (its dry intake share, RLFeed.getAnimalWater).
+    local waterCoverage, water = RLFeed.getAnimalWater(animal, class == "CALF" and milkMax or 0, dtDays)
+    cowIntake = cowIntake * water
 
     return {
         animal = animal, class = class, target = target, stage = getFeedStage(animal, milkMax), milkKgPerDay = milkKg,
         milkCollect = milkCollect, appetitePerMilkKg = appetitePerMilkKg ~= nil and appetitePerMilkKg * cowIntake or nil,
         appetite = appetite * cowIntake,
         -- A calf on milk: what its rumen takes of solids, at its solidMax.
-        solidCap = class == "CALF" and solidMax * RLFeedMath.getCalfSolidCapacity(weight, config.intake, weaningX, gene) or nil,
+        solidCap = class == "CALF" and solidMax * RLFeedMath.getCalfSolidCapacity(weight, config.intake, weaningX, gene) * water or nil,
+        waterCoverage = waterCoverage, waterCap = water,
         fill = RLFeedMath.getFillCapacity(weight, class, config.intake, gene) * cowIntake,
         -- Every animal may eat concentrate its feeding stage allows (a calf: a starter feed).
         concEligible = true,
+        concRoute = RLFeed.getConcentrateRoute(animal, ration, class, dtDays),
         adapted = state.feedAdapted or 0,
         milkMax = class == "CALF" and milkMax or 0,
         milkMaxKgPerDay = milkLimit,
@@ -866,11 +980,12 @@ function RLFeed.describeMonogastricAnimal(animal, ration, dtMonths, dtDays, conf
     local days = config.realDaysPerPeriod
     local weight = math.max(animal.weight or 0, 0) + 0.5 * (demands.growthKg or 0)
     local sex = RLFeedMath.getMonoSex(animal.gender, animal.isCastrated)
+    local waterCoverage, water = RLFeed.getAnimalWater(animal, 0, dtDays)
     return {
         animal = animal, class = class, target = target, stage = "WEANED", milkKgPerDay = 0, milkCollect = 1,
-        weight = weight, sex = sex,
-        appetite = RLFeedMath.getMonoPhysicalCap(weight, mono) * gene,
-        energyCap = RLFeedMath.getMonoEnergyIntake(weight, sex, mono) * gene,
+        weight = weight, sex = sex, waterCoverage = waterCoverage, waterCap = water,
+        appetite = RLFeedMath.getMonoPhysicalCap(weight, mono) * gene * water,
+        energyCap = RLFeedMath.getMonoEnergyIntake(weight, sex, mono) * gene * water,
         fill = 0, concEligible = false, adapted = 1, milkMax = 0, milkMaxKgPerDay = 0, nursingMaxKgPerDay = 0,
         solidMax = 1, solidEnergy = 1,
         proteinNeed = RLFeedMath.getLysineNeed(weight, sex, mono),
@@ -1049,6 +1164,10 @@ function RLFeed.beginFeeding(placeable)
     local spec = placeable.spec_husbandryFood
     if spec == nil then return false end
     local tick = RLBodyCondition.getTickId()
+    -- The hour's water before its feeding (the engine draws the water after the food): what the
+    -- pen's water spec will give this hour, recorded now; the water spec records what the
+    -- animals actually drank once it has drawn it (RL_PlaceableHusbandryWater.updateFeeding).
+    if placeable.spec_husbandryWater ~= nil then RLBodyCondition.recordWater(placeable, (RLFeed.getWaterSupply(placeable))) end
     local active, reason = RLFeed.evaluatePen(placeable)
     spec.rlFeedPen = { tick = tick, active = active, reason = reason }
     spec.rlFeedWindow = active and { tick = tick } or nil
@@ -1060,6 +1179,51 @@ function RLFeed.beginFeeding(placeable)
             daysPerPeriod = environment.daysPerPeriod, pendingDays = spec.rlFeedClock ~= nil and spec.rlFeedClock.pendingDays or 0 })
     end
     return active
+end
+
+
+--- The share of its water need a pen gets this hour, read off its water spec before the feeding:
+--- automatic supply (the pen pays for its water) all of it; otherwise the water stock in the pen
+--- (filled by hand, a pipeline or a rain water tank's deliveries) over the hour's need, as the
+--- engine will draw it after the feeding. A pen without a water spec has no water modelled (1).
+--- Water in fresh feed and in the milk a young animal drinks is not part of the pen's coverage
+--- (RLFeed.getAnimalWater adds the milk; feed moisture is not counted in this version).
+--- @return number coverage 0..1
+--- @return string source "NONE", "AUTOMATIC", "NO_NEED", "STOCK"
+function RLFeed.getWaterSupply(placeable)
+    local water = placeable ~= nil and placeable.spec_husbandryWater or nil
+    if water == nil then return 1, "NONE" end
+    if water.automaticWaterSupply then return 1, "AUTOMATIC" end
+    local environment = g_currentMission ~= nil and g_currentMission.environment or nil
+    local need = (water.litersPerHour or 0) * (environment ~= nil and environment.timeAdjustment or 1)
+    if need <= 0 then return 1, "NO_NEED" end
+    local stock = placeable.getHusbandryFillLevel ~= nil and placeable:getHusbandryFillLevel(water.fillType) or 0
+    return math.clamp((stock or 0) / need, 0, 1), "STOCK"
+end
+
+
+--- A pen's water coverage this hour: as recorded for this hour (before its feeding, then what was
+--- drunk), else read off its water spec now - never an older hour's, never 1 for want of a record.
+function RLFeed.getHourWater(placeable, tick)
+    local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
+    local water = spec ~= nil and spec.rlWaterCoverage or nil
+    tick = tick or RLBodyCondition.getTickId()
+    if water ~= nil and tick ~= nil and water.tick == tick then return water.coverage end
+    return (RLFeed.getWaterSupply(placeable))
+end
+
+
+--- An animal's water this step: its pen's coverage, with the milk it may still drink counted as
+--- covered (a young animal on milk takes its water with it: milkMax of its diet), and the share of
+--- its dry intake that water allows (RLFeedMath.stepWaterIntake from its last step's, read only:
+--- RLFeed.runStep keeps it once the step is taken).
+--- @return number coverage 0..1
+--- @return number intake share 0..1
+function RLFeed.getAnimalWater(animal, milkMax, dtDays)
+    local coverage = RLFeed.getHourWater(getOwner(animal))
+    coverage = 1 - (1 - math.clamp(coverage, 0, 1)) * (1 - math.clamp(milkMax or 0, 0, 1))
+    local state = RLGrowth.peekState(animal)
+    return coverage, RLFeedMath.stepWaterIntake(state ~= nil and state.waterIntake or nil, coverage, dtDays, RLFeed.getConfig(animal).water)
 end
 
 
@@ -1319,8 +1483,8 @@ function RLFeed.runStep(placeable, window, stepDays)
     local observed = #observers > 0 and { placeable = placeable, tick = tick, stepDays = stepDays, scale = config.resourceScale,
         withdraw = plan.withdraw, removed = removedLiters, ledger = hour.monoLedger, animals = {}, dams = {} } or nil
 
-    local water = spec.rlWaterCoverage
-    local waterCoverage = (water ~= nil and water.tick ~= nil and tick - water.tick <= 1) and water.coverage or 1
+    -- This hour's water, worked out before the feeding (RLFeed.beginFeeding): never an older hour's.
+    local waterCoverage = RLFeed.getHourWater(placeable, tick)
     local protein = config.protein
     hour.plannedPerMonth = {}
     -- Dams settle before the calves drinking from them: a calf gets her milk only as far as her
@@ -1345,15 +1509,27 @@ function RLFeed.runStep(placeable, window, stepDays)
             local profile = RLFeedProfiles.getUsableFeed(name, config)
             if profile ~= nil and profile.role == "MILK" then milkDrunk = milkDrunk + fill.kg end
         end
+        -- Held by its water rather than its appetite or rumen: said so.
+        if (a.waterCap or 1) < 1 - 1e-9 and (a.intakeLimit == "APPETITE" or a.intakeLimit == "FILL" or a.intakeLimit == "ENERGY") then
+            a.intakeLimit = "WATER"
+        end
         local feed = { tick = tick, owner = placeable, kg = a.kg, me = a.me, cp = a.cp, byFill = a.byFill, plannedKg = a.plannedKg,
             plannedMe = a.plannedMe, class = a.class, target = a.target, concShare = a.cEaten, concLimit = a.concLimit,
             intakeLimit = a.intakeLimit, proteinFactor = RLFeed.getStepProteinFactor(a, config),
             lysPerMe = config.monogastric ~= nil and a.lysPerMe or nil,
-            proteinNeed = a.proteinNeed, dtDays = stepDays, water = waterCoverage, damMilk = a.damMilk,
+            proteinNeed = a.proteinNeed, dtDays = stepDays, water = a.waterCoverage or waterCoverage, waterIntake = a.waterCap or 1,
+            damMilk = a.damMilk,
             milkDemandFactor = a.milkDemandFactor, milkPlanKg = a.milkPlanKg or 0, milkDrunkKg = milkDrunk }
         local before = observed ~= nil and { weight = animal.weight, health = animal.health, healthCarry = animal.rlHealthCarry or 0 } or nil
         local paidBefore = a.nursing ~= nil and hour.animals[animal] ~= nil and hour.animals[animal].milkPaidLiters or 0
         RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
+        -- Its water intake share is kept with it (saved), so a shortage builds up and passes off
+        -- over model time, in any pen.
+        if animal.rlGrowth ~= nil and feed.result ~= nil then
+            animal.rlGrowth.waterIntake = (a.waterCap or 1) < 1 - 1e-9 and a.waterCap or nil
+            -- A routed animal's share this step: the next may rise from it only so fast.
+            if a.concRoute ~= nil and a.routeC ~= nil then animal.rlGrowth.concTarget = a.routeC end
+        end
         if a.nursing ~= nil and hour.animals[animal] ~= nil then
             -- What her budget paid this step, as real kg DM her calves may drink.
             local liters = hour.animals[animal].milkPaidLiters - paidBefore
@@ -1504,7 +1680,8 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
     local record = hour.animals[animal]
     if record == nil then
         record = { tick = tick, owner = placeable, kg = 0, me = 0, cpKg = 0, byFill = {}, plannedKg = 0, plannedMe = 0, dtDays = 0,
-            milkLiters = 0, milkPaidLiters = 0, damMilkKg = 0, milkPlanKg = 0, milkDrunkKg = 0, steps = 0 }
+            milkLiters = 0, milkPaidLiters = 0, damMilkKg = 0, milkPlanKg = 0, milkDrunkKg = 0, steps = 0,
+            healthLostWater = 0, healthLostFeed = 0 }
         hour.animals[animal] = record
         table.insert(hour.order, animal)
     end
@@ -1521,9 +1698,17 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
     record.class, record.target, record.concShare, record.concLimit, record.intakeLimit = feed.class, feed.target, feed.concShare,
         feed.concLimit, feed.intakeLimit
     record.proteinFactor, record.proteinNeed, record.water = feed.proteinFactor, feed.proteinNeed, feed.water
+    record.waterIntake = feed.waterIntake
     if result == nil then return end
     RLFeed.afterStep(animal, animal.rlGrowth, feed, result, weightBefore, dtMonths)
+    local healthBefore = animal.health or 0
     RLFeed.applyHealth(animal, feed, result, dtMonths)
+    -- Health lost for want of water is kept apart from health lost for want of feed.
+    local lost = healthBefore - (animal.health or 0)
+    if lost > 0 then
+        if feed.healthReason == "WATER" then record.healthLostWater = record.healthLostWater + lost
+        else record.healthLostFeed = record.healthLostFeed + lost end
+    end
     RLFeed.applyUnderweight(animal, dtMonths)
     RLFeed.addDeathRisk(animal, dtMonths)
     -- The milk this step's budget paid (game liters): her calves' share leaves it (settleDamMilk), the
@@ -1648,13 +1833,12 @@ function RLFeed.endFeeding(placeable)
     -- away) get no milk at all - the player is told, never stopped (S5 D4).
     if hour.steps > 0 and getNursing(placeable) ~= nil then hour.unnursed = RLFeed.countUnnursed(placeable) end
 
-    local water = spec.rlWaterCoverage
     hour.tick = tick
     hour.limits = {}
     for _, limit in pairs(hour.limitOf or {}) do hour.limits[limit] = (hour.limits[limit] or 0) + 1 end
     hour.limitOf = nil
     hour.animals, hour.order = #hour.order, nil
-    hour.water = (water ~= nil and water.tick == tick) and water.coverage or 1
+    hour.water = RLFeed.getHourWater(placeable, tick)
     hour.coverage = hour.plannedMe > 0 and hour.eatenMe / hour.plannedMe or (hour.animals > 0 and 0 or 1)
     -- The old ledger's energy row reads the share of the planned ME eaten in this mode.
     local supply = spec.rlNutritionSupply
@@ -1759,6 +1943,8 @@ function RLFeed.onPenDayChanged(placeable)
             identity.concLimit, identity.intakeLimit = record.concLimit, record.intakeLimit
             identity.protein = round(record.proteinFactor)
             identity.health, identity.healthReason = animal.health, record.healthReason
+            identity.water, identity.waterIntake = round(record.water or 1), round(record.waterIntake or 1)
+            identity.healthLostWater, identity.healthLostFeed = round(record.healthLostWater), round(record.healthLostFeed)
             identity.weight = round(animal.weight)
             animals[#animals + 1] = identity
         end
@@ -1790,6 +1976,48 @@ function RLFeed.runsFor(animal, tick)
 end
 
 
+--- A covered pig in a pen that does not run the mode this hour (PIG_BREEDING_LEGACY: a sow, a
+--- pregnant female or an unweaned piglet in it; or no trough, an uncovered animal, a failed plan):
+--- its weight still follows its own curve on the weight model's budget - the old weight rule
+--- (Animal:updateWeight, a fixed gain off whole months) put piglets about three times above it. What
+--- it eats is not known here, so the hour pays the pig's own needs (maintenance, pregnancy, its
+--- curve's growth, its reserve back to the reference) x the pen's food factor, the old rules' measure
+--- of the feeding (water included). An approximation: no sow milk, colostrum or litter budget (a later
+--- batch), no ration or lysine; its health stays the old rules'. The same state and budget as the
+--- mode's steps, so a piglet taken over at 28 days goes on from the weight it has; an older, heavier
+--- one keeps its weight and grows on from there.
+--- @param animal table
+--- @param foodFactor number The pen's food factor this hour
+--- @return boolean handled
+function RLFeed.stepFallback(animal, foodFactor)
+    if animal == nil or animal.isDead or not RLGrowth.covers(animal) then return false end
+    local config = RLFeed.getConfig(animal)
+    if config.monogastric == nil then return false end
+    local tick = RLBodyCondition.getTickId()
+    if tick == nil then return false end
+    local state = RLGrowth.ensureState(animal)
+    if state.lastTick == tick or animal.rlFeedStepTick == tick then return true end
+    local hourDays = RLFeed.getHourDays()
+    local dtMonths = hourDays / config.realDaysPerPeriod
+    if not (dtMonths > 0) then return false end
+    RLGrowth.resync(animal, state)
+    local input, cfg = buildEnergyInput(animal, dtMonths)
+    local body = RLBodyCondition.getConfig(animal)
+    input.reserveCeiling = math.min(RLBodyCondition.getReserveCeiling(animal) or body.referenceReserve, body.referenceReserve)
+    local demands = RLGrowthMath.getStepDemands(input, cfg)
+    local deposit = math.min(demands.depositHeadroomKg, demands.depositRatePerMonthKg) * cfg.depositNUPerKg
+    local perMonth = demands.maintenance + demands.pregnancy + demands.growthStep / dtMonths + deposit
+    local share = math.clamp(foodFactor or 0, 0, 1)
+    local feed = { tick = tick, kg = 0, me = perMonth * share * dtMonths, cp = 0, byFill = {}, plannedKg = 0,
+        plannedMe = perMonth * dtMonths, class = "GROWING", target = "GROW", proteinFactor = 1, dtDays = hourDays, water = 1,
+        fallback = true }
+    local result = RLGrowth.stepFeed(animal, feed, dtMonths, tick)
+    if result == nil then return true end
+    animal.rlFeedFallback = { tick = tick, share = share, coverage = result.coverage, growthFraction = result.growthFraction }
+    return true
+end
+
+
 --- The step input in ME units (RLGrowth.stepFeed): the ME eaten as the supply, the growth cost of
 --- its weight, the ME of its milk, protein limiting growth and milk, no reserve for milk under
 --- MAINTAIN.
@@ -1804,6 +2032,8 @@ function RLFeed.applyStepInput(animal, input, feed, dtMonths)
     -- A nursing dam's milk (sheep): her lactation row this step, x her water as a cow's.
     if config.nursing ~= nil then RLFeed.applyDamMilk(animal, input, config, feed.water or 1) end
     input.supplyPerPeriod = dtMonths > 0 and feed.me / dtMonths or 0
+    -- A ewe lamb turning hogg: her ceiling moves over the window (RLFeed.getTransitionCeiling).
+    input.reserveCeiling = RLFeed.getTransitionCeiling(animal, dtMonths) or input.reserveCeiling
     input.maintenanceFactor = (input.maintenanceFactor or 1) * RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
     input.growthCostPerKg = RLFeed.getGrowthCost(animal, dtMonths)
     local _, mePerLiter = RLFeed.getMilkBridge(animal, input.potentialMilk)

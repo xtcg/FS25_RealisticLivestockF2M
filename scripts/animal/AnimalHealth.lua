@@ -60,6 +60,11 @@ function AnimalHealth.updateHealth(animal, foodFactor)
         -- step takes the weight it leaves as it is).
         if RLGrowth.step(animal, foodFactor) then
             animal:applyUnderweightPenalty()
+        elseif RLFeed ~= nil and RLFeed.stepFallback(animal, foodFactor) then
+            -- A pig in a pen out of the nutrition mode (a breeding pen): its curve on the budget at
+            -- the pen's food factor, never the old fixed gain (RLFeed.stepFallback).
+            animal:applyUnderweightPenalty()
+            RLGrowth.markLegacyHour(animal)
         else
             animal:updateWeight(foodFactor, RLGrowth.getLegacyTarget(animal:getSubType(), animal.genetics.metabolism))
             RLGrowth.markLegacyHour(animal)

@@ -39,11 +39,12 @@ do
         a.finishing and a.target ~= nil and a.ceiling == a.target and a.fat ~= nil and a.auto == "FINISH" and a.verdict ~= nil)
     check("stages: the ewe lamb's market reference is her breed's ram lamb's",
         near(a.reference, B.getReferenceWeight(ram), 1e-6))
-    for _, case in ipairs({ { "12-month", h }, { "24-month", o } }) do
+    -- AUTO: still FINISH in her 14-day lamb -> hogg window (SHEEP-RAM-CONC-01, RLFeed.getYoungTransition), GROW after it.
+    for _, case in ipairs({ { "12-month", h, "FINISH" }, { "24-month", o, "GROW" } }) do
         local s = case[2]
         check(string.format("stages: a %s maiden ewe is a ewe hogg (ceiling %.2f = heiferReserveCeiling, no target, no fat class, AUTO %s, no verdict)",
             case[1], s.ceiling or -1, s.auto),
-            not s.finishing and s.target == nil and s.ceiling == config.heiferReserveCeiling and s.fat == nil and s.auto == "GROW"
+            not s.finishing and s.target == nil and s.ceiling == config.heiferReserveCeiling and s.fat == nil and s.auto == case[3]
             and s.verdict == nil)
     end
     check("stages: a ewe hogg's reference is her own (no ram lamb's market weight, no femaleFinishShift)",
@@ -126,7 +127,12 @@ do
             between(row.dw, prev.dw, nextRow.dw) and between(row.dr, prev.dr, nextRow.dr) and row.dw > 0 and row.dr > -1e-3)
         check(string.format("crossing: above the hogg's ceiling (reserve %.3f > %.2f) her reserve is not cut to it", B.getReserve(lamb),
             B.getConfig(lamb).heiferReserveCeiling), B.getReserve(lamb) > B.getConfig(lamb).heiferReserveCeiling)
-        check("crossing: afterwards AUTO grows her (GROW), no fat class", auto(lamb) == "GROW" and B.getFatClass(lamb) == nil)
+        -- Fed freely through her 14-day lamb -> hogg window (SHEEP-RAM-CONC-01), grown (GROW) after it.
+        local inWindow = auto(lamb)
+        lamb.age = 12
+        lamb.rlGrowth.ageMonths = 12 + 15 / 30
+        check("crossing: afterwards AUTO feeds her freely through the window, then grows her (GROW), no fat class",
+            inWindow == "FINISH" and auto(lamb) == "GROW" and B.getFatClass(lamb) == nil)
     end
 end
 

@@ -390,6 +390,44 @@ end
 
 
 -- =============================================================================
+-- Water
+-- =============================================================================
+
+--- The share of its dry intake an animal may eat at a water coverage (feedProfiles water, a game
+--- fit): 1 from fullFrom, halfIntake at halfCoverage, minIntake with no water, linear between.
+--- @param coverage number 0..1
+--- @param water table The config's water group
+--- @return number
+function RLFeedMath.getWaterIntakeTarget(coverage, water)
+    local c = math.clamp(coverage or 1, 0, 1)
+    if c >= water.fullFrom then return 1 end
+    if c >= water.halfCoverage then
+        return water.halfIntake + (1 - water.halfIntake) * (c - water.halfCoverage) / (water.fullFrom - water.halfCoverage)
+    end
+    return water.minIntake + (water.halfIntake - water.minIntake) * c / water.halfCoverage
+end
+
+
+--- An animal's water intake share after a step of dtDays at a coverage: down toward the target at
+--- (1 - minIntake) per dropHours model hours, back up at (1 - minIntake) per recoveryDays model
+--- days. Model time, so the same at any month length.
+--- @param share number|nil Its share before the step (nil: 1)
+--- @param coverage number 0..1
+--- @param dtDays number
+--- @param water table
+--- @return number share 0..1
+function RLFeedMath.stepWaterIntake(share, coverage, dtDays, water)
+    share = share or 1
+    local target = RLFeedMath.getWaterIntakeTarget(coverage, water)
+    local range = 1 - water.minIntake
+    if target < share then
+        return math.max(target, share - range / (water.dropHours / 24) * math.max(dtDays or 0, 0))
+    end
+    return math.min(target, share + range / water.recoveryDays * math.max(dtDays or 0, 0))
+end
+
+
+-- =============================================================================
 -- Health
 -- =============================================================================
 

@@ -85,6 +85,10 @@ function FeedSim.makePen(animals, stock, opts)
         self.spec_husbandryFood.fillLevels[index] = (self.spec_husbandryFood.fillLevels[index] or 0) + liters
     end
     function pen:level(name) return self.spec_husbandryFood.fillLevels[FILL[name]] or 0 end
+    function pen:getHusbandryFillLevel(index)
+        if index == FILL.WATER then return self.waterLevel or 0 end
+        return self.spec_husbandryFood.fillLevels[index] or 0
+    end
     for name, liters in pairs(stock or {}) do pen:add(name, liters) end
     for _, animal in ipairs(pen.animals) do animal.clusterSystem = { owner = pen } end
     return pen
@@ -99,6 +103,15 @@ function FeedSim.refreshRequest(animal)
     GrowthSim.refreshRequest(animal)
     local planned = RLFeed.getRequestLitersPerPeriod(animal)
     if planned ~= nil then animal.input.food = planned / 24 end
+end
+
+
+--- Give a pen a water spec (the engine's PlaceableHusbandryWater): litersPerHour drawn each hour
+--- from waterLevel after the feeding, or an automatic supply.
+function FeedSim.addWater(pen, litersPerHour, stock, automatic)
+    pen.spec_husbandryWater = { litersPerHour = litersPerHour, fillType = FILL.WATER, automaticWaterSupply = automatic == true }
+    pen.waterLevel = stock or 0
+    return pen
 end
 
 
@@ -147,7 +160,23 @@ function FeedSim.hour(pen, opts)
         end
         factor = weight
     end
-    RLBodyCondition.recordWater(pen, opts.water or 1)
+    local water = pen.spec_husbandryWater
+    if water ~= nil then
+        -- As the engine's water spec after the feeding (PlaceableHusbandryWater:updateFeeding and the
+        -- mod's wrapper): an automatic supply gives all; else the hour's need is drawn from the stock and
+        -- the share drunk recorded.
+        local coverage = 1
+        if not water.automaticWaterSupply and (water.litersPerHour or 0) > 0 then
+            local delta = water.litersPerHour * GrowthSim.env.timeAdjustment
+            local drunk = math.min(pen.waterLevel or 0, delta)
+            pen.waterLevel = (pen.waterLevel or 0) - drunk
+            coverage = drunk / delta
+        end
+        RLBodyCondition.recordWater(pen, coverage)
+        opts = { water = coverage }
+    else
+        RLBodyCondition.recordWater(pen, opts.water or 1)
+    end
     RLBodyCondition.endFeeding(pen)
     if active then RLFeed.endFeeding(pen) end
     factor = factor * (opts.water or 1)
