@@ -62,6 +62,8 @@ function RLMenu.new(target, custom_mt)
     -- Selection shared across the husbandry-based tabs, exported on frame close and
     -- imported on frame open: { husbandry, animalIdentity = { farmId, uniqueId, country } }
     self.sharedSelection = nil
+    -- Session-only last pen per animal type, shared across Info/Move/Sell and scoped to farm.
+    self.husbandrySelectionByFarm = {}
 
     -- Open mode. Reset to MODE_FULL on every onClose, so the next keyboard open is
     -- unaffected by whatever the last bridged open set.

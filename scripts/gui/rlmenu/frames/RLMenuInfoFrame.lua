@@ -2,7 +2,7 @@
     RLMenuInfoFrame.lua
     RL Tabbed Menu - Info tab.
 
-    Left-sidebar husbandry picker with dot indicators, multi-section
+    Left-sidebar species and husbandry pickers, multi-section
     SmoothList of animal cards, and right-hand detail pane.
 ]]
 
@@ -123,9 +123,7 @@ function RLMenuInfoFrame.setupGui()
     Log:debug("RLMenuInfoFrame.setupGui: registered")
 end
 
---- Bind the SmoothList datasource and delegate. Must NOT mutate the element tree: this
---- fires on both the original and the clone, and mutating the first leaves the clone
---- without what it needs. Tree mutation lives in initialize() instead.
+--- Bind the SmoothList datasource and delegate on both the original and its clone.
 function RLMenuInfoFrame:onGuiSetupFinished()
     RLMenuInfoFrame:superClass().onGuiSetupFinished(self)
 
@@ -140,12 +138,7 @@ end
 --- One-time per-clone setup. Called explicitly by RLMenu:setupMenuPages
 --- after the page is registered.
 function RLMenuInfoFrame:initialize()
-    if self.subCategoryDotTemplate ~= nil then
-        self.subCategoryDotTemplate:unlinkElement()
-        FocusManager:removeElement(self.subCategoryDotTemplate)
-    else
-        Log:warning("RLMenuInfoFrame:initialize: subCategoryDotTemplate missing - dots will not render")
-    end
+    -- Both selectors are static XML elements; no dot templates to detach.
 end
 
 -- =============================================================================
@@ -200,12 +193,17 @@ function RLMenuInfoFrame:onFrameOpen()
 
     -- Explicit focus links: several frames share this sidebar and list structure, so
     -- FocusManager auto-layout can otherwise resolve into another frame's elements.
-    if self.subCategorySelector ~= nil and self.animalList ~= nil then
-        FocusManager:linkElements(self.subCategorySelector, FocusManager.BOTTOM, self.animalList)
-        FocusManager:linkElements(self.animalList, FocusManager.TOP, self.subCategorySelector)
-    end
-    if self.animalList ~= nil then
+    RLHusbandrySelector.linkFocus(self)
+    -- An empty SmoothList refuses focus; without the selector fallback nothing in the sidebar
+    -- holds focus and the keys cannot reach the pen selector.
+    if self.animalList ~= nil and self.animalList:getItemCount() > 0 then
         FocusManager:setFocus(self.animalList)
+        Log:debug("RLMenuInfoFrame:onFrameOpen: focus on animalList (%d items)", self.animalList:getItemCount())
+    elseif self.speciesSelector ~= nil and #self.husbandryGroups > 1 and #self.sortedHusbandries < 2 then
+        FocusManager:setFocus(self.speciesSelector)
+    elseif self.subCategorySelector ~= nil then
+        FocusManager:setFocus(self.subCategorySelector)
+        Log:debug("RLMenuInfoFrame:onFrameOpen: list empty, focus on subCategorySelector")
     end
 
     -- Revalidate active saved filter against current scope on tab activation
@@ -260,36 +258,19 @@ end
 -- Husbandry selector
 -- =============================================================================
 
---- Repopulate the husbandry selector + dot indicators for the player's farm.
+--- Repopulate the species and husbandry selectors for the player's farm.
 function RLMenuInfoFrame:refreshHusbandries()
     local farmId = RLAnimalInfoService.getCurrentFarmId()
     self.farmId = farmId
 
-    self.sortedHusbandries = RLAnimalQuery.listHusbandriesForFarm(farmId)
-    Log:debug("RLMenuInfoFrame:refreshHusbandries: farmId=%s husbandries=%d",
-        tostring(farmId), #self.sortedHusbandries)
-
-    -- Consume the one-shot anchor NOW, before the empty-list guard below, so every path
-    -- consumes it exactly once and none leaks it into a later open.
-    local anchorHusbandry = nil
-    if g_rlMenu ~= nil then
-        anchorHusbandry = g_rlMenu.anchoredHusbandry
-        g_rlMenu.anchoredHusbandry = nil
-    end
-
-    if self.subCategoryDotBox ~= nil then
-        for i, dot in pairs(self.subCategoryDotBox.elements) do
-            dot:delete()
-            self.subCategoryDotBox.elements[i] = nil
-        end
-    end
-
-    if #self.sortedHusbandries == 0 then
+    if not RLHusbandrySelector.refresh(self, RLAnimalQuery.listHusbandriesForFarm(farmId)) then
         if self.noHusbandriesText ~= nil then self.noHusbandriesText:setVisible(true) end
-        if self.subCategoryDotBox ~= nil then self.subCategoryDotBox:setVisible(false) end
         if self.subCategorySelector ~= nil then self.subCategorySelector:setTexts({}) end
         self.selectedHusbandry = nil
         self.items = {}
+        self.sectionOrder = {}
+        self.itemsBySection = {}
+        self.titlesBySection = {}
         if self.animalList ~= nil then self.animalList:reloadData() end
         self:updateEmptyState()
         self:updateButtonVisibility()
@@ -299,52 +280,11 @@ function RLMenuInfoFrame:refreshHusbandries()
         self:clearDetail()
         return
     end
+end
 
-    if self.noHusbandriesText ~= nil then self.noHusbandriesText:setVisible(false) end
-
-    local names = {}
-    for index, husbandry in ipairs(self.sortedHusbandries) do
-        names[index] = RLAnimalQuery.formatHusbandryLabel(husbandry, index)
-
-        if self.subCategoryDotTemplate ~= nil and self.subCategoryDotBox ~= nil then
-            local dot = self.subCategoryDotTemplate:clone(self.subCategoryDotBox)
-            local dotIndex = index
-            function dot.getIsSelected()
-                return self.subCategorySelector ~= nil
-                    and self.subCategorySelector:getState() == dotIndex
-            end
-        end
-    end
-
-    if self.subCategoryDotBox ~= nil then
-        self.subCategoryDotBox:invalidateLayout()
-        self.subCategoryDotBox:setVisible(1 < #names)
-    end
-
-    -- Resolve initial husbandry: prefer the one-shot anchor, then the persistent
-    -- shared selection, then the first pen (all matched by placeable identity).
-    local sharedHusbandry = nil
-    if g_rlMenu ~= nil and g_rlMenu.sharedSelection ~= nil then
-        sharedHusbandry = g_rlMenu.sharedSelection.husbandry
-    end
-    local initialState, anchorMatched =
-        RLMenuHusbandryAnchor.resolveIndex(self.sortedHusbandries, anchorHusbandry, sharedHusbandry)
-    if anchorHusbandry ~= nil then
-        if anchorMatched then
-            Log:debug("RLMenuInfoFrame:refreshHusbandries: anchor resolved to state=%d", initialState)
-        else
-            Log:debug("RLMenuInfoFrame:refreshHusbandries: anchor not in current farm list, unanchored (state=%d)", initialState)
-        end
-    else
-        Log:trace("RLMenuInfoFrame:refreshHusbandries: husbandry resolved to state=%d (no anchor)", initialState)
-    end
-
-    if self.subCategorySelector ~= nil then
-        self.subCategorySelector:setTexts(names)
-        self.subCategorySelector:setState(initialState, true)
-    else
-        self:onHusbandryChanged(initialState)
-    end
+--- Select an animal type, then restore that type's last selected husbandry.
+function RLMenuInfoFrame:onSpeciesChanged(state)
+    RLHusbandrySelector.selectGroup(self, state)
 end
 
 --- MultiTextOption onClick callback. Clears filters on animal-type change
@@ -354,6 +294,7 @@ function RLMenuInfoFrame:onHusbandryChanged(state)
     if state == nil or state < 1 or state > #self.sortedHusbandries then return end
 
     self.selectedHusbandry = self.sortedHusbandries[state]
+    RLHusbandrySelector.remember(self, state)
     local newTypeIndex
     if self.selectedHusbandry ~= nil and self.selectedHusbandry.getAnimalTypeIndex ~= nil then
         newTypeIndex = self.selectedHusbandry:getAnimalTypeIndex()
