@@ -1073,5 +1073,7 @@
         <text name="rl_dealer_v2_closed" text="The dealer's new stock is not available yet."/>
         <text name="rl_dealer_v2_limit" text="At most 100 animals can be bought in one order."/>
         <text name="rl_dealer_v2_generic" text="The order could not be completed."/>
+        <text name="rl_meadow_witherWarning" text="%s: the pasture grass dies back for winter in about %d days - put hay or silage in the trough"/>
+        <text name="rl_wool_shorn" text="%s: %d sheep shorn, %d l of wool waiting for pallets"/>
     </texts>
 </l10n>

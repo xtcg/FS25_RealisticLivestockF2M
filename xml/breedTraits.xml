@@ -56,6 +56,20 @@
     birthHighWeightPenalty Survival lost per further SD above that threshold; set 0 to disable.
     A subtype with no birthWeightRatio (the map's ducks, geese, pets) keeps its minWeight.
 
+    Wool shearing season (woolShearing, RLWoolShearing). A fleece grows all year (each sheep's
+    wool curve x woolScale above, productivity, health); this only sets when it becomes pallets.
+    fillTypes         Pallet fill types that are sheep wool.
+    preset            DEFAULT, and map presets (maps: map mod names) that apply on those maps.
+      mode            YEAR_ROUND: the wool goes to the pen's pallets every hour (the old way).
+                      SPRING_SHEARING: each sheep keeps the wool it grows (saved with it) and the
+                      pen is shorn once, in the first hour of a shearingPeriods month in which it
+                      holds wool, at least intervalMonths after its last shearing; the shearing
+                      gives exactly the wool grown since, so a year's total is YEAR_ROUND's.
+      shearingPeriods EARLY_SPRING .. LATE_WINTER (period 1 = early spring).
+    Hof Bergmann shears in late spring / early summer (May-June, as in Germany and the UK); a
+    stall set to manual shearing at its shearing station is left to the map. A copy of this file
+    without woolShearing uses these same presets.
+
     To change these without editing the mod, copy this file to
     modSettings/FS25_RealisticLivestockRM/breedTraits.xml; that copy then replaces this file
     entirely. In multiplayer the server's file applies.
@@ -69,6 +83,11 @@
         <category name="hay" fillTypes="DRYGRASS_WINDROW CLOVER_WINDROW"/>
         <category name="silage" fillTypes="SILAGE FORAGE FORAGEPLUS ROUNDBALE"/>
     </forage>
+
+    <woolShearing fillTypes="WOOL SHEEPWOOL_SHEARED">
+        <preset name="DEFAULT" mode="YEAR_ROUND"/>
+        <preset name="HOF_BERGMANN" maps="FS25_HofBergmann" mode="SPRING_SHEARING" shearingPeriods="LATE_SPRING EARLY_SUMMER" intervalMonths="12"/>
+    </woolShearing>
 
     <!-- Calves: 5-6.5% of the cow, bull calves ~7% heavier, twins 85% each, heifers' first 93%. -->
     <animalType name="COW" maleBirthFactor="1.07" birthWeightCV="0.10" firstBirthFactor="0.93"

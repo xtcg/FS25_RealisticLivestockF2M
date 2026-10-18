@@ -414,6 +414,8 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
     })
 
     animal:setBirthday(birthday)
+    -- Wool grown since the last shearing (RLWoolShearing, spring shearing); absent = none.
+    if RLWoolShearing ~= nil then RLWoolShearing.loadAnimal(animal, xmlFile, key) end
 
     if pregnancy ~= nil and #pregnancy.pregnancies > 0 then
         animal.pregnancy = pregnancy
@@ -601,6 +603,7 @@ function AnimalPersistence.saveToXMLFile(animal, xmlFile, key)
     -- Saved whether or not the feature is on, so switching it off loses nothing.
     RLBodyCondition.saveToXMLFile(animal.bodyCondition, xmlFile, key)
     RLGrowth.saveToXMLFile(animal.rlGrowth, xmlFile, key)
+    if RLWoolShearing ~= nil then RLWoolShearing.saveAnimal(animal, xmlFile, key) end
 
     -- INDEXED walk, never `pairs`, and this is the site that MATERIALISES the positional
     -- contract the loader and both stream halves are written against. The element index is
