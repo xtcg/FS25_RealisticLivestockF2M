@@ -118,7 +118,10 @@ function W.onShelfAged(animal, oldAge)
     end
     animal.weight = weight
     if animal.rlGrowth ~= nil and animal.rlGrowth.source == "generated" and RLGrowth.covers(animal) then
+        -- Daily pool progression owns the clock; a birthday's weight refresh must not reset it.
+        local ageMonths = animal.rlGrowth.ageMonths
         animal.rlGrowth = RLGrowth.createGeneratedState(animal)
+        if ageMonths ~= nil then animal.rlGrowth.ageMonths = ageMonths end
     end
     W.check(animal, subType, "SHELF")
 end

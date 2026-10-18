@@ -103,11 +103,34 @@ local sub = lamb:getSubType()
 local listed = lamb.weight
 W.applyToNewStock(lamb, sub)
 local unchanged = lamb.weight == listed
+-- The pool's daily progression has already advanced its clock by a model month.
+lamb.rlGrowth.ageMonths = 5
 lamb.age = 5
 W.onShelfAged(lamb, 4)
 check("covered sheep: new stock keeps its curve weight; a month on the shelf moves weight and state together",
     unchanged and math.abs(lamb.weight - W.getCurve(sub, 1):value(5)) < 1e-6 and lamb.rlGrowth ~= nil
     and lamb.rlGrowth.source == "generated" and lamb.rlGrowth.ageMonths == 5 and math.abs(lamb.rlGrowth.weightKg - lamb.weight) < 1e-9)
+
+-- A birthday need not coincide with a whole model month. Shelf weight refreshes must
+-- preserve the clock that daily progression already advanced, including month-length changes.
+for _, days in ipairs({ 1, 2, 28 }) do
+    local listing = SheepSim.grown("SHEEP_LANDRACE", "CLOCK" .. days, 4)
+    listing.rlGrowth.ageMonths = 4.5 + 1 / days
+    listing.age = 5
+    local clock = listing.rlGrowth.ageMonths
+    W.onShelfAged(listing, 4)
+    check("shelf birthday: the advanced clock survives at " .. days .. " days/month",
+        listing.rlGrowth.ageMonths == clock and math.abs(listing.rlGrowth.weightKg - listing.weight) < 1e-9)
+end
+local switched = SheepSim.grown("SHEEP_LANDRACE", "CLOCK-SWITCH", 4)
+for _, days in ipairs({ 28, 2, 1 }) do
+    switched.rlGrowth.ageMonths = switched.rlGrowth.ageMonths + 1 / days
+    local oldAge, clock = switched.age, switched.rlGrowth.ageMonths
+    switched.age = oldAge + 1
+    W.onShelfAged(switched, oldAge)
+    check("shelf birthday: changing month length to " .. days .. " preserves prior clock progress",
+        switched.rlGrowth.ageMonths == clock)
+end
 SheepSim.enable(false)
 
 -- Wiring: the dealer's generation and its shelf day call it; the mod loads it.
