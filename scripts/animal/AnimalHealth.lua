@@ -1,9 +1,11 @@
 --[[
     AnimalHealth.lua
     Health updates, death processing, and the daily death rolls - low health,
-    old age, random accidents. Old-age and accident chances are per month and
-    are converted to a daily chance at the live days per period; the low-health
-    chance is already daily. An animal under the real-equivalent nutrition mode
+    old age, random accidents. The old-age chance is per month and is converted
+    to a daily chance at the live days per period; the background accident chance
+    is per model month by species and age band (ACCIDENT_BANDS), integrated over
+    the model time each day stands for and paying nothing; the low-health chance
+    is already daily. An animal under the real-equivalent nutrition mode
     (RLFeed) takes its low-health chance from the risk its steps built up instead
     (rlGrowth lowHealthHazard: the mode's one curve for every gene, per model day),
     taken and cleared at every day change. Animal.lua holds one-liner delegates
@@ -235,67 +237,152 @@ function AnimalHealth.getOldAgeMonthlyDeathChance(animal)
 end
 
 
---- Monthly accident chance for the type the spec houses, raised in the cold and scaled by the accidents setting.
+-- =============================================================================
+-- BACKGROUND ACCIDENTS (RL-ACCIDENT-RATE-01)
+-- =============================================================================
+
+--- A pig's neonatal accident band ends at 28 days of a 30-day model month.
+AnimalHealth.PIG_NEONATAL_MONTHS = 28 / 30
+
+--- Background accident chance a model month by species and age: { below this continuous age in
+--- months, chance a model month }, ascending; the last band runs on. The only accident risk an
+--- animal has: no cold, disease, water, health or birth factor raises it (those deaths are their
+--- own causes), and nothing is paid for the carcass. Game balance starting values (plan
+--- 2026-10-17 section 4.1), not real accident statistics. Goats (the SHEEP type) take the sheep
+--- bands, water buffalo (the COW type) the cattle ones; a type the mod does not know (a map's
+--- own) takes OTHER, the adult small-ruminant / poultry value.
+AnimalHealth.ACCIDENT_BANDS = {
+    COW = { { 6, 0.0004 }, { math.huge, 0.0002 } },
+    PIG = { { AnimalHealth.PIG_NEONATAL_MONTHS, 0.0010 }, { 6, 0.0004 }, { math.huge, 0.0002 } },
+    SHEEP = { { 3, 0.0006 }, { math.huge, 0.0003 } },
+    HORSE = { { math.huge, 0.0002 } },
+    CHICKEN = { { math.huge, 0.0003 } },
+    OTHER = { { math.huge, 0.0003 } },
+}
+
+
+--- The accident bands for an animal: its own type, else the type the spec houses.
 --- @param animal table Animal instance
---- @param spec table Husbandry animal spec (provides animalTypeIndex, minTemp)
+--- @param spec table|nil Husbandry or trailer animal spec
+--- @return table bands
+--- @return string key
+function AnimalHealth.getAccidentBands(animal, spec)
+    local typeIndex = animal.animalTypeIndex
+    if typeIndex == nil and spec ~= nil then typeIndex = spec.animalTypeIndex end
+    local key = "OTHER"
+    if AnimalType ~= nil and typeIndex ~= nil then
+        if typeIndex == AnimalType.COW then key = "COW"
+        elseif typeIndex == AnimalType.PIG then key = "PIG"
+        elseif typeIndex == AnimalType.SHEEP then key = "SHEEP"
+        elseif typeIndex == AnimalType.HORSE then key = "HORSE"
+        elseif typeIndex == AnimalType.CHICKEN then key = "CHICKEN" end
+    end
+    return AnimalHealth.ACCIDENT_BANDS[key], key
+end
+
+
+--- The continuous ages in months the day just ended covered, dtMonths long. With a growth state it
+--- ended at the state's clock (moved on by every hour's step, a pig's in an hour on the old rules
+--- too, and read after a birthday's whole month, so the last day of a month of age is counted in
+--- that month). An animal without a state has only its whole months: the day is taken from the
+--- start of the whole month of age it is in (at one day a month, the month it has just turned).
+--- Never before birth.
+--- @param animal table Animal instance
+--- @param dtMonths number Model months the day stood for (1 / days per month)
+--- @return number fromMonths
+--- @return number toMonths
+function AnimalHealth.getAccidentAgeSpan(animal, dtMonths)
+    local state = animal.rlGrowth
+    local from
+    if state ~= nil and state.ageMonths ~= nil and RLGrowth ~= nil and RLGrowth.getContinuousAge ~= nil then
+        from = RLGrowth.getContinuousAge(animal) - dtMonths
+    else
+        from = animal.age or 0
+    end
+    from = math.max(0, from)
+    return from, from + dtMonths
+end
+
+
+--- Accident hazard over an age span: -ln(1 - pMonth) for each model month spent in each band,
+--- times the accidents setting. 0 for a span of no length or a multiplier not above 0.
+--- @param bands table AnimalHealth.ACCIDENT_BANDS entry
+--- @param fromMonths number
+--- @param toMonths number
+--- @param multiplier number The accidents setting (1 = as configured)
+--- @return number hazard
+function AnimalHealth.getAccidentHazard(bands, fromMonths, toMonths, multiplier)
+    if bands == nil or not (multiplier > 0) or not (toMonths > fromMonths) then return 0 end
+    local hazard, lower = 0, 0
+    for _, band in ipairs(bands) do
+        local upper, pMonth = band[1], band[2]
+        local a, b = math.max(fromMonths, lower), math.min(toMonths, upper)
+        if b > a and pMonth > 0 then
+            hazard = hazard + (pMonth >= 1 and math.huge or -math.log(1 - pMonth)) * (b - a)
+        end
+        lower = upper
+        if lower >= toMonths then break end
+    end
+    return hazard * multiplier
+end
+
+
+--- The chance a model month of an accident at the animal's present age band, before the accidents
+--- setting (for display and logs; the day's draw integrates the bands it spans).
+--- @param animal table Animal instance
+--- @param spec table|nil Husbandry animal spec
 --- @return number chance monthly probability in [0, 1]
---- @return boolean canBeSold whether the carcass pays a salvage share
 function AnimalHealth.getAccidentMonthlyDeathChance(animal, spec)
-
-    local animalType = spec.animalTypeIndex
-    local animalsCanBeSold = true
-    local deathChance = 0.01
-    local temp = spec.minTemp
-
-    if animalType == AnimalType.COW then
-        deathChance = 0.002
-        if animal.age < 6 then
-            deathChance = 0.0035
-        elseif animal.age < 18 then
-            deathChance = 0.0024
-        end
-    elseif animalType == AnimalType.SHEEP then
-        deathChance = 0.003
-        if animal.age < 3 then
-            deathChance = 0.0035
-        elseif animal.age < 8 then
-            deathChance = 0.0032
-        end
-    elseif animalType == AnimalType.HORSE then
-        deathChance = 0.002
-    elseif animalType == AnimalType.PIG then
-        deathChance = 0.001
-        if animal.age < 3 then
-            deathChance = 0.018
-        elseif animal.age < 6 then
-            deathChance = 0.0075
-        end
-    elseif animalType == AnimalType.CHICKEN then
-        if animal.age < 6 then
-            deathChance = 0.0012
-        else
-            deathChance = 0.0016
-        end
-        animalsCanBeSold = false
+    local bands = AnimalHealth.getAccidentBands(animal, spec)
+    local age = select(2, AnimalHealth.getAccidentAgeSpan(animal, 0))
+    for _, band in ipairs(bands) do
+        if age < band[1] then return band[2] end
     end
+    return bands[#bands][2]
+end
 
-    -- animals are more likely to die in cold weather, especially young animals due to ice, pneumonia etc
 
-    if temp ~= nil and temp < 10 and temp >= 0 then
-        deathChance = deathChance * (1 + (1 - (temp / 12)))
-    elseif temp ~= nil and temp < 0 then
-        deathChance = deathChance * (1 + (1 - (temp / 10)))
-    end
+--- The chance of a background accident on the day just ended: 1 - exp(-H), H the hazard of the
+--- model time the day stood for (1 / days per month of a model month) across the age bands it
+--- spans, times the accidents setting (nil reads 1).
+--- @param animal table Animal instance
+--- @param spec table|nil Husbandry or trailer animal spec
+--- @param daysPerPeriod number days per month, 1..28
+--- @return number chance
+--- @return number hazard
+--- @return number fromMonths
+--- @return number toMonths
+--- @return string bands key
+--- @return number multiplier
+function AnimalHealth.getAccidentDayChance(animal, spec, daysPerPeriod)
+    local multiplier = animal.accidentsChance
+    if multiplier == nil then multiplier = 1 end
+    local dtMonths = 1 / math.max(daysPerPeriod or 1, 1)
+    local bands, key = AnimalHealth.getAccidentBands(animal, spec)
+    local from, to = AnimalHealth.getAccidentAgeSpan(animal, dtMonths)
+    local hazard = AnimalHealth.getAccidentHazard(bands, from, to, multiplier)
+    local chance = hazard > 0 and 1 - math.exp(-hazard) or 0
+    return chance, hazard, from, to, key, multiplier
+end
 
-    local raw = deathChance * animal.accidentsChance
-    local chance = clampChance(raw)
 
-    Log:trace("getAccidentMonthlyDeathChance: farmId=%s uniqueId=%s type=%s age=%s temp=%s raw=%s chance=%s"
-        .. " canBeSold=%s", tostring(animal.farmId), tostring(animal.uniqueId), tostring(animalType),
-        tostring(animal.age), tostring(temp), tostring(raw), tostring(chance), tostring(animalsCanBeSold))
-
-    return chance, animalsCanBeSold
-
+--- One death's record line: identity, model time, cause, chance and money.
+--- @param animal table Animal instance
+--- @param cause string Death reason key
+--- @param chance number The chance that was drawn against
+--- @param money number Money the death paid (0: none)
+--- @param detail string|nil Cause-specific fields
+local function logDeath(animal, cause, chance, money, detail)
+    local env = g_currentMission ~= nil and g_currentMission.environment or nil
+    local state = animal.rlGrowth
+    Log:info("DEATH: cause=%s farmId=%s uniqueId=%s country=%s type=%s subType=%s age=%s ageMonths=%s monotonicDay=%s"
+        .. " hour=%s daysPerPeriod=%s chance=%s money=%s%s",
+        tostring(cause), tostring(animal.farmId), tostring(animal.uniqueId),
+        tostring(animal.birthday ~= nil and animal.birthday.country or nil), tostring(animal.animalTypeIndex),
+        tostring(animal.subType), tostring(animal.age), tostring(state ~= nil and state.ageMonths or nil),
+        tostring(env ~= nil and env.currentMonotonicDay or nil), tostring(env ~= nil and env.currentHour or nil),
+        tostring(env ~= nil and env.daysPerPeriod or nil), tostring(chance), tostring(money or 0),
+        detail ~= nil and (" " .. detail) or "")
 end
 
 
@@ -346,6 +433,7 @@ function AnimalHealth.calculateLowHealthDailyAnimalDeaths(animal, hazard)
 
     if draw < chance then
         animal:die("rl_death_health")
+        logDeath(animal, "rl_death_health", chance, 0, string.format("health=%s hazard=%s", tostring(animal.health), tostring(hazard)))
         return 1
     end
 
@@ -383,6 +471,7 @@ function AnimalHealth.calculateOldAgeMonthlyAnimalDeaths(animal, daysPerPeriod)
 
     if draw < daily then
         animal:die("rl_death_age")
+        logDeath(animal, "rl_death_age", daily, 0, string.format("monthly=%s", tostring(monthly)))
         return 1
     end
 
@@ -391,12 +480,16 @@ function AnimalHealth.calculateOldAgeMonthlyAnimalDeaths(animal, daysPerPeriod)
 end
 
 
---- Roll the accident death like the old-age one; a carcass that can be sold pays a salvage share.
+--- Roll the background accident death for the day just ended: the hazard of the model time it
+--- stood for (1 / days per month of a model month, split across the age bands it spans) times the
+--- accidents setting, drawn once (RLDiseaseRates.perTick's conversion when the day lies in one
+--- band at the setting 1). No draw at all when the chance is not above 0 (the setting at 0). An
+--- accident pays nothing (RL-DEATH-CASH-01): the money return stays for the callers, always 0.
 --- @param animal table Animal instance
---- @param spec table Husbandry animal spec (provides animalTypeIndex, minTemp)
+--- @param spec table Husbandry or trailer animal spec
 --- @param daysPerPeriod number days per month, 1..28
 --- @return number deaths 1 if animal died, 0 otherwise
---- @return number money Sale proceeds if animal was sold, 0 otherwise
+--- @return number money always 0
 function AnimalHealth.calculateRandomMonthlyAnimalDeaths(animal, spec, daysPerPeriod)
 
     if animal.numAnimals <= 0 or animal.isDead then
@@ -405,27 +498,25 @@ function AnimalHealth.calculateRandomMonthlyAnimalDeaths(animal, spec, daysPerPe
         return 0, 0
     end
 
-    local monthly, animalsCanBeSold = AnimalHealth.getAccidentMonthlyDeathChance(animal, spec)
+    local chance, hazard, from, to, key, multiplier = AnimalHealth.getAccidentDayChance(animal, spec, daysPerPeriod)
 
-    if not (monthly > 0) then
-        Log:trace("calculateRandom: farmId=%s uniqueId=%s monthly=%s, no draw",
-            tostring(animal.farmId), tostring(animal.uniqueId), tostring(monthly))
+    if not (chance > 0) then
+        Log:trace("calculateRandom: farmId=%s uniqueId=%s multiplier=%s chance=%s, no draw",
+            tostring(animal.farmId), tostring(animal.uniqueId), tostring(multiplier), tostring(chance))
         return 0, 0
     end
 
-    local daily = RLDiseaseRates.perTick(monthly, daysPerPeriod)
     local draw = math.random()
 
-    Log:trace("calculateRandom: farmId=%s uniqueId=%s monthly=%s daily=%s daysPerPeriod=%s draw=%s",
-        tostring(animal.farmId), tostring(animal.uniqueId), tostring(monthly), tostring(daily),
-        tostring(daysPerPeriod), tostring(draw))
+    Log:trace("calculateRandom: farmId=%s uniqueId=%s bands=%s ageMonths=%.4f..%.4f multiplier=%s hazard=%s"
+        .. " chance=%s daysPerPeriod=%s draw=%s", tostring(animal.farmId), tostring(animal.uniqueId), key, from, to,
+        tostring(multiplier), tostring(hazard), tostring(chance), tostring(daysPerPeriod), tostring(draw))
 
-    if draw < daily then
-        local animalPrice = 0
-        if animalsCanBeSold then animalPrice = animal:getSellPrice() * 0.33 end
-
+    if draw < chance then
         animal:die("rl_death_accident")
-        return 1, animalPrice
+        logDeath(animal, "rl_death_accident", chance, 0,
+            string.format("bands=%s span=%.4f..%.4f multiplier=%s", key, from, to, tostring(multiplier)))
+        return 1, 0
     end
 
     return 0, 0
@@ -447,7 +538,7 @@ end
 --- @return number lowHealthDeath 1 if died from low health, 0 otherwise
 --- @return number oldDeath 1 if died from old age, 0 otherwise
 --- @return number randomDeath 1 if died from random accident, 0 otherwise
---- @return number randomDeathMoney Sale proceeds from random death, 0 otherwise
+--- @return number randomDeathMoney always 0 (an accident pays nothing)
 function AnimalHealth.evaluateDaily(animal, spec, daysPerPeriod)
 
     -- Taken before any skip: risk never waits for a later day (death switched on, the pen owned).
