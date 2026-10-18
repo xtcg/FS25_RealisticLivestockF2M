@@ -29,7 +29,10 @@
     AnimalHealth.updateHealth leaves these animals alone) instead of the old food-factor threshold
     and the 60%-of-curve rule: up while feed pays for maintenance, unchanged while the reserve buffers, down by
     the share left to frame breakdown or unpaid; only an animal below extremeUnderweightRatio of its
-    curve loses health for its weight alone. Both at per-month rates, the same at any month length.
+    curve loses health for its weight alone. Both at per-model-day rates (feedProfiles.xml health),
+    the same at any month length; health keeps its fractions. The health gene moves the rates only
+    (geneticsRateEffect). Each step also adds its low-health death risk (lowHealthDeath, one curve
+    for every gene) to the animal's counter, drawn once at the day change (AnimalHealth).
 
     Grain. Cattle troughs also take the grains of RLFeed.GRAINS the map has, as their own food
     group, registered once after the map's animal food is loaded (the map's own groups, and every
@@ -1517,6 +1520,7 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
     RLFeed.afterStep(animal, animal.rlGrowth, feed, result, weightBefore, dtMonths)
     RLFeed.applyHealth(animal, feed, result, dtMonths)
     RLFeed.applyUnderweight(animal, dtMonths)
+    RLFeed.addDeathRisk(animal, dtMonths)
     -- The milk this step's budget paid (game liters): her calves' share leaves it (settleDamMilk), the
     -- pen's store takes the rest this hour.
     local potentialLiters = math.max(input.potentialMilk or 0, 0) * dtMonths
@@ -1850,9 +1854,9 @@ function RLFeed.afterStep(animal, state, feed, result, weightBefore, dtMonths)
 end
 
 
---- Health from a step's budget, at per-month rates: the old per-hour rates hold for a one-day
---- month's hour (1/24 of a month), so a step of dtMonths counts 24 x dtMonths of them. Fractions
---- carry over, so a slow change is not lost to whole-point health.
+--- Health from a step's budget, at the config's per-model-day rates (feedProfiles.xml health
+--- lossPerDay, gainPerDay, geneticsRateEffect) for the step's model days; the subtype's per-hour
+--- rates are the old rules' only.
 --- @param animal table
 --- @param feed table The step's feed
 --- @param result table The step's budget
@@ -1874,19 +1878,36 @@ function RLFeed.applyHealth(animal, feed, result, dtMonths)
     if config.monogastric ~= nil then budget.cp, budget.cpMaintenance = feed.lysPerMe or 0, config.monogastric.lysineMaintenance end
     local factor, reason = RLFeedMath.getHealthFactor(budget)
     feed.healthFactor, feed.healthReason = factor, reason
-    local subType = animal:getSubType()
-    local rate = factor >= 0 and (subType.healthIncreaseHour or 0) or (subType.healthDecreaseHour or 0)
-    RLFeed.addHealth(animal, rate * factor * (animal.genetics.health or 1) * 24 * dtMonths)
+    local genetics = animal.genetics ~= nil and animal.genetics.health or 1
+    RLFeed.addHealth(animal, RLFeedMath.getHealthPerDay(factor, genetics, config.health) * dtMonths * config.realDaysPerPeriod)
 end
 
 
---- Add a (fractional) health change; whole points reach animal.health, the rest carries.
+--- Add a (fractional) health change to animal.health (saved and streamed as a float): no point is
+--- lost or gained to rounding, whatever the month length or a save in between. A carry left by an
+--- older build (whole-point health) goes into it once.
 function RLFeed.addHealth(animal, delta)
-    if delta == 0 or delta ~= delta then return end
-    local carry = (animal.rlHealthCarry or 0) + delta
-    local whole = carry >= 0 and math.floor(carry) or -math.floor(-carry)
-    animal.rlHealthCarry = carry - whole
-    if whole ~= 0 then animal.health = math.clamp((animal.health or 0) + whole, 0, 100) end
+    if delta ~= delta then return end
+    delta = delta + (animal.rlHealthCarry or 0)
+    animal.rlHealthCarry = nil
+    if delta == 0 then return end
+    animal.health = math.clamp((animal.health or 0) + delta, 0, 100)
+end
+
+
+--- After a step's health: the step's low-health death risk (the config's lowHealthDeath at the
+--- health it left, for its model days) adds to the animal's risk counter (rlGrowth
+--- lowHealthHazard, saved with it), which the day change draws once and clears
+--- (AnimalHealth.evaluateDaily). Every step of the mode sets the counter, at 0 when healthy, so
+--- the day change knows the animal is under the mode's curve and never draws the old one too.
+--- @param animal table
+--- @param dtMonths number
+function RLFeed.addDeathRisk(animal, dtMonths)
+    local state = animal.rlGrowth
+    if state == nil then return end
+    local config = RLFeed.getConfig(animal)
+    local chance = RLFeedMath.getLowHealthDeathPerDay(config.lowHealthDeath, animal.health or 0, animal.age, config.health)
+    state.lowHealthHazard = RLFeedMath.addDeathHazard(state.lowHealthHazard, chance, dtMonths * config.realDaysPerPeriod)
 end
 
 

@@ -3,7 +3,8 @@
     Pure arithmetic of the real-equivalent nutrition mode (xml/feedProfiles.xml): the energy units
     the budget step runs in, a ration's nutrient density from its feeds' DM shares, how much
     concentrate a ration can hold, how much an animal can eat, protein adequacy, rumen adaptation
-    to concentrate and the nutrition health factor. No engine globals.
+    to concentrate, the nutrition health factor, health rates and the low-health death risk. No
+    engine globals.
 
     Units: ME in MJ, intake in kg of dry matter (DM) a real day, shares of DM. The budget step
     (RLGrowthMath.step) counts per game month, so per-day values are x realDaysPerPeriod there.
@@ -447,4 +448,70 @@ function RLFeedMath.getHealthFactor(ctx)
         worse(-0.5 * (ctx.cpMaintenance - ctx.cp) / ctx.cpMaintenance, "PROTEIN")
     end
     return math.clamp(factor, -1, 1), reason
+end
+
+
+--- Health points a model day from a step's health factor (getHealthFactor): gainPerDay x factor
+--- while fed, lossPerDay x factor below; the health gene g scales the rate by
+--- 1 + geneticsRateEffect x (g - 1) on a gain and 1 - geneticsRateEffect x (g - 1) on a loss.
+--- @param factor number -1..1
+--- @param gene number Health gene (1 average)
+--- @param health table The config's health group
+--- @return number points a model day
+function RLFeedMath.getHealthPerDay(factor, gene, health)
+    local effect = health.geneticsRateEffect * ((gene or 1) - 1)
+    if factor >= 0 then return health.gainPerDay * factor * math.max(1 + effect, 0) end
+    return health.lossPerDay * factor * math.max(1 - effect, 0)
+end
+
+
+--- Most low-health risk a counter holds: a chance of 1 - e^-50, read as certain.
+RLFeedMath.MAX_DEATH_HAZARD = 50
+
+--- Chance a model day of dying of low health at this health and age (the lowHealthDeath curve,
+--- the same for every gene).
+--- @param points table The config's lowHealthDeath
+--- @param health number
+--- @param ageMonths number|nil
+--- @param config table The config's health group
+--- @return number chance in 0..1
+function RLFeedMath.getLowHealthDeathPerDay(points, health, ageMonths, config)
+    if ageMonths ~= nil and ageMonths < config.youngDeathMonths then health = health - config.youngDeathHealthOffset end
+    local chance = points[#points][2]
+    if health <= points[1][1] then
+        chance = points[1][2]
+    else
+        for i = 2, #points do
+            local a, b = points[i - 1], points[i]
+            if health <= b[1] then
+                chance = a[2] + (b[2] - a[2]) * (health - a[1]) / (b[1] - a[1])
+                break
+            end
+        end
+    end
+    return math.clamp(chance, 0, 1)
+end
+
+
+--- A risk counter (hazard: -ln of the chance to survive) after days at a daily chance; it adds up
+--- the same however the days are split into steps.
+--- @param hazard number|nil
+--- @param chancePerDay number 0..1
+--- @param days number
+--- @return number hazard 0..MAX_DEATH_HAZARD
+function RLFeedMath.addDeathHazard(hazard, chancePerDay, days)
+    hazard = hazard or 0
+    if not (chancePerDay > 0) or not (days > 0) then return hazard end
+    if chancePerDay >= 1 then return RLFeedMath.MAX_DEATH_HAZARD end
+    return math.min(hazard - math.log(1 - chancePerDay) * days, RLFeedMath.MAX_DEATH_HAZARD)
+end
+
+
+--- The chance of death a risk counter stands for (certain at MAX_DEATH_HAZARD).
+--- @param hazard number|nil
+--- @return number chance 0..1
+function RLFeedMath.getHazardChance(hazard)
+    if hazard == nil or not (hazard > 0) then return 0 end
+    if hazard >= RLFeedMath.MAX_DEATH_HAZARD then return 1 end
+    return 1 - math.exp(-hazard)
 end

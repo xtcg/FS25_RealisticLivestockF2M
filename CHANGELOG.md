@@ -6,6 +6,8 @@
 
 ### Changed
 
+- Integrated upstream 1.4.1.0 in the review candidate. Kept the fork's health/weight settlement separation and small-amount display precision; applied the health-genetics loss correction to real-equivalent nutrition too, and retained vaccination status in source ownership saves (older records default to unvaccinated).
+
 - Cattle live value against standard genes (2026-10-11, PRICE-BREED-03, scripts/animal/RLBreedingValue.lua, xml/breedingValue.xml): live trade only - the dealer's offers and asks (the dealer-quality markups 1.05/1.075/1.30 unchanged on top), the herdsman's trades and the payouts taken as a share of the live value (disease cull salvage, accident payout). Carcass yield, meat kg, the farm butcher, slaughterhouses, contracts and meat prices do not read it. Standard genes (all 1) keep the calibrated curve price exactly for an open, dry cow, a heifer and an intact bull; the fixed +15% castrated, +15% lactating and +25% pregnant are gone. A cow's present state is valued instead by its reference cash flow (alphaNormal 0.60 x the PV of the rest of the lactation and of the calf on the way, its known genes included, against an open dry cow of her age): a fresh Holstein 2,448 (was 2,506), one 80% in calf 2,636 (was 3,043). Genes move the price asymmetrically from a PV over the remaining breeding life in game money (milk at the best station's annual mean, calves at the newborn curve price, offspring meat at the annual mean beef price; exits by the health gene, open months by the game's conception odds, milk by productivity, offspring = clamped inheritance with a standard mate): a cow loses 0.60 of a shortfall down to her meat value and earns 0.35 x 0.85 of her own gain plus 0.65 x 0.85 x E(score) of her calves' (E = 0 up to 1.10, convex to 1 at 1.75); a bull earns only the offspring part (x sireCapture 0.50, x sireQualificationAtBirth 0.50 rising to 1 at breeding age) and a poor one is a meat bull at his old price. Every premium is capped by the whole PV gain, so a good trait cannot hide a worse one. A cow's meat gene is priced once, through what it adds to her slaughter value, not the curve's old quality part; a bull's curve keeps it. Castrated, infertile (fertility 0) and bulls from 132 months are priced on the meat route only (curve without +15%, or the slaughter floor). Holstein dry cow at genes 0.25 / 1 / 1.75: 1,255 / 2,183 / 4,118 (was 1,255 / 2,183 / 3,881); Holstein bull 18 months 1,409 / 1,862 / 8,173 (was 2,791 at 1.75); Angus bull 1,409 / 1,834 / 3,788; Angus dry cow 3,116 / 3,570 / 3,931 (was 1,458 / 3,570 / 6,349); an Angus steer 1,834 (was 2,109). Other species unchanged. enabled="0" in breedingValue.xml restores the old prices. tests/test_breedingvalue.lua.
 - Cattle live value calibrated to the 2025 UK market (2026-10-11, breedingValue.xml): a grown cow's curve price is scaled per breed (cowCurveScale, eased in from 24 to 36 months; heifers keep theirs) so a standard in-calf cow is 1.5x her cull value for dairy breeds (fresh/in-milk £2,000-2,620 vs Holstein culls £1,500-1,900) and 1.75x for suckler breeds (Drumdow dispersal in-calf average £3,087 vs beef culls about £1,700-1,900): Holstein 0.84, Angus and Limousin 0.73, Hereford 0.92, Highland 0.70, pack breeds solved the same way; buffalo, Montbeliarde and Vosgienne unchanged. In-calf Holstein 2,218 (1.50x), in-calf Angus 2,717 (1.76x; was 3,671). Suckler cows: the calf is valued weaned (curve price at 8 months x 0.55, plus 0.10 per unit of the dam's milk gene), 6 calvings to 132 months (Highland 7 to 156), so fertility and health now earn calves; 35% of exits are fertility culls and every early exit costs a replacement's premium over the cull value (0.5 / 0.75 of a typical cull value), which values longevity in both kinds. Sires: offspring gain counted at 0.15 for dairy breeds (AI competes) and 0.85 for beef breeds (suckler herds use the bull), so a top Angus bull (6,941, x3.79) out-earns a top Holstein (4,570, x2.45), as pedigree sales do (2025: Angus bulls average £7,700 at Stirling, Holstein bulls £5,208 at Borderway). A cow's sons count as breeding bulls when they would sell as one (the seedstock channel, integrated over the son's gene spread) and her calves are by a 1.35-merit sire (cowMateGene). Excellence curve k 5 -> 1.5 so above-average stock gets a premium as in the pedigree markets. Top cows: Holstein in-calf x1.97, Angus x1.34, Limousin x1.34; poor cows fall to their cull value.
 - Cattle live value at 1.2x the real market, balanced for breeding (2026-10-11): game breeding stock is priced at 1.2 x the 2025 UK sale averages (the game slaughter value stays about 0.9 x real culls), so a standard in-calf cow is 1.91x her game cull value (dairy) or 2.33x (suckler), cowCurveScale per breed from 6-12 months (Holstein 1.12, Angus 0.97, Hereford 1.23, Highland 0.93, pack breeds solved the same way). In the game a calf inherits the parents' mean exactly (spread 0.15, clamped at 1.75), so selection is fast and regression weak: from standard cows with the best of ten premium-dealer bulls a heifer of score 1.65 appears in generation 3-4 and the herd averages 1.6 by generation 5; from premium-dealer cows by generations 1-3; top x top calves average 1.69 (80% at 1.65 or more), top x standard 1.375. Top genes are therefore priced as reachable pedigree stock, not record lots: bulls serve 4 seasons (suckler bulls 30 cows), a bull calf proves out at 0.35 and a heifer calf at 0.5 (rising to 1 at breeding age), sires' offspring gain counts 0.20 (dairy) / 0.52 (beef), offspring capture 0.7 (suckler breeds 0.9, their calves are sold), a cow's calves are by a 1.6 sire (the best of ten premium-dealer bulls), excellence k 1. Genes 0.25 / 1 / 1.4 / 1.75: Holstein in-calf cow 1,255 / 2,829 / 3,727 / 5,445; Angus in-calf cow 2,652 / 3,574 / 3,895 / 5,713 (x1.60, was x1.34); Holstein bull 18 months 1,409 / 1,862 / 2,616 / 6,325; Angus bull 1,409 / 1,834 / 2,723 / 9,671; top calves at 1 month: Holstein heifer 1,360, Angus bull 2,777. Simulation: FS25_CowBreeds_离线准备_2026-10-07/breeding-generations-sim-v1.py.
@@ -226,17 +228,51 @@
 - Fixed Hof Bergmann's milk-can cattle buildings (constructible cow pasture, cowPasture01, cowHusbandryFarm02) filling cans from dry cows and cows that never calved. Cans now follow the same lactation curve as tank milk.
 - Fixed diseases scaling Hof Bergmann's cow and buffalo milk cans by their pallets modifier instead of the milk one: a cow with foot and mouth gave 90% in cans but 35% in a tank, and CVM's milk bonus never reached cans.
 
+## 1.4.1.0:
+
+### Added
+- Added vaccination: from the Diseases dialog, vaccinate cattle against BRD, pigs against PED, sheep and goats against pulpy kidney, and cows and female goats against mastitis.
+- Added protection from the mother: piglets, lambs and goat kids born in your pens to an immune mother start life protected against PED or pulpy kidney.
+- Added footrot for cattle, sheep and goats, with treatment and a vaccine.
+- Added the Filter button and saved-filter cycling to the trailer Transfer tab, so you can filter, then load or unload only the animals you want.
+- Added a coloured icon to each row of the Diseases dialog, so you can see at a glance what each disease needs.
+
+### Changed
+- Changed animals that run out of food to lose health more slowly.
+- Changed immunity times to show in months, and stopped the info box beside an animal showing how long a past illness lasted.
+- Changed the Diseases dialog to list the disease that most needs you first.
+- Changed the Diseases dialog to ask before starting, resuming or stopping a treatment.
+- Changed the CSV export to list only player farms' animals, with rounded numbers and more columns.
+- Changed the Message Log icons and added colour-blind support.
+- Changed which Message Log entries get an icon: red for problems you can still fix, orange for deaths and other setbacks, green for births and cures.
+
+### Fixed
+- Fixed multi-second freezes when moving animals with some mod combinations.
+- Fixed animals with better health genetics losing health faster, not slower, when they are short of food.
+- Fixed old-age and accident deaths becoming more frequent the more days your months have.
+- Fixed an animal at the dealer or in the artificial insemination catalogue occasionally missing a day of ageing and disease progress when the animal listed before it died that day.
+- Fixed the Diseases dialog cutting off long disease names and misaligning its column headers.
+- Fixed the pen selector not getting keyboard focus when a tab opens on an empty pen.
+- Fixed the daily deaths summary showing the English word "from" in every language.
+- Fixed food, water and straw rates under 1 litre a day showing as "0L / day".
+- Fixed pasture pens leaving meadow grass out of the food total and feed forecast.
+
+### Translations
+- Updated the Russian translation (contributed by frezer89).
+
+### Documentation
+- Explained vaccination, footrot and protection from the mother in the disease and breeding guides, the overview, the FAQ and the cattle, pig and sheep factsheets.
+- Corrected the mod compatibility and Hof Bergmann pages on what the LSFM Animal Transport Pack's herding does with Realistic Livestock.
+
 ## 1.4.0.0:
 
 ### Heads up before you update
-
 - Every disease infection, immunity, part-way treatment and CVM carrier in your save is cleared on first load - the new disease records cannot read the old ones. Your herd starts out disease-free and CVM-free.
 - The Diseases setting becomes a difficulty level: an existing save lands on Normal, or Off if diseases were off. The Disease Chance setting is gone.
 - A sick animal that shows symptoms can no longer be sold or taken to a butcher, by you or by the herdsman. A herdsman sell rule for animals with any disease now sells none - switch it off or change its filter.
 - Foot and mouth treatment is now a one-month course like every other disease, instead of three months.
 
 ### Added
-
 - Added avian flu (HPAI) for chickens, BRD for cattle and pulpy kidney for sheep and goats - HPAI cannot be treated, so cull a bird that shows it straight away to stop it spreading through the flock.
 - Added colic, the first horse disease: a horse can fall ill with it on its own (it never spreads), grows more slowly if it is still young, and can die of it; a $500 treatment course cures it about half the time.
 - Added a hidden phase on Hard and Very hard: a newly infected animal of most diseases shows nothing until its symptoms appear, and on every level the "Contracted" message now arrives on the day symptoms show; an animal still in the hidden phase already spreads its disease.
@@ -247,7 +283,6 @@
 - Added a credit to Renfordt's Enhanced Livestock: changes to the disease system are inspired by it, with some parts converted directly from it.
 
 ### Changed
-
 - Rebuilt the disease system to run on the daily tick instead of once a month - catching, spreading, treatment and recovery all move day by day, and each disease's chance of striking is a monthly rate by age, so longer months no longer raise it.
 - Turned the Diseases setting into a difficulty choice - Off, Easy, Normal, Hard or Very hard: on Easy and Normal, the default, diseases are rare or strike now and then and show symptoms at once, while on Hard and Very hard they strike more often, spread faster and most take a while to show.
 - Changed natural recovery so an untreated animal that survives stays sick for at least its illness's minimum length and then recovers on a daily chance - some animals now stay sick longer than others.
@@ -258,22 +293,18 @@
 - Renamed Avian Flu to Avian Flu (LPAI) in every language, to tell it apart from the new HPAI.
 
 ### Removed
-
 - Removed the Disease Chance setting - the difficulty level replaces it.
 
 ### Fixed
-
 - Fixed saving while a horse is out of its pen removing vehicles from the save - one per horse out, taken from the start of the vehicle list and sometimes the horse itself.
 - Fixed January and February messages appearing below the previous year's messages in the Messages tab; pregnancy due dates, birthdays and the feed forecast now use the right year in those months too.
 - Fixed one bad entry in the disease definition file silently dropping every disease defined after it - an authoring mistake now warns and skips just the offending entry.
 
 ### Documentation
-
 - Rewrote the disease guide to cover all nine diseases, the hidden phase and the difficulty levels.
 - Corrected the settings reference: disease messages are not collected into daily summaries, though a death from disease still counts in the day's deaths summary.
 
 ## 1.3.2.1:
-
 - Fixed newborn rabbits on the Witcombe map never gaining health, so many of them died at their first day change - rabbits of every age now eat and drink the amounts the Witcombe support sets.
 - Corrected the disease guide's spread ratings - Foot & Mouth is the one disease that sustains an outbreak on its own, while PED and avian flu outbreaks usually burn out.
 - Documented in the pack-creation guide which curves accept decimal values - food, water and straw do, every other curve reads whole numbers only.
@@ -282,7 +313,6 @@
 ## 1.3.2.0:
 
 ### Heads up before you update
-
 - Treating a disease now costs money. Any animal already part-way through a course starts charging on the next month - Foot & Mouth bills $250 a month across its three months, mastitis $200 and PED $150.
 - The old per-pen herdsman's leftover settings are cleared out of your save the first time you save after updating. It has not run since v1.3.0.0 and the Herdsman tab in RL Menu replaces it.
 - The custom Mark Animal and Castrate Animal keybindings are gone, and any custom keys you had set for them are ignored.
@@ -290,7 +320,6 @@
 - For mod authors: getAIManager on a Realistic Livestock animal pen is removed with no replacement.
 
 ### Diseases
-
 - Changed the disease signal on animal cards from a red row to status icons, so you can tell an untreated animal from one under treatment and spot a CVM carrier at a glance.
 - Fixed animals dying from a disease they had just beaten - curing an animal, by treatment or by natural recovery, now reliably saves it.
 - Fixed cured animals still dying of the same disease all through the months they were meant to be immune - almost no chicken used to survive avian flu, even after recovering from it.
@@ -308,7 +337,6 @@
 - Fixed an animal the server had just cured reading as "Being treated" on other players' screens when treatment was toggled.
 
 ### The animal screen and the per-pen herdsman
-
 - Changed every route into the animal screen to open the RL Menu, including ones other mods trigger - some previously opened the old screen and others did nothing at all.
 - Stopped replacing the base game's hand-tool sorting on the statistics screen - Realistic Livestock had been overriding it with code that behaved like the base game's, so nothing changes on that screen, but the mod no longer overwrites other mods that adjust it.
 - Removed the old animal management screen for good. Browsing and managing animals is unchanged - the RL Menu already handled all of it. In the rare case another mod opens the animal screen in a way the RL Menu cannot take over, you now see the standard Farming Simulator screen instead of the old Realistic Livestock one.
@@ -319,7 +347,6 @@
 - Fixed the R shortcut being listed as "Open Animal Screen" in the Controls settings, naming a screen that no longer exists - it now reads "Manage Animals" in every language, matching the button it triggers.
 
 ### Translations
-
 - Added Spanish as a new language, covering the menus, filters, herdsman, settings, messages and in-game help - it arrives as one of the most complete translations the mod ships (contributed by zarvaoo_16).
 - Completed the Dutch translation - the many menu, filter, herdsman, settings and message strings that were still showing in English are now translated (contributed by Nozem1982).
 - Completed the Ukrainian translation - the menus, filters, herdsman, settings, messages and in-game help were still largely in English (contributed by Kalderone Daniil_ua).
@@ -327,10 +354,10 @@
 - Fixed the herdsman labels in thirteen languages still carrying wording retired two releases ago - among them a budget field that read as a share of herd value when it actually sets a share of your farm money.
 
 ### Documentation
-
 - Updated the disease guide's survival tables to match the new post-recovery rules - a cured animal faces no further risk from the disease it beat until its immunity lapses.
 
 ## 1.3.1.0:
+
 ### Heads up before you update
 Things that affect existing saves:
 - Dealer animal genetics follow a natural bell curve now. An "Extremely good" animal drops from roughly one in 25 to under one in 200, and "Very bad" ones from about one in 20 to about one in 160. Existing dealer stock is untouched and converges to the new curve as the dealer restocks.
@@ -366,12 +393,12 @@ Things that affect existing saves:
 ### Compatibility
 - Listed the Sheep Breeds Pack for RLRM alongside the Cow Breeds Pack as a supported animal pack.
 
-
 ## 1.3.0.1:
 - Improved the saved-filter editor - comparison operators now read as plain English ("is at least", "is one of", "does not contain", ...) in the Compare dropdown and each condition row, instead of programmer symbols.
 - Fixed the saved-filter editor showing the Gender, Breed, and Name fields as raw internal names in the field picker and condition rows.
 
 ## 1.3.0.0:
+
 ### Heads up before you update
 Things that affect existing saves:
 - The old herdsman automation no longer runs. Set up your automation again in the new Herdsman menu.
@@ -719,7 +746,7 @@ Things that affect existing saves:
 - Added missing translation keys across all languages (sourced from EnhancedLivestock where available)
 - Updated Italian translation (contributed by FirenzeIT)
 
-## 1.0.0.0 (Stable):
+## 1.0.0.0:
 - Added "Manage Animals" (R) button to in-game animal menu for quick access to animal management
 - Added "Select" (A) action to check/uncheck selection boxes in buy and sell dialogs
 - Changed the insemination button to be disabled when a female is ineligible (pregnant, too young, recovering)
@@ -731,7 +758,7 @@ Things that affect existing saves:
 - Fixed batch "Remove All Monitors" button not reflecting pending removal state
 - Fixed milk/wool/goat milk info not showing on dedicated server clients
 
-## 0.6.1.0 (2026-02-16):
+## 0.6.1.0:
 - Fixed AI dialog insemination not syncing in multiplayer
 - Fixed AI dialog insemination blocked for cows that never gave birth
 - Fixed server crash when client inseminates cow with straw
@@ -745,7 +772,7 @@ Things that affect existing saves:
 - Fixed black screen when multiplayer client tries to ride a horse
 - Fixed multiplayer client unable to clean horses
 
-## 0.6.0.0 (2026-02-13):
+## 0.6.0.0:
 - Added daily summary mode for message log
 - Added "Reset AI Animals" button to settings
 - Fixed freeze when selling animals with active filter
@@ -755,25 +782,25 @@ Things that affect existing saves:
 - Added a user documentation site with per-species guides
 - Added FS25_EnhancedLivestock as an incompatible mod
 
-## 0.5.0.0 (2026-01-31):
+## 0.5.0.0:
 - Added compatibility handling for FS25_MoreVisualAnimals conflict
 - Improved pregnancy handling
 - Fixed wrong text string for water/straw in monitor menu
 - Added Italian (it) translation
 
-## 0.4.2.0 (2026-01-24):
+## 0.4.2.0:
 - Improved fallback handling for days per month calculation
 - Improved failover for animal subtypes and breeds
 
-## 0.4.1.0 (2026-01-22):
+## 0.4.1.0:
 - Fixed wrong text for when females can reproduce
 - Fixed death message count for auto-sold newborns
 - Fixed crash with invalid animal root node in visual animals
 
-## 0.4.0.0 (2026-01-18):
+## 0.4.0.0:
 - Removed Font Library dependency by inlining 3D text rendering directly in the mod
 
-## 0.3.0.0 (2026-01-18):
+## 0.3.0.0:
 - Added the initial Ritter version, based on Arrow-kb's Realistic Livestock v1.2.0.5
 - Added automatic savegame migration from Arrow-kb's Realistic Livestock
 - Added Highland Bulls support (based on Renfordt's PR 389)

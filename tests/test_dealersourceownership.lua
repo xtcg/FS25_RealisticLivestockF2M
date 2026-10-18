@@ -146,3 +146,27 @@ local absentDisease,diseaseFailure=O.restore(diseaseData,resolver,{isServer=true
 check("source ownership: missing disease models quarantine without dropping inherited carrier data",
     absentDisease==nil and diseaseFailure.reason=="SOURCE_OWNER_MISSING_DISEASE"
     and diseaseFailure.quarantine.animals[1].diseases[1].title==model.title)
+
+-- Upstream 1.4.1.0 adds a vaccination marker to model-backed disease records.
+local vaccineModel={title="SOURCE_VACCINATED",archetype="ACUTE",endpoint="cureOnly",animals={"COW"}}
+local vaccinated=Disease.new(vaccineModel)
+assert(RLDiseaseRecord.transition(vaccinated,"INFECTIOUS")==RLDiseaseRecord.APPLIED)
+assert(RLDiseaseRecord.transition(vaccinated,"RECOVERED")==RLDiseaseRecord.APPLIED)
+vaccinated.vaccinated,vaccinated.immunityMonthsRemaining=true,11.23456789
+diseaseDam.diseases={vaccinated}
+local vaccinatedData=success(O.export(diseaseOwner,{[diseaseDam.uniqueId]=diseaseRecord}))
+local vaccineContext={isServer=true,resolveDiseaseModel=function(title) return title==vaccineModel.title and vaccineModel or nil end}
+local vaccinatedOwner=success(O.restore(vaccinatedData,resolver,vaccineContext))
+check("source ownership: vaccinated status and exact immunity survive export/restore",
+    vaccinatedOwner.byId[diseaseDam.uniqueId].diseases[1].vaccinated==true
+    and vaccinatedOwner.byId[diseaseDam.uniqueId].diseases[1].immunityMonthsRemaining==11.23456789)
+local oldVaccinationData=clone(vaccinatedData);oldVaccinationData.animals[1].diseases[1].vaccinated=nil
+local oldVaccinationOwner=success(O.restore(oldVaccinationData,resolver,vaccineContext))
+check("source ownership: old records without vaccination keep the false constructor default",
+    oldVaccinationOwner.byId[diseaseDam.uniqueId].diseases[1].vaccinated==false
+    and oldVaccinationOwner.byId[diseaseDam.uniqueId].diseases[1].immunityMonthsRemaining==11.23456789)
+local badVaccinationData=clone(vaccinatedData);badVaccinationData.animals[1].diseases[1].vaccinated="true"
+local badVaccinationOwner,badVaccinationFailure=O.restore(badVaccinationData,resolver,vaccineContext)
+check("source ownership: malformed vaccination flags quarantine the original data",
+    badVaccinationOwner==nil and badVaccinationFailure.reason=="SOURCE_OWNER_DISEASE"
+    and badVaccinationFailure.quarantine.animals[1].diseases[1].vaccinated=="true")

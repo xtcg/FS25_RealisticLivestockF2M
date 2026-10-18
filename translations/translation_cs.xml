@@ -233,8 +233,9 @@
         <text name="rl_ui_output_pallets_eggs" text="鸡蛋"/>
         <text name="rl_ui_output_pallets_wool" text="羊毛"/>
         <text name="rl_ui_output_pallets_goatMilk" text="羊奶"/>
-        <text name="rl_ui_amountPerDay" text="%.0f 升/天" tag="format"/>
+        <text name="rl_ui_amountPerDay" text="%s 升/天" tag="format"/>
         <text name="rl_ui_feePerMonth" text="%s/月" tag="format"/>
+        <text name="rl_ui_feePerDose" text="%s/剂" tag="format"/>
 
         <text name="rl_ui_animalType" text="类型"/>
         <text name="rl_ui_amountMonitored" text="已检测"/>
@@ -479,6 +480,7 @@
         <text name="rl_settings_exportCSV_label" text="导出为CSV"/>
         <text name="rl_settings_exportCSV_tooltip" text="将统计信息导出为CSV"/>
         <text name="rl_settings_exportCSV_text" text="导出为CSV"/>
+        <text name="rl_settings_exportCSV_failed" text="无法写入 %s。请在其他程序中关闭该文件后重试。"/>
 
         <text name="rl_settings_maxNumMessages_label" text="最大消息数量"/>
         <text name="rl_settings_maxNumMessages_tooltip" text="数量较大会导致存档文件夹占用更多空间。达到此限制后，最早的消息将被删除。"/>
@@ -546,6 +548,13 @@
         <text name="rl_ui_stopTreatment" text="停止护理"/>
         <text name="rl_ui_cull" text="处置"/>
         <text name="rl_ui_cullConfirm" text="处置 %s？它将永久移出你的畜群，你将获得 %s 的补偿。"/>
+        <text name="rl_ui_vaccinated" text="已接种"/>
+        <text name="rl_ui_vaccinate" text="接种"/>
+        <text name="rl_ui_vaccinateConfirm" text="为 %s 接种针对 %s 的防护针？每剂费用为 %s。"/>
+        <text name="rl_ui_notVaccinated" text="未接种"/>
+        <text name="rl_ui_startTreatmentConfirm" text="开始为 %s 护理 %s？护理时间为 %s，每月费用为 %s。"/>
+        <text name="rl_ui_resumeTreatmentConfirm" text="继续为 %s 护理 %s？护理时间还剩 %s，每月费用为 %s。"/>
+        <text name="rl_ui_stopTreatmentConfirm" text="停止为 %s 护理 %s？暂停期间不收取费用；继续时会保留已完成的护理时间。"/>
         <text name="rl_ui_duration" text="持续时间"/>
         <text name="rl_ui_beingTreated" text="护理中"/>
         <text name="rl_ui_notTreated" text="未护理"/>
@@ -568,6 +577,7 @@
         <text name="rl_disease_brd" text="牛呼吸道感染 (BRD)"/>
         <text name="rl_disease_clostridial" text="软肾感染"/>
         <text name="rl_disease_colic" text="急性消化不适"/>
+        <text name="rl_disease_footRot" text="脚部感染"/>
 
 
 

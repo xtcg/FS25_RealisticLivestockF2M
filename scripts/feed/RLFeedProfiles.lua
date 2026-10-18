@@ -46,7 +46,12 @@ RLFeedProfiles.PROTEIN = {
     youngUntilMonth = 8, growingUntilMonth = 14, lactatingAtKg = 30, milkResponse = 2,
 }
 
-RLFeedProfiles.HEALTH = { extremeUnderweightRatio = 0.45, shortageBufferDays = 3 }
+RLFeedProfiles.HEALTH = { extremeUnderweightRatio = 0.45, shortageBufferDays = 3, lossPerDay = 6.4, gainPerDay = 8,
+    geneticsRateEffect = 1 / 3, youngDeathMonths = 6, youngDeathHealthOffset = 10 }
+
+--- Low-health death chance per model day by health (x: health, y: chance), linear between points,
+--- flat outside; the same curve for every health gene (the gene acts on the health rates only).
+RLFeedProfiles.LOW_HEALTH_DEATH = { { 0, 1 }, { 20, 0.05 }, { 40, 0.01 }, { 60, 0.001 }, { 80, 0 } }
 
 RLFeedProfiles.RATION = {
     wheatMaxShare = 0.30, adaptationDays = 30, adaptationMaxShare = 0.80, stepAllowance = 0.20, unadaptedUtilisation = 0.85,
@@ -254,6 +259,17 @@ function RLFeedProfiles.validate(config)
         if r[key] > 1 then return false, "ration " .. key .. " must be a share <= 1" end
     end
     if config.health.extremeUnderweightRatio >= 1 then return false, "health extremeUnderweightRatio must be < 1" end
+    if config.health.geneticsRateEffect >= 1 then return false, "health geneticsRateEffect must be < 1, or a gene could stop health changing" end
+    local death = config.lowHealthDeath
+    if death == nil or #death < 2 then return false, "health lowHealthDeath needs at least two points" end
+    for i, point in ipairs(death) do
+        if not finite(point[1]) or not finite(point[2]) or point[2] < 0 or point[2] > 1 then
+            return false, "health lowHealthDeath points need a health and a daily chance in 0..1"
+        end
+        if i > 1 and (point[1] <= death[i - 1][1] or point[2] > death[i - 1][2]) then
+            return false, "health lowHealthDeath must rise in health and never rise in chance"
+        end
+    end
     for _, class in ipairs(RLFeedProfiles.CLASSES) do
         local rules = config.classes[class]
         if rules == nil then return false, "ration class " .. class .. " missing" end
@@ -413,6 +429,7 @@ local function parseSpecies(xmlFile, config)
         section.intake = readGroup(xmlFile, key .. ".intake", config.intake)
         section.protein = readGroup(xmlFile, key .. ".protein", config.protein)
         section.health = readGroup(xmlFile, key .. ".health", config.health)
+        section.lowHealthDeath = readCurve(xmlFile, key .. ".health.lowHealthDeath") or config.lowHealthDeath
         section.ration = readGroup(xmlFile, key .. ".ration", config.ration)
         section.calfMilk = readGroup(xmlFile, key .. ".calfMilk", config.calfMilk)
         section.calf = readGroup(xmlFile, key .. ".calf", config.calf)
@@ -517,6 +534,11 @@ function RLFeedProfiles.parse(xmlFile)
     config.intake = readGroup(xmlFile, "feedProfiles.intake", RLFeedProfiles.INTAKE)
     config.protein = readGroup(xmlFile, "feedProfiles.protein", RLFeedProfiles.PROTEIN)
     config.health = readGroup(xmlFile, "feedProfiles.health", RLFeedProfiles.HEALTH)
+    config.lowHealthDeath = xmlFile ~= nil and readCurve(xmlFile, "feedProfiles.health.lowHealthDeath") or nil
+    if config.lowHealthDeath == nil then
+        config.lowHealthDeath = {}
+        for i, point in ipairs(RLFeedProfiles.LOW_HEALTH_DEATH) do config.lowHealthDeath[i] = { point[1], point[2] } end
+    end
     config.ration = readGroup(xmlFile, "feedProfiles.ration", RLFeedProfiles.RATION)
     config.classes = {}
     for class, rules in pairs(RLFeedProfiles.CLASS_RULES) do config.classes[class] = table.clone(rules) end
@@ -611,6 +633,7 @@ function RLFeedProfiles.computeHash(config)
     addGroup("protein", config.protein)
     addGroup("ration", config.ration)
     addGroup("health", config.health)
+    for i, point in ipairs(config.lowHealthDeath or {}) do add("health.lowHealthDeath." .. i, point[1] .. ":" .. point[2]) end
     for _, class in ipairs(RLFeedProfiles.CLASSES) do addGroup("class." .. class, config.classes[class]) end
     addGroup("milk", config.milk)
     addGroup("calfMilk", config.calfMilk)
