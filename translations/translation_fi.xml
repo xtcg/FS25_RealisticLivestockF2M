@@ -962,6 +962,14 @@
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_semen_collectionFee" text="Siemennesteen keräys"/>
+        <text name="rl_semen_feeCharged" text="Palvelumaksu: %s."/>
+        <text name="rl_semen_refuseNoMoney" text="Rahaa ei ole tarpeeksi keräysmaksuun (%s)."/>
+        <text name="rl_semen_refuseCondition" text="Tämä siitoseläin on liian laiha keräykseen. Paranna ensin sen ruokintaa."/>
+        <text name="rl_semen_refuseNoYield" text="Tämä siitoseläin antaisi nyt alle yhden pillin."/>
+        <text name="rl_semen_nextCollection" text="Seuraava keräys mahdollinen: %s."/>
+        <text name="rl_semen_minAge" text="Keräys alkaa %d kuukauden iässä."/>
+        <text name="rl_semen_preview" text="Kerätäänkö siemenneste eläimestä %s?&#10;&#10;Odotetut pillit: %d&#10;(perus %d x hedelmällisyys %.2f x ikä %.2f x kunto %.2f)&#10;Jalostusindeksi: %.2f&#10;Palvelumaksu: %s"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

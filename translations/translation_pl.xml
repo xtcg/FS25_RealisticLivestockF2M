@@ -960,6 +960,14 @@
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_semen_collectionFee" text="Pobór nasienia"/>
+        <text name="rl_semen_feeCharged" text="Opłata za usługę: %s."/>
+        <text name="rl_semen_refuseNoMoney" text="Za mało pieniędzy na opłatę za pobór (%s)."/>
+        <text name="rl_semen_refuseCondition" text="Ten reproduktor jest zbyt chudy do poboru nasienia. Najpierw popraw jego żywienie."/>
+        <text name="rl_semen_refuseNoYield" text="Ten reproduktor dałby teraz mniej niż jedną słomkę."/>
+        <text name="rl_semen_nextCollection" text="Następny pobór możliwy w: %s."/>
+        <text name="rl_semen_minAge" text="Pobór od wieku %d miesięcy."/>
+        <text name="rl_semen_preview" text="Pobrać nasienie od %s?&#10;&#10;Przewidywane słomki: %d&#10;(baza %d x płodność %.2f x wiek %.2f x kondycja %.2f)&#10;Indeks hodowlany: %.2f&#10;Opłata za usługę: %s"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

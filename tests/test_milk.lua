@@ -83,7 +83,7 @@ for _, line in ipairs(LOG) do
 end
 
 -- Hof Bergmann's BULL fills BULLSPERM through its milk output; that map semen is off (Animal.MAP_SEMEN_OUTPUT).
-RLSemenCollection = { getAgeOutputFactor = function() return 1 end }
+RLSemenCollection = { getAgeOutputFactor = function() return 1 end, isCollectedThisMonth = function() return false end }
 FILL[6] = "BULLSPERM"
 local function semenPerDay()
     local a = cow("milk", 6, { isParent = false, isLactating = false })

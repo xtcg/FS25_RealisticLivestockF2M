@@ -981,6 +981,14 @@
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_semen_collectionFee" text="Sperma Toplama"/>
+        <text name="rl_semen_feeCharged" text="Hizmet ücreti: %s."/>
+        <text name="rl_semen_refuseNoMoney" text="Toplama ücreti için yeterli para yok (%s)."/>
+        <text name="rl_semen_refuseCondition" text="Bu damızlık sperma toplamak için fazla zayıf. Önce beslenmesini iyileştirin."/>
+        <text name="rl_semen_refuseNoYield" text="Bu damızlık şu anda bir payetten az verir."/>
+        <text name="rl_semen_nextCollection" text="Sonraki toplama: %s."/>
+        <text name="rl_semen_minAge" text="Toplama %d aylıktan itibaren yapılır."/>
+        <text name="rl_semen_preview" text="%s hayvanından sperma toplansın mı?&#10;&#10;Beklenen payet: %d&#10;(taban %d x doğurganlık %.2f x yaş %.2f x kondisyon %.2f)&#10;Damızlık indeksi: %.2f&#10;Hizmet ücreti: %s"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

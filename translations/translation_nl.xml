@@ -959,6 +959,14 @@
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_semen_collectionFee" text="Spermawinning"/>
+        <text name="rl_semen_feeCharged" text="Servicekosten: %s."/>
+        <text name="rl_semen_refuseNoMoney" text="Niet genoeg geld voor de winningskosten (%s)."/>
+        <text name="rl_semen_refuseCondition" text="Dit fokdier is te mager voor spermawinning. Verbeter eerst zijn voeding."/>
+        <text name="rl_semen_refuseNoYield" text="Dit fokdier zou nu minder dan één rietje opleveren."/>
+        <text name="rl_semen_nextCollection" text="Volgende winning mogelijk in %s."/>
+        <text name="rl_semen_minAge" text="Winning vanaf een leeftijd van %d maanden."/>
+        <text name="rl_semen_preview" text="Sperma winnen van %s?&#10;&#10;Verwachte rietjes: %d&#10;(basis %d x vruchtbaarheid %.2f x leeftijd %.2f x conditie %.2f)&#10;Fokindex: %.2f&#10;Servicekosten: %s"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

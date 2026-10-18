@@ -941,6 +941,14 @@
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_semen_collectionFee" text="Raccolta del seme"/>
+        <text name="rl_semen_feeCharged" text="Costo del servizio: %s."/>
+        <text name="rl_semen_refuseNoMoney" text="Denaro insufficiente per il costo di raccolta (%s)."/>
+        <text name="rl_semen_refuseCondition" text="Questo riproduttore è troppo magro per la raccolta. Migliora prima la sua alimentazione."/>
+        <text name="rl_semen_refuseNoYield" text="Questo riproduttore darebbe ora meno di una paillette."/>
+        <text name="rl_semen_nextCollection" text="Prossima raccolta possibile a %s."/>
+        <text name="rl_semen_minAge" text="La raccolta inizia a %d mesi di età."/>
+        <text name="rl_semen_preview" text="Raccogliere il seme di %s?&#10;&#10;Paillette previste: %d&#10;(base %d x fertilità %.2f x età %.2f x condizione %.2f)&#10;Indice genetico: %.2f&#10;Costo del servizio: %s"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

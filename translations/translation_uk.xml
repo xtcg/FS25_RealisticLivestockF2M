@@ -939,6 +939,14 @@
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_semen_collectionFee" text="Збір сперми"/>
+        <text name="rl_semen_feeCharged" text="Плата за послугу: %s."/>
+        <text name="rl_semen_refuseNoMoney" text="Недостатньо грошей для оплати збору (%s)."/>
+        <text name="rl_semen_refuseCondition" text="Цей плідник занадто худий для збору сперми. Спершу покращте годівлю."/>
+        <text name="rl_semen_refuseNoYield" text="Цей плідник зараз дав би менше однієї соломинки."/>
+        <text name="rl_semen_nextCollection" text="Наступний збір можливий: %s."/>
+        <text name="rl_semen_minAge" text="Збір з віку %d міс."/>
+        <text name="rl_semen_preview" text="Зібрати сперму у %s?&#10;&#10;Очікується соломинок: %d&#10;(база %d x плодючість %.2f x вік %.2f x вгодованість %.2f)&#10;Племінний індекс: %.2f&#10;Плата за послугу: %s"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

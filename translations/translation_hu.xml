@@ -971,6 +971,14 @@
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_semen_collectionFee" text="Spermagyűjtés"/>
+        <text name="rl_semen_feeCharged" text="Szolgáltatási díj: %s."/>
+        <text name="rl_semen_refuseNoMoney" text="Nincs elég pénz a gyűjtési díjra (%s)."/>
+        <text name="rl_semen_refuseCondition" text="Ez a tenyészállat túl sovány a spermagyűjtéshez. Előbb javítsd a takarmányozását."/>
+        <text name="rl_semen_refuseNoYield" text="Ez a tenyészállat most egy szalmánál kevesebbet adna."/>
+        <text name="rl_semen_nextCollection" text="Következő gyűjtés lehetséges: %s."/>
+        <text name="rl_semen_minAge" text="Gyűjtés %d hónapos kortól."/>
+        <text name="rl_semen_preview" text="Spermagyűjtés innen: %s?&#10;&#10;Várható szalmák: %d&#10;(alap %d x termékenység %.2f x kor %.2f x kondíció %.2f)&#10;Tenyészérték-index: %.2f&#10;Szolgáltatási díj: %s"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

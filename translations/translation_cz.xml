@@ -967,6 +967,14 @@
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_semen_collectionFee" text="Odběr spermatu"/>
+        <text name="rl_semen_feeCharged" text="Poplatek za službu: %s."/>
+        <text name="rl_semen_refuseNoMoney" text="Nedostatek peněz na poplatek za odběr (%s)."/>
+        <text name="rl_semen_refuseCondition" text="Tento plemeník je na odběr příliš hubený. Nejdříve zlepšete jeho krmení."/>
+        <text name="rl_semen_refuseNoYield" text="Tento plemeník by nyní dal méně než jednu pejetu."/>
+        <text name="rl_semen_nextCollection" text="Další odběr možný v měsíci %s."/>
+        <text name="rl_semen_minAge" text="Odběr od věku %d měsíců."/>
+        <text name="rl_semen_preview" text="Odebrat sperma od %s?&#10;&#10;Očekávané pejety: %d&#10;(základ %d x plodnost %.2f x věk %.2f x kondice %.2f)&#10;Plemenný index: %.2f&#10;Poplatek za službu: %s"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

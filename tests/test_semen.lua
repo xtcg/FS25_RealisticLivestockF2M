@@ -293,10 +293,116 @@ local function roundTrip(event)
 end
 local got, left = roundTrip(SemenCollectEvent.newRequest(pen, { uniqueId = "X" }, { 1, 2, 3 }, { 4, 5, 6 }))
 check("wire: request round-trips", left == 0 and got.object == pen and got.animal.uniqueId == "X" and got.position[3] == 3 and got.rotation[1] == 4)
-got, left = roundTrip(SemenCollectEvent.newState(pen, { uniqueId = "X" }, 42))
-check("wire: state round-trips", left == 0 and got.mode == SemenCollectEvent.MODE_STATE and got.collectedAge == 42)
-got, left = roundTrip(SemenCollectEvent.newResult("", 360))
-check("wire: result round-trips", left == 0 and got.resultKey == "" and got.straws == 360)
+got, left = roundTrip(SemenCollectEvent.newState(pen, { uniqueId = "X" }, 42, 77))
+check("wire: state round-trips", left == 0 and got.mode == SemenCollectEvent.MODE_STATE and got.collectedAge == 42
+    and got.collectedMonth == 77)
+got, left = roundTrip(SemenCollectEvent.newState(pen, { uniqueId = "X" }, 42, nil))
+check("wire: state without a month record round-trips as nil", left == 0 and got.collectedMonth == nil)
+got, left = roundTrip(SemenCollectEvent.newResult("", 360, 460))
+check("wire: result round-trips", left == 0 and got.resultKey == "" and got.straws == 360 and got.fee == 460)
+
+-- Batch 1: calendar month record, body condition, no made-up straw, service fee, dialog texts
+g_currentMission.environment = { currentYear = 3, currentPeriod = 5 }
+local thisMonth = 3 * 12 + 5 - 1
+check("month index: year x 12 + period - 1", RLSemenCollection.getMonthIndex() == thisMonth)
+check("month: collected this calendar month refused, whatever his age now",
+    refuse(mkAnimal(1, 31, 1, { semenCollectedMonth = thisMonth, semenCollectedAge = 30 })) == R.COLLECTED)
+check("month: collected last calendar month allowed",
+    refuse(mkAnimal(1, 31, 1, { semenCollectedMonth = thisMonth - 1, semenCollectedAge = 30 })) == nil)
+check("month: an old save's age record still blocks its month", refuse(mkAnimal(1, 30, 1, { semenCollectedAge = 30 })) == R.COLLECTED)
+local marked = mkAnimal(1, 30, 1)
+RLSemenCollection.markCollected(marked)
+check("month: markCollected records month and age", marked.semenCollectedMonth == thisMonth and marked.semenCollectedAge == 30)
+g_currentMission.environment.currentPeriod = 6
+check("month: next period frees him", refuse(marked) == nil)
+g_currentMission.environment.currentPeriod = 5
+
+-- Body condition: cattle only (fertilityEffect 0 sections read 1)
+loadMod("scripts/nutrition/RLNutritionMath.lua")
+local BCS, CONFIG = {}, { fertilityEffect = 1 }
+RLBodyCondition = {
+    appliesTo = function(a) return BCS[a] ~= nil end,
+    getConfig = function() return CONFIG end,
+    getBCS = function(a) return BCS[a] end,
+}
+local function withBCS(bcs, fertility, age)
+    local a = mkAnimal(1, age or 30, fertility or 1)
+    BCS[a] = bcs
+    return a
+end
+check("condition: BCS 3 at peak keeps 300", yield(withBCS(3)) == 300)
+check("condition: BCS 4.5 (a grown bull on full feed) keeps 300", yield(withBCS(4.5)) == 300)
+check("condition: BCS 5 -> 270", yield(withBCS(5)) == 270)
+check("condition: BCS 2 -> 210", yield(withBCS(2)) == 210)
+check("condition: BCS 1.5 refused", refuse(withBCS(1.5)) == R.CONDITION and yield(withBCS(1.5)) == 0)
+CONFIG = { fertilityEffect = 0 }
+check("condition: a species whose condition leaves breeding alone reads 1", yield(withBCS(1.5)) == 300)
+CONFIG = { fertilityEffect = 1 }
+local bd = RLSemenCollection.getYieldBreakdown(withBCS(2, 1.2))
+check("breakdown: base, gene, age, condition and the product", bd.base == 300 and near(bd.fertility, 1.2)
+    and bd.age == 1 and near(bd.condition, 0.7) and bd.straws == 252)
+RLBodyCondition = nil
+
+-- No straw made up: a boar with a tiny yield is refused, not given one dose
+SUBS[8] = { name = "BOAR_LANDRACE", typeIndex = 4, gender = "male", reproductionMinAgeMonth = 8, output = {} }
+TYPES[4] = { name = "PIG" }
+check("pig: 20 doses at peak", yield(mkAnimal(8, 12, 1)) == 20)
+RLSemenCollection.STRAWS_PER_COLLECTION.PIG = 1
+check("pig: under one dose -> 0 and refused, not rounded up to one",
+    yield(mkAnimal(8, 8, 0.8)) == 0 and refuse(mkAnimal(8, 8, 0.8)) == R.NO_YIELD)
+RLSemenCollection.STRAWS_PER_COLLECTION.PIG = 20
+
+-- Fee: base + per straw, x the difficulty multiplier
+RLLivestockPrices = { getMultiplier = function() return MULT or 1 end }
+check("fee: bull 300 straws = 100 + 300 = 400", near(RLSemenCollection.getFee(mkAnimal(1, 24, 1)), 400))
+check("fee: ram 100 straws = 30 + 100", near(RLSemenCollection.getFee(mkAnimal(5, 10, 1)), 130))
+check("fee: boar 20 doses = 10 + 20", near(RLSemenCollection.getFee(mkAnimal(8, 12, 1)), 30))
+MULT = 3
+check("fee: x3 on EASY like the prices", near(RLSemenCollection.getFee(mkAnimal(1, 24, 1)), 1200))
+MULT = 1
+check("fee: none for a type without collection", RLSemenCollection.getCollectionFee("CHICKEN", 10) == 0)
+check("fee: own semen sells for more than the fee for an average bull",
+    RLSemenCollection.getSellValue({ collected = true, success = 0.5, genetics = average.genetics }, 300) > RLSemenCollection.getFee(mkAnimal(1, 24, 1)))
+
+-- Server: fee checked before the load, charged after it
+MoneyType.SEMEN_COLLECTION = "semenCollection"
+local feeSent = {}
+local feeClient = makeConnection("alice", false, feeSent)
+local chargeLog = {}
+g_currentMission.addMoney = function(_, v, farmId, moneyType) MONEY[farmId] = (MONEY[farmId] or 0) + v; chargeLog[#chargeLog + 1] = { v, moneyType } end
+local poorBull = mkAnimal(1, 24, 1)
+local poorPen = { farm = 1, getClusterSystem = function() return { animals = { poorBull } } end }
+MONEY = { [1] = 399 }
+spawned = nil
+request(poorBull, poorPen):run(feeClient)
+check("fee: cannot pay -> refused, nothing spawned or recorded", spawned == nil and poorBull.semenCollectedMonth == nil
+    and feeSent[1].resultKey == RLSemenCollection.REFUSAL_NO_MONEY and near(feeSent[1].fee, 400) and #chargeLog == 0)
+MONEY = { [1] = 400 }
+request(poorBull, poorPen):run(feeClient)
+check("fee: charged once after the dewar loaded", spawned ~= nil and spawned.straws == 300 and near(MONEY[1], 0)
+    and #chargeLog == 1 and chargeLog[1][2] == "semenCollection" and feeSent[2].resultKey == "" and near(feeSent[2].fee, 400))
+check("fee: month recorded on the sire and in the broadcast", poorBull.semenCollectedMonth == thisMonth
+    and broadcast[#broadcast].collectedMonth == thisMonth)
+local failBull = mkAnimal(1, 30, 1, { semenCollectedMonth = thisMonth - 3, semenCollectedAge = 27 })
+MONEY = { [1] = 1000 }
+LOAD_STATE = 1
+request(failBull, { farm = 1, getClusterSystem = function() return { animals = { failBull } } end }):run(feeClient)
+LOAD_STATE = 0
+check("fee: a failed load charges nothing and restores the old record",
+    near(MONEY[1], 1000) and #chargeLog == 1 and failBull.semenCollectedMonth == thisMonth - 3 and failBull.semenCollectedAge == 27)
+
+-- Dialog texts
+local TEXTS = { rl_semen_refuseCollected = "Collected.", rl_semen_nextCollection = "Next: %s.",
+    rl_semen_refuseTooYoung = "Young.", rl_semen_minAge = "From %d.", rl_semen_preview = "%s|%d|%d|%.2f|%.2f|%.2f|%.2f|%s" }
+g_i18n = { getText = function(_, k) return TEXTS[k] or k end, formatPeriod = function(_, p) return "P" .. p end,
+    formatMoney = function(_, v) return string.format("$%d", math.floor(v + 0.5)) end }
+check("text: collected names the next month", RLSemenCollection.getRefusalText(R.COLLECTED) == "Collected. Next: P6.")
+g_currentMission.environment.currentPeriod = 12
+check("text: next month wraps to period 1", RLSemenCollection.getRefusalText(R.COLLECTED) == "Collected. Next: P1.")
+g_currentMission.environment.currentPeriod = 5
+check("text: too young names the age", RLSemenCollection.getRefusalText(R.TOO_YOUNG, mkAnimal(1, 10, 1)) == "Young. From 12.")
+PREVIEW = RLSemenCollection.getPreviewText(mkAnimal(1, 30, 1.2))
+check("text: preview lists name, straws, factors, index and fee " .. PREVIEW, PREVIEW == "Max|360|300|1.20|1.00|1.00|1.04|$460")
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end

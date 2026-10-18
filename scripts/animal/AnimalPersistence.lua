@@ -219,6 +219,7 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
 
     local isCastrated = xmlFile:getBool(key .. "#isCastrated", false)
     local semenCollectedAge = xmlFile:getInt(key .. "#semenCollectedAge")
+    local semenCollectedMonth = xmlFile:getInt(key .. "#semenCollectedMonth")
     local semenProducedAge = xmlFile:getInt(key .. "#semenProducedAge")
 
     -- nil when absent (backward compatible, treated as sellable); false when explicitly saved
@@ -406,7 +407,7 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
         fitness = fitness, riding = riding, farmId = farmId, weight = weight,
         genetics = genetics, impregnatedBy = impregnatedBy, variation = variation,
         children = children, monitor = monitor, isCastrated = isCastrated,
-        semenCollectedAge = semenCollectedAge, semenProducedAge = semenProducedAge,
+        semenCollectedAge = semenCollectedAge, semenCollectedMonth = semenCollectedMonth, semenProducedAge = semenProducedAge,
         diseases = diseases, recentlyBoughtByAI = recentlyBoughtByAI,
         marks = marks, insemination = insemination,
         canBeSold = canBeSold, bodyCondition = bodyCondition, growth = growth,
@@ -598,6 +599,7 @@ function AnimalPersistence.saveToXMLFile(animal, xmlFile, key)
 
     if animal.isCastrated then xmlFile:setBool(key .. "#isCastrated", true) end
     if animal.semenCollectedAge ~= nil then xmlFile:setInt(key .. "#semenCollectedAge", animal.semenCollectedAge) end
+    if animal.semenCollectedMonth ~= nil then xmlFile:setInt(key .. "#semenCollectedMonth", animal.semenCollectedMonth) end
     if animal.semenProducedAge ~= nil then xmlFile:setInt(key .. "#semenProducedAge", animal.semenProducedAge) end
     if animal.canBeSold == false then xmlFile:setBool(key .. "#canBeSold", false) end
     -- Saved whether or not the feature is on, so switching it off loses nothing.

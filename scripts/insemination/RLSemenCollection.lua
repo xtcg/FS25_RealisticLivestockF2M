@@ -5,9 +5,13 @@
     inseminate with that sire's genetics, and its sale value follows the same breeding-index
     formula the AI dealer charges (getStrawPrice) - a better sire's semen is worth more.
 
-    One collection per sire per month (tracked on the animal as `semenCollectedAge`). Straws per
-    collection scale with the sire's fertility and an age curve built from the same fertile-age
-    limits natural breeding uses; Hof Bergmann's bull stable scales its semen by the same curve.
+    One collection per sire per calendar month (tracked on the animal as `semenCollectedMonth`, a
+    running month index; saves from before it carry `semenCollectedAge`, the sire's age in months,
+    which still blocks that month). Straws per collection = the species' base x the sire's
+    fertility gene x an age curve built from the same fertile-age limits natural breeding uses x
+    his body condition, rounded; no random part, so the dialog shows the exact count. Hof
+    Bergmann's bull stable scales its semen by the same age curve. Each collection costs a service
+    fee (fixed part + processing per straw), scaled with the difficulty like livestock prices.
     A month's semen goes one way only: once a semen-storing
     building (Hof Bergmann's bull stable) has taken a sire's output that month, it cannot be
     collected into a dewar; once collected, the building gets no semen from it until next month.
@@ -32,6 +36,28 @@ RLSemenCollection.DEFAULT_MIN_AGE = { COW = 12, SHEEP = 8, PIG = 8, HORSE = 24 }
 --- Last fertile month per type, before the fertility-gene multiplier. Mirrors the sire limits in
 --- AnimalReproduction so a sire too old to breed naturally is too old to collect from.
 RLSemenCollection.MAX_FERTILE_AGE = { COW = 132, SHEEP = 72, PIG = 48, HORSE = 300 }
+
+--- Collection service fee per species, on HARD (x RLLivestockPrices.getMultiplier like the prices):
+--- a fixed part for the visit (collection, semen check) plus processing per straw (dilution,
+--- filling, freezing). Starting values for game balance, not real-world costs: an average bull's
+--- 300 straws cost 400 against about 760 if sold and about 1080 to buy, so own use saves clearly,
+--- selling an average sire's semen nets about half its value, and a poor sire's does not pay.
+RLSemenCollection.FEE = {
+    COW = { base = 100, perStraw = 1 },
+    SHEEP = { base = 30, perStraw = 1 },
+    PIG = { base = 10, perStraw = 1 },
+    HORSE = { base = 10, perStraw = 1 },
+}
+
+--- Sire body condition (BCS 1..5) -> factor on straws per collection. Thin bulls produce less
+--- semen; at factor 0 (BCS 1.5 and below) collection is refused. The fat side is kept mild: a
+--- grown bull on full feed follows the finishing target (bodyCondition.xml) to BCS 4-4.6, and a
+--- pen has no separate sire ration to hold him leaner, so only an extreme 5 costs straws.
+--- Read only where the body condition rules apply to the sire and his species' condition touches
+--- reproduction (cattle); every other sire reads 1.
+RLSemenCollection.CONDITION_CURVE = {
+    { 1.5, 0 }, { 2.0, 0.7 }, { 2.5, 1 }, { 4.5, 1 }, { 5.0, 0.9 },
+}
 
 --- Share of the dealer's price a dewar sells for: a breeder selling straws privately keeps
 --- roughly 70-90% of retail after sale commission and storage. Below 1 so buying and reselling
@@ -70,7 +96,13 @@ RLSemenCollection.REFUSAL = {
     COLLECTED = "rl_semen_refuseCollected",
     PRODUCED = "rl_semen_refuseProduced",
     SICK = "rl_semen_refuseSick",
+    CONDITION = "rl_semen_refuseCondition",
+    NO_YIELD = "rl_semen_refuseNoYield",
 }
+
+--- Refusal the server sends when the farm cannot pay the fee (not an animal rule: getRefusal
+--- never returns it).
+RLSemenCollection.REFUSAL_NO_MONEY = "rl_semen_refuseNoMoney"
 
 
 --- The animal type name ("COW", "SHEEP", ...) of an animal, or nil.
@@ -107,6 +139,42 @@ function RLSemenCollection.getAgeWindow(animal)
 end
 
 
+--- A running month count (12 per engine year), the same as RLPastureSeason.getMonthIndex; nil
+--- without an environment.
+--- @param environment table|nil Defaults to the mission's
+--- @return number|nil
+function RLSemenCollection.getMonthIndex(environment)
+    environment = environment or (g_currentMission ~= nil and g_currentMission.environment or nil)
+    if environment == nil or environment.currentPeriod == nil then return nil end
+    return (environment.currentYear or 0) * 12 + environment.currentPeriod - 1
+end
+
+
+--- Whether this sire has been collected from in the current month: the calendar month on record,
+--- or for a sire collected before that record existed, his age then (he ages once a month).
+function RLSemenCollection.isCollectedThisMonth(animal)
+    local month = RLSemenCollection.getMonthIndex()
+    if animal.semenCollectedMonth ~= nil and month ~= nil then
+        return animal.semenCollectedMonth >= month
+    end
+    return animal.semenCollectedAge ~= nil and animal.age ~= nil and animal.age <= animal.semenCollectedAge
+end
+
+
+--- Record a collection in the current month on the sire.
+function RLSemenCollection.markCollected(animal)
+    animal.semenCollectedMonth = RLSemenCollection.getMonthIndex()
+    animal.semenCollectedAge = animal.age
+end
+
+
+--- Undo markCollected (the dewar failed to load), restoring what was on record before.
+function RLSemenCollection.restoreCollected(animal, month, age)
+    animal.semenCollectedMonth = month
+    animal.semenCollectedAge = age
+end
+
+
 --- Why this animal cannot be collected from right now, or nil when it can.
 --- @return string|nil refusal One of RLSemenCollection.REFUSAL
 function RLSemenCollection.getRefusal(animal)
@@ -125,7 +193,7 @@ function RLSemenCollection.getRefusal(animal)
     if minAge ~= nil and animal.age < minAge then return RLSemenCollection.REFUSAL.TOO_YOUNG end
     if maxAge ~= nil and animal.age >= maxAge then return RLSemenCollection.REFUSAL.TOO_OLD end
 
-    if animal.semenCollectedAge ~= nil and animal.age <= animal.semenCollectedAge then
+    if RLSemenCollection.isCollectedThisMonth(animal) then
         return RLSemenCollection.REFUSAL.COLLECTED
     end
 
@@ -137,6 +205,14 @@ function RLSemenCollection.getRefusal(animal)
 
     if RLDiseaseSaleGate ~= nil and not RLDiseaseSaleGate.check(animal) then
         return RLSemenCollection.REFUSAL.SICK
+    end
+
+    if RLSemenCollection.getConditionFactor(animal) <= 0 then
+        return RLSemenCollection.REFUSAL.CONDITION
+    end
+
+    if RLSemenCollection.getStrawYield(animal) < 1 then
+        return RLSemenCollection.REFUSAL.NO_YIELD
     end
 
     return nil
@@ -172,18 +248,84 @@ function RLSemenCollection.getAgeOutputFactor(animal)
 end
 
 
---- Straws one collection yields from this animal (0 when it cannot be collected from).
+--- Factor of the sire's body condition on his straws (CONDITION_CURVE), 1 where the body
+--- condition rules do not apply to him or his species' condition leaves reproduction alone
+--- (fertilityEffect 0: sheep, pigs).
+function RLSemenCollection.getConditionFactor(animal)
+    if RLBodyCondition == nil or not RLBodyCondition.appliesTo(animal) then return 1 end
+    local config = RLBodyCondition.getConfig(animal)
+    if config ~= nil and config.fertilityEffect == 0 then return 1 end
+    return math.max(RLNutritionMath.interpolate(RLSemenCollection.CONDITION_CURVE, RLBodyCondition.getBCS(animal)), 0)
+end
+
+
+--- The factors behind one collection's straws.
+--- @return table { base, fertility, age, condition, straws }; straws 0 when nothing can be collected
+function RLSemenCollection.getYieldBreakdown(animal)
+    local result = { base = RLSemenCollection.STRAWS_PER_COLLECTION[RLSemenCollection.getTypeName(animal) or ""] or 0,
+        fertility = animal.genetics.fertility or 1, age = RLSemenCollection.getAgeOutputFactor(animal),
+        condition = RLSemenCollection.getConditionFactor(animal), straws = 0 }
+
+    if result.base > 0 and result.age > 0 and result.fertility > 0 and result.condition > 0 then
+        -- One dewar holds the lot: the largest base (300) x the gene ceiling stays under CAPACITY.
+        result.straws = math.min(math.floor(result.base * result.fertility * result.age * result.condition + 0.5),
+            DewarData.CAPACITY)
+    end
+    return result
+end
+
+
+--- Straws one collection yields from this animal: 0 when it cannot be collected from, and no
+--- straw is made up when the rounded yield is under one (getRefusal refuses then).
 function RLSemenCollection.getStrawYield(animal)
-    local base = RLSemenCollection.STRAWS_PER_COLLECTION[RLSemenCollection.getTypeName(animal) or ""]
-    if base == nil then return 0 end
+    return RLSemenCollection.getYieldBreakdown(animal).straws
+end
 
-    local ageFactor = RLSemenCollection.getAgeOutputFactor(animal)
-    local fertility = animal.genetics.fertility or 1
-    if ageFactor <= 0 or fertility <= 0 then return 0 end
 
-    local straws = math.floor(base * fertility * ageFactor + 0.5)
+--- Service fee of a collection of `straws` from a sire of this type, 0 for a type without one.
+function RLSemenCollection.getCollectionFee(typeName, straws)
+    local fee = RLSemenCollection.FEE[typeName or ""]
+    if fee == nil or straws == nil or straws <= 0 then return 0 end
+    local multiplier = RLLivestockPrices ~= nil and RLLivestockPrices.getMultiplier() or 1
+    return (fee.base + fee.perStraw * straws) * multiplier
+end
 
-    return math.clamp(straws, 1, DewarData.CAPACITY)
+
+--- The fee of collecting from this animal now.
+function RLSemenCollection.getFee(animal)
+    return RLSemenCollection.getCollectionFee(RLSemenCollection.getTypeName(animal), RLSemenCollection.getStrawYield(animal))
+end
+
+
+--- A refusal's text for the player; an already collected sire also hears the month he can be
+--- collected from again, a young one the age.
+function RLSemenCollection.getRefusalText(refusal, animal)
+    local text = g_i18n:getText(refusal)
+    local environment = g_currentMission ~= nil and g_currentMission.environment or nil
+
+    if refusal == RLSemenCollection.REFUSAL.COLLECTED and environment ~= nil and environment.currentPeriod ~= nil then
+        local nextPeriod = environment.currentPeriod % 12 + 1
+        text = text .. " " .. string.format(g_i18n:getText("rl_semen_nextCollection"), g_i18n:formatPeriod(nextPeriod))
+    elseif refusal == RLSemenCollection.REFUSAL.TOO_YOUNG and animal ~= nil then
+        local minAge = RLSemenCollection.getAgeWindow(animal)
+        if minAge ~= nil then text = text .. " " .. string.format(g_i18n:getText("rl_semen_minAge"), minAge) end
+    end
+
+    return text
+end
+
+
+--- The confirmation text before a collection: the sire, the straws and their factors, his
+--- breeding index and the fee.
+function RLSemenCollection.getPreviewText(animal)
+    local breakdown = RLSemenCollection.getYieldBreakdown(animal)
+    local name = animal.getName ~= nil and animal:getName() or nil
+    if name == nil or name == "" then name = tostring(animal.uniqueId) end
+
+    return string.format(g_i18n:getText("rl_semen_preview"), name, breakdown.straws,
+        breakdown.base, breakdown.fertility, breakdown.age, breakdown.condition,
+        RLSemenCollection.getBreedingIndex(animal),
+        g_i18n:formatMoney(RLSemenCollection.getFee(animal), 0, true, true))
 end
 
 

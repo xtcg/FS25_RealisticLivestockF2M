@@ -564,12 +564,12 @@ function RLMenuInfoFrame:updateButtonVisibility()
             table.insert(self.menuButtonInfo, self.castrateButtonInfo)
         end
 
-        -- Collect semen - males of a species with an AI trade, disabled while RLSemenCollection
-        -- refuses (castrated, age, already collected this month, sick) or trading is not allowed.
+        -- Collect semen - males of a species with an AI trade. Disabled only without the trading
+        -- permission: while RLSemenCollection refuses (castrated, age, condition, already collected
+        -- this month, sick) the button stays live and says why, and when it can collect again.
         local semenRefusal = RLSemenCollection.getRefusal(animal)
         if semenRefusal ~= RLSemenCollection.REFUSAL.NOT_MALE and semenRefusal ~= RLSemenCollection.REFUSAL.SPECIES then
-            self.collectSemenButtonInfo.disabled = semenRefusal ~= nil
-                or not RLPermissionHelper.hasLocalPermission("tradeAnimals")
+            self.collectSemenButtonInfo.disabled = not RLPermissionHelper.hasLocalPermission("tradeAnimals")
             table.insert(self.menuButtonInfo, self.collectSemenButtonInfo)
         end
 
@@ -968,8 +968,9 @@ function RLMenuInfoFrame:onClickInseminate()
         animal.animalTypeIndex, animal, self.refreshAfterMutation, self)
 end
 
----Collect semen from the selected sire into a dewar delivered to the store spawn area. The
----server re-validates and answers with a result dialog, after which the pane refreshes.
+---Collect semen from the selected sire into a dewar delivered to the store spawn area. A refusal
+---shows its reason; otherwise a confirmation lists the straws, what they come from and the fee.
+---The server re-validates and answers with a result dialog, after which the pane refreshes.
 function RLMenuInfoFrame:onClickCollectSemen()
     local animal = self:getSelectedAnimal()
     if animal == nil or self.selectedHusbandry == nil then
@@ -979,13 +980,18 @@ function RLMenuInfoFrame:onClickCollectSemen()
 
     local refusal = RLSemenCollection.getRefusal(animal)
     if refusal ~= nil then
-        InfoDialog.show(g_i18n:getText(refusal), nil, nil, DialogElement.TYPE_WARNING)
+        InfoDialog.show(RLSemenCollection.getRefusalText(refusal, animal), nil, nil, DialogElement.TYPE_WARNING)
         return
     end
 
-    Log:debug("RLMenuInfoFrame:onClickCollectSemen: farmId=%s uniqueId=%s expected straws=%d",
-        tostring(animal.farmId), tostring(animal.uniqueId), RLSemenCollection.getStrawYield(animal))
-    SemenCollectEvent.sendRequest(self.selectedHusbandry, animal, self.refreshAfterMutation, self)
+    local preview = RLSemenCollection.getPreviewText(animal)
+    Log:debug("RLMenuInfoFrame:onClickCollectSemen: farmId=%s uniqueId=%s expected straws=%d fee=%.2f",
+        tostring(animal.farmId), tostring(animal.uniqueId), RLSemenCollection.getStrawYield(animal), RLSemenCollection.getFee(animal))
+
+    local husbandry = self.selectedHusbandry
+    YesNoDialog.show(function(_, yes)
+        if yes then SemenCollectEvent.sendRequest(husbandry, animal, self.refreshAfterMutation, self) end
+    end, self, preview, g_i18n:getText("rl_semen_collect"))
 end
 
 ---Castrate the selected animal. Delegates to RLAnimalInfoService (mutation + MP event).
