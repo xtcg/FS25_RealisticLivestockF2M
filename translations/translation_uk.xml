@@ -309,6 +309,7 @@
         <text name="rl_insemination_inseminated" text="Ця тварина вже штучно запліднена"/>
         <text name="rl_insemination_recovering" text="Ця тварина все ще відновлюється після попередньої вагітності"/>
         <text name="rl_insemination_father" text="Інбридинг заборонено"/>
+        <text name="rl_insemination_pending" text="Очікування підтвердження сервера"/>
         <text name="rl_insemination_young" text="Ця тварина занадто молода для штучного запліднення"/>
 
 

@@ -340,6 +340,7 @@
         <text name="rl_insemination_inseminated" text="Bu hayvan zaten suni olarak tohumlanmış"/>
         <text name="rl_insemination_recovering" text="Bu hayvan hala önceki hamileliğinden toparlanıyor"/>
         <text name="rl_insemination_father" text="Akraba evliliğine (çiftleştirmeye) izin verilmez"/>
+        <text name="rl_insemination_pending" text="Sunucu onayı bekleniyor"/>
         <text name="rl_insemination_young" text="Bu hayvan suni olarak tohumlanmak için çok genç"/>
 
 

@@ -340,6 +340,7 @@
         <text name="rl_insemination_inseminated" text="Toto zvíře již bylo uměle inseminováno"/>
         <text name="rl_insemination_recovering" text="Toto zvíře se stále zotavuje z předchozí březosti"/>
         <text name="rl_insemination_father" text="Příbuzenská plemenitba není povolena"/>
+        <text name="rl_insemination_pending" text="Čeká se na potvrzení serveru"/>
         <text name="rl_insemination_young" text="Toto zvíře je příliš mladé na umělou inseminaci"/>
 
 

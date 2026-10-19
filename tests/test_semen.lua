@@ -666,6 +666,52 @@ do
         and accepted.others[1].mode == AnimalInseminationEvent.MODE_APPLY)
     check("B4 client: no straw left waiting", next(AnimalInseminationEvent.pendingStraws) == nil)
 
+    -- Two straws for one cow: only the first request is sent, and its answer settles only it
+    -- (review round 3 #1)
+    do
+        RLStrawLedger.held = {}
+        RLStrawLedger.record("alice", mkDewar(1, actual, 10))
+        RLStrawLedger.record("alice", mkDewar(1, actual, 10))
+        local serverCow = mkAnimal(2, 30, 1)
+        serverCow.setInsemination = function(self, sireRecord) self.insemination = sireRecord end
+        serverCow.getCanBeInseminatedByAnimal = function() return true end
+        local clientCow = mkAnimal(2, 30, 1)
+        clientCow.setInsemination = function(self, sireRecord) self.insemination = sireRecord end
+        local serverPen = { getClusterSystem = function() return { animals = { serverCow } } end }
+        local clientPen = { getClusterSystem = function() return { animals = { clientCow } } end }
+        local strawA = { [specKey] = { targetedPlaceable = clientPen, targetedAnimal = clientCow, animal = actual } }
+        local strawB = { [specKey] = { targetedPlaceable = clientPen, targetedAnimal = clientCow, animal = actual } }
+        local queued, deleted = {}, {}
+        g_server = nil
+        g_client = { getServerConnection = function() return { sendEvent = function(_, e) queued[#queued + 1] = e end } end }
+        g_inputBinding = { setActionEventActive = function() end }
+        g_currentMission.handToolSystem = { markHandToolForDeletion = function(_, t) deleted[t] = true end }
+        HandToolAIStraw.onInseminate(strawA)
+        HandToolAIStraw.onInseminate(strawB)
+        check("B4 client: a second straw for a cow already waiting is not sent", #queued == 1
+            and strawA[specKey].awaitingServer and not strawB[specKey].awaitingServer
+            and AnimalInseminationEvent.isAwaiting(clientCow))
+        local answers = {}
+        g_server = { broadcastEvent = function() end }
+        queued[1].object = serverPen
+        queued[1]:run(makeConnection("alice", false, answers))
+        g_server = nil
+        answers[1].object = clientPen
+        answers[1]:run(makeConnection("server", true))
+        check("B4 client: the answer uses up the straw that asked, not the other one",
+            deleted[strawA] and not deleted[strawB] and not strawB[specKey].isEmpty
+            and RLStrawLedger.count("alice") == 1 and not AnimalInseminationEvent.isAwaiting(clientCow))
+    end
+
+    -- An empty refusal clears a stale local insemination (review round 3 #2)
+    do
+        local cowCopy = mkAnimal(2, 30, 1, { insemination = { uniqueId = "STALE" } })
+        local copyPen = { getClusterSystem = function() return { animals = { cowCopy } } end }
+        AnimalInseminationEvent.newRefused(copyPen, { farmId = cowCopy.farmId, uniqueId = cowCopy.uniqueId, country = 6 }, nil)
+            :run(makeConnection("server", true))
+        check("B4 client: a refusal without an insemination clears the local one", cowCopy.insemination == nil)
+    end
+
     g_server, g_client, g_inputBinding, g_currentMission.handToolSystem = savedServer, savedClient, savedInput, savedTools
 end
 

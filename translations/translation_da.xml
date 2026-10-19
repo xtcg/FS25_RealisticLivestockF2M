@@ -322,6 +322,7 @@
         <text name="rl_insemination_inseminated" text="Dette dyr er allerede blevet drægtiggjort ved assisteret avl"/>
         <text name="rl_insemination_recovering" text="Dette dyr er stadig ved at komme sig efter sin forrige drægtighed"/>
         <text name="rl_insemination_father" text="Indavl er ikke tilladt"/>
+        <text name="rl_insemination_pending" text="Venter på bekræftelse fra serveren"/>
         <text name="rl_insemination_young" text="Dette dyr er for ungt til at blive drægtiggjort ved assisteret avl"/>
 
 

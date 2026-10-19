@@ -135,11 +135,24 @@ local function pendingKey(identifiers)
 end
 
 
---- Client: hold `handTool`'s straw until the server answers its request for `animal`.
+--- Client: whether a straw already waits for the server's answer about `animal`. Only one
+--- request per animal may be open, since the answer names the animal and not the straw.
+function AnimalInseminationEvent.isAwaiting(animal)
+
+	local key = pendingKey(animal)
+	return key ~= nil and AnimalInseminationEvent.pendingStraws[key] ~= nil
+
+end
+
+
+--- Client: hold `handTool`'s straw until the server answers its request for `animal`. False when
+--- another straw already waits for that animal.
 function AnimalInseminationEvent.awaitServer(animal, handTool)
 
 	local key = pendingKey(animal)
-	if key ~= nil then AnimalInseminationEvent.pendingStraws[key] = handTool end
+	if key == nil or AnimalInseminationEvent.pendingStraws[key] ~= nil then return false end
+	AnimalInseminationEvent.pendingStraws[key] = handTool
+	return true
 
 end
 
@@ -243,10 +256,13 @@ function AnimalInseminationEvent:run(connection)
 			-- Client: the server only sends an insemination it applied, or with a refusal the one
 			-- the animal holds there, so its record replaces whatever this client holds.
 			local refused = self.mode == AnimalInseminationEvent.MODE_REFUSED
-			if animal ~= nil and (self.semen ~= nil or not refused) then
+			if animal ~= nil and self.semen ~= nil then
 				animal:setInsemination(self.semen)
 				Log:debug("InseminationEvent:run client-applied uniqueId=%s mode=%s",
 					tostring(identifiers.uniqueId), tostring(self.mode))
+			elseif animal ~= nil and refused then
+				-- The server holds no insemination for this animal; drop a stale local one.
+				animal.insemination = nil
 			elseif animal == nil then
 				Log:trace("InseminationEvent:run client-skip, animal not found uniqueId=%s", tostring(identifiers.uniqueId))
 			end

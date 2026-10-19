@@ -330,6 +330,7 @@
         <text name="rl_insemination_inseminated" text="Questo animale è già stato inseminato artificialmente"/>
         <text name="rl_insemination_recovering" text="Questo animale si sta ancora riprendendo dalla gravidanza precedente"/>
         <text name="rl_insemination_father" text="L'accoppiamento tra consanguinei non è permesso"/>
+        <text name="rl_insemination_pending" text="In attesa di conferma dal server"/>
         <text name="rl_insemination_young" text="Questo animale è troppo giovane per essere inseminato artificialmente"/>
 
         <text name="rl_mark_aiManager_sell" text="Mandriano contrassegnato per la vendita"/>

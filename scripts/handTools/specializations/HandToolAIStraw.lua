@@ -309,6 +309,11 @@ function HandToolAIStraw:updateStraw(dT)
 
 	local canBeInseminated, error = animal:getCanBeInseminatedByAnimal(spec.animal)
 
+	-- Another straw of this player already waits for the server's answer about this animal.
+	if canBeInseminated and g_server == nil and AnimalInseminationEvent.isAwaiting(animal) then
+		canBeInseminated, error = false, g_i18n:getText("rl_insemination_pending")
+	end
+
 	if spec.isEmpty or not canBeInseminated then
 
 		if spec.isEmpty then error = g_i18n:getText("rl_ui_strawEmpty") end
@@ -488,9 +493,8 @@ function HandToolAIStraw:onInseminate()
 	g_inputBinding:setActionEventActive(spec.activateActionEventId, false)
 
 	if g_server == nil then
-		if g_client == nil then return end
+		if g_client == nil or not AnimalInseminationEvent.awaitServer(animal, self) then return end
 		spec.awaitingServer = true
-		AnimalInseminationEvent.awaitServer(animal, self)
 		g_client:getServerConnection():sendEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
 		Log:debug("onInseminate: straw held until the server answers")
 		return

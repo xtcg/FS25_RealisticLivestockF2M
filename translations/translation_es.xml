@@ -335,6 +335,7 @@
         <text name="rl_insemination_inseminated" text="Este animal ya ha sido inseminado artificialmente"/>
         <text name="rl_insemination_recovering" text="Este animal todavía se está recuperando de su embarazo anterior"/>
         <text name="rl_insemination_father" text="No se permite la consanguinidad"/>
+        <text name="rl_insemination_pending" text="Esperando la confirmación del servidor"/>
         <text name="rl_insemination_young" text="Este animal es demasiado joven para ser inseminado artificialmente"/>
 
 

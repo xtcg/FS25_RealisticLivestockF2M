@@ -328,6 +328,7 @@
         <text name="rl_insemination_inseminated" text="此动物已完成人工授精"/>
         <text name="rl_insemination_recovering" text="此动物仍在恢复期"/>
         <text name="rl_insemination_father" text="禁止近亲繁殖"/>
+        <text name="rl_insemination_pending" text="等待服务器确认"/>
         <text name="rl_insemination_young" text="此动物过于年幼，无法进行人工授精"/>
 
 

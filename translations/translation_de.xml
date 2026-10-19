@@ -320,6 +320,7 @@
         <text name="rl_insemination_inseminated" text="Dieses Tier wurde bereits künstlich besamt."/>
         <text name="rl_insemination_recovering" text="Dieses Tier erholt sich noch von seiner letzten Schwangerschaft."/>
         <text name="rl_insemination_father" text="Inzucht ist nicht erlaubt."/>
+        <text name="rl_insemination_pending" text="Warte auf Bestätigung des Servers"/>
         <text name="rl_insemination_young" text="Dieses Tier ist zu jung, um künstlich befruchtet zu werden."/>
 
         <text name="rl_ui_healthy" text="Gesund"/>
