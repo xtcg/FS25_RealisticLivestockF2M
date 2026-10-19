@@ -272,26 +272,47 @@ function RLPedigree.prune(anchors)
 end
 
 
---- Ids the pruning keeps: every husbandry animal, every sale and AI-dealer animal, every dewar
---- sire. Also records them, so a save always holds the current parents.
+-- Hand-tool straw spec (HandToolAIStraw's specName).
+RLPedigree.STRAW_SPEC = "spec_FS25_RealisticLivestockRM.aiStraw"
+
+
+--- Ids the pruning keeps, and records them so a save holds the current parents: every husbandry,
+--- sale and AI-dealer animal and its pending insemination's sire, and the sire of every semen
+--- record still in the game - dewars in the world and in object storage, hand-tool straws and
+--- straws handed out on the server's ledger.
 function RLPedigree.collectAnchors()
     local anchors = {}
+    local function addSire(record)
+        local id = RLPedigree.noteSire(record)
+        if id ~= nil then table.insert(anchors, id) end
+    end
     local function addAnimal(animal)
+        if type(animal) ~= "table" then return end
         RLPedigree.noteAnimal(animal)
-        if type(animal) == "table" and animal.getIdentifiers ~= nil and animal.birthday ~= nil
+        if animal.getIdentifiers ~= nil and animal.birthday ~= nil
             and RLConstants.AREA_CODES[animal.birthday.country] ~= nil then
             table.insert(anchors, animal:getIdentifiers())
+        end
+        if type(animal.insemination) == "table" then addSire(animal.insemination) end
+    end
+    local function addStorage(placeable)
+        local storage = type(placeable) == "table" and placeable.spec_objectStorage or nil
+        for _, stored in pairs(storage ~= nil and storage.storedObjects or {}) do
+            local state = type(stored) == "table" and stored.rlDewarData or nil
+            if state ~= nil then addSire(state.animal) end
         end
     end
 
     local mission = g_currentMission
     local husbandrySystem = mission ~= nil and mission.husbandrySystem or nil
-    if husbandrySystem ~= nil and husbandrySystem.placeables ~= nil then
-        for _, placeable in pairs(husbandrySystem.placeables) do
-            local animals = placeable.getClusters ~= nil and placeable:getClusters() or nil
-            for _, animal in pairs(animals or {}) do addAnimal(animal) end
-        end
+    for _, placeable in pairs(husbandrySystem ~= nil and husbandrySystem.placeables or {}) do
+        local animals = placeable.getClusters ~= nil and placeable:getClusters() or nil
+        for _, animal in pairs(animals or {}) do addAnimal(animal) end
+        addStorage(placeable)
     end
+
+    local placeableSystem = mission ~= nil and mission.placeableSystem or nil
+    for _, placeable in pairs(placeableSystem ~= nil and placeableSystem.placeables or {}) do addStorage(placeable) end
 
     local animalSystem = mission ~= nil and mission.animalSystem or nil
     if animalSystem ~= nil then
@@ -301,11 +322,18 @@ function RLPedigree.collectAnchors()
 
     for _, farm in pairs(g_dewarManager ~= nil and g_dewarManager.farms or {}) do
         for _, dewars in pairs(farm) do
-            for _, dewar in pairs(dewars) do
-                local id = RLPedigree.noteSire(dewar.animal)
-                if id ~= nil then table.insert(anchors, id) end
-            end
+            for _, dewar in pairs(dewars) do addSire(dewar.animal) end
         end
+    end
+
+    local handToolSystem = mission ~= nil and mission.handToolSystem or nil
+    for _, handTool in pairs(handToolSystem ~= nil and handToolSystem.handTools or {}) do
+        local spec = type(handTool) == "table" and handTool[RLPedigree.STRAW_SPEC] or nil
+        if spec ~= nil then addSire(spec.animal) end
+    end
+
+    for _, list in pairs(RLStrawLedger ~= nil and RLStrawLedger.held or {}) do
+        for _, entry in pairs(list) do addSire(entry.snapshot) end
     end
 
     return anchors

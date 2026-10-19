@@ -294,3 +294,62 @@ check("registry saved, loaded and pushed on join",
     sourceOf("scripts/animals/husbandry/RealisticLivestock_AnimalSystem.lua"):find('RLPedigree.saveToXMLFile(xmlFile, "rm_RlAnimalSystem.pedigree")', 1, true) ~= nil
     and sourceOf("scripts/animals/husbandry/RealisticLivestock_AnimalSystem.lua"):find('RLPedigree.loadFromXMLFile(xmlFile, rootKey .. ".pedigree")', 1, true) ~= nil
     and sourceOf("scripts/core/RealisticLivestock_FSBaseMission.lua"):find("RLPedigreeStateEvent.new()", 1, true) ~= nil)
+
+-- Saving keeps the ancestors of every semen record still in the game: a dewar in object storage,
+-- a hand-tool straw, a straw on the server's ledger and a pending insemination (review B3 #1).
+do
+    local savedMission, savedDewars, savedLedger = g_currentMission, g_dewarManager, RLStrawLedger
+    local function cousins()
+        P.reset()
+        P.register(id("A"), id("GS"), id("GD"))
+        P.register(id("B"), id("GS"), id("GD"))
+        P.register(id("D"), id("B"), id("V"))
+    end
+    -- Sire S (child of A) has left the game; only his batch remembers him.
+    local batch = { country = 1, farmId = "1", uniqueId = "S", sireFatherId = id("A"), sireMotherId = id("U") }
+    local dam = mkAnimal("D", id("B"), id("V"))
+    local xml = { setString = function() end }
+    local function afterSave(mission, ledger)
+        cousins()
+        g_currentMission, g_dewarManager, RLStrawLedger = mission, { farms = {} }, ledger
+        local before = P.checkMating(dam, batch)
+        P.saveToXMLFile(xml, "pedigree")
+        return before, (P.checkMating(dam, batch))
+    end
+    local function pen(animals, extra)
+        local placeable = { getClusters = function() return animals end }
+        for k, v in pairs(extra or {}) do placeable[k] = v end
+        return placeable
+    end
+    local base = { animalSystem = { animals = {}, aiAnimals = {} } }
+
+    local m = table.clone(base, 3)
+    m.husbandrySystem = { placeables = { pen({ dam }) } }
+    m.placeableSystem = { placeables = { { spec_objectStorage = { storedObjects = { { rlDewarData = { animal = batch } } } } } } }
+    local b, a = afterSave(m, nil)
+    check("save keeps the ancestors of a stored dewar's sire (first cousins stay 6.25%)", b == 0.0625 and a == 0.0625)
+
+    m = table.clone(base, 3)
+    m.husbandrySystem = { placeables = { pen({ dam }) } }
+    m.handToolSystem = { handTools = { { [P.STRAW_SPEC] = { animal = batch } } } }
+    b, a = afterSave(m, nil)
+    check("save keeps the ancestors of a hand-tool straw's sire", b == 0.0625 and a == 0.0625)
+
+    m = table.clone(base, 3)
+    m.husbandrySystem = { placeables = { pen({ dam }) } }
+    b, a = afterSave(m, { held = { alice = { { dewarId = "D1", snapshot = batch } } } })
+    check("save keeps the ancestors of a straw on the ledger", b == 0.0625 and a == 0.0625)
+
+    local inseminated = mkAnimal("X", nil, nil, { insemination = batch })
+    m = table.clone(base, 3)
+    m.husbandrySystem = { placeables = { pen({ dam, inseminated }) } }
+    b, a = afterSave(m, nil)
+    check("save keeps the ancestors of a pending insemination's sire", b == 0.0625 and a == 0.0625)
+
+    m = table.clone(base, 3)
+    m.husbandrySystem = { placeables = { pen({ dam }) } }
+    b, a = afterSave(m, nil)
+    check("without any record of the sire his line may go", b == 0.0625)
+
+    g_currentMission, g_dewarManager, RLStrawLedger = savedMission, savedDewars, savedLedger
+end
