@@ -4,29 +4,6 @@ local modSettingsDirectory = g_currentModSettingsDirectory
 local Log = RmLogging.getLogger("RLRM")
 
 
--- Local to this player's mod settings, shared across maps and savegames.
-function RealisticLivestock_FSBaseMission._needsWelcome()
-    if g_dedicatedServer ~= nil then return false end
-    local xml = XMLFile.loadIfExists("rlWelcome", modSettingsDirectory .. "Welcome.xml")
-    if xml == nil then return true end
-    local shown = xml:getBool("Welcome#feedbackShown", false)
-    xml:delete()
-    return not shown
-end
-
-function RealisticLivestock_FSBaseMission._markWelcomeShown()
-    createFolder(modSettingsDirectory)
-    local xml = XMLFile.create("rlWelcome", modSettingsDirectory .. "Welcome.xml", "Welcome")
-    if xml == nil then
-        Log:warning("Could not save the first-load feedback invitation preference")
-        return
-    end
-    xml:setBool("Welcome#feedbackShown", true)
-    xml:save()
-    xml:delete()
-end
-
-
 --[[
     Pure builder for the startup dialog queue: a context table in, an ordered array of
     {kind, text?} items out. No globals read, no side effects.
@@ -34,10 +11,10 @@ end
     Conflict outranks migration when both are set - doRestart reloads everything anyway -
     and it carries NO isServer guard, because a joining client with a bad host modlist must
     fire its own dialog and restart out of the session. Migration is server-only; warn and
-    welcome are suppressed on a dedicated server, which has no GUI to render them.
+    bridge-conflict are suppressed on a dedicated server, which has no GUI to render them.
 
     @param ctx table {isServer, isDedicatedServer, hasConflict, hasMigration,
-        hasWarn, hasWelcome, hasConfigOverrideConflict,
+        hasWarn, hasConfigOverrideConflict,
         configOverrideConflictText}
     @return table Ordered array of queue items.
 ]]
@@ -52,10 +29,6 @@ function RealisticLivestock_FSBaseMission._buildStartupQueue(ctx)
 
     if ctx.hasWarn and not ctx.isDedicatedServer then
         table.insert(q, { kind = "warn" })
-    end
-
-    if ctx.hasWelcome and not ctx.hasConflict and not ctx.isDedicatedServer then
-        table.insert(q, { kind = "welcome" })
     end
 
     -- Actual configOverride collisions still need their own diagnostic dialog.
@@ -80,21 +53,19 @@ local function _showStartupDialogs(self)
     local conflictText = RLMapBridge.pendingConfigOverrideConflictWarning
     RLMapBridge.pendingConfigOverrideConflictWarning = nil
 
-    local needsWelcome = RealisticLivestock_FSBaseMission._needsWelcome()
     local queue = RealisticLivestock_FSBaseMission._buildStartupQueue({
         isServer                     = self:getIsServer(),
         isDedicatedServer            = (g_dedicatedServer ~= nil),
         hasConflict                  = g_rmMigrationConflict,
         hasMigration                 = g_rmPendingMigration,
         hasWarn                      = g_rmPendingModWarning,
-        hasWelcome                   = needsWelcome,
         hasConfigOverrideConflict    = (conflictText ~= nil and conflictText ~= ""),
         configOverrideConflictText   = conflictText,
     })
 
-    Log:debug("startup dialog queue: %d items (conflict=%s migration=%s warn=%s welcome=%s bridgeConflict=%s)",
+    Log:debug("startup dialog queue: %d items (conflict=%s migration=%s warn=%s bridgeConflict=%s)",
         #queue, tostring(g_rmMigrationConflict), tostring(g_rmPendingMigration),
-        tostring(g_rmPendingModWarning), tostring(needsWelcome),
+        tostring(g_rmPendingModWarning),
         tostring(conflictText ~= nil))
 
     if #queue == 0 then return end
@@ -114,26 +85,9 @@ local function _showStartupDialogs(self)
             g_rmMigrationManager:showMigrationDialog(showNext)
         elseif item.kind == "warn" then
             g_rmMigrationManager:showWarningDialog(showNext)
-        elseif item.kind == "welcome" then
+        elseif item.kind == "bridge-conflict" then
             -- This presenter wraps its own Timer; the other kinds wrap inside their
             -- RmMigrationManager methods. The delay guards the loading-to-gameplay transition.
-            Timer.createOneshot(100, function()
-                -- Mid-startup unload guard: if the user backed out during the window, advance
-                -- the queue rather than call InfoDialog against a torn-down GUI.
-                if g_currentMission == nil or g_gui == nil then
-                    Log:debug("welcome presenter timer fired post-unload; advancing queue")
-                    showNext()
-                    return
-                end
-                Log:info("Showing first-load feedback invitation")
-                InfoDialog.show(g_i18n:getText("rl_welcome_feedback"), function()
-                    RealisticLivestock_FSBaseMission._markWelcomeShown()
-                    showNext()
-                end)
-            end)
-        elseif item.kind == "bridge-conflict" then
-            -- A separate kind, so the startup dialogs sequence
-            -- correctly when both fire in one load.
             Timer.createOneshot(100, function()
                 if g_currentMission == nil or g_gui == nil then
                     Log:debug("bridge-conflict presenter timer fired post-unload; advancing queue")

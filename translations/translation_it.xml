@@ -683,7 +683,6 @@
 
         <!-- BRIDGE -->
 
-        <text name="rl_welcome_feedback" text="Welcome to Realistic Livestock: Farm to Market! If you encounter any problems, please open an issue: https://github.com/xtcg/FS25_RealisticLivestockF2M/issues"/>
         <!-- TODO: localise -->
         <text name="rl_bridge_configoverride_conflict_header" text="Realistic Livestock: conflitto rilevato. Due o più bridge/pacchetti hanno sostituito la configurazione per lo stesso tipo di animale. Vince l'ultima mod caricata. Se continui, avrai anomalie grafiche e animali fantasma."/>
         <!-- TODO: localise -->

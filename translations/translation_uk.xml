@@ -691,7 +691,6 @@
         <text name="input_RL_MENU" text="Відкрити меню RL"/>
         <text name="input_RL_RENAME" text="Перейменувати"/>
         <text name="input_RL_CYCLE_FILTER" text="Переключити збережений фільтр"/>
-        <text name="rl_welcome_feedback" text="Welcome to Realistic Livestock: Farm to Market! If you encounter any problems, please open an issue: https://github.com/xtcg/FS25_RealisticLivestockF2M/issues"/>
         <!-- TODO: localise -->
         <text name="rl_bridge_configoverride_conflict_header" text="Realistic Livestock: Виявлено конфлікт. Два або більше бриджів/паків замінили конфігурацію для одного й того ж типу тварин. Застосовано конфігурацію з останнього завантаженого моду. Якщо ви продовжите, можливі візуальні баги та 'фантомні' тварини."/>
         <!-- TODO: localise -->
