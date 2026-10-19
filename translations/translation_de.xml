@@ -1074,5 +1074,6 @@
         <text name="rl_dealer_v2_generic" text="Die Bestellung konnte nicht abgeschlossen werden."/>
         <text name="rl_meadow_witherWarning" text="%s: Das Weidegras stirbt in etwa %d Tagen für den Winter ab - Heu oder Silage in den Trog geben"/>
         <text name="rl_wool_shorn" text="%s: %d Schafe geschoren, %d l Wolle warten auf Paletten"/>
+        <text name="rl_menu_settings_tab_manual" text="Player guide"/>
     </texts>
 </l10n>

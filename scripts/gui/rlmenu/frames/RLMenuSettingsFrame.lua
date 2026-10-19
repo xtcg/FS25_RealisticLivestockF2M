@@ -1,7 +1,8 @@
 --[[
     RLMenuSettingsFrame.lua
-    RL Tabbed Menu Settings tab: a horizontal subcategory tab bar with two content panes.
-      [General] - placeholder for future non-filter settings.
+    RL Tabbed Menu Settings tab: a horizontal subcategory tab bar with three content panes.
+      [General] - gameplay settings.
+      [Manual] - chapter navigation and a read-only player handbook.
       [Filters] - single-section SmoothList of saved filters backed by
                   g_rlFilterService:listAvailable, a footer New filter button, and a
                   branched empty-state.
@@ -25,6 +26,7 @@ local modDirectory = g_currentModDirectory
 RLMenuSettingsFrame.SUB_CATEGORY = {
     GENERAL = 1,
     FILTERS = 2,
+    MANUAL = 3,
 }
 
 --- Marks an explicit "clear to Any" in pendingChanges; nil cannot express it,
@@ -471,6 +473,7 @@ function RLMenuSettingsFrame:onFrameClose()
     RLMenuSettingsFrame:superClass().onFrameClose(self)
     self.isFrameOpen = false
     Log:debug("RLMenuSettingsFrame:onFrameClose")
+    self:setManualActive(false)
     self:flushPendingChanges()
 end
 
@@ -483,6 +486,9 @@ function RLMenuSettingsFrame:initializeSubCategoryPages()
     local subCategories = {}
 
     for index, button in ipairs(self.subCategoryTabs) do
+        if index == RLMenuSettingsFrame.SUB_CATEGORY.MANUAL then
+            button:setText(RLPlayerManual.getTabTitle(g_languageShort or g_languageSuffix))
+        end
         -- Tab Button's highlight (outer click surface)
         button.getIsSelected = function()
             return index == tonumber(self.subCategoryPaging.texts[self.subCategoryPaging:getState()])
@@ -535,6 +541,8 @@ function RLMenuSettingsFrame:updateSubCategoryPages(state)
         Log:trace("RLMenuSettingsFrame:updateSubCategoryPages: generalSettingsSliderBox visible=%s (idx=%d)",
             tostring(visible), idx)
     end
+
+    self:setManualActive(idx == RLMenuSettingsFrame.SUB_CATEGORY.MANUAL)
 
     -- First-visibility measure log, one-shot per frame-open cycle and taken
     -- after the visibility toggle so the stretched size has settled. A stretch
@@ -604,6 +612,8 @@ function RLMenuSettingsFrame:updateSubCategoryPages(state)
     -- Sell/Move/AI frames.
     if idx == RLMenuSettingsFrame.SUB_CATEGORY.FILTERS and self.filtersList ~= nil then
         FocusManager:setFocus(self.filtersList)
+    elseif idx == RLMenuSettingsFrame.SUB_CATEGORY.MANUAL and self.manualChapters ~= nil then
+        FocusManager:setFocus(self.manualChapters)
     elseif self.subCategoryPaging ~= nil then
         FocusManager:setFocus(self.subCategoryPaging)
     end
@@ -2824,4 +2834,106 @@ function RLMenuSettingsFrame:onClickGeneralAction(button)
 
     Log:debug("RLMenuSettingsFrame:onClickGeneralAction: invoking callback for '%s'", name)
     setting.callback()
+end
+
+
+-- Read-only handbook. Its own list adapter keeps chapter selection separate
+-- from the saved-filter editor and never needs a farm or administrator rights.
+function RLMenuSettingsFrame:onClickManualTab()
+    self.subCategoryPaging:setState(RLMenuSettingsFrame.SUB_CATEGORY.MANUAL, true)
+end
+
+function RLMenuSettingsFrame:setManualActive(active)
+    if self.manualContent == nil then return end
+    if active then
+        local language = RLPlayerManual.getLanguage(g_languageShort or g_languageSuffix)
+        local reload = self.manualData == nil or self.manualLanguage ~= language
+        if reload then
+            self.manualData = RLPlayerManual.load(modDirectory .. "xml/playerManual_" .. language .. ".xml")
+            self.manualLanguage = language
+            self.manualChapterIndex = 1
+        end
+        if self.manualListAdapter == nil then
+            local frame = self
+            local adapter = {}
+            function adapter:getNumberOfSections() return 1 end
+            function adapter:getNumberOfItemsInSection() return #frame.manualData end
+            function adapter:populateCellForItemInSection(_, _, index, cell)
+                cell:getAttribute("title"):setText(frame.manualData[index].title)
+            end
+            function adapter:onListSelectionChanged(_, _, index)
+                frame:showManualChapter(index)
+            end
+            self.manualChapters:setDataSource(adapter)
+            self.manualChapters:setDelegate(adapter)
+            self.manualListAdapter = adapter
+            -- Detach once on the live frame, never in onGuiSetupFinished:
+            -- the menu clones the registered GUI after that callback.
+            self.manualParagraphTemplate:unlinkElement()
+            FocusManager:removeElement(self.manualParagraphTemplate)
+            self.manualHeadingTemplate:unlinkElement()
+            FocusManager:removeElement(self.manualHeadingTemplate)
+            self.manualImageTemplate:unlinkElement()
+            FocusManager:removeElement(self.manualImageTemplate)
+        end
+        if reload then self.manualChapters:reloadData() end
+        local index = self.manualChapterIndex or 1
+        self.manualChapters:setSelectedItem(1, index, true)
+        FocusManager:linkElements(self.subCategoryPaging, FocusManager.BOTTOM, self.manualChapters)
+        FocusManager:linkElements(self.manualChapters, FocusManager.TOP, self.subCategoryPaging)
+        FocusManager:linkElements(self.manualChapters, FocusManager.RIGHT, self.manualContentSlider)
+        FocusManager:linkElements(self.manualContentSlider, FocusManager.LEFT, self.manualChapters)
+        if not self.manualActionsRegistered then
+            self.manualContent:registerActionEvents()
+            self.manualActionsRegistered = true
+        end
+    else
+        if self.manualActionsRegistered then
+            self.manualContent:removeActionEvents()
+            self.manualActionsRegistered = false
+        end
+        -- Restore the existing filter navigation after leaving the handbook.
+        if self.filtersList ~= nil then
+            FocusManager:linkElements(self.subCategoryPaging, FocusManager.BOTTOM, self.filtersList)
+        end
+    end
+end
+
+function RLMenuSettingsFrame:showManualChapter(index)
+    local chapter = self.manualData and self.manualData[index]
+    if chapter == nil then return end
+    self.manualChapterIndex = index
+    self.manualTitle:setText(chapter.title)
+    for i = #self.manualContent.elements, 1, -1 do
+        self.manualContent.elements[i]:delete()
+    end
+    for _, paragraph in ipairs(chapter.paragraphs) do
+        if paragraph.image ~= nil and paragraph.imageHeight > 0 then
+            -- DDS rows preserve the source wording, including characters the
+            -- game's built-in font cannot draw. UVs exclude adjacent rows.
+            local row = self.manualImageTemplate:clone(self.manualContent)
+            row:setImageFilename(Utils.getFilename(paragraph.image, modDirectory))
+            local uvs = GuiUtils.getUVs(string.format("0px %dpx 2048px %dpx",
+                paragraph.imageY, paragraph.imageHeight), { 2048, 2048 })
+            row:setImageUVs(nil, unpack(uvs))
+            row:setSize(nil, row.absSize[1] * paragraph.imageHeight / 2048 * g_screenAspectRatio)
+        else
+            local template = paragraph.isHeading and self.manualHeadingTemplate or self.manualParagraphTemplate
+            local row = template:clone(self.manualContent)
+            row:setText(paragraph.text)
+            row:setSize(nil, row:getTextHeight(true))
+        end
+    end
+    self.manualContent:invalidateLayout()
+    self.manualContent:scrollTo(0, true)
+end
+
+function RLMenuSettingsFrame:delete()
+    self:setManualActive(false)
+    if self.manualListAdapter ~= nil then
+        self.manualParagraphTemplate:delete()
+        self.manualHeadingTemplate:delete()
+        self.manualImageTemplate:delete()
+    end
+    RLMenuSettingsFrame:superClass().delete(self)
 end
