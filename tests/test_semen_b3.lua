@@ -351,5 +351,29 @@ do
     b, a = afterSave(m, nil)
     check("without any record of the sire his line may go", b == 0.0625)
 
+    -- A pregnancy whose sire S has left the game: the calf K and S's half-brother U stay related
+    -- through S's father A (review B3 #2).
+    local function pregnancySave(damExtra, withFetus)
+        P.reset()
+        P.register(id("S"), id("A"), id("M"))
+        local uncle = mkAnimal("U", id("A"), id("N"))
+        local fetus = mkAnimal("K", id("S"), id("X"))
+        local pregnant = mkAnimal("X", nil, nil, damExtra)
+        if withFetus then pregnant.pregnancy = { pregnancies = { fetus } } end
+        P.noteAnimal(uncle); P.noteAnimal(fetus)
+        local before = P.getOffspringInbreeding(id("K"), id("U"))
+        P.entries[id("K")] = nil
+        local mm = table.clone(base, 3)
+        mm.husbandrySystem = { placeables = { pen({ uncle, pregnant }) } }
+        g_currentMission, g_dewarManager, RLStrawLedger = mm, { farms = {} }, nil
+        P.saveToXMLFile(xml, "pedigree")
+        P.noteAnimal(fetus)
+        return before, P.getOffspringInbreeding(id("K"), id("U"))
+    end
+    b, a = pregnancySave({ isPregnant = true, impregnatedBy = { uniqueId = id("S") } }, false)
+    check("save keeps the ancestors of a pregnancy's sire", b == 0.0625 and a == 0.0625)
+    b, a = pregnancySave({ isPregnant = true }, true)
+    check("save keeps the ancestors of an unborn calf's father", b == 0.0625 and a == 0.0625)
+
     g_currentMission, g_dewarManager, RLStrawLedger = savedMission, savedDewars, savedLedger
 end
