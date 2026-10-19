@@ -5,8 +5,9 @@
     REQUEST  client -> server: husbandry, sire identifiers, spawn position. The server
              re-validates (farm access, tradeAnimals permission, RLSemenCollection rules),
              spawns the dewar through VehicleLoadingData like SemenBuyEvent, and once it loaded
-             charges the service fee (RLSemenCollection.getFee, checked before the load) and
-             records the collection month on the sire.
+             charges the service fee (RLSemenCollection.getFee, checked before the load and again
+             after it, when a short balance removes the dewar) and records the collection month
+             on the sire.
     STATE    server -> all clients: the sire's new semenCollectedMonth and semenCollectedAge, so
              every copy of the animal refuses a second collection this month.
     RESULT   server -> requester: success with the straw count and fee, or the refusal reason.
@@ -238,6 +239,17 @@ function SemenCollectEvent:runRequest(connection)
             Log:warning("SemenCollectEvent: dewar failed to load (state=%s), month released", tostring(loadingState))
             RLSemenCollection.restoreCollected(animal, previousMonth, previousAge)
             reply(SemenCollectEvent.RESULT_FAILED)
+            return
+        end
+
+        -- The hold only stops other collections; any other spending of the farm during the load
+        -- does not see it, so the balance is checked again before charging.
+        if fee > 0 and g_currentMission:getMoney(farmId) < fee then
+            Log:info("SemenCollectEvent: uniqueId=%s, fee %.2f over the farm's money after the load, dewar removed",
+                tostring(animal.uniqueId), fee)
+            vehicle:delete()
+            RLSemenCollection.restoreCollected(animal, previousMonth, previousAge)
+            reply(RLSemenCollection.REFUSAL_NO_MONEY, 0, fee)
             return
         end
 
