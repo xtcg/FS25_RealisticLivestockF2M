@@ -554,6 +554,36 @@ do
     check("B4 gate: ineligible animal refused, straw stays on record", male.insemination == nil and RLStrawLedger.count("alice") == before and before > 0)
 end
 
+-- Hand-tool insemination is checked against the ledger's sire, not the client's (review B4 #3),
+-- and never replaces a pending insemination (review B4 #4)
+do
+    local actual = { country = 6, farmId = "12", uniqueId = "Real", typeIndex = 1, subTypeIndex = 1, batchId = "BATCH",
+        genetics = { fertility = 1 } }
+    RLStrawLedger.held = {}
+    RLStrawLedger.record("alice", mkDewar(1, actual, 10))
+    local female = mkAnimal(2, 30, 1)
+    female.getCanBeInseminatedByAnimal = function(_, sireRecord) return sireRecord.uniqueId ~= "Real", "related" end
+    female.setInsemination = function(self, sireRecord) self.insemination = sireRecord end
+    local altered = table.clone(actual, 3)
+    altered.uniqueId = "Unrelated"
+    local femalePen = { getClusterSystem = function() return { animals = { female } } end }
+    local femaleIds = { farmId = female.farmId, uniqueId = female.uniqueId, country = 6 }
+    AnimalInseminationEvent.new(femalePen, femaleIds, altered):run(aliceClient)
+    check("B4 gate: a changed sire id in the request does not pass the recorded sire",
+        female.insemination == nil and RLStrawLedger.count("alice") == 1)
+
+    female.getCanBeInseminatedByAnimal = function() return true end
+    AnimalInseminationEvent.new(femalePen, femaleIds, altered):run(aliceClient)
+    check("B4 gate: an allowed insemination uses the ledger's sire and spends the straw",
+        female.insemination ~= nil and female.insemination.uniqueId == "Real" and RLStrawLedger.count("alice") == 0)
+
+    local first = female.insemination
+    RLStrawLedger.record("alice", mkDewar(1, actual, 10))
+    AnimalInseminationEvent.new(femalePen, femaleIds, actual):run(aliceClient)
+    check("B4 gate: a second straw for a pending insemination is refused and not spent",
+        female.insemination == first and RLStrawLedger.count("alice") == 1)
+end
+
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end
 end

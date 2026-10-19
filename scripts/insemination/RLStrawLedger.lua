@@ -85,14 +85,18 @@ end
 --- the sire), for an insemination.
 --- @return table|nil snapshot The server's copy of that straw's sire and batch, or nil when the user holds none
 function RLStrawLedger.spendForSemen(userId, semen)
-    local list = RLStrawLedger.held[userId]
+    local snapshot, index = RLStrawLedger.findForSemen(userId, semen)
+    if snapshot ~= nil then table.remove(RLStrawLedger.held[userId], index) end
+    return snapshot
+end
 
-    for i, entry in ipairs(list or {}) do
-        if RLSemenBatch.isSameBatch(entry.snapshot, semen) then
-            table.remove(list, i)
-            return entry.snapshot
-        end
+
+--- The server's copy of the straw `spendForSemen` would spend, without spending it, so the
+--- insemination can be checked against the recorded sire first.
+--- @return table|nil snapshot, number|nil index
+function RLStrawLedger.findForSemen(userId, semen)
+    for i, entry in ipairs(RLStrawLedger.held[userId] or {}) do
+        if RLSemenBatch.isSameBatch(entry.snapshot, semen) then return entry.snapshot, i end
     end
-
-    return nil
+    return nil, nil
 end

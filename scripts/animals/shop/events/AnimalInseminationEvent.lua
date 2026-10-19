@@ -105,49 +105,48 @@ function AnimalInseminationEvent:run(connection)
 		Log:trace("InseminationEvent:run branch=%s animal=%s", isServerBranch and "server" or "client", tostring(identifiers.uniqueId))
 
 		if isServerBranch then
-			-- The same eligibility the straw prompt checks (type, subtype group, age, close
-			-- relatives, ...), before the straw is spent: a refused straw stays on record.
-			if animal ~= nil and animal.insemination == nil and animal.getCanBeInseminatedByAnimal ~= nil then
-				local canInseminate, reason = animal:getCanBeInseminatedByAnimal(self.semen)
-				if not canInseminate then
-					Log:warning("InseminationEvent:run: refused uniqueId=%s by sire %s: %s", tostring(identifiers.uniqueId),
-						tostring(self.semen ~= nil and self.semen.uniqueId), tostring(reason))
-					return
-				end
-			end
-
-			-- The straw must be one the server handed this player; its recorded sire snapshot
-			-- replaces the genetics the client sent (RLStrawLedger).
-			local semen = RLStrawLedger.spendForSemen(RLStrawLedger.getUserId(connection), self.semen)
-			if semen == nil then
-				Log:warning("InseminationEvent:run: refused, no straw of sire %s on record for this player",
-					tostring(self.semen ~= nil and self.semen.uniqueId))
-				return
-			end
-			self.semen = semen
-
-			-- Server: validate animal lookup, idempotency guard, then rebroadcast.
-			-- Gate the rebroadcast on animal-found: if the authoritative server
-			-- has no record of the animal, do NOT propagate to other clients.
-			-- Unlike AIAnimalInseminationEvent (where the dewar straw is still
-			-- spent on uniqueId match), this event has no compensating mutation.
-			-- Rebroadcasting on miss would let non-sender clients apply locally
-			-- even though server state is unchanged, producing divergence that
-			-- the next dirty-sync from the server would correct backwards.
+			-- Server-authoritative order; nothing is spent or rebroadcast until every check passed:
+			-- 1. The animal must exist here; without it there is nothing to compensate, and a
+			--    rebroadcast would let other clients apply what the server never did.
 			if animal == nil then
 				Log:warning("InseminationEvent:run animal not found uniqueId=%s, NOT rebroadcasting (server-authoritative reject)",
 					tostring(identifiers.uniqueId))
 				return
 			end
 
-			if animal.isInseminated then
-				Log:debug("InseminationEvent:run skipping (already inseminated) uniqueId=%s",
-					tostring(identifiers.uniqueId))
-			else
-				animal:setInsemination(self.semen)
-				Log:info("InseminationEvent:run applied uniqueId=%s",
-					tostring(identifiers.uniqueId))
+			-- 2. One pending insemination at a time: a second player's straw arriving after the
+			--    first must not replace it (nor spend a second straw).
+			if animal.insemination ~= nil then
+				Log:info("InseminationEvent:run refused uniqueId=%s: already inseminated", tostring(identifiers.uniqueId))
+				return
 			end
+
+			-- 3. The straw must be one the server handed this player (RLStrawLedger). Its recorded
+			--    sire and batch replace what the client sent, so every later check and the
+			--    insemination itself use the server's sire.
+			local userId = RLStrawLedger.getUserId(connection)
+			local semen = RLStrawLedger.findForSemen(userId, self.semen)
+			if semen == nil then
+				Log:warning("InseminationEvent:run: refused, no straw of sire %s on record for this player",
+					tostring(self.semen ~= nil and self.semen.uniqueId))
+				return
+			end
+
+			-- 4. The same eligibility the straw prompt checks (type, subtype group, age, close
+			--    relatives, ...), against the recorded sire; a refused straw stays on record.
+			if animal.getCanBeInseminatedByAnimal ~= nil then
+				local canInseminate, reason = animal:getCanBeInseminatedByAnimal(semen)
+				if not canInseminate then
+					Log:warning("InseminationEvent:run: refused uniqueId=%s by sire %s: %s", tostring(identifiers.uniqueId),
+						tostring(semen.uniqueId), tostring(reason))
+					return
+				end
+			end
+
+			RLStrawLedger.spendForSemen(userId, semen)
+			self.semen = semen
+			animal:setInsemination(semen)
+			Log:info("InseminationEvent:run applied uniqueId=%s", tostring(identifiers.uniqueId))
 
 			-- Rebroadcast to other clients excluding sender (Pattern A).
 			-- Sender mutated locally before sendEvent and must not receive an echo.
@@ -157,14 +156,14 @@ function AnimalInseminationEvent:run(connection)
 			Log:trace("InseminationEvent:run rebroadcast ignoreConnection=sender uniqueId=%s",
 				tostring(identifiers.uniqueId))
 		else
-			-- Client (rebroadcast from server): apply mutation locally.
-			if animal ~= nil and not animal.isInseminated then
+			-- Client (rebroadcast from server): the server only rebroadcasts an insemination it
+			-- applied, so its record replaces whatever this client holds.
+			if animal ~= nil then
 				animal:setInsemination(self.semen)
 				Log:debug("InseminationEvent:run client-applied uniqueId=%s",
 					tostring(identifiers.uniqueId))
 			else
-				Log:trace("InseminationEvent:run client-skip animal=%s inseminated=%s",
-					tostring(animal), tostring(animal and animal.isInseminated))
+				Log:trace("InseminationEvent:run client-skip, animal not found uniqueId=%s", tostring(identifiers.uniqueId))
 			end
 		end
 
