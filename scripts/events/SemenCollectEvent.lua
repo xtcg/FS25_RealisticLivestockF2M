@@ -148,6 +148,17 @@ function SemenCollectEvent:run(connection)
 end
 
 
+--- Server: fees of collections whose dewar is still loading, by farm. A request counts them
+--- against the farm's money, so two requests in flight cannot both pass on the same balance.
+SemenCollectEvent.reservedFees = {}
+
+
+local function reserveFee(farmId, delta)
+    local reserved = math.max((SemenCollectEvent.reservedFees[farmId] or 0) + delta, 0)
+    SemenCollectEvent.reservedFees[farmId] = reserved > 0 and reserved or nil
+end
+
+
 --- Server: validate the request and spawn the dewar.
 function SemenCollectEvent:runRequest(connection)
     local function reply(resultKey, straws, fee)
@@ -189,8 +200,10 @@ function SemenCollectEvent:runRequest(connection)
 
     local straws = RLSemenCollection.getStrawYield(animal)
     local fee = RLSemenCollection.getFee(animal)
-    if fee > 0 and g_currentMission:getMoney(farmId) < fee then
-        Log:debug("SemenCollectEvent: refused uniqueId=%s, fee %.2f over the farm's money", tostring(animal.uniqueId), fee)
+    local reserved = SemenCollectEvent.reservedFees[farmId] or 0
+    if fee > 0 and g_currentMission:getMoney(farmId) - reserved < fee then
+        Log:debug("SemenCollectEvent: refused uniqueId=%s, fee %.2f over the farm's money (%.2f held for loading dewars)",
+            tostring(animal.uniqueId), fee, reserved)
         reply(RLSemenCollection.REFUSAL_NO_MONEY, 0, fee)
         return
     end
@@ -217,7 +230,9 @@ function SemenCollectEvent:runRequest(connection)
 
     local object, identifiers = self.object, self.animal
     local collectedAge, collectedMonth = animal.semenCollectedAge, animal.semenCollectedMonth
+    reserveFee(farmId, fee)
     data:load(function(_, vehicles, loadingState)
+        reserveFee(farmId, -fee)
         local vehicle = vehicles ~= nil and vehicles[1] or nil
         if loadingState ~= VehicleLoadingState.OK or vehicle == nil then
             Log:warning("SemenCollectEvent: dewar failed to load (state=%s), month released", tostring(loadingState))
