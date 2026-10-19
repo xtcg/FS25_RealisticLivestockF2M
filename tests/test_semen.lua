@@ -398,8 +398,8 @@ do
     VehicleLoadingData.new = function()
         local data = originalNew()
         data.load = function(self, cb, target)
-            pending[#pending + 1] = function(state)
-                cb(target, { { setAnimal = function() end, setStraws = function() end } }, state)
+            pending[#pending + 1] = function(state, vehicle)
+                cb(target, { vehicle or { setAnimal = function() end, setStraws = function() end } }, state)
             end
         end
         return data
@@ -419,6 +419,19 @@ do
     request(b3, p):run(feeClient)
     pending[2](VehicleLoadingState.ERROR)
     check("fee held: a failed load releases the hold", MONEY[1] == 400 and SemenCollectEvent.reservedFees[1] == nil)
+
+    -- Other spending of the farm during the load: checked again before charging
+    local b4 = mkAnimal(1, 27, 1, { semenCollectedMonth = thisMonth - 2, semenCollectedAge = 25 })
+    p = { farm = 1, getClusterSystem = function() return { animals = { b4 } } end }
+    local dewar = { setAnimal = function() end, setStraws = function() end, delete = function(self) self.isDeleted = true end }
+    request(b4, p):run(feeClient)
+    local charges = #chargeLog
+    MONEY[1] = 300
+    pending[3](VehicleLoadingState.OK, dewar)
+    check("fee recheck: balance spent during the load -> no charge, dewar removed, record restored",
+        MONEY[1] == 300 and #chargeLog == charges and SemenCollectEvent.reservedFees[1] == nil
+        and b4.semenCollectedMonth == thisMonth - 2 and b4.semenCollectedAge == 25
+        and dewar.isDeleted and feeSent[#feeSent].resultKey == RLSemenCollection.REFUSAL_NO_MONEY)
     VehicleLoadingData.new = originalNew
 end
 
