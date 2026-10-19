@@ -403,6 +403,37 @@ LOAD_STATE = 0
 check("fee: a failed load charges nothing and restores the old record",
     near(MONEY[1], 1000) and #chargeLog == 1 and failBull.semenCollectedMonth == thisMonth - 3 and failBull.semenCollectedAge == 27)
 
+-- Two collections in flight: the first one's fee is held, so the second cannot spend it too
+do
+    local pending = {}
+    local originalNew = VehicleLoadingData.new
+    VehicleLoadingData.new = function()
+        local data = originalNew()
+        data.load = function(self, cb, target)
+            pending[#pending + 1] = function(state)
+                cb(target, { { setAnimal = function() end, setStraws = function() end } }, state)
+            end
+        end
+        return data
+    end
+    MONEY = { [1] = 400 }
+    local b1, b2, b3 = mkAnimal(1, 24, 1), mkAnimal(1, 25, 1), mkAnimal(1, 26, 1)
+    local p = { farm = 1, getClusterSystem = function() return { animals = { b1, b2, b3 } } end }
+    local before = #feeSent
+    request(b1, p):run(feeClient)
+    request(b2, p):run(feeClient)
+    check("fee held: second request on the same balance refused", #pending == 1
+        and feeSent[before + 1].resultKey == RLSemenCollection.REFUSAL_NO_MONEY)
+    pending[1](VehicleLoadingState.OK)
+    check("fee held: the one collection charged, balance not negative", MONEY[1] == 0
+        and SemenCollectEvent.reservedFees[1] == nil)
+    MONEY = { [1] = 400 }
+    request(b3, p):run(feeClient)
+    pending[2](VehicleLoadingState.ERROR)
+    check("fee held: a failed load releases the hold", MONEY[1] == 400 and SemenCollectEvent.reservedFees[1] == nil)
+    VehicleLoadingData.new = originalNew
+end
+
 -- Dialog texts
 local TEXTS = { rl_semen_refuseCollected = "Collected.", rl_semen_nextCollection = "Next: %s.",
     rl_semen_refuseTooYoung = "Young.", rl_semen_minAge = "From %d.", rl_semen_preview = "%s|%d|%d|%.2f|%.2f|%.2f|%.2f|%s" }
