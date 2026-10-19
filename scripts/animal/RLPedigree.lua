@@ -277,7 +277,8 @@ RLPedigree.STRAW_SPEC = "spec_FS25_RealisticLivestockRM.aiStraw"
 
 
 --- Ids the pruning keeps, and records them so a save holds the current parents: every husbandry,
---- sale and AI-dealer animal and its pending insemination's sire, and the sire of every semen
+--- sale and AI-dealer animal with its pending insemination's sire and its pregnancy's sire and
+--- unborn young's parents, and the sire of every semen
 --- record still in the game - dewars in the world and in object storage, hand-tool straws and
 --- straws handed out on the server's ledger.
 function RLPedigree.collectAnchors()
@@ -294,6 +295,19 @@ function RLPedigree.collectAnchors()
             table.insert(anchors, animal:getIdentifiers())
         end
         if type(animal.insemination) == "table" then addSire(animal.insemination) end
+        -- A pregnancy's sire may have left the game (last straw used, bull sold); the calves
+        -- still need his line when they are born.
+        if type(animal.impregnatedBy) == "table" and known(animal.impregnatedBy.uniqueId) then
+            table.insert(anchors, animal.impregnatedBy.uniqueId)
+        end
+        local pregnancy = type(animal.pregnancy) == "table" and animal.pregnancy.pregnancies or nil
+        for _, child in pairs(type(pregnancy) == "table" and pregnancy or {}) do
+            if type(child) == "table" then
+                RLPedigree.noteAnimal(child)
+                if known(child.fatherId) then table.insert(anchors, child.fatherId) end
+                if known(child.motherId) then table.insert(anchors, child.motherId) end
+            end
+        end
     end
     local function addStorage(placeable)
         local storage = type(placeable) == "table" and placeable.spec_objectStorage or nil
