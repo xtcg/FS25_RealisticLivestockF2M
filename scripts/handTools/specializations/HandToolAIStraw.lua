@@ -255,7 +255,8 @@ function HandToolAIStraw:updateStraw(dT)
 
 	spec.targetedPlaceable, spec.targetedAnimal, spec.targetedDewar = nil, nil, nil
 
-	if not player.isOwner then
+	-- Waiting for the server's answer: the straw can be neither used again nor put back.
+	if not player.isOwner or spec.awaitingServer then
 		spec.textAlpha = 1
 		spec.textAlphaReverse = false
 		g_inputBinding:setActionEventActive(spec.activateActionEventId, false)
@@ -463,6 +464,7 @@ end
 function HandToolAIStraw:onActionFired()
 
 	local spec = self[specName]
+	if spec.awaitingServer then return end
 
 	if spec.actionContext == "inseminate" then
 		self:onInseminate()
@@ -474,6 +476,8 @@ end
 
 
 --- Apply insemination from this straw to the targeted animal, sync via event, and delete the straw.
+--- A remote client only sends the request and holds the straw: the server answers through
+--- AnimalInseminationEvent, and onServerAnswer then uses it up or gives it back.
 function HandToolAIStraw:onInseminate()
 
 	local spec = self[specName]
@@ -481,19 +485,42 @@ function HandToolAIStraw:onInseminate()
 	local husbandry, animal = spec.targetedPlaceable, spec.targetedAnimal
 	Log:trace("onInseminate: animal=%s husbandry=%s isServer=%s", tostring(animal), tostring(husbandry), tostring(self.isServer))
 
-	animal:setInsemination(spec.animal)
-
-	if g_server ~= nil then
-		g_server:broadcastEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
-	elseif g_client ~= nil then
-		g_client:getServerConnection():sendEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
-	end
-
-	spec.isEmpty = true
 	g_inputBinding:setActionEventActive(spec.activateActionEventId, false)
 
+	if g_server == nil then
+		if g_client == nil then return end
+		spec.awaitingServer = true
+		AnimalInseminationEvent.awaitServer(animal, self)
+		g_client:getServerConnection():sendEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
+		Log:debug("onInseminate: straw held until the server answers")
+		return
+	end
+
+	animal:setInsemination(spec.animal)
+	g_server:broadcastEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
+
+	spec.isEmpty = true
 	g_currentMission.handToolSystem:markHandToolForDeletion(self)
 	Log:debug("onInseminate: straw emptied and marked for deletion (isServer=%s)", tostring(self.isServer))
+
+end
+
+
+--- Client: the server's answer to this straw's insemination request. Accepted uses the straw up;
+--- refused gives it back to the player.
+function HandToolAIStraw:onServerAnswer(accepted)
+
+	local spec = self[specName]
+	if self.isDeleted or spec == nil or not spec.awaitingServer then return end
+	spec.awaitingServer = false
+
+	if accepted then
+		spec.isEmpty = true
+		g_currentMission.handToolSystem:markHandToolForDeletion(self)
+		Log:debug("onServerAnswer: insemination accepted, straw marked for deletion")
+	else
+		Log:debug("onServerAnswer: insemination refused, straw kept")
+	end
 
 end
 

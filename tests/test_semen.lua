@@ -313,6 +313,21 @@ insEvent.run = function() end
 insEvent:readStream(1, nil)
 check("wire: hand-tool insemination carries the straw's batch", #q == 0 and insEvent.semen.batchId == strawSemen.batchId
     and insEvent.semen.batchMonth == 41 and insEvent.semen.sireFatherId == "F")
+streamWriteBool, streamReadBool = function(_, v) w(v) end, function() return r() end
+q = {}
+AnimalInseminationEvent.newRefused(pen, { uniqueId = "COW" }, nil):writeStream(1, nil)
+insEvent = AnimalInseminationEvent.emptyNew()
+insEvent.run = function() end
+insEvent:readStream(1, nil)
+check("wire: a refusal without a current insemination round-trips", #q == 0
+    and insEvent.mode == AnimalInseminationEvent.MODE_REFUSED and insEvent.semen == nil)
+q = {}
+AnimalInseminationEvent.newRefused(pen, { uniqueId = "COW" }, strawSemen):writeStream(1, nil)
+insEvent = AnimalInseminationEvent.emptyNew()
+insEvent.run = function() end
+insEvent:readStream(1, nil)
+check("wire: a refusal carries the server's current insemination", #q == 0
+    and insEvent.mode == AnimalInseminationEvent.MODE_REFUSED and insEvent.semen.uniqueId == "U1")
 
 -- Batch 1: calendar month record, body condition, no made-up straw, service fee, dialog texts
 g_currentMission.environment = { currentYear = 3, currentPeriod = 5 }
@@ -595,6 +610,63 @@ do
     AnimalInseminationEvent.new(femalePen, femaleIds, actual):run(aliceClient)
     check("B4 gate: a second straw for a pending insemination is refused and not spent",
         female.insemination == first and RLStrawLedger.count("alice") == 1)
+end
+
+-- A client's straw is used up only once the server accepts it; a refusal gives it back and
+-- shows the server's insemination (review B4 #5)
+do
+    loadMod("scripts/handTools/specializations/HandToolAIStraw.lua")
+    local specKey = "spec_FS25_RealisticLivestockRM.aiStraw"
+    local actual = { country = 6, farmId = "12", uniqueId = "Real", typeIndex = 1, subTypeIndex = 1, batchId = "BATCH",
+        genetics = { fertility = 1 } }
+    local savedServer, savedClient, savedInput, savedTools = g_server, g_client, g_inputBinding, g_currentMission.handToolSystem
+    local function scenario(serverInsemination)
+        RLStrawLedger.held = {}
+        RLStrawLedger.record("alice", mkDewar(1, actual, 10))
+        local serverCow = mkAnimal(2, 30, 1, { insemination = serverInsemination })
+        serverCow.setInsemination = function(self, sireRecord) self.insemination = sireRecord end
+        serverCow.getCanBeInseminatedByAnimal = function() return true end
+        local clientCow = mkAnimal(2, 30, 1)
+        clientCow.setInsemination = function(self, sireRecord) self.insemination = sireRecord end
+        local serverPen = { getClusterSystem = function() return { animals = { serverCow } } end }
+        local clientPen = { getClusterSystem = function() return { animals = { clientCow } } end }
+        local tool = { [specKey] = { targetedPlaceable = clientPen, targetedAnimal = clientCow, animal = actual } }
+        local queued, deleted, others = nil, false, {}
+        g_server = nil
+        g_client = { getServerConnection = function() return { sendEvent = function(_, e) queued = e end } end }
+        g_inputBinding = { setActionEventActive = function() end }
+        g_currentMission.handToolSystem = { markHandToolForDeletion = function(_, t) deleted = (t == tool) end }
+        HandToolAIStraw.onInseminate(tool)
+        local held = queued ~= nil and not deleted and clientCow.insemination == nil and tool[specKey].awaitingServer
+        -- the server runs the request; its answer goes back to the client
+        local answers = {}
+        g_server = { broadcastEvent = function(_, e) others[#others + 1] = e end }
+        queued.object = serverPen
+        queued:run(makeConnection("alice", false, answers))
+        g_server = nil
+        local answer = answers[1]
+        if answer ~= nil then answer.object = clientPen; answer:run(makeConnection("server", true)) end
+        return { held = held, deleted = deleted, answer = answer, others = others, serverCow = serverCow,
+            clientCow = clientCow, tool = tool }
+    end
+
+    local refused = scenario({ uniqueId = "FIRST" })
+    check("B4 client: the straw is held, not spent, until the server answers", refused.held)
+    check("B4 client: a refusal keeps the straw and the server's ledger straw",
+        not refused.deleted and refused.answer.mode == AnimalInseminationEvent.MODE_REFUSED
+        and not refused.tool[specKey].awaitingServer and not refused.tool[specKey].isEmpty and RLStrawLedger.count("alice") == 1)
+    check("B4 client: a refusal shows the server's insemination and tells no one else",
+        refused.clientCow.insemination.uniqueId == "FIRST" and refused.serverCow.insemination.uniqueId == "FIRST" and #refused.others == 0)
+
+    local accepted = scenario(nil)
+    check("B4 client: an accepted straw is used up and the server's sire applied",
+        accepted.deleted and accepted.answer.mode == AnimalInseminationEvent.MODE_ACCEPTED
+        and accepted.clientCow.insemination.uniqueId == "Real" and RLStrawLedger.count("alice") == 0)
+    check("B4 client: other clients get the applied insemination", #accepted.others == 1
+        and accepted.others[1].mode == AnimalInseminationEvent.MODE_APPLY)
+    check("B4 client: no straw left waiting", next(AnimalInseminationEvent.pendingStraws) == nil)
+
+    g_server, g_client, g_inputBinding, g_currentMission.handToolSystem = savedServer, savedClient, savedInput, savedTools
 end
 
 for _, line in ipairs(LOG) do
