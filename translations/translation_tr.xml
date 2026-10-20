@@ -283,6 +283,9 @@
 
         <text name="rl_ui_castrated" text="Kısırlaştırılmış"/>
         <text name="rl_ui_castrate" text="Kısırlaştır"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Kısırlaştırmayı onayla"/>
+        <text name="rl_ui_castrateConfirmYes" text="Kısırlaştır"/>
+        <text name="rl_ui_castrateConfirm" text="%s (%s) kısırlaştırılsın mı?&#10;Hayvan üremeyi ve sperm alınmasını kalıcı olarak kaybeder. Bu işlem geri alınamaz."/>
 
         <text name="rl_ui_unknownCauses" text="bilinmeyen nedenler"/>
         <text name="rl_ui_unreadMessages" text="'%s' için okunmamış mesajlar var!"/>

@@ -283,6 +283,9 @@
 
         <text name="rl_ui_castrated" text="Castrated"/>
         <text name="rl_ui_castrate" text="Castrate"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Confirm Castration"/>
+        <text name="rl_ui_castrateConfirmYes" text="Castrate"/>
+        <text name="rl_ui_castrateConfirm" text="Castrate %s (%s)?&#10;The animal permanently loses the ability to breed and to be used for semen collection. This cannot be undone."/>
 
         <text name="rl_ui_unknownCauses" text="unknown causes"/>
         <text name="rl_ui_unreadMessages" text="Husbandry '%s' has unread messages!"/>

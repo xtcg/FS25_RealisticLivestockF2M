@@ -271,6 +271,9 @@
 
         <text name="rl_ui_castrated" text="Kastroitu"/>
         <text name="rl_ui_castrate" text="Kastroi"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Vahvista kastraatio"/>
+        <text name="rl_ui_castrateConfirmYes" text="Kastroi"/>
+        <text name="rl_ui_castrateConfirm" text="Kastroidaanko %s (%s)?&#10;Eläin menettää pysyvästi kyvyn jalostukseen ja siemennesteen keräykseen. Tätä ei voi perua."/>
         <text name="rl_ui_unknownCauses" text="tuntemattomia syitä"/>
         <text name="rl_ui_unreadMessages" text="Navetalla '%s' on lukemattomia viestejä!"/>
         <text name="rl_ui_herdsman" text="Lomittaja"/>

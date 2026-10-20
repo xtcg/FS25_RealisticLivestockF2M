@@ -278,6 +278,9 @@
 
         <text name="rl_ui_castrated" text="Castrado"/>
         <text name="rl_ui_castrate" text="Castrar"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Confirmar castración"/>
+        <text name="rl_ui_castrateConfirmYes" text="Castrar"/>
+        <text name="rl_ui_castrateConfirm" text="¿Castrar a %s (%s)?&#10;El animal pierde para siempre la capacidad de reproducirse y de donar semen. No se puede deshacer."/>
 
         <text name="rl_ui_unknownCauses" text="causas desconocidas"/>
         <text name="rl_ui_unreadMessages" text="¡La explotación '%s' tiene mensajes sin leer!"/>

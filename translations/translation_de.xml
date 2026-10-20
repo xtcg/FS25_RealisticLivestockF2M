@@ -268,6 +268,9 @@
 
         <text name="rl_ui_castrated" text="Kastriert"/>
         <text name="rl_ui_castrate" text="Kastrieren"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Kastration bestätigen"/>
+        <text name="rl_ui_castrateConfirmYes" text="Kastrieren"/>
+        <text name="rl_ui_castrateConfirm" text="%s (%s) kastrieren?&#10;Das Tier verliert dauerhaft die Fähigkeit zur Zucht und zur Samengewinnung. Dies kann nicht rückgängig gemacht werden."/>
         <text name="rl_ui_unknownCauses" text="unbekannte Ursachen"/>
         <text name="rl_ui_unreadMessages" text="Stall '%s' hat ungelesene Nachrichten!"/>
         <text name="rl_ui_herdsman" text="Herdenmanager"/>

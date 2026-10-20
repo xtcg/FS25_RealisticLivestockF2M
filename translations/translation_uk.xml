@@ -254,6 +254,9 @@
 
         <text name="rl_ui_castrated" text="Кастровано"/>
         <text name="rl_ui_castrate" text="Каструвати"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Підтвердьте кастрацію"/>
+        <text name="rl_ui_castrateConfirmYes" text="Каструвати"/>
+        <text name="rl_ui_castrateConfirm" text="Каструвати %s (%s)?&#10;Тварина назавжди втратить здатність до розмноження і отримання сім'я. Скасувати це неможливо."/>
         <text name="rl_ui_unknownCauses" text="невідомі причини"/>
         <text name="rl_ui_unreadMessages" text="У загоні '%s' є непрочитані повідомлення!"/>
         <text name="rl_ui_herdsman" text="Пастух"/>

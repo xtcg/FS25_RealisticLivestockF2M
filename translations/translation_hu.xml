@@ -283,6 +283,9 @@
 
         <text name="rl_ui_castrated" text="Kasztrált"/>
         <text name="rl_ui_castrate" text="Kasztrálás"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Ivartalanítás megerősítése"/>
+        <text name="rl_ui_castrateConfirmYes" text="Ivartalanítás"/>
+        <text name="rl_ui_castrateConfirm" text="Ivartalanítja: %s (%s)?&#10;Az állat végleg elveszíti a szaporodási és a spermagyűjtési képességét. Ez nem vonható vissza."/>
 
         <text name="rl_ui_unknownCauses" text="ismeretlen okok"/>
         <text name="rl_ui_unreadMessages" text="A(z) '%s' istállóban olvasatlan üzeneteid vannak!"/>

@@ -268,6 +268,9 @@
 
         <text name="rl_ui_castrated" text="Gecastreerd"/>
         <text name="rl_ui_castrate" text="Castreren"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Castratie bevestigen"/>
+        <text name="rl_ui_castrateConfirmYes" text="Castreren"/>
+        <text name="rl_ui_castrateConfirm" text="%s (%s) castreren?&#10;Het dier verliest blijvend het vermogen om te fokken en sperma te leveren. Dit kan niet ongedaan worden gemaakt."/>
         <text name="rl_ui_unknownCauses" text="onbekende oorzaak"/>
         <text name="rl_ui_unreadMessages" text="Bedrijf '%s' heeft ongelezen berichten!"/>
         <text name="rl_ui_herdsman" text="Veehoeder"/>

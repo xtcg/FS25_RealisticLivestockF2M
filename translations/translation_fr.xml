@@ -282,6 +282,9 @@
 
         <text name="rl_ui_castrated" text="Castré"/>
         <text name="rl_ui_castrate" text="Castrer"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Confirmer la castration"/>
+        <text name="rl_ui_castrateConfirmYes" text="Castrer"/>
+        <text name="rl_ui_castrateConfirm" text="Castrer %s (%s) ?&#10;L'animal perd définitivement sa capacité à se reproduire et à fournir de la semence. Cette action est irréversible."/>
 
         <text name="rl_ui_unknownCauses" text="causes inconnues"/>
         <text name="rl_ui_unreadMessages" text="L'élevage '%s' a des messages non lus !"/>

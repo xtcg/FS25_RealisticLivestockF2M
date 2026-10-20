@@ -266,6 +266,9 @@
 
         <text name="rl_ui_castrated" text="Steriliseret"/>
         <text name="rl_ui_castrate" text="Sterilisér"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Bekræft kastration"/>
+        <text name="rl_ui_castrateConfirmYes" text="Kastrer"/>
+        <text name="rl_ui_castrateConfirm" text="Kastrer %s (%s)?&#10;Dyret mister permanent evnen til at avle og give sæd. Det kan ikke fortrydes."/>
         <text name="rl_ui_unknownCauses" text="ukendte årsager"/>
         <text name="rl_ui_unreadMessages" text="Dyrehold '%s' har ulæste beskeder!"/>
         <text name="rl_ui_herdsman" text="Kvæghyrde"/>

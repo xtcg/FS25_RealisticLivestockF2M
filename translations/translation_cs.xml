@@ -271,6 +271,9 @@
 
         <text name="rl_ui_castrated" text="已去势"/>
         <text name="rl_ui_castrate" text="去势"/>
+        <text name="rl_ui_castrateConfirmTitle" text="确认去势"/>
+        <text name="rl_ui_castrateConfirmYes" text="确认去势"/>
+        <text name="rl_ui_castrateConfirm" text="要给%s（%s）去势吗？&#10;去势后永久失去繁殖和采精能力，此操作无法撤销。"/>
 
         <text name="rl_ui_unknownCauses" text="未知原因"/>
         <text name="rl_ui_unreadMessages" text="畜牧场'%s'有未读消息！"/>

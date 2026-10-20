@@ -268,6 +268,9 @@
 
         <text name="rl_ui_castrated" text="Castrated"/>
         <text name="rl_ui_castrate" text="Castrate"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Confirmar castração"/>
+        <text name="rl_ui_castrateConfirmYes" text="Castrar"/>
+        <text name="rl_ui_castrateConfirm" text="Castrar %s (%s)?&#10;O animal perde permanentemente a capacidade de reprodução e de recolha de sémen. Esta ação não pode ser desfeita."/>
         <text name="rl_ui_unknownCauses" text="unknown causes"/>
         <text name="rl_ui_unreadMessages" text="Husbandry '%s' has unread messages!"/>
         <text name="rl_ui_herdsman" text="Herdsman"/>

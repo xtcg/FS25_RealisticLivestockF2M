@@ -266,6 +266,9 @@
 
         <text name="rl_ui_castrated" text="Стерилизован(а)"/>
         <text name="rl_ui_castrate" text="Стерилизация"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Подтвердите кастрацию"/>
+        <text name="rl_ui_castrateConfirmYes" text="Кастрировать"/>
+        <text name="rl_ui_castrateConfirm" text="Кастрировать %s (%s)?&#10;Животное навсегда потеряет способность к размножению и получению семени. Отменить это нельзя."/>
         <text name="rl_ui_unknownCauses" text="неизвестные причины"/>
         <text name="rl_ui_unreadMessages" text="В хозяйстве '%s' есть непрочитанные сообщения!"/>
         <text name="rl_ui_herdsman" text="Пастух"/>

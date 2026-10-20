@@ -275,6 +275,9 @@
         <text name="rl_ui_doesHaveName" text="Con nome"/>
         <text name="rl_ui_castrated" text="Castrato"/>
         <text name="rl_ui_castrate" text="Castra"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Conferma castrazione"/>
+        <text name="rl_ui_castrateConfirmYes" text="Castra"/>
+        <text name="rl_ui_castrateConfirm" text="Castrare %s (%s)?&#10;L'animale perde per sempre la capacità di riprodursi e di fornire seme. L'azione non può essere annullata."/>
         <text name="rl_ui_unknownCauses" text="cause sconosciute"/>
         <text name="rl_ui_unreadMessages" text="L'allevamento '%s' ha messaggi non letti!"/>
         <text name="rl_ui_herdsman" text="Mandriano"/>

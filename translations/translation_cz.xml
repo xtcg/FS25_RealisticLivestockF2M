@@ -283,6 +283,9 @@
 
         <text name="rl_ui_castrated" text="Kastrovaný"/>
         <text name="rl_ui_castrate" text="Kastrovat"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Potvrdit kastraci"/>
+        <text name="rl_ui_castrateConfirmYes" text="Vykastrovat"/>
+        <text name="rl_ui_castrateConfirm" text="Vykastrovat %s (%s)?&#10;Zvíře trvale ztratí schopnost plemenitby a odběru spermatu. Nelze vrátit zpět."/>
 
         <text name="rl_ui_unknownCauses" text="neznámé příčiny"/>
         <text name="rl_ui_unreadMessages" text="Chov '%s' má nepřečtené zprávy!"/>
