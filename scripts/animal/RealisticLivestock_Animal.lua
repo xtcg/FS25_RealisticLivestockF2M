@@ -573,6 +573,12 @@ function Animal:getAge()
     return self.age
 end
 
+-- Game 1.25 asks list items for their visual (InGameMenuAnimalsFrame cells) instead of
+-- looking it up by sub type and age; answer with the same lookup the older pages used.
+function Animal:getVisual()
+    return g_currentMission.animalSystem:getVisualByAge(self:getSubTypeIndex(), self:getAge())
+end
+
 function Animal:getName()
     return self.name or ""
 end

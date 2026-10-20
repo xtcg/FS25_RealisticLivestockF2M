@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Game 1.25: the in-game menu Animals page no longer fails on pens with animals (`getVisual` on RL animals). A failing pen reload now restores the list and releases a held pen-selector arrow instead of stepping through every pen with repeated errors; the selection resets when it points past the new pen's rows.
+
 ### Changed
 
 - Background accidents (RL-ACCIDENT-RATE-01, scripts/animal/AnimalHealth.lua ACCIDENT_BANDS): per model month, pig 0.10% to 28 days / 0.04% to 6 months / 0.02% after, sheep and goats 0.06% under 3 months / 0.03% after, cattle 0.04% under 6 months / 0.02% after, horse 0.02%, chicken 0.03%, any other type 0.03% (was up to 1.8% for piglets, raised 2-3x in the cold). Drawn once a day change on the server from the hazard of the model time the day stood for, split at the age bands it crosses, times the Accident Chance setting (0 never draws): the same risk at 1, 2 or 28 days a month. Cold, disease, water, low health and birth no longer raise it. A DEATH line logs identity, model time, cause, chance and money for accident, old-age and low-health deaths. Game balance starting values, not accident statistics.
