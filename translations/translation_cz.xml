@@ -728,7 +728,6 @@
         <text name="rm_rl_migration_continue" text="Pokračovat"/>
         <text name="rm_rl_migration_quit" text="Ukončit"/>
 
-        <text name="rl_welcome_feedback" text="Welcome to Realistic Livestock: Farm to Market! If you encounter any problems, please open an issue: https://github.com/xtcg/FS25_RealisticLivestockF2M/issues"/>
         <!-- TODO: localise -->
         <text name="rl_bridge_configoverride_conflict_header" text="Realistic Livestock: Zjištěn konflikt. Dva nebo více můstků/balíčků nahradily konfiguraci pro stejný druh zvířete. Platí naposledy načtený mód. Pokud budete pokračovat, vyskytnou se vizuální chyby a nezobrazující se zvířata."/>
         <!-- TODO: localise -->

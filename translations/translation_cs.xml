@@ -723,7 +723,6 @@
         <text name="input_RL_MENU" text="打开 RL 菜单"/>
         <text name="input_RL_RENAME" text="重命名"/>
         <text name="input_RL_CYCLE_FILTER" text="切换已保存筛选"/>
-        <text name="rl_welcome_feedback" text="欢迎使用 Realistic Livestock: Farm to Market！如果有问题，欢迎来提交 Issue：https://github.com/xtcg/FS25_RealisticLivestockF2M/issues"/>
         <!-- TODO: localise -->
         <text name="rl_bridge_configoverride_conflict_header" text="Realistic Livestock：检测到冲突。两个或更多连接模组/动物包替换了同一动物类型的配置，以最后加载的模组为准。继续游戏会出现显示错误和虚影动物。"/>
         <!-- TODO: localise -->

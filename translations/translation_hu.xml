@@ -732,7 +732,6 @@
         <text name="rm_rl_migration_continue" text="Folytatás"/>
         <text name="rm_rl_migration_quit" text="Kilépés"/>
 
-        <text name="rl_welcome_feedback" text="Welcome to Realistic Livestock: Farm to Market! If you encounter any problems, please open an issue: https://github.com/xtcg/FS25_RealisticLivestockF2M/issues"/>
         <!-- TODO: localise -->
         <text name="rl_bridge_configoverride_conflict_header" text="Realistic Livestock: Conflict detected. Two or more bridges/packs replaced configuration for the same animal type. Last-loaded mod wins. If you continue you will have visual glitches and ghost animals."/>
         <!-- TODO: localise -->
