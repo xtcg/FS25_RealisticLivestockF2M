@@ -253,7 +253,7 @@ do
     local i3d = io.open(REPO .. "objects/dewar/dewar.i3d", "r")
     local group = i3d:read("a"):match('collisionFilterGroup="0x(%x+)"')
     i3d:close()
-    check("target: the dewar's collision group is VEHICLE (bit 16)", group ~= nil and (tonumber(group, 16) >> 16) & 1 == 1)
+    check("target: the dewar's collision group is VEHICLE (bit 16)", group ~= nil and math.floor(tonumber(group, 16) / 65536) % 2 == 1)
     local xml = io.open(REPO .. "objects/straw/straw.xml", "r")
     check("name: the straw's type text is a translation key", xml:read("a"):find("<typeDesc>%$l10n_rl_ui_aiStraw</typeDesc>") ~= nil)
     xml:close()
