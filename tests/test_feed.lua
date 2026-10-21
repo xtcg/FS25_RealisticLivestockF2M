@@ -184,7 +184,7 @@ do
     local pen = FeedSim.makePen({ animal }, { FORAGE = 5000 })
     FeedSim.hour(pen)
     local legacy = pen.spec_husbandryFood.rlFeedPen
-    check("mode: off by default - a pen keeps the old rules (MODE_OFF), its grain is never eaten",
+    check("mode: explicitly disabled - a pen keeps the old rules (MODE_OFF), its grain is never eaten",
         legacy.active == false and legacy.reason == "MODE_OFF")
     FeedSim.setMode(true)
     pen:add("MAIZE", 1000)

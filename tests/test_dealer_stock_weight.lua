@@ -16,6 +16,8 @@ loadMod("scripts/animal/RLGeneticsDraw.lua")
 RmLogging.getLogger = getLogger
 loadMod("scripts/dealer/RLDealerStockWeight.lua")
 
+-- Exercise the old-rules dealer path explicitly; 0.2.0.0 ships with the curves on.
+RLWeightProfiles.getConfig().types.PIG.enabled = false
 FeedSim.setMode(true)
 GrowthSim.setDaysPerPeriod(1)
 

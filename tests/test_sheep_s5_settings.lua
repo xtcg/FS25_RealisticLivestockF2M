@@ -19,8 +19,8 @@ local function animal(sub, fields)
     return a
 end
 
-check("S5 shipped: sheep still OFF, own wether speed 0.86, cattle steer speed 0.90",
-    not entry.enabled and entry.settings ~= root and entry.settings.castratedSpeed == 0.86 and root.castratedSpeed == 0.90)
+check("S5 shipped: sheep default ON, own wether speed 0.86, cattle steer speed 0.90",
+    entry.enabled and entry.settings ~= root and entry.settings.castratedSpeed == 0.86 and root.castratedSpeed == 0.90)
 check("settings: type name, subtype, binding and individual resolve the same table",
     G.getSettings("SHEEP") == entry.settings and G.getSettings(eweSub) == entry.settings
     and G.getSettings({ typeName = "SHEEP", profile = "SHEEP:LANDRACE", sex = "male" }) == entry.settings
@@ -133,4 +133,4 @@ check("health: a valid zero underweight ratio disables the check without NaN", h
 RLFeed.onSettingChanged("nutritionMode", RLFeed.MODE_LEGACY)
 W.config = config
 G.resetCaches()
-check("S5 completion: production switch is still OFF", not W.getConfig().types.SHEEP.enabled)
+check("S5 completion: production switch defaults ON", W.getConfig().types.SHEEP.enabled)

@@ -38,6 +38,10 @@ g_currentMission.animalSystem.getTypeByIndex = function(system, index)
     return baseGetType(system, index)
 end
 
+local defaultConfig = RLWeightProfiles.getConfig()
+check("defaults: pig and sheep growth are enabled", defaultConfig.types.PIG.enabled and defaultConfig.types.SHEEP.enabled)
+-- Keep the diagnostic off-path fixture independent of the shipping default.
+defaultConfig.types.PIG.enabled = false
 local byName = {}
 for _, record in ipairs(RLWeightProfiles.enumerate()) do byName[record.subType] = record end
 
@@ -108,6 +112,7 @@ do
 
     -- With the model off the old growth line is what they grow on: its fallbacks are gaps again.
     local config = RLWeightProfiles.getConfig()
+
     config.enabled = false
     local cowOff, packOff = RLWeightProfiles.describe(select(2, Economics.find("COW_HOLSTEIN"))), RLWeightProfiles.describe(packBull)
     config.enabled = true
@@ -210,9 +215,9 @@ do
     for _, profile in pairs(config.profiles) do
         if profile.typeName == "COW" then profiles = profiles + 1 elseif profile.typeName == "SHEEP" then sheepProfiles = sheepProfiles + 1 end
     end
-    check(string.format("file: 22 physical cattle breeds and 3 map names (%d / %d), 16 sheep breeds of their own (%d, type off)", profiles,
+    check(string.format("file: 22 physical cattle breeds and 3 map names (%d / %d), 16 sheep breeds of their own (%d, default on)", profiles,
         (function() local n = 0; for _ in pairs(config.aliases) do n = n + 1 end; return n end)(), sheepProfiles),
-        profiles == 22 and sheepProfiles == 16 and config.types.SHEEP.enabled == false
+        profiles == 22 and sheepProfiles == 16 and config.types.SHEEP.enabled == true
         and config.aliases.CHAROLAISE.profile == "CHAROLAIS_PACK" and config.aliases.JERSEY.profile == "JERSEY_PACK")
 
     local xml = {

@@ -244,7 +244,7 @@
     <!-- nutrition="REAL": sheep take their curves only under the real-equivalent nutrition model
          (their budget is calibrated in its units, feedProfiles.xml species SHEEP); under the old
          model they keep the old rules. -->
-    <animalType name="SHEEP" enabled="false" status="S5_CALIBRATION_OFF" excludeBreeds="GOAT" castratedSpeed="0.86" nutrition="REAL"/>
+    <animalType name="SHEEP" enabled="true" status="S5_DEFAULT_ON" excludeBreeds="GOAT" castratedSpeed="0.86" nutrition="REAL"/>
     <profile name="LANDRACE" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="6.4" maleBirthFactor="1.07">  <!-- Merinolandschaf (DE) (A) -->
         <female knots="6:56 15:74.8 24:83.6 36:88"/>
         <male knots="2.6:42.67 6:72 15:108 24:133.9 36:144"/>
@@ -312,8 +312,8 @@
 
     <!--
         Pigs (pig P4, 2026-10-16; FS25_PigBreeds_离线准备_2026-10-16/growth-candidates-v2.json, 生长数据核对_v2.md). The animal
-        type is switched OFF and needs the real-equivalent nutrition model (nutrition="REAL"): there is no PIG section in
-        feedProfiles.xml or bodyCondition.xml yet (P5/P6), so even switched on every pig keeps the old weight rules.
+        type is switched ON and needs the real-equivalent nutrition model (nutrition="REAL"). Its species sections in
+        feedProfiles.xml and bodyCondition.xml feed growing pigs; breeding/young-pig pens retain Legacy feeding.
         Each curve is a pig on full stage-appropriate feed, standard genes, not pregnant. Knots are measured points where a
         source has them, else the v1 design candidate:
           LANDRACE   birth 1.52 kg both sexes (Canadian purebred, n 24884) split by the sex ratio below; 7.5 kg at 26 days
@@ -329,10 +329,10 @@
         a litter of 12; no first-litter factor of its own (the lighter gilt litters in small studies come with smaller
         litters, which litterStep already prices). castratedSpeed 1.0: barrows and entire boars weigh the same through
         92 kg in the Korean herd (92.6 / 92.2 kg at 152 days). The same birth means are in breedTraits.xml (birthFemaleKg)
-        for the old rules. Gravid mass and lactation settings are still the cattle root's: P6 sets the sow's before the
-        type can be switched on.
+        for the old rules. Gravid mass and lactation settings remain reserved for P6; pregnant/postpartum sows
+        stay behind the compatibility gate instead of using those cattle-root settings.
     -->
-    <animalType name="PIG" enabled="false" status="P4_CURVES_OFF" nutrition="REAL"
+    <animalType name="PIG" enabled="true" status="P5_DEFAULT_ON" nutrition="REAL"
         maleBirthFactor="1.035" birthWeightCV="0.20" firstBirthFactor="1"
         litterBase="12" litterStep="0.024" litterMin="0.80" litterMax="1.15" castratedSpeed="1.0"/>
     <profile name="LANDRACE" type="PIG" status="P4_REAL_KNOTS" birthFemaleKg="1.494">

@@ -32,7 +32,7 @@ check("English handbook: all 54 numbered player sections and 30 FAQs", numbered)
 check("English handbook: native text does not add DDS textures", englishNative)
 check("English handbook: baseline and opt-in/disabled boundaries retained",
     englishXml:getString("playerManual#baselineCommit") == xml:getString("playerManual#baselineCommit")
-    and englishText:find("S5_CALIBRATION_OFF", 1, true) ~= nil
+    and englishText:find("S5_DEFAULT_ON", 1, true) ~= nil
     and englishText:find("0.125", 1, true) ~= nil
     and englishText:find("199.90", 1, true) ~= nil)
 

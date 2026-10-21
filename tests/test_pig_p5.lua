@@ -145,8 +145,9 @@ check("preview: a sow pen gives its reason PIG_BREEDING_LEGACY, no error", okS a
 
 PigSim.enable(false)
 local okOff, ov, offErr, sameOff = preview(PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 12, 3) }, { PIGFOOD = 500 }))
-check("preview: with the PIG curves off (the default) a pig pen gives UNCOVERED_ANIMAL, no error", okOff and ov == nil
+check("preview: with the PIG curves explicitly off a pig pen gives UNCOVERED_ANIMAL, no error", okOff and ov == nil
     and offErr == "UNCOVERED_ANIMAL" and sameOff)
+RLWeightProfiles.getConfig().types.SHEEP.enabled = false
 local sheepPen = PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 13, 3) }, { PIGFOOD = 500 })
 local ewe = GrowthSim.makeAnimal("SHEEP_LANDRACE", { age = 24 })
 sheepPen.animals = { ewe }

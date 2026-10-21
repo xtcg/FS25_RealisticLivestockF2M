@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0.0 — 2026-10-22
+
+- Default new saves to Real-equivalent nutrition and enable sheep/pig v2 growth. Saved nutrition choices and user XML overrides remain authoritative; cattle growth, body condition and calf rearing stay on.
+- Promote the tested semen collection/batch/AI/economy changes, FS25 1.25 Animals page compatibility and bilingual player guide from dev, retaining the tested menu and translation compatibility fixes.
+- Keep the runtime archive name `FS25_RealisticLivestockRM.zip` for the existing dewar/hand-tool namespace; attach SHA256SUMS. Update the guide to the enabled defaults.
+- Dealer v2 and unfinished sow/litter nutrition remain gated. Pig feed-list and tool-description/illustration issues remain open; the unsuccessful r7 UI patch is excluded.
+
 ## 0.1.0.0 — 2026-10-18
 
 - First release in the Farm to Market 0.1 version series; continues the earlier 1.4.0.1-dev builds.

@@ -347,12 +347,12 @@ RLSettings.SETTINGS = {
 	},
 
 	-- Real-equivalent nutrition (RLFeed, xml/feedProfiles.xml): cattle intake and ration in real
-	-- dry matter and ME, with the game's feed at the resource scale. Legacy until it is accepted.
+	-- dry matter and ME, with the game's feed at the resource scale. Default on for new saves; saved choices are retained.
 	["nutritionMode"] = {
 		["index"] = 6,
 		["adminOnly"] = true,
 		["type"] = "MultiTextOption",
-		["default"] = 1,
+		["default"] = 2,
 		["values"] = { 1, 2 },
 		["callback"] = RLFeed.onSettingChanged
 	},

@@ -2,7 +2,7 @@
 <!--
     Feed profiles and the real-equivalent nutrition mode (scripts/feed).
 
-    Off by default: the mode is chosen per savegame in the RL settings (Nutrition model: Legacy /
+    On by default for new saves in 0.2.0.0: the mode is chosen per savegame in the RL settings (Nutrition model: Legacy /
     Real-equivalent). It runs only for cattle (animal type COW) under the weight model v2
     (weightProfiles.xml), with the body condition on and this file valid. In a pen it runs only
     when every animal in it is covered and no calf there is still on milk outside a calf rearing
@@ -500,7 +500,7 @@
     <!--
         Pigs (pig P5, 2026-10-16; FS25_PigBreeds_离线准备_2026-10-16/PIG_P5_单胃营养设计.md, p5_derive.py). Growing pigs on
         NRC (2012) Nutrient Requirements of Swine, chapter 8 (growing-finishing model); the species stays off until the
-        weight model's PIG type is enabled (it stays off). No rumen: monogastric (RLFeedRationPlanner.planMonogastric).
+        weight model's PIG type is enabled (on by default in 0.2.0.0). No rumen: monogastric (RLFeedRationPlanner.planMonogastric).
         - maintenanceMEPerKgMetabolic 0.8243 MJ per kg^0.60 (monogastric maintenanceExponent 0.60): 197 kcal ME x BW^0.60
           (Eq. 8-19).
         - Frame (everything but body lipid): its protein share from Eqs. 8-2, 8-3 and 8-5 (water and ash on body protein,

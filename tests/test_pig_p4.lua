@@ -30,8 +30,10 @@ for _, breed in ipairs(BREEDS) do
 end
 check("file: 3 pig profiles under PIG:<breed>, both sexes, valid knots (" .. table.concat(missing, " ") .. ")", #missing == 0 and ok)
 local pigType = config.types.PIG
-check("file: PIG is listed, switched off, and needs the real-equivalent nutrition model",
-    pigType ~= nil and pigType.enabled == false and pigType.nutrition == "REAL" and pigType.invalidReason == nil)
+check("file: PIG is enabled by default and needs the real-equivalent nutrition model",
+    pigType ~= nil and pigType.enabled == true and pigType.nutrition == "REAL" and pigType.invalidReason == nil)
+-- Exercise the disabled fallback explicitly, independently of the shipped default.
+pigType.enabled = false
 check("file: PIG:LANDRACE is not SHEEP:LANDRACE and no pig breed is a cattle profile",
     config.profiles["SHEEP:LANDRACE"] ~= nil and config.profiles["PIG:LANDRACE"] ~= config.profiles["SHEEP:LANDRACE"]
     and config.profiles.LANDRACE == nil and config.profiles.BERKSHIRE == nil and config.profiles.BLACK_PIED == nil)

@@ -8,6 +8,10 @@ Most settings are saved per-savegame and synced in multiplayer, and in multiplay
 
 ---
 
+## Farm to Market 0.2.0.0 nutrition defaults
+
+New saves default to **Real-equivalent** nutrition. Sheep and pig v2 growth are enabled in `weightProfiles.xml`; cattle growth, body condition and calf rearing remain enabled. Existing saves keep their stored nutrition choice, and local XML overrides take precedence over bundled defaults. Breeding/young-pig pens and unsupported species retain their Legacy feeding fallbacks. Dealer v2 remains disabled.
+
 ## Death & Accidents
 
 | Setting | Default | Options | Description |

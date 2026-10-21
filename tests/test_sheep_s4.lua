@@ -39,7 +39,10 @@ for _, breed in ipairs(BREEDS) do
 end
 check("file: 16 sheep profiles under SHEEP:<breed>, both sexes, knots rising from birth (" .. table.concat(missing, " ") .. ")",
     #missing == 0 and valid)
-check("file: SHEEP is listed and switched off", config.types.SHEEP ~= nil and config.types.SHEEP.enabled == false)
+check("file: SHEEP is enabled by default", config.types.SHEEP ~= nil and config.types.SHEEP.enabled == true)
+-- Keep explicit off-path coverage after validating the shipped defaults.
+config.types.SHEEP.enabled = false
+config.types.PIG.enabled = false
 check("file: no sheep breed lands among the cattle profiles", config.profiles.LANDRACE == nil and config.profiles.TEXEL == nil)
 
 -- Off: sheep keep the old rules; cattle and pigs resolve as before.

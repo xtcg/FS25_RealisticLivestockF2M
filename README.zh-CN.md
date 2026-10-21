@@ -6,6 +6,10 @@
 
 让畜牧经营不再只是喂养动物、等待成长和出售，而是一个需要考虑品种、遗传、饲料、生产周期、加工成本和市场行情的完整经营过程。
 
+## 0.2.0.0 默认设置
+
+新存档默认使用现实等效营养模式，猪、羊 v2 生长模型默认开启；牛生长、体况和犊牛养育继续开启。已有存档保留已保存的营养模式选择，用户自己的 `modSettings` 配置文件仍优先于包内默认值。怀孕／产后母猪和未断奶仔猪所在栏舍保留旧饲喂规则；山羊、Hof Bergmann 的独立 MILKCOW 类型仍按各自兼容规则处理。商人 v2 新交易通道保持关闭。
+
 ## 致谢与项目起源
 
 首先，衷心感谢 [Arrow-kb](https://github.com/Arrow-kb/FS25_RealisticLivestock) 创作了最初的 Realistic Livestock，以及 [Ritter](https://github.com/rittermod/FS25_RealisticLivestockRM) 在 Realistic Livestock RM 中持续进行的维护和扩展。
@@ -80,7 +84,7 @@
 - 本 Mod 不包含 Hof Bergmann 地图本体，地图需通过原作者的[官方渠道](https://www.lsfarming-mods.com/)单独获取。
 - 本项目基于 Realistic Livestock 的开源版本继续开发，并保留原项目的核心动物管理系统。
 - 采用 GPL-3.0 开源许可证。原项目及相关作者的贡献均保留署名；许可证见 [LICENSE](LICENSE)，对应源码公开于本仓库。
-- 当前安装包已更名为 `FS25_RealisticLivestockF2M.zip`（原名 `FS25_RealisticLivestockRM.zip`）。FS25 会使用 ZIP 文件名识别 Mod，更名可能影响已有存档和其他 Mod 的兼容性。升级前请备份存档，不要同时启用新旧两个 ZIP。
+- 0.2.0.0 安装包使用 `FS25_RealisticLivestockRM.zip`，保留已验证的精液罐／手持工具命名空间。项目名称仍为 Farm to Market。升级前请备份存档，并移除旧 `FS25_RealisticLivestockF2M.zip`，不要同时加载两个名称的包。
 - 本介绍主要涵盖畜牧生产与经济调整。更广泛的作物、农产品价格与投入品经济调整由独立项目 [FS25_EconomyTuner](https://github.com/xtcg/FS25_EconomyTuner)（原 FS25_SellPrices）负责。尚未发布的改动和验证状态以 [CHANGELOG.md](CHANGELOG.md) 为准。
 
 ## 相关独立 Mod（可选）
@@ -92,7 +96,7 @@
 
 ## 安装
 
-将 `FS25_RealisticLivestockF2M.zip` 放入 FS25 的 mods 文件夹，**无需解压**，然后在游戏中启用。更新前请备份存档，并移除旧版 `FS25_RealisticLivestockRM.zip`，不要同时加载新旧两个版本。
+将 `FS25_RealisticLivestockRM.zip` 放入 FS25 的 mods 文件夹，**无需解压**，然后在游戏中启用。更新前请备份存档并移除旧 `FS25_RealisticLivestockF2M.zip`，不要同时加载两个包。
 
 原有动物管理功能、兼容性及旧版迁移说明见[上游 README](docs/UPSTREAM_README.md) 和[用户指南](https://xtcg.github.io/FS25_RealisticLivestockF2M/)。
 
