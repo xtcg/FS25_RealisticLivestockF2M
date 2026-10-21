@@ -619,7 +619,8 @@ RLCalendar = { getMonthAndYear = function() return 3, 2 end }
 -- Now and then a genetic disease that shows (an affected animal): it must not be listed.
 g_diseaseManager = { setGeneticDiseasesForSaleAnimal = function(_, animal) animal.affected = math.random(1, 40) == 1 end }
 AnimalReproduction = { _clearOrphanedPregnancy = function(animal)
-    animal.pregnancy, animal.reproduction, animal.isPregnant = nil, 0, false end }
+    animal.pregnancy, animal.reproduction, animal.isPregnant = nil, 0, false end,
+    drawLitterSize = function() return 1 end }
 g_currentMission.environment = { currentMonotonicDay = 40 }
 g_currentMission.animalNameSystem = { getRandomName = function() return "Name" end }
 
@@ -636,8 +637,6 @@ function system:getVisualByAge() return { visualAnimal = { variations = { 1 } } 
 local animalMt = { __index = {
     getIdentifiers = function() return "id" end,
     setGenetics = function(self, g) self.genetics = g end,
-    -- Now and then no offspring, so an in-calf heifer loses her pregnancy after taking her id.
-    generateRandomOffspring = function() return math.random(1, 50) == 1 and 0 or 1 end,
     getHasAnyDisease = function(self) return self.affected == true end,
 } }
 Animal = { new = function(cfg)
@@ -709,9 +708,11 @@ local anySick = false
 for _, animal in ipairs(generated) do if animal:getHasAnyDisease() then anySick = true end end
 check(string.format("none showing a disease (%d rejected before taking an id)", sickRejected), not anySick and sickRejected > 0)
 local lostPregnancies = tonumber(AnimalSystem._formatSaleGenerationFailures(1, false, true):match("PREGNANCY=(%d+)") or 0)
-check(string.format("farm ids: one per accepted animal plus one per pregnancy lost after it (%d = %d + %d); light heifers and affected animals took none",
+-- A pregnant sale animal draws only her litter size (no second conception roll), so none loses
+-- her pregnancy after taking an id.
+check(string.format("farm ids: one per accepted animal, no pregnancy lost after it (%d = %d + %d); light heifers and affected animals took none",
     system.countries[1].farms[1].ids[1], #generated, lostPregnancies),
-    system.countries[1].farms[1].ids[1] == #generated + lostPregnancies and lostPregnancies > 0)
+    system.countries[1].farms[1].ids[1] == #generated + lostPregnancies and lostPregnancies == 0)
 
 local maxBull, maxHighland, maxCow = 0, 0, 0
 for _, animal in ipairs(generated) do

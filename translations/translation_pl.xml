@@ -321,6 +321,8 @@
         <text name="rl_strawReturn_otherBatch" text="Another batch: a straw goes back only into its own batch"/>
         <text name="rl_strawReturn_full" text="This dewar is full"/>
         <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
+        <text name="rl_semen_discardEmpty" text="Discard empty dewar"/>
+        <text name="rl_semen_discardConfirm" text="Discard this empty dewar? A straw taken from it can then only go into another dewar of its batch."/>
         <text name="rl_ui_averageSuccess" text="Average Success"/>
         <text name="rl_ui_success" text="Success"/>
 
@@ -336,6 +338,7 @@
         <text name="rl_insemination_recovering" text="This animal is still recovering from its previous pregnancy"/>
         <text name="rl_insemination_father" text="Inbreeding is not permitted"/>
         <text name="rl_insemination_pending" text="Oczekiwanie na potwierdzenie serwera"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="This animal is too young to be artificially inseminated"/>
 
 

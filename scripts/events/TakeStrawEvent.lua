@@ -1,7 +1,7 @@
 --- Sync straw pickup to the server. Mirror of ReturnStrawEvent with delta -1.
 --- Sent by the client after taking a straw from a dewar via the hand tool path.
---- The server's run() calls changeStraws(-1) which raises the dirty flag and
---- auto-deletes the dewar when empty.
+--- The server's run() calls changeStraws(-1, true), which raises the dirty flag and keeps the
+--- dewar when that was its last straw, so the straw can still go back.
 TakeStrawEvent = {}
 
 local TakeStrawEvent_mt = Class(TakeStrawEvent, Event)
@@ -66,6 +66,7 @@ function TakeStrawEvent:run(connection)
 		RLStrawLedger.record(RLStrawLedger.getUserId(connection), dewar)
 	end
 
-	self.object:changeStraws(-1)
+	-- A straw in hand may come back: the dewar stays when this was its last one.
+	self.object:changeStraws(-1, true)
 	Log:debug("TakeStrawEvent:run decremented dewar=%s", tostring(self.object:getUniqueId()))
 end

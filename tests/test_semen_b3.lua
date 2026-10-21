@@ -10,6 +10,13 @@ function RLMapBridge.isBreedingCompatible(male, female)
     return mg == fg
 end
 
+local function sourceOfRepo(path)
+    local h = assert(io.open(REPO .. path, "r"))
+    local t = h:read("*a")
+    h:close()
+    return t
+end
+
 local P = RLPedigree
 local L = P.LEVEL
 
@@ -189,7 +196,7 @@ RLMapBridge.groups = {}
 check("unknown names do not block", R.isSubTypeCompatible(nil, "GOAT"))
 
 local SUBS = { [1] = { name = "BULL_ANGUS" }, [2] = { name = "COW_ANGUS" }, [3] = { name = "RAM_GOAT" } }
-local typeFertility = 80
+local typeFertility = 800
 g_currentMission = { animalSystem = {
     getSubTypeByIndex = function(_, i) return SUBS[i] end,
     getTypeByIndex = function() return { fertility = { get = function() return typeFertility end },
@@ -220,13 +227,13 @@ check("AI: first cousin refused with the coefficient", okC2 == false and reasonC
 
 -- Chance = dam fertility (gene x age curve) x conception x batch quality
 heifer.genetics.fertility = 1
-typeFertility = 80
+typeFertility = 800
 local chance, parts = R.getInseminationChance(heifer, { success = 0.5 })
 check("chance parts: fertility 0.8, conception 0.75, quality 0.5", near(parts.fertility, 0.8, 1e-9)
     and near(parts.conception, 0.75, 1e-9) and parts.quality == 0.5)
 check("chance is their product", near(chance, 0.3, 1e-9))
 heifer.genetics.fertility = 1.5
-typeFertility = 100
+typeFertility = 1000
 local chance2, parts2 = R.getInseminationChance(heifer, { success = 0.8 })
 check("chance clamps the dam's fertility at 1", parts2.fertility == 1 and near(parts2.conception, 0.875, 1e-9)
     and near(chance2, 0.7, 1e-9))
@@ -252,7 +259,7 @@ do
         local rolls = { roll, 0.9 }
         local oldRandom = math.random
         math.random = function(...) if select("#", ...) > 0 then return oldRandom(...) end return table.remove(rolls, 1) end
-        typeFertility = 80
+        typeFertility = 800
         resolve(cow2, 1, 1)
         math.random = oldRandom
         return cow2, created
@@ -263,6 +270,107 @@ do
     local cowB, createdB = run(0.31)
     check("roll over the 30% chance fails", cowB.message == "INSEMINATION_FAIL" and createdB == nil and cowB.insemination == nil)
 end
+
+-- The age curve is per mille: the real curves in xml/animals.xml, read as the game reads them
+do
+    local xmlText = sourceOfRepo and sourceOfRepo("xml/animals.xml") or io.open(REPO .. "xml/animals.xml"):read("a")
+    local curves = {}
+    for typeName, body in xmlText:gmatch('<animal type="(%w+)".-<fertility>(.-)</fertility>') do
+        local keys = {}
+        for age, value in body:gmatch('ageMonth="([%d.]+)" value="([%d.]+)"') do keys[#keys + 1] = { tonumber(age), tonumber(value) } end
+        curves[typeName] = keys
+    end
+    -- AnimCurve with linear interpolation; two keys at one age are a step (the later one holds after it)
+    local function curve(keys)
+        return { get = function(_, age)
+            if age <= keys[1][1] then return keys[1][2] end
+            for i = #keys, 2, -1 do
+                local a, b = keys[i - 1], keys[i]
+                if age >= a[1] and age <= b[1] then
+                    if b[1] == a[1] then return b[2] end
+                    return a[2] + (b[2] - a[2]) * (age - a[1]) / (b[1] - a[1])
+                end
+            end
+            return keys[#keys][2]
+        end }
+    end
+    local count, maxSeen, allPerMille = 0, 0, true
+    for _, keys in pairs(curves) do
+        count = count + 1
+        local peak = 0
+        for _, k in ipairs(keys) do peak = math.max(peak, k[2]) end
+        maxSeen = math.max(maxSeen, peak)
+        if peak <= 100 or peak > 1000 then allPerMille = false end
+    end
+    check("real curves: every species' fertility curve is per mille (peak over 100, at most 1000)",
+        count >= 5 and allPerMille and maxSeen <= 1000)
+    check("real curves: the built-in default curve is per mille too",
+        source:find("FERTILITY_CURVE_SCALE = 1000", 1, true) ~= nil
+        and sourceOfRepo("scripts/animals/husbandry/RealisticLivestock_AnimalSystem.lua"):find('["fertilityScale"] = 1000', 1, true) ~= nil)
+
+    local cowType = { fertility = curve(curves.COW), fertilityScale = 1000, pregnancy = { average = 1, get = function() return 1 end } }
+    local saved = g_currentMission.animalSystem.getTypeByIndex
+    g_currentMission.animalSystem.getTypeByIndex = function() return cowType end
+    local cow = mkAnimal("RC")
+    cow.genetics.fertility = 1
+    cow.age = 24
+    check("real COW curve: 965 at 24 months is 96.5%, not capped at 100%", near(R.getOffspringFertility(cow), 0.965, 1e-9))
+    cow.age = 120
+    check("real COW curve: 120 months falls to 63.75%", near(R.getOffspringFertility(cow), 0.6375, 1e-9))
+    cow.age = 11
+    check("real COW curve: 0 before 12 months", R.getOffspringFertility(cow) == 0)
+    cow.age = 24
+    local c24, p24 = R.getInseminationChance(cow, { success = 0.5 })
+    check("real COW curve: average cow at 24 months, quality 50% -> 0.965 x 0.75 x 0.5",
+        near(c24, 0.965 * 0.75 * 0.5, 1e-9) and p24.ageRaw == 965 and p24.ageScale == 1000 and near(p24.ageFactor, 0.965, 1e-9))
+    cow.genetics.fertility = 0.6
+    check("real COW curve: a low-fertility gene now lowers the dam's term (0.6 x 0.965)",
+        near(R.getOffspringFertility(cow), 0.579, 1e-9))
+    g_currentMission.animalSystem.getTypeByIndex = saved
+end
+
+-- One roll: chance 0 always fails, chance 1 always conceives, and the pending insemination clears
+do
+    local start = assert(source:find("local function resolveInsemination", 1, true))
+    local finish = assert(source:find("--- Advance pregnancy or attempt natural conception.", start, true))
+    local resolve = assert(load("local AnimalReproduction, RLConstants = ...\n" .. source:sub(start, finish - 1)
+        .. "\nreturn resolveInsemination"))(R, RLConstants)
+    g_server = { broadcastEvent = function() end }
+    local function settle(quality, geneFertility, curveValue, roll)
+        local cow = mkAnimal("E")
+        cow.genetics.fertility = geneFertility
+        cow.clusterSystem = { owner = {} }
+        local rolls = 0
+        cow.addMessage = function(self, m) self.message = m end
+        cow.createPregnancy = function() end
+        cow.insemination = { country = 1, farmId = "1", uniqueId = "SIRE", subTypeIndex = 1, success = quality,
+            genetics = { metabolism = 1, quality = 1, health = 1, fertility = 1 } }
+        local oldRandom = math.random
+        math.random = function(...) if select("#", ...) > 0 then return oldRandom(...) end rolls = rolls + 1 return rolls == 1 and roll or 0.9 end
+        typeFertility = curveValue
+        resolve(cow, 1, 1)
+        math.random = oldRandom
+        return cow, rolls
+    end
+    local zero = settle(0, 1, 800, 0)
+    check("edge: chance 0 fails even on the lowest roll", zero.message == "INSEMINATION_FAIL" and zero.insemination == nil)
+    local one, rolls = settle(1, 2, 1000, 0.99999)
+    check("edge: chance 1 conceives even on the highest roll", one.message == "INSEMINATION_SUCCESS" and one.insemination == nil)
+    local _, failRolls = settle(0.5, 1, 800, 0.99)
+    check("edge: a failed settlement draws once, no litter", failRolls == 1)
+    check("edge: a conception draws once more, for the litter size only", rolls == 2)
+end
+
+-- The pregnant paths do not roll conception again; the dealer keeps its draw sequence
+check("pregnant sale animal and a reloaded pregnancy draw only the litter",
+    sourceOfRepo("scripts/animals/husbandry/RealisticLivestock_AnimalSystem.lua"):find("math.max(1, AnimalReproduction.drawLitterSize(animal))", 1, true) ~= nil
+    and sourceOfRepo("scripts/animal/AnimalPersistence.lua"):find("math.max(1, AnimalReproduction.drawLitterSize(animal))", 1, true) ~= nil)
+do
+    local binding = sourceOfRepo("scripts/dealer/RLDealerGameBinding.lua")
+    check("dealer: no curve read divided by 100 anywhere", not binding:find("/ 100)", 1, true)
+        and not source:find(":get(animal.age) / 100", 1, true))
+end
+check("AI dialog shows the settlement's own chance", sourceOfRepo("scripts/gui/AnimalAIDialog.lua"):find("AnimalReproduction.getInseminationChance(self.animal, dewar.animal)", 1, true) ~= nil)
 
 -- Batch quality: the mean of the old roll, no random
 loadMod("scripts/insemination/RLSemenBatch.lua")

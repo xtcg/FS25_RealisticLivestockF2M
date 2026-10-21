@@ -500,6 +500,7 @@ function HandToolAIStraw:onInseminate()
 	if g_server == nil then
 		if g_client == nil or not AnimalInseminationEvent.awaitServer(animal, self) then return end
 		spec.awaitingServer = true
+		spec.requestedAnimal = animal
 		g_client:getServerConnection():sendEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
 		Log:debug("onInseminate: straw held until the server answers")
 		return
@@ -507,6 +508,7 @@ function HandToolAIStraw:onInseminate()
 
 	animal:setInsemination(spec.animal)
 	g_server:broadcastEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
+	if AnimalReproduction ~= nil then AnimalReproduction.notifySubmitted(animal) end
 
 	spec.isEmpty = true
 	g_currentMission.handToolSystem:markHandToolForDeletion(self)
@@ -526,6 +528,7 @@ function HandToolAIStraw:onServerAnswer(accepted)
 	if accepted then
 		spec.isEmpty = true
 		g_currentMission.handToolSystem:markHandToolForDeletion(self)
+		if AnimalReproduction ~= nil then AnimalReproduction.notifySubmitted(spec.requestedAnimal) end
 		Log:debug("onServerAnswer: insemination accepted, straw marked for deletion")
 	else
 		Log:debug("onServerAnswer: insemination refused, straw kept")
@@ -534,7 +537,9 @@ function HandToolAIStraw:onServerAnswer(accepted)
 end
 
 
---- Return this straw to its parent dewar, sync via event, and delete the straw.
+--- Put this straw back into the targeted dewar. A host or single player checks the return rule
+--- and applies it here; a remote client sends a request and holds the straw until the server
+--- answers (ReturnStrawEvent -> onReturnAnswer), so a refused straw is never lost.
 function HandToolAIStraw:onReturnToDewar()
 
 	local spec = self[specName]
@@ -542,18 +547,55 @@ function HandToolAIStraw:onReturnToDewar()
 	local dewar = spec.targetedDewar
 	Log:trace("onReturnToDewar: dewar=%s isServer=%s", tostring(dewar), tostring(self.isServer))
 
-	if g_server ~= nil then
-		g_server:broadcastEvent(ReturnStrawEvent.new(dewar))
-	elseif g_client ~= nil then
-		g_client:getServerConnection():sendEvent(ReturnStrawEvent.new(dewar))
+	g_inputBinding:setActionEventActive(spec.activateActionEventId, false)
+
+	local refusal = self:getReturnRefusal(dewar)
+	if refusal ~= nil then
+		HandToolAIStraw.showReturnRefusal(refusal)
+		return
+	end
+
+	if g_server == nil then
+		if g_client == nil then return end
+		spec.awaitingServer = true
+		local requestId = ReturnStrawEvent.request(self, dewar, spec)
+		Log:debug("onReturnToDewar: request %d sent, straw held until the server answers", requestId)
+		return
 	end
 
 	dewar:changeStraws(1)
 	spec.isEmpty = true
-	g_inputBinding:setActionEventActive(spec.activateActionEventId, false)
-
 	g_currentMission.handToolSystem:markHandToolForDeletion(self)
-	Log:debug("onReturnToDewar: straw returned and marked for deletion (isServer=%s)", tostring(self.isServer))
+	Log:debug("onReturnToDewar: straw returned to dewar=%s straws=%s", tostring(dewar:getUniqueId()), tostring(dewar.straws))
+
+end
+
+
+--- Client: the server's answer to this straw's return. nil refusal: the dewar has it, the straw
+--- is used up; otherwise the player keeps the straw and sees why.
+function HandToolAIStraw:onReturnAnswer(refusal)
+
+	local spec = self[specName]
+	if self.isDeleted or spec == nil or not spec.awaitingServer then return end
+	spec.awaitingServer = false
+
+	if refusal == nil then
+		spec.isEmpty = true
+		g_currentMission.handToolSystem:markHandToolForDeletion(self)
+		Log:debug("onReturnAnswer: return accepted, straw marked for deletion")
+	else
+		HandToolAIStraw.showReturnRefusal(refusal)
+		Log:debug("onReturnAnswer: return refused (%s), straw kept", tostring(refusal))
+	end
+
+end
+
+
+function HandToolAIStraw.showReturnRefusal(refusal)
+
+	if g_currentMission ~= nil and g_currentMission.showBlinkingWarning ~= nil then
+		g_currentMission:showBlinkingWarning(RLStrawReturn.getText(refusal), 3000)
+	end
 
 end
 
