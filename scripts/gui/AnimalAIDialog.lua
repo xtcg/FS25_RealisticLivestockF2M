@@ -107,7 +107,11 @@ end
 function AnimalAIDialog:updateDewars()
 
     local farmDewars = g_dewarManager:getDewarsByFarm(self.farmId)
-    self.dewars = farmDewars and table.clone(farmDewars[self.animalTypeIndex], 5) or {}
+    self.dewars = {}
+    -- A dewar kept empty for a straw in hand to come back has nothing to inseminate with.
+    for _, dewar in ipairs(farmDewars and table.clone(farmDewars[self.animalTypeIndex], 5) or {}) do
+        if (dewar.straws or 0) > 0 then table.insert(self.dewars, dewar) end
+    end
 
     self:resetButtonStates()
     self.dewarList:reloadData()

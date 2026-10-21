@@ -325,6 +325,8 @@
         <text name="rl_strawReturn_otherBatch" text="批次不同：只能放回同批次的精液罐"/>
         <text name="rl_strawReturn_full" text="精液罐已满"/>
         <text name="rl_strawReturn_notHeld" text="服务器无此精液管记录"/>
+        <text name="rl_semen_discardEmpty" text="丢弃空精液罐"/>
+        <text name="rl_semen_discardConfirm" text="确定丢弃这个空精液罐？之后从中取出的精液管只能放回同批次的其他精液罐。"/>
         <text name="rl_ui_averageSuccess" text="平均成功率"/>
         <text name="rl_ui_success" text="成功率"/>
 

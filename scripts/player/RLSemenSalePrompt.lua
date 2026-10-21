@@ -40,6 +40,7 @@ end
 --- The prompt for a dewar: its value, or how many of its straws the month's dealer quota takes,
 --- or that the quota is used up.
 function RLSemenSalePrompt.getPromptText(dewar)
+    if (dewar.straws or 0) <= 0 then return g_i18n:getText("rl_semen_discardEmpty") end
     local straws = RLSemenCollection.getSellableStraws(dewar:getAnimal(), dewar.straws, dewar:getOwnerFarmId())
     if straws <= 0 then return g_i18n:getText("rl_semen_quotaFull") end
 
@@ -73,6 +74,14 @@ function RLSemenSalePrompt.onSell(playerInputComponent)
         Log:debug("RLSemenSalePrompt: K refused (dewar=%s owner=%s playerFarm=%s)", tostring(dewar),
             tostring(dewar ~= nil and dewar.getOwnerFarmId ~= nil and dewar:getOwnerFarmId()),
             tostring(g_localPlayer ~= nil and g_localPlayer.farmId))
+        return
+    end
+
+    -- A dewar kept empty after its last straw was taken by hand: discarding it is the only action.
+    if (dewar.straws or 0) <= 0 then
+        RLSemenSalePrompt.pendingDewar = dewar
+        YesNoDialog.show(RLSemenSalePrompt.onSellConfirmed, RLSemenSalePrompt,
+            g_i18n:getText("rl_semen_discardConfirm"), g_i18n:getText("rl_semen_discardEmpty"))
         return
     end
 

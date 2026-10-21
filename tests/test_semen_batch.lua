@@ -7,6 +7,7 @@ g_xmlManager = { addInitSchemaFunction = function() end }
 loadMod("scripts/insemination/RLSemenBatch.lua")
 loadMod("scripts/insemination/RLSemenCollection.lua")
 loadMod("scripts/insemination/RLStrawLedger.lua")
+loadMod("scripts/insemination/RLStrawReturn.lua")
 loadMod("scripts/insemination/DewarObjectStorageHook.lua")
 
 local B = RLSemenBatch
@@ -121,8 +122,8 @@ local sameBatch = dewar("D-B", B.stamp(sire(), B.SOURCE.COLLECTED, MONTH))
 local otherBatch = dewar("D-C", nextMonth)
 RLStrawLedger.held = {}
 RLStrawLedger.record("u", emptyGone)
-check("ledger: no return into another batch's dewar", not RLStrawLedger.spendForReturn("u", otherBatch))
-check("ledger: return into another dewar of the same batch", RLStrawLedger.spendForReturn("u", sameBatch) and RLStrawLedger.count("u") == 0)
+check("ledger: no return into another batch's dewar", not RLStrawLedger.spendForReturn("u", otherBatch, nil, 1))
+check("ledger: return into another dewar of the same batch", RLStrawLedger.spendForReturn("u", sameBatch, nil, 1) and RLStrawLedger.count("u") == 0)
 RLStrawLedger.record("u", emptyGone)
 RLStrawLedger.record("u", otherBatch)
 local used = RLStrawLedger.spendForSemen("u", { country = 6, farmId = "12", uniqueId = "77", batchId = nextMonth.batchId })
@@ -185,7 +186,6 @@ DewarData.setAnimal(raw, sire())
 check("dewar: raw old data set on a dewar gets the dewar's legacy id", raw[DewarData.SPEC_TABLE_NAME].animal.batchId == "L-D6")
 
 -- Hand-tool straw: back to its own dewar or another of its batch, never into another batch
-loadMod("scripts/insemination/RLStrawReturn.lua")
 loadMod("scripts/handTools/specializations/HandToolAIStraw.lua")
 local function straw(fromDewar, snapshot, owner)
     local t = { ["spec_FS25_RealisticLivestockRM.aiStraw"] = { dewarUniqueId = fromDewar, animal = snapshot } }
@@ -257,4 +257,44 @@ do
     local xml = io.open(REPO .. "objects/straw/straw.xml", "r")
     check("name: the straw's type text is a translation key", xml:read("a"):find("<typeDesc>%$l10n_rl_ui_aiStraw</typeDesc>") ~= nil)
     xml:close()
+end
+
+-- An empty dewar after a straw was taken by hand stays, also after a reload; other uses still delete it
+do
+    local savedServer, savedTimer = g_server, Timer
+    g_server = {}
+    local scheduled = 0
+    Timer = { createOneshot = function() scheduled = scheduled + 1 end }
+    local function live(id, straws)
+        local v = mkVehicle(id, c)
+        v[DewarData.SPEC_TABLE_NAME].straws = straws
+        v.isServer = true
+        function v:raiseDirtyFlags() end
+        function v:delete() self.isDeleted = true end
+        return v
+    end
+    local hand = live("D-H", 1)
+    DewarData.changeStraws(hand, -1, true)
+    check("empty: the last straw taken by hand keeps the dewar", not hand.isDeleted and hand.straws == 0)
+    DewarData.changeStraws(hand, 1)
+    DewarData.changeStraws(hand, -1)
+    check("empty: once kept, it stays kept", not hand.isDeleted)
+    DewarData.setStraws(hand, 0)
+    check("empty: setStraws(0) keeps it too", not hand.isDeleted)
+    local dialog = live("D-I", 1)
+    DewarData.changeStraws(dialog, -1)
+    check("empty: the last straw used from the dialog deletes it as before", dialog.isDeleted)
+
+    local x = fakeXMLTyped()
+    DewarData.saveToXMLFile(hand, x, "v")
+    local back = live("D-H", 0)
+    DewarData.loadDewarFromSavegame(back, x, "v")
+    check("empty: a kept dewar reloads empty and is not cleaned up",
+        back[DewarData.SPEC_TABLE_NAME].keepEmpty == true and back[DewarData.SPEC_TABLE_NAME].straws == 0 and scheduled == 0)
+    local zx = fakeXMLTyped()
+    DewarData.saveToXMLFile(live("D-Z", 0), zx, "v")
+    DewarData.loadDewarFromSavegame(live("D-Z", 0), zx, "v")
+    check("empty: an old zero-straw dewar is still cleaned up at load", scheduled == 1)
+
+    g_server, Timer = savedServer, savedTimer
 end
