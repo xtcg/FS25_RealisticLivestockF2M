@@ -96,6 +96,84 @@ local function isShownPage(frame)
 end
 
 
+--- Release a held pen-selector arrow. The selector's update() repeats inputLeft/inputRight
+--- and only afterwards pushes its next repeat time; when the reload behind that input throws,
+--- the time stays in the past and the selector steps through the pens on every frame.
+--- @param frame table the in-game menu's Animals page
+function RealisticLivestock_InGameMenuAnimalsFrame.stopSelectorRepeat(frame)
+    local selector = frame.subCategorySelector
+    if selector == nil then return end
+    selector.isLeftButtonPressed = false
+    selector.isRightButtonPressed = false
+    selector.delayTime = math.huge
+end
+
+
+--- Give back list cells left without a row. SmoothListElement:updateView links a cell before
+--- populating it and numbers it only afterwards; when the populate throws, that cell stays on
+--- screen with stale content, and every later updateView fails comparing its nil sectionIndex.
+--- @param list table the Animals page list
+--- @return integer recycled number of cells returned to the cell cache
+function RealisticLivestock_InGameMenuAnimalsFrame.recycleOrphanCells(list)
+    if list.elements == nil or list.queueReusableCell == nil or list.cellCache == nil then return 0 end
+    local orphans = {}
+    for _, cell in ipairs(list.elements) do
+        if cell.sectionIndex == nil or cell.indexInSection == nil then
+            orphans[#orphans + 1] = cell
+        end
+    end
+    local recycled = 0
+    for _, cell in ipairs(orphans) do
+        if list.cellCache[cell.reusableName] ~= nil then
+            list:queueReusableCell(cell)
+            recycled = recycled + 1
+        end
+    end
+    return recycled
+end
+
+
+--- A reload step threw: stop the selector repeating it and hide the previous animal's details.
+--- The first occurrence of an error per page opening is re-raised for the log; repeats of the
+--- same error are only counted, so one broken pen does not flood the log on every input.
+--- @return nil only returns (instead of raising) for a repeated error
+local function failReload(frame, callId, step, err)
+    RealisticLivestock_InGameMenuAnimalsFrame.stopSelectorRepeat(frame)
+    local recycled = RealisticLivestock_InGameMenuAnimalsFrame.recycleOrphanCells(frame.list)
+    if frame.animalBox ~= nil then frame.animalBox:setVisible(false) end
+    if frame.detailDescriptionText ~= nil then frame.detailDescriptionText:setVisible(false) end
+
+    local message = tostring(err)
+    frame.rlReloadErrors = frame.rlReloadErrors or {}
+    local seen = frame.rlReloadErrors[message]
+    frame.rlReloadErrors[message] = (seen or 0) + 1
+    if seen ~= nil then
+        Log:debug("InGameMenuAnimalsFrame:reloadList #%d: %s failed again (%d times): %s",
+            callId, step, seen + 1, message)
+        return
+    end
+    Log:error("InGameMenuAnimalsFrame:reloadList #%d: %s failed; list restored (%d stale cells recycled), selector released",
+        callId, step, recycled)
+    error(err, 0)
+end
+
+
+--- Reload the list rows; whatever happens, the click sound comes back on.
+--- @return boolean ok false when the rows failed (and the failure was a repeat, so not raised)
+local function reloadListData(frame, callId)
+    local ok, err = pcall(frame.list.reloadData, frame.list)
+    frame.list.soundDisabled = false
+    if not ok then
+        -- SmoothListElement:reloadData suppresses sound itself and lifts it only at its end.
+        if frame.list.setSoundSuppressed ~= nil then
+            frame.list:setSoundSuppressed(false)
+        end
+        failReload(frame, callId, "list reloadData", err)
+    end
+    return ok
+end
+
+
 -- Per-call counter so consecutive reloadList fires can be distinguished in
 -- the log when triaging menu-refresh churn (a single user action can fan out
 -- to many reloads via the publish chain).
@@ -119,9 +197,7 @@ function RealisticLivestock_InGameMenuAnimalsFrame:reloadList(superFunc)
 
     -- No printCallstack() here - it always emits an engine [ERROR] line, which
     -- would surface phantom ERRORs in support logs on this hot path.
-    -- No safeCall wrap either: it would silence GUI errors AND leak the
-    -- reloadData/soundDisabled mutations on throw (not finally-safe under xpcall).
-    -- Errors propagate up as expected.
+    -- Errors still propagate (see failReload), but only after the list is restored.
     Log:debug("InGameMenuAnimalsFrame:reloadList #%d enter: selectorState=%s, frame=%s",
         callId,
         tostring(self.subCategorySelector and self.subCategorySelector.getState and self.subCategorySelector:getState() or "?"),
@@ -136,14 +212,18 @@ function RealisticLivestock_InGameMenuAnimalsFrame:reloadList(superFunc)
     -- The base game's reloadList() seems to call list:reloadData() internally,
     -- which would scroll and fire selection events based on wrong order.
     local tSuperStart = getTimeSec()
-    local origReloadData = self.list.reloadData
+    local ownReloadData = rawget(self.list, "reloadData")
     self.list.reloadData = function() end
-    superFunc(self)
-    self.list.reloadData = origReloadData
+    local ok, err = pcall(superFunc, self)
+    self.list.reloadData = ownReloadData
+    if not ok then
+        failReload(self, callId, "base reloadList", err)
+        return
+    end
     local tSuperMs = (getTimeSec() - tSuperStart) * 1000
 
     if self.husbandrySubTypes == nil or #self.husbandrySubTypes == 0 then
-        self.list:reloadData()
+        if not reloadListData(self, callId) then return end
         Log:debug("InGameMenuAnimalsFrame:reloadList #%d exit: empty (super=%.2fms)", callId, tSuperMs)
         return
     end
@@ -170,14 +250,17 @@ function RealisticLivestock_InGameMenuAnimalsFrame:reloadList(superFunc)
         self.list.selectedSectionIndex = newSection
         self.list.selectedIndex = newIndex
         Log:trace("AnimalsFrame: pre-set selection to section %d index %d", newSection, newIndex)
+    elseif getSelectedAnimal(self) == nil then
+        -- Switched to another pen: an index from the previous pen can point past this pen's rows.
+        self.list.selectedSectionIndex = 1
+        self.list.selectedIndex = 1
     end
     local tFindMs = (getTimeSec() - tFindStart) * 1000
 
     -- Suppress click sound during reload.
     local tReloadDataStart = getTimeSec()
     self.list.soundDisabled = true
-    self.list:reloadData()
-    self.list.soundDisabled = false
+    if not reloadListData(self, callId) then return end
     local tReloadDataMs = (getTimeSec() - tReloadDataStart) * 1000
 
     Log:debug("InGameMenuAnimalsFrame:reloadList #%d exit: subTypes=%d super=%.2fms sort=%.2fms find=%.2fms reloadData=%.2fms",
@@ -278,6 +361,11 @@ function RealisticLivestock_InGameMenuAnimalsFrame:onFrameClose()
             break
         end
     end
+    RealisticLivestock_InGameMenuAnimalsFrame.stopSelectorRepeat(self)
+    for message, count in pairs(self.rlReloadErrors or {}) do
+        Log:warning("InGameMenuAnimalsFrame: reload error repeated %d times while open: %s", count, message)
+    end
+    self.rlReloadErrors = nil
     Log:debug("InGameMenuAnimalsFrame:onFrameClose: frame=%s, dataChangedSubscriptions=%d",
         tostring(self), RealisticLivestock_InGameMenuAnimalsFrame.countDataChangedSubscriptions(self))
 end
