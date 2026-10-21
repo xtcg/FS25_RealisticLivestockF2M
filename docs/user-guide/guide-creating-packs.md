@@ -175,7 +175,7 @@ These are set on the `<animal type="...">` element and affect all breeds of that
 | Property | XML | Format |
 |----------|-----|--------|
 | Pregnancy | `<pregnancy average="2" max="6"/>` | Average and max offspring count |
-| Fertility curve | `<fertility>` | AnimCurve: breeding probability by age |
+| Fertility curve | `<fertility>` | AnimCurve: breeding probability by age, per mille (`960` = 96%) |
 | Average buy age | `animal#averageBuyAge` | Months (integer) |
 | Maximum buy age | `animal#maxBuyAge` | Months (integer) |
 | Pasture space | `<pasture sqmPerAnimal="X"/>` | Square metres per animal (float) |

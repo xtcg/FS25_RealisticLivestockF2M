@@ -62,6 +62,9 @@ function DewarData:onLoad(savegame)
     local spec = self[DewarData.SPEC_TABLE_NAME]
     spec.animal = nil
     spec.straws = 0
+    -- A straw was taken from this dewar by hand: it stays when empty so that straw can go back
+    -- (RLStrawReturn). Selling or discarding it is the only way it goes.
+    spec.keepEmpty = false
     spec.texts = {}
     spec.dirtyFlag = self:getNextDirtyFlag()
     spec.isRegistered = false
@@ -132,6 +135,7 @@ function DewarData:loadDewarFromSavegame(xmlFile, key)
         self:setUniqueId(uniqueId)
     end
     spec.straws = xmlFile:getInt(key .. "#straws") or 0
+    spec.keepEmpty = xmlFile:getBool(key .. "#keepEmpty", false)
 
     local animalKey = key .. ".animal"
     if xmlFile:hasProperty(animalKey) then
@@ -185,13 +189,13 @@ function DewarData:loadDewarFromSavegame(xmlFile, key)
     DewarData.updateStrawVisuals(self)
     DewarData.updateAnimalVisuals(self)
 
-    -- Zero-straw zombie cleanup at load time.
+    -- Zero-straw zombie cleanup at load time. A dewar kept empty for a straw to come back stays.
     -- Direct self:delete() here is unsafe because the vehicle is still
     -- mid-load - synchronous delete would leave subsequent spec callbacks
     -- firing on a partially-torn vehicle. Defer via Timer.createOneshot(0, ...)
     -- so cleanup runs after the load chain completes - the same idiom
     -- RLMessageAggregator uses for post-day-change consolidation.
-    if g_server ~= nil and spec.straws <= 0 then
+    if g_server ~= nil and spec.straws <= 0 and not spec.keepEmpty then
         Log:warning("DewarData:loadDewarFromSavegame zombie uniqueId=%s straws=%d, scheduling deferred delete",
             tostring(self:getUniqueId()), spec.straws)
         local target = self
@@ -214,6 +218,7 @@ function DewarData:saveToXMLFile(xmlFile, key, usedModNames)
         xmlFile:setString(key .. "#uniqueId", dewarUniqueId)
     end
     xmlFile:setInt(key .. "#straws", spec.straws)
+    if spec.keepEmpty then xmlFile:setBool(key .. "#keepEmpty", true) end
 
     if spec.animal ~= nil then
         local animalKey = key .. ".animal"
@@ -384,7 +389,8 @@ end
 
 --- Set the straw count to an absolute value.
 ---
---- Server-side: if `value <= 0`, synchronously deletes the dewar via self:delete().
+--- Server-side: if `value <= 0`, synchronously deletes the dewar via self:delete(), unless it is
+--- kept empty for a straw taken from it by hand (spec.keepEmpty).
 --- **Contract: callers MUST NOT touch `self` after setStraws(0) returns** - the
 --- vehicle has been deleted. This mirrors the changeStraws zero-path contract.
 ---
@@ -396,7 +402,7 @@ function DewarData:setStraws(value)
     spec.straws = value or 0
     self.straws = spec.straws
 
-    if g_server ~= nil and spec.straws <= 0 then
+    if g_server ~= nil and spec.straws <= 0 and not spec.keepEmpty then
         DewarData.updateStrawVisuals(self)
         Log:info("DewarData:setStraws(0) auto-deleting empty dewar uniqueId=%s",
             tostring(self:getUniqueId()))
@@ -413,12 +419,17 @@ function DewarData:setStraws(value)
 end
 
 
-function DewarData:changeStraws(delta)
+--- Change the straw count by `delta`. Server-side, a dewar reaching 0 is deleted, unless
+--- `keepEmpty` (a straw taken by hand, which may come back) or an earlier such take keeps it.
+---@param delta number
+---@param keepEmpty boolean|nil
+function DewarData:changeStraws(delta, keepEmpty)
     local spec = self[DewarData.SPEC_TABLE_NAME]
     spec.straws = math.clamp(spec.straws + delta, 0, DewarData.CAPACITY)
     self.straws = spec.straws
+    if keepEmpty then spec.keepEmpty = true end
 
-    if spec.straws <= 0 then
+    if spec.straws <= 0 and not spec.keepEmpty then
         -- Update visuals to the "0 straws" frame on BOTH server and client BEFORE
         -- exit so the 3D sticky note shows empty for the last frame before delete
         -- (server) or before the early-return (client; the vehicle survives

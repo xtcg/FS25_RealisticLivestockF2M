@@ -268,6 +268,9 @@
 
         <text name="rl_ui_castrated" text="Castrated"/>
         <text name="rl_ui_castrate" text="Castrate"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Confirmar castração"/>
+        <text name="rl_ui_castrateConfirmYes" text="Castrar"/>
+        <text name="rl_ui_castrateConfirm" text="Castrar %s (%s)?&#10;O animal perde permanentemente a capacidade de reprodução e de coleta de sêmen. Esta ação não pode ser desfeita."/>
         <text name="rl_ui_unknownCauses" text="unknown causes"/>
         <text name="rl_ui_unreadMessages" text="Husbandry '%s' has unread messages!"/>
         <text name="rl_ui_herdsman" text="Herdsman"/>
@@ -310,6 +313,16 @@
         <text name="rl_ui_inseminateAnimal" text="Inseminate %s"/>
         <text name="rl_ui_inseminate" text="Inseminate"/>
         <text name="rl_ui_strawEmpty" text="This straw is empty"/>
+        <text name="rl_ui_aiStraw" text="Semen straw"/>
+        <text name="rl_ui_returnStraw" text="Return straw"/>
+        <text name="rl_strawReturn_used" text="This straw has been used"/>
+        <text name="rl_strawReturn_missing" text="This dewar is no longer there"/>
+        <text name="rl_strawReturn_otherFarm" text="This dewar belongs to another farm"/>
+        <text name="rl_strawReturn_otherBatch" text="Another batch: a straw goes back only into its own batch"/>
+        <text name="rl_strawReturn_full" text="This dewar is full"/>
+        <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
+        <text name="rl_semen_discardEmpty" text="Discard empty dewar"/>
+        <text name="rl_semen_discardConfirm" text="Discard this empty dewar? A straw taken from it can then only go into another dewar of its batch."/>
         <text name="rl_ui_averageSuccess" text="Average Success"/>
         <text name="rl_ui_success" text="Success"/>
 
@@ -324,6 +337,8 @@
         <text name="rl_insemination_inseminated" text="This animal has already been artificially inseminated"/>
         <text name="rl_insemination_recovering" text="This animal is still recovering from its previous pregnancy"/>
         <text name="rl_insemination_father" text="Inbreeding is not permitted"/>
+        <text name="rl_insemination_pending" text="Aguardando confirmação do servidor"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="This animal is too young to be artificially inseminated"/>
 
 
@@ -958,6 +973,10 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Vender sêmen %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="O comerciante compra só mais %d palhetas este mês. Vendê-las das %d deste botijão por %s? O resto fica no botijão."/>
+        <text name="rl_semen_quotaFull" text="Vender sêmen (cota mensal esgotada)"/>
+        <text name="rl_semen_quotaFullInfo" text="O comerciante já comprou todo o sêmen próprio desta espécie que aceita este mês. Venda de novo no próximo mês."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_semen_collectionFee" text="Coleta de sêmen"/>

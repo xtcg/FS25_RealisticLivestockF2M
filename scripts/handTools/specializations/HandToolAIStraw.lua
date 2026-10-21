@@ -12,6 +12,7 @@ function HandToolAIStraw.registerFunctions(handTool)
 	SpecializationUtil.registerFunction(handTool, "updateStraw", HandToolAIStraw.updateStraw)
 	SpecializationUtil.registerFunction(handTool, "renderErrorText", HandToolAIStraw.renderErrorText)
 	SpecializationUtil.registerFunction(handTool, "getBelongsToDewar", HandToolAIStraw.getBelongsToDewar)
+	SpecializationUtil.registerFunction(handTool, "getReturnRefusal", HandToolAIStraw.getReturnRefusal)
 	SpecializationUtil.registerFunction(handTool, "onInseminate", HandToolAIStraw.onInseminate)
 	SpecializationUtil.registerFunction(handTool, "onReturnToDewar", HandToolAIStraw.onReturnToDewar)
 
@@ -20,6 +21,7 @@ end
 
 function HandToolAIStraw.registerOverwrittenFunctions(handTool)
 	SpecializationUtil.registerOverwrittenFunction(handTool, "getShowInHandToolsOverview", HandToolAIStraw.getShowInHandToolsOverview)
+	SpecializationUtil.registerOverwrittenFunction(handTool, "getName", HandToolAIStraw.getName)
 end
 
 
@@ -49,7 +51,7 @@ function HandToolAIStraw:onPostLoad(savegame)
 	if self.isClient then spec.defaultCrosshair = self:createCrosshairOverlay("gui.crosshairDefault") end
 
 	spec.inseminateText = g_i18n:getText("rl_ui_inseminateAnimal")
-	spec.returnText = "Return straw"
+	spec.returnText = g_i18n:getText("rl_ui_returnStraw")
 	spec.isEmpty = false
 	spec.textAlpha = 1
 	spec.textAlphaReverse = false
@@ -255,7 +257,8 @@ function HandToolAIStraw:updateStraw(dT)
 
 	spec.targetedPlaceable, spec.targetedAnimal, spec.targetedDewar = nil, nil, nil
 
-	if not player.isOwner then
+	-- Waiting for the server's answer: the straw can be neither used again nor put back.
+	if not player.isOwner or spec.awaitingServer then
 		spec.textAlpha = 1
 		spec.textAlphaReverse = false
 		g_inputBinding:setActionEventActive(spec.activateActionEventId, false)
@@ -275,11 +278,14 @@ function HandToolAIStraw:updateStraw(dT)
 
 	if placeable == nil or animal == nil then
 
-		local object = g_currentMission:getNodeObject(node)
+		-- A dewar is a vehicle (pallet): its collision is in the VEHICLE group.
+		local object = RLStrawReturn.findDewar(node, function(n) return g_currentMission:getNodeObject(n) end, getParent)
 
-        if object ~= nil and object.isDewar == true then
+        if object ~= nil then
 
-			if self:getBelongsToDewar(object) then
+			local refusal = self:getReturnRefusal(object)
+
+			if refusal == nil then
 				
 				spec.targetedDewar = object
 				spec.actionContext = "return"
@@ -290,7 +296,7 @@ function HandToolAIStraw:updateStraw(dT)
 
 				g_inputBinding:setActionEventActive(spec.activateActionEventId, false)
 
-				self:renderErrorText("This straw can not be returned to this dewar")
+				self:renderErrorText(RLStrawReturn.getText(refusal))
 
 			end
 
@@ -307,6 +313,11 @@ function HandToolAIStraw:updateStraw(dT)
 	end
 
 	local canBeInseminated, error = animal:getCanBeInseminatedByAnimal(spec.animal)
+
+	-- Another straw of this player already waits for the server's answer about this animal.
+	if canBeInseminated and g_server == nil and AnimalInseminationEvent.isAwaiting(animal) then
+		canBeInseminated, error = false, g_i18n:getText("rl_insemination_pending")
+	end
 
 	if spec.isEmpty or not canBeInseminated then
 
@@ -337,7 +348,7 @@ function HandToolAIStraw:onHeldStart()
 
 	if g_localPlayer == nil or self:getCarryingPlayer() ~= g_localPlayer or not g_localPlayer.isOwner then return end
 	
-	g_localPlayer.targeter:addTargetType(HandToolAIStraw, CollisionFlag.ANIMAL + CollisionFlag.DYNAMIC_OBJECT, 0.5, 3)
+	g_localPlayer.targeter:addTargetType(HandToolAIStraw, CollisionFlag.ANIMAL + CollisionFlag.DYNAMIC_OBJECT + CollisionFlag.VEHICLE, 0.5, 3)
 	g_localPlayer.hudUpdater:setCarriedItem(self)
 	g_aiStrawUpdater:setStraw(self)
 	g_currentMission:addUpdateable(g_aiStrawUpdater)
@@ -463,6 +474,7 @@ end
 function HandToolAIStraw:onActionFired()
 
 	local spec = self[specName]
+	if spec.awaitingServer then return end
 
 	if spec.actionContext == "inseminate" then
 		self:onInseminate()
@@ -474,6 +486,8 @@ end
 
 
 --- Apply insemination from this straw to the targeted animal, sync via event, and delete the straw.
+--- A remote client only sends the request and holds the straw: the server answers through
+--- AnimalInseminationEvent, and onServerAnswer then uses it up or gives it back.
 function HandToolAIStraw:onInseminate()
 
 	local spec = self[specName]
@@ -481,24 +495,51 @@ function HandToolAIStraw:onInseminate()
 	local husbandry, animal = spec.targetedPlaceable, spec.targetedAnimal
 	Log:trace("onInseminate: animal=%s husbandry=%s isServer=%s", tostring(animal), tostring(husbandry), tostring(self.isServer))
 
-	animal:setInsemination(spec.animal)
-
-	if g_server ~= nil then
-		g_server:broadcastEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
-	elseif g_client ~= nil then
-		g_client:getServerConnection():sendEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
-	end
-
-	spec.isEmpty = true
 	g_inputBinding:setActionEventActive(spec.activateActionEventId, false)
 
+	if g_server == nil then
+		if g_client == nil or not AnimalInseminationEvent.awaitServer(animal, self) then return end
+		spec.awaitingServer = true
+		spec.requestedAnimal = animal
+		g_client:getServerConnection():sendEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
+		Log:debug("onInseminate: straw held until the server answers")
+		return
+	end
+
+	animal:setInsemination(spec.animal)
+	g_server:broadcastEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
+	if AnimalReproduction ~= nil then AnimalReproduction.notifySubmitted(animal) end
+
+	spec.isEmpty = true
 	g_currentMission.handToolSystem:markHandToolForDeletion(self)
 	Log:debug("onInseminate: straw emptied and marked for deletion (isServer=%s)", tostring(self.isServer))
 
 end
 
 
---- Return this straw to its parent dewar, sync via event, and delete the straw.
+--- Client: the server's answer to this straw's insemination request. Accepted uses the straw up;
+--- refused gives it back to the player.
+function HandToolAIStraw:onServerAnswer(accepted)
+
+	local spec = self[specName]
+	if self.isDeleted or spec == nil or not spec.awaitingServer then return end
+	spec.awaitingServer = false
+
+	if accepted then
+		spec.isEmpty = true
+		g_currentMission.handToolSystem:markHandToolForDeletion(self)
+		if AnimalReproduction ~= nil then AnimalReproduction.notifySubmitted(spec.requestedAnimal) end
+		Log:debug("onServerAnswer: insemination accepted, straw marked for deletion")
+	else
+		Log:debug("onServerAnswer: insemination refused, straw kept")
+	end
+
+end
+
+
+--- Put this straw back into the targeted dewar. A host or single player checks the return rule
+--- and applies it here; a remote client sends a request and holds the straw until the server
+--- answers (ReturnStrawEvent -> onReturnAnswer), so a refused straw is never lost.
 function HandToolAIStraw:onReturnToDewar()
 
 	local spec = self[specName]
@@ -506,18 +547,55 @@ function HandToolAIStraw:onReturnToDewar()
 	local dewar = spec.targetedDewar
 	Log:trace("onReturnToDewar: dewar=%s isServer=%s", tostring(dewar), tostring(self.isServer))
 
-	if g_server ~= nil then
-		g_server:broadcastEvent(ReturnStrawEvent.new(dewar))
-	elseif g_client ~= nil then
-		g_client:getServerConnection():sendEvent(ReturnStrawEvent.new(dewar))
+	g_inputBinding:setActionEventActive(spec.activateActionEventId, false)
+
+	local refusal = self:getReturnRefusal(dewar)
+	if refusal ~= nil then
+		HandToolAIStraw.showReturnRefusal(refusal)
+		return
+	end
+
+	if g_server == nil then
+		if g_client == nil then return end
+		spec.awaitingServer = true
+		local requestId = ReturnStrawEvent.request(self, dewar, spec)
+		Log:debug("onReturnToDewar: request %d sent, straw held until the server answers", requestId)
+		return
 	end
 
 	dewar:changeStraws(1)
 	spec.isEmpty = true
-	g_inputBinding:setActionEventActive(spec.activateActionEventId, false)
-
 	g_currentMission.handToolSystem:markHandToolForDeletion(self)
-	Log:debug("onReturnToDewar: straw returned and marked for deletion (isServer=%s)", tostring(self.isServer))
+	Log:debug("onReturnToDewar: straw returned to dewar=%s straws=%s", tostring(dewar:getUniqueId()), tostring(dewar.straws))
+
+end
+
+
+--- Client: the server's answer to this straw's return. nil refusal: the dewar has it, the straw
+--- is used up; otherwise the player keeps the straw and sees why.
+function HandToolAIStraw:onReturnAnswer(refusal)
+
+	local spec = self[specName]
+	if self.isDeleted or spec == nil or not spec.awaitingServer then return end
+	spec.awaitingServer = false
+
+	if refusal == nil then
+		spec.isEmpty = true
+		g_currentMission.handToolSystem:markHandToolForDeletion(self)
+		Log:debug("onReturnAnswer: return accepted, straw marked for deletion")
+	else
+		HandToolAIStraw.showReturnRefusal(refusal)
+		Log:debug("onReturnAnswer: return refused (%s), straw kept", tostring(refusal))
+	end
+
+end
+
+
+function HandToolAIStraw.showReturnRefusal(refusal)
+
+	if g_currentMission ~= nil and g_currentMission.showBlinkingWarning ~= nil then
+		g_currentMission:showBlinkingWarning(RLStrawReturn.getText(refusal), 3000)
+	end
 
 end
 
@@ -525,6 +603,14 @@ end
 function HandToolAIStraw:getShowInHandToolsOverview()
 
 	return false
+
+end
+
+
+--- The straw has no store item, so the base getName (the store item's name) would be nil.
+function HandToolAIStraw:getName(superFunc)
+
+	return superFunc(self) or g_i18n:getText("rl_ui_aiStraw")
 
 end
 
@@ -545,18 +631,18 @@ function HandToolAIStraw:renderErrorText(text)
 end
 
 
---- A straw goes back to the dewar it came from, or to another dewar of the same batch (its own
---- may be empty and gone). Batches never mix: a legacy straw without a batch id returns to its
---- own dewar only.
+--- Why this straw cannot go into `dewar` (RLStrawReturn.REFUSAL), or nil when it can: its own
+--- dewar or another of the same batch, on the straw's farm, with room left.
+function HandToolAIStraw:getReturnRefusal(dewar)
+
+	return RLStrawReturn.getRefusal(self[specName], dewar, self:getOwnerFarmId())
+
+end
+
+
 function HandToolAIStraw:getBelongsToDewar(dewar)
 
-	local spec = self[specName]
-
-	if dewar:getUniqueId() == spec.dewarUniqueId then return true end
-
-	local dewarAnimal = dewar.getAnimal ~= nil and dewar:getAnimal() or nil
-	return spec.animal ~= nil and dewarAnimal ~= nil and spec.animal.batchId ~= nil
-		and dewarAnimal.batchId == spec.animal.batchId and dewar:getOwnerFarmId() == self:getOwnerFarmId()
+	return HandToolAIStraw.getReturnRefusal(self, dewar) == nil
 
 end
 

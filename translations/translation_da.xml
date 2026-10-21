@@ -266,6 +266,9 @@
 
         <text name="rl_ui_castrated" text="Steriliseret"/>
         <text name="rl_ui_castrate" text="Sterilisér"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Bekræft kastration"/>
+        <text name="rl_ui_castrateConfirmYes" text="Kastrer"/>
+        <text name="rl_ui_castrateConfirm" text="Kastrer %s (%s)?&#10;Dyret mister permanent evnen til at avle og give sæd. Det kan ikke fortrydes."/>
         <text name="rl_ui_unknownCauses" text="ukendte årsager"/>
         <text name="rl_ui_unreadMessages" text="Dyrehold '%s' har ulæste beskeder!"/>
         <text name="rl_ui_herdsman" text="Kvæghyrde"/>
@@ -308,6 +311,16 @@
         <text name="rl_ui_inseminateAnimal" text="Insiminer %s"/>
         <text name="rl_ui_inseminate" text="Insiminer"/>
         <text name="rl_ui_strawEmpty" text="Denne sprøjte er tom"/>
+        <text name="rl_ui_aiStraw" text="Semen straw"/>
+        <text name="rl_ui_returnStraw" text="Return straw"/>
+        <text name="rl_strawReturn_used" text="This straw has been used"/>
+        <text name="rl_strawReturn_missing" text="This dewar is no longer there"/>
+        <text name="rl_strawReturn_otherFarm" text="This dewar belongs to another farm"/>
+        <text name="rl_strawReturn_otherBatch" text="Another batch: a straw goes back only into its own batch"/>
+        <text name="rl_strawReturn_full" text="This dewar is full"/>
+        <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
+        <text name="rl_semen_discardEmpty" text="Discard empty dewar"/>
+        <text name="rl_semen_discardConfirm" text="Discard this empty dewar? A straw taken from it can then only go into another dewar of its batch."/>
         <text name="rl_ui_averageSuccess" text="Middel Succes"/>
         <text name="rl_ui_success" text="Sucess"/>
 
@@ -322,6 +335,8 @@
         <text name="rl_insemination_inseminated" text="Dette dyr er allerede blevet drægtiggjort ved assisteret avl"/>
         <text name="rl_insemination_recovering" text="Dette dyr er stadig ved at komme sig efter sin forrige drægtighed"/>
         <text name="rl_insemination_father" text="Indavl er ikke tilladt"/>
+        <text name="rl_insemination_pending" text="Venter på bekræftelse fra serveren"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Dette dyr er for ungt til at blive drægtiggjort ved assisteret avl"/>
 
 
@@ -953,6 +968,10 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Sælg sæd %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="Forhandleren køber kun %d strå mere denne måned. Sælg dem af de %d i beholderen for %s? Resten bliver i beholderen."/>
+        <text name="rl_semen_quotaFull" text="Sælg sæd (månedskvote brugt)"/>
+        <text name="rl_semen_quotaFullInfo" text="Forhandleren har købt al den egen sæd af denne art, den tager denne måned. Sælg igen næste måned."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_semen_collectionFee" text="Sædopsamling"/>

@@ -84,6 +84,7 @@ function AnimalAIDialog:onClickOk()
             dewar:changeStraws(-1)
             self.animal:setInsemination(dewar.animal)
             AIAnimalInseminationEvent.sendEvent(self.object, { { animal = self.animal, dewar = dewar } })
+            AnimalReproduction.notifySubmitted(self.animal)
             Log:info("AnimalAIDialog:onClickOk: inseminated uniqueId=%s via dewar=%s",
                 tostring(self.animal.uniqueId), tostring(uniqueId))
             break
@@ -107,7 +108,11 @@ end
 function AnimalAIDialog:updateDewars()
 
     local farmDewars = g_dewarManager:getDewarsByFarm(self.farmId)
-    self.dewars = farmDewars and table.clone(farmDewars[self.animalTypeIndex], 5) or {}
+    self.dewars = {}
+    -- A dewar kept empty for a straw in hand to come back has nothing to inseminate with.
+    for _, dewar in ipairs(farmDewars and table.clone(farmDewars[self.animalTypeIndex], 5) or {}) do
+        if (dewar.straws or 0) > 0 then table.insert(self.dewars, dewar) end
+    end
 
     self:resetButtonStates()
     self.dewarList:reloadData()

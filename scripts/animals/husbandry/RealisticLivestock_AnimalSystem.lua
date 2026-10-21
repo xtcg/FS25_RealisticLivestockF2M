@@ -465,6 +465,8 @@ function RealisticLivestock_AnimalSystem:loadAnimals(_, xmlFile, directory)
                     ["average"] = averageChildren
                 },
                 ["fertility"] = fertility,
+                -- Raw curve values are per mille (AnimalReproduction.getAgeFertility).
+                ["fertilityScale"] = 1000,
                 ["breeds"] = {}
 		    }
 
@@ -1274,6 +1276,8 @@ function AnimalSystem:loadFromXMLFile()
 
     -- Sold and dead ancestors (RLPedigree); live animals add theirs as they load.
     RLPedigree.loadFromXMLFile(xmlFile, rootKey .. ".pedigree")
+    -- Straws of the player's own semen the dealer bought this month (SALE_QUOTA).
+    RLSemenCollection.loadQuotaFromXMLFile(xmlFile, rootKey .. ".semenQuota")
 
     xmlFile:delete()
 
@@ -1394,6 +1398,7 @@ function AnimalSystem:saveToXMLFile(_)
     end)
 
     RLPedigree.saveToXMLFile(xmlFile, "rm_RlAnimalSystem.pedigree")
+    RLSemenCollection.saveQuotaToXMLFile(xmlFile, "rm_RlAnimalSystem.semenQuota")
 
     xmlFile:save(false, true)
     xmlFile:delete()
@@ -1712,7 +1717,8 @@ end
 --- off the subtype's.
 local function createSalePregnancy(self, animal, animalType, subType, subTypeIndex, genetics, plan, month, year)
 
-    local childNum = animal:generateRandomOffspring()
+    -- She is pregnant already: only the litter size is drawn, not another conception roll.
+    local childNum = math.max(1, AnimalReproduction.drawLitterSize(animal))
     local children = {}
 
     Log:trace("createNewSaleAnimal: generating %d offspring for %s(%d)",
