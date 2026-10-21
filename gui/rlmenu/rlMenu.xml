@@ -45,7 +45,8 @@
         </SmoothList>
     </Bitmap>
 
-    <!-- Bottom button bar - 9 slots for dynamic menu buttons (Back + Filter + up to 6 mutations + headroom) -->
+    <!-- Bottom button bar - 11 slots. A selected bull fills 10: Back, Filter, Cycle filter, Ration, Mark, Monitor,
+         Rename, Diseases, Castrate, Collect semen; a button without a slot is silently dropped. One spare. -->
     <BoxLayout profile="fs25_buttonBox" id="buttonsPanel">
         <Button profile="buttonBack" onClick="onClickBack" id="menuButton[1]">
             <Bitmap profile="fs25_buttonBoxSeparator" name="separator"/>
@@ -72,6 +73,12 @@
             <Bitmap profile="fs25_buttonBoxSeparator" name="separator"/>
         </Button>
         <Button profile="buttonBack" onClick="onClickBack" id="menuButton[9]">
+            <Bitmap profile="fs25_buttonBoxSeparator" name="separator"/>
+        </Button>
+        <Button profile="buttonBack" onClick="onClickBack" id="menuButton[10]">
+            <Bitmap profile="fs25_buttonBoxSeparator" name="separator"/>
+        </Button>
+        <Button profile="buttonBack" onClick="onClickBack" id="menuButton[11]">
             <Bitmap profile="fs25_buttonBoxSeparator" name="separator"/>
         </Button>
     </BoxLayout>

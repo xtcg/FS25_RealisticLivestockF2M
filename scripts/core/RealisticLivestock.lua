@@ -1,5 +1,6 @@
 RealisticLivestock = {}
 
+local modName = g_currentModName
 local modDirectory = g_currentModDirectory
 local hasLoaded = false
 
@@ -145,19 +146,19 @@ function RealisticLivestock.loadMap()
     -- accidental nilling must not leave persistence without a live registry.
     g_rlDealerSaleRegistry = g_rlDealerSaleRegistry or RLDealerSaleRegistry.new()
 
-    MoneyType.HERDSMAN_WAGES = MoneyType.register("herdsmanWages", "rl_ui_herdsmanWages")
+    MoneyType.HERDSMAN_WAGES = MoneyType.register("herdsmanWages", "rl_ui_herdsmanWages", modName)
     MoneyType.LAST_ID = MoneyType.LAST_ID + 1
 
-    MoneyType.SEMEN_PURCHASE = MoneyType.register("semenPurchase", "rl_ui_semenPurchase")
+    MoneyType.SEMEN_PURCHASE = MoneyType.register("semenPurchase", "rl_ui_semenPurchase", modName)
     MoneyType.LAST_ID = MoneyType.LAST_ID + 1
 
-    MoneyType.MEDICINE = MoneyType.register("medicine", "rl_ui_medicine")
+    MoneyType.MEDICINE = MoneyType.register("medicine", "rl_ui_medicine", modName)
     MoneyType.LAST_ID = MoneyType.LAST_ID + 1
 
-    MoneyType.SEMEN_SALE = MoneyType.register("semenSale", "rl_semen_sale")
+    MoneyType.SEMEN_SALE = MoneyType.register("semenSale", "rl_semen_sale", modName)
     MoneyType.LAST_ID = MoneyType.LAST_ID + 1
 
-    MoneyType.SEMEN_COLLECTION = MoneyType.register("semenCollection", "rl_semen_collectionFee")
+    MoneyType.SEMEN_COLLECTION = MoneyType.register("semenCollection", "rl_semen_collectionFee", modName)
     MoneyType.LAST_ID = MoneyType.LAST_ID + 1
 
     -- Migrate old PhysicsObject dewars from items.xml to Vehicle dewars

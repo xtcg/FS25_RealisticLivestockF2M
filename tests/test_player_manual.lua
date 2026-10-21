@@ -15,8 +15,9 @@ check("handbook language: every non-Chinese locale and unknown locale use Englis
 check("handbook language: case-insensitive and English tab outside Chinese",
     RLPlayerManual.getLanguage("CS") == "cs" and RLPlayerManual.getTabTitle("de") == "Player guide"
     and RLPlayerManual.getTabTitle("ct") == "玩家指南")
-check("English handbook: same 16-part structure including author appendix",
-    #englishChapters == #chapters and englishChapters[15].title == "Appendix - Author checks")
+check("English handbook: same 14-part player structure without intro or author appendix",
+    #englishChapters == #chapters and englishChapters[1].title == "Part 1 - Getting started"
+    and englishChapters[14].title == "Credits and feedback")
 local englishText, englishNative = "", true
 for _, chapter in ipairs(englishChapters) do
     for _, paragraph in ipairs(chapter.paragraphs) do
@@ -25,9 +26,9 @@ for _, chapter in ipairs(englishChapters) do
     end
 end
 local numbered = true
-for n = 1, 58 do numbered = numbered and englishText:find("\n" .. n .. "%.") ~= nil end
+for n = 1, 54 do numbered = numbered and englishText:find("\n" .. n .. "%.") ~= nil end
 for n = 1, 30 do numbered = numbered and englishText:find("\nQ" .. n .. "%.") ~= nil end
-check("English handbook: all 58 numbered sections and 30 FAQs", numbered)
+check("English handbook: all 54 numbered player sections and 30 FAQs", numbered)
 check("English handbook: native text does not add DDS textures", englishNative)
 check("English handbook: baseline and opt-in/disabled boundaries retained",
     englishXml:getString("playerManual#baselineCommit") == xml:getString("playerManual#baselineCommit")
@@ -35,7 +36,7 @@ check("English handbook: baseline and opt-in/disabled boundaries retained",
     and englishText:find("0.125", 1, true) ~= nil
     and englishText:find("199.90", 1, true) ~= nil)
 
-check("handbook: 16 nonempty chapters", #chapters == 16)
+check("handbook: 14 nonempty chapters", #chapters == 14)
 local paragraphs, headings = 0, 0
 for _, chapter in ipairs(chapters) do
     for _, paragraph in ipairs(chapter.paragraphs) do
@@ -44,7 +45,8 @@ for _, chapter in ipairs(chapters) do
     end
 end
 check("handbook: long-form content and navigation headings", paragraphs >= 300 and headings >= 90)
-check("handbook: author appendix separate from player chapters", chapters[15].title:find("附录", 1, true) ~= nil)
+check("handbook: intro and author appendix removed from player edition",
+    chapters[1].title:find("快速进入游戏", 1, true) ~= nil and chapters[13].title:find("术语速查", 1, true) ~= nil)
 local glyphs = {}
 local glyphFile = assert(io.open(REPO .. "tests/fs25_font_glyphs.txt", "r"))
 for line in glyphFile:lines() do
@@ -87,7 +89,7 @@ XMLFile = { load = function(_, filename)
         getInt = function(_, ...) return xml:getInt(...) end,
         delete = function() closed = true end }
 end }
-check("handbook: loader closes file", #RLPlayerManual.load("/mod/xml/playerManual_cs.xml") == 16 and closed)
+check("handbook: loader closes file", #RLPlayerManual.load("/mod/xml/playerManual_cs.xml") == 14 and closed)
 XMLFile.load = function() return nil end
 check("handbook: missing file has readable fallback", #RLPlayerManual.load("missing") == 1)
 local fallbackAttempts = {}

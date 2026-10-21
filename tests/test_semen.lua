@@ -809,3 +809,21 @@ end
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end
 end
+
+-- The info page's footer only shows buttons that have a slot in rlMenu.xml: a bull with the
+-- ration button filled ten, one more than the nine slots, and Collect semen silently vanished.
+do
+    local handle = assert(io.open(REPO .. "gui/rlmenu/rlMenu.xml", "r"))
+    local menuXml = handle:read("*a")
+    handle:close()
+    local slots = 0
+    for _ in menuXml:gmatch('id="menuButton%[%d+%]"') do slots = slots + 1 end
+    handle = assert(io.open(REPO .. "scripts/gui/rlmenu/frames/RLMenuInfoFrame.lua", "r"))
+    local source = handle:read("*a")
+    handle:close()
+    local body = source:match("function RLMenuInfoFrame:updateButtonVisibility%(%)(.-)\nend\n")
+    local buttons = 1 -- Back, set before the inserts
+    for _ in body:gmatch("table%.insert%(self%.menuButtonInfo,") do buttons = buttons + 1 end
+    check(string.format("info page footer: %d slots hold every button it can show (%d)", slots, buttons),
+        buttons >= 10 and slots >= buttons)
+end

@@ -34,6 +34,7 @@ source(modDirectory .. "scripts/utils/RLAnimalDisplayHelper.lua")
 source(modDirectory .. "scripts/utils/RLMoveDestinationHelper.lua")
 source(modDirectory .. "scripts/utils/RLTimeFormat.lua")
 source(modDirectory .. "scripts/utils/RLCalendar.lua")
+source(modDirectory .. "scripts/utils/RLDescriptionText.lua")
 
 -- SECTION 2c: Constants
 source(modDirectory .. "scripts/core/RLConstants.lua")

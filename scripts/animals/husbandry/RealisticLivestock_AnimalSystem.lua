@@ -763,6 +763,14 @@ function RealisticLivestock_AnimalSystem:loadVisualData(superFunc, animalType, x
 
     if visualData == nil then return nil end
 
+    -- The base game resolved the description lines in self.customEnvironment only, with a
+    -- global fallback, and keeps "Missing '<key>'" for an RL key used under the map's
+    -- environment. Rebuild it from the raw lines: environment, then RL, then global.
+    if visualData.store ~= nil then
+        local description = RLDescriptionText.resolve(xmlFile, key, self.customEnvironment)
+        if description ~= nil then visualData.store.description = description end
+    end
+
     -- xmlFile:getString returns nil for both missing AND empty attributes, so an
     -- explicit `marker=""` map override is treated identically to a missing attribute
     -- (no fill, no resolve).
