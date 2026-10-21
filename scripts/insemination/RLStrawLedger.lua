@@ -4,8 +4,9 @@
     or put back. The straw hand tool exists only on the client that holds it, so without this
     record the server would have to trust a client that says it is returning or using a straw.
 
-    TakeStrawEvent records a straw with a copy of its dewar's sire snapshot; ReturnStrawEvent and
-    the hand-tool AnimalInseminationEvent each spend one matching record, and insemination uses
+    TakeStrawEvent records a straw with a copy of its dewar's sire snapshot; ReturnStrawEvent (after
+    checking the return rule against that record) and the hand-tool AnimalInseminationEvent each
+    spend one matching record, and insemination uses
     the recorded snapshot rather than genetics the client sent. A host or single player applies
     these actions locally and never goes through the record.
 
@@ -56,28 +57,46 @@ function RLStrawLedger.count(userId)
 end
 
 
---- Spend one of the user's straws to put it back into `dewar`: a straw taken from that dewar, or
---- one of the same batch (RLSemenBatch). False when the user holds none.
-function RLStrawLedger.spendForReturn(userId, dewar)
+--- The user's straw that a return of `claim` (the straw's batch and its own dewar, as the client
+--- names it) into `dewar` would spend, without spending it: one of the claim's batch, preferring
+--- one taken from `dewar` itself.
+--- @return table|nil entry { dewarId, snapshot }, number|nil index
+function RLStrawLedger.findForReturn(userId, dewar, claim)
     local list = RLStrawLedger.held[userId]
-    local dewarId = dewar ~= nil and dewar:getUniqueId() or nil
-    local dewarAnimal = dewar ~= nil and dewar.getAnimal ~= nil and dewar:getAnimal() or nil
+    local dewarId = dewar ~= nil and dewar.getUniqueId ~= nil and dewar:getUniqueId() or nil
+    local fallback, fallbackIndex
 
     for i, entry in ipairs(list or {}) do
-        if entry.dewarId == dewarId then
-            table.remove(list, i)
-            return true
+        if claim == nil or RLSemenBatch.isSameBatch(entry.snapshot, claim) then
+            if entry.dewarId == dewarId then return entry, i end
+            if fallback == nil then fallback, fallbackIndex = entry, i end
         end
     end
 
-    for i, entry in ipairs(list or {}) do
-        if dewarAnimal ~= nil and dewarAnimal.batchId ~= nil and entry.snapshot.batchId == dewarAnimal.batchId then
-            table.remove(list, i)
-            return true
-        end
-    end
+    return fallback, fallbackIndex
+end
 
-    return false
+
+--- Spend the straw findForReturn found (by its index), once the return was checked.
+function RLStrawLedger.spendAt(userId, index)
+    local list = RLStrawLedger.held[userId]
+    if list == nil or index == nil or list[index] == nil then return nil end
+    return table.remove(list, index)
+end
+
+
+--- Spend one of the user's straws to put it back into `dewar` when the return rule
+--- (RLStrawReturn) allows it for a player of `farmId`.
+--- @return boolean spent, string|nil refusal (RLStrawReturn.REFUSAL) when nothing was spent
+function RLStrawLedger.spendForReturn(userId, dewar, claim, farmId)
+    local entry, index = RLStrawLedger.findForReturn(userId, dewar, claim)
+    if entry == nil then return false, RLStrawReturn.REFUSAL.NOT_HELD end
+
+    local refusal = RLStrawReturn.getRefusal({ animal = entry.snapshot, dewarUniqueId = entry.dewarId }, dewar, farmId)
+    if refusal ~= nil then return false, refusal end
+
+    RLStrawLedger.spendAt(userId, index)
+    return true
 end
 
 

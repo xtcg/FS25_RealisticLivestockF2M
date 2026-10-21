@@ -63,6 +63,7 @@ end
 loadMod("scripts/insemination/RLSemenBatch.lua")
 loadMod("scripts/insemination/RLSemenCollection.lua")
 loadMod("scripts/insemination/RLStrawLedger.lua")
+loadMod("scripts/insemination/RLStrawReturn.lua")
 loadMod("scripts/events/SemenSellEvent.lua")
 loadMod("scripts/events/SemenCollectEvent.lua")
 loadMod("scripts/events/TakeStrawEvent.lua")
@@ -152,6 +153,9 @@ SemenSellEvent.new(d):run(alice)
 check("sell: own dewar sold at the server's value and removed", near(MONEY[1], averageValue) and d.isDeleted)
 SemenSellEvent.new(mkDewar(1, average, 300)):run(makeConnection("alice", true))
 check("sell: event arriving from the server side is ignored", near(MONEY[1], averageValue))
+local emptyKept = mkDewar(1, { collected = true, success = 0.6, country = 6, farmId = "12", genetics = {} }, 0)
+SemenSellEvent.new(emptyKept):run(alice)
+check("sell: an empty dewar is discarded for nothing", emptyKept.isDeleted and near(MONEY[1], averageValue))
 
 -- SemenCollectEvent request (server)
 local sent, broadcast = {}, {}
@@ -233,15 +237,102 @@ local ownDewar = mkDewar(1, average, 10)
 local otherDewar = mkDewar(2, average, 10)
 TakeStrawEvent.new(otherDewar):run(aliceClient)
 check("ledger: taking from another farm's dewar refused", otherDewar.straws == 10 and RLStrawLedger.count("alice") == 0)
-ReturnStrawEvent.new(ownDewar):run(aliceClient)
-check("ledger: return without a straw on record refused", ownDewar.straws == 10)
+local function strawOf(dewar) return { animal = dewar:getAnimal(), dewarUniqueId = dewar:getUniqueId() } end
+local function lastAnswer() return sent[#sent] end
+ReturnStrawEvent.new(ownDewar, 1, strawOf(ownDewar)):run(aliceClient)
+check("ledger: return without a straw on record refused", ownDewar.straws == 10
+    and lastAnswer().mode == ReturnStrawEvent.MODE_ANSWER and lastAnswer().requestId == 1
+    and lastAnswer().refusal == RLStrawReturn.REFUSAL.NOT_HELD)
 TakeStrawEvent.new(ownDewar):run(aliceClient)
 check("ledger: take from own dewar recorded", ownDewar.straws == 9 and RLStrawLedger.count("alice") == 1)
-ReturnStrawEvent.new(ownDewar):run(aliceClient)
-ReturnStrawEvent.new(ownDewar):run(aliceClient)
-check("ledger: one straw returns once", ownDewar.straws == 10 and RLStrawLedger.count("alice") == 0)
-ReturnStrawEvent.new(ownDewar):run(makeConnection("x", true))
-check("ledger: return mirrored from the server applies", ownDewar.straws == 11)
+ReturnStrawEvent.new(ownDewar, 2, strawOf(ownDewar)):run(aliceClient)
+check("return: accepted adds exactly one straw and answers the request", ownDewar.straws == 10
+    and RLStrawLedger.count("alice") == 0 and lastAnswer().requestId == 2 and lastAnswer().refusal == nil)
+ReturnStrawEvent.new(ownDewar, 2, strawOf(ownDewar)):run(aliceClient)
+check("return: a repeated request is answered the same and adds nothing", ownDewar.straws == 10
+    and lastAnswer().requestId == 2 and lastAnswer().refusal == nil)
+ReturnStrawEvent.new(ownDewar, 3, strawOf(ownDewar)):run(aliceClient)
+check("ledger: one straw returns once", ownDewar.straws == 10 and lastAnswer().refusal == RLStrawReturn.REFUSAL.NOT_HELD)
+ReturnStrawEvent.new(ownDewar, 4, strawOf(ownDewar)):run(makeConnection("x", true))
+check("return: a request arriving from the server side is ignored", ownDewar.straws == 10)
+
+-- A refused return spends nothing: a full dewar, then another farm's dewar of the batch
+TakeStrawEvent.new(ownDewar):run(aliceClient)
+ownDewar.straws = DewarData.CAPACITY
+ReturnStrawEvent.new(ownDewar, 5, strawOf(ownDewar)):run(aliceClient)
+check("return: a full dewar refused, the straw stays on record", ownDewar.straws == DewarData.CAPACITY
+    and lastAnswer().refusal == RLStrawReturn.REFUSAL.FULL and RLStrawLedger.count("alice") == 1)
+ReturnStrawEvent.new(otherDewar, 6, strawOf(ownDewar)):run(aliceClient)
+check("return: another farm's dewar refused, the straw stays on record", otherDewar.straws == 10
+    and lastAnswer().refusal == RLStrawReturn.REFUSAL.OTHER_FARM and RLStrawLedger.count("alice") == 1)
+ownDewar.straws = 10
+ReturnStrawEvent.new(ownDewar, 7, strawOf(ownDewar)):run(aliceClient)
+check("return: then into its own dewar with room", ownDewar.straws == 11 and RLStrawLedger.count("alice") == 0)
+
+-- The last straw: the dewar stays (empty) and takes it back
+do
+    local last = mkDewar(1, average, 1)
+    local kept = true
+    function last:changeStraws(delta, keepEmpty)
+        self.straws = self.straws + delta
+        if self.straws <= 0 and not keepEmpty then kept = false end
+    end
+    TakeStrawEvent.new(last):run(aliceClient)
+    check("last straw: taking it keeps the empty dewar", last.straws == 0 and kept)
+    ReturnStrawEvent.new(last, 8, strawOf(last)):run(aliceClient)
+    check("last straw: it goes back into its empty dewar", last.straws == 1 and lastAnswer().refusal == nil)
+end
+
+-- Answers on the client: accepted uses the held straw up, refused gives it back with the reason
+do
+    loadMod("scripts/handTools/specializations/HandToolAIStraw.lua")
+    local key = "spec_FS25_RealisticLivestockRM.aiStraw"
+    local warnings, deleted = {}, {}
+    local savedServer, savedClient, savedInput, savedTools, savedWarn = g_server, g_client,
+        g_inputBinding, g_currentMission.handToolSystem, g_currentMission.showBlinkingWarning
+    g_server = nil
+    local requests = {}
+    g_client = { getServerConnection = function() return { sendEvent = function(_, e) requests[#requests + 1] = e end } end }
+    g_inputBinding = { setActionEventActive = function() end }
+    g_currentMission.handToolSystem = { markHandToolForDeletion = function(_, t) deleted[t] = true end }
+    g_currentMission.showBlinkingWarning = function(_, text) warnings[#warnings + 1] = text end
+    local target = mkDewar(1, average, 5)
+    local function heldStraw()
+        local t = { [key] = { animal = average, dewarUniqueId = target:getUniqueId(), targetedDewar = target } }
+        function t:getOwnerFarmId() return 1 end
+        function t:getReturnRefusal(d) return HandToolAIStraw.getReturnRefusal(self, d) end
+        return t
+    end
+    local a, b = heldStraw(), heldStraw()
+    HandToolAIStraw.onReturnToDewar(a)
+    HandToolAIStraw.onReturnToDewar(a)
+    HandToolAIStraw.onReturnToDewar(b)
+    check("client return: one request per straw, the straw held and not added locally",
+        #requests == 2 and a[key].awaitingServer and target.straws == 5 and not deleted[a])
+    local warned = #warnings
+    ReturnStrawEvent.newAnswer(requests[2].requestId, RLStrawReturn.REFUSAL.FULL):run(makeConnection("server", true))
+    check("client return: a refusal keeps the straw and says why", not deleted[b] and not b[key].awaitingServer
+        and not b[key].isEmpty and #warnings == warned + 1 and warnings[#warnings] == "rl_strawReturn_full")
+    ReturnStrawEvent.newAnswer(requests[1].requestId, nil):run(makeConnection("server", true))
+    check("client return: accepted uses the straw up", deleted[a] and a[key].isEmpty and next(ReturnStrawEvent.pending) == nil)
+    ReturnStrawEvent.newAnswer(requests[1].requestId, nil):run(aliceClient)
+    check("client return: an answer from a client is ignored", next(ReturnStrawEvent.pending) == nil)
+
+    -- Host: the rule is checked locally; a refused straw stays in hand
+    g_server = { broadcastEvent = function() end }
+    local full = mkDewar(1, average, DewarData.CAPACITY)
+    local c = heldStraw()
+    c[key].targetedDewar = full
+    c[key].dewarUniqueId = full:getUniqueId()
+    HandToolAIStraw.onReturnToDewar(c)
+    check("host return: a full dewar refused, the straw kept", not deleted[c] and full.straws == DewarData.CAPACITY)
+    local d = heldStraw()
+    HandToolAIStraw.onReturnToDewar(d)
+    check("host return: accepted adds one and uses the straw up", deleted[d] and target.straws == 6)
+
+    g_server, g_client, g_inputBinding, g_currentMission.handToolSystem, g_currentMission.showBlinkingWarning =
+        savedServer, savedClient, savedInput, savedTools, savedWarn
+end
 
 local cow = mkAnimal(2, 30, 1)
 cow.setInsemination = function(self, semen) self.insemination = semen end
