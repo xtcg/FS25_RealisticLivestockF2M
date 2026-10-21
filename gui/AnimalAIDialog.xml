@@ -44,6 +44,9 @@
 			<ThreePartBitmap profile="rl_sliderBox">
 				<Slider profile="fs25_listSlider" dataElementId="dewarList"/>
 			</ThreePartBitmap>
+
+			<Text profile="rl_animalAIDialogDetail" position="10px 44px" id="chanceText"/>
+			<Text profile="rl_animalAIDialogDetail" position="10px 12px" id="pedigreeText"/>
 			
 		</GuiElement>
 		<BoxLayout profile="fs25_dialogButtonBox">
@@ -54,6 +57,13 @@
 	<GuiProfiles>
 		<Profile name="rl_animalAIDialogBg" extends="fs25_dialogBg">
 			<size value="85% 75%"/>
+		</Profile>
+		<Profile name="rl_animalAIDialogDetail" extends="baseReference" with="anchorBottomLeft">
+			<size value="1450px 28px"/>
+			<textSize value="16px"/>
+			<textBold value="false"/>
+			<textColor value="$preset_fs25_colorMainLight"/>
+			<textVerticalAlignment value="middle"/>
 		</Profile>
 	</GuiProfiles>
 </GUI>

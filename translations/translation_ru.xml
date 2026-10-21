@@ -266,6 +266,9 @@
 
         <text name="rl_ui_castrated" text="Стерилизован(а)"/>
         <text name="rl_ui_castrate" text="Стерилизация"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Подтвердите кастрацию"/>
+        <text name="rl_ui_castrateConfirmYes" text="Кастрировать"/>
+        <text name="rl_ui_castrateConfirm" text="Кастрировать %s (%s)?&#10;Животное навсегда потеряет способность к размножению и получению семени. Отменить это нельзя."/>
         <text name="rl_ui_unknownCauses" text="неизвестные причины"/>
         <text name="rl_ui_unreadMessages" text="В хозяйстве '%s' есть непрочитанные сообщения!"/>
         <text name="rl_ui_herdsman" text="Пастух"/>
@@ -308,6 +311,16 @@
         <text name="rl_ui_inseminateAnimal" text="Осеменить %s"/>
         <text name="rl_ui_inseminate" text="Осеменить"/>
         <text name="rl_ui_strawEmpty" text="Эта соломинка пуста"/>
+        <text name="rl_ui_aiStraw" text="Semen straw"/>
+        <text name="rl_ui_returnStraw" text="Return straw"/>
+        <text name="rl_strawReturn_used" text="This straw has been used"/>
+        <text name="rl_strawReturn_missing" text="This dewar is no longer there"/>
+        <text name="rl_strawReturn_otherFarm" text="This dewar belongs to another farm"/>
+        <text name="rl_strawReturn_otherBatch" text="Another batch: a straw goes back only into its own batch"/>
+        <text name="rl_strawReturn_full" text="This dewar is full"/>
+        <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
+        <text name="rl_semen_discardEmpty" text="Discard empty dewar"/>
+        <text name="rl_semen_discardConfirm" text="Discard this empty dewar? A straw taken from it can then only go into another dewar of its batch."/>
         <text name="rl_ui_averageSuccess" text="Средняя успешность"/>
         <text name="rl_ui_success" text="Успешно"/>
 
@@ -322,6 +335,8 @@
         <text name="rl_insemination_inseminated" text="Это животное уже было искусственно осеменено"/>
         <text name="rl_insemination_recovering" text="Это животное все еще восстанавливается после предыдущей беременности"/>
         <text name="rl_insemination_father" text="Инбридинг (близкородственное скрещивание) запрещен"/>
+        <text name="rl_insemination_pending" text="Ожидание подтверждения сервера"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Это животное слишком молодо для искусственного осеменения"/>
 
 
@@ -956,6 +971,10 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Продать семя %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="Торговец в этом месяце купит ещё только %d соломинок. Продать их из %d в сосуде за %s? Остальное останется в сосуде."/>
+        <text name="rl_semen_quotaFull" text="Продать семя (месячная квота исчерпана)"/>
+        <text name="rl_semen_quotaFullInfo" text="Торговец в этом месяце уже купил всё собственное семя этого вида, которое берёт. Продайте снова в следующем месяце."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_semen_collectionFee" text="Сбор семени"/>
@@ -972,6 +991,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Куплено"/>
         <text name="rl_semen_sourceLEGACY" text="Старый запас"/>
         <text name="rl_semen_batchMonth" text="Месяц партии"/>
+        <text name="rl_insemination_incompatible" text="Семя не подходит для этой породы"/>
+        <text name="rl_pedigree_forbidden" text="Инбридинг %s: слишком близкое родство, запрещено"/>
+        <text name="rl_pedigree_adviseAgainst" text="Инбридинг %s: близкое родство, не рекомендуется"/>
+        <text name="rl_pedigree_info" text="Инбридинг потомства %s"/>
+        <text name="rl_pedigree_none" text="Общих предков не найдено"/>
+        <text name="rl_ai_chance" text="Качество партии %s | Ожидаемое оплодотворение этой самки %s (плодовитость %s x зачатие %s x партия %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

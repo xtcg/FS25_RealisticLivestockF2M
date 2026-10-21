@@ -15,6 +15,11 @@
 
 AnimalReproduction = { SOURCE_BIRTH_VERSION = 1 }
 
+--- The age fertility curve (animalType.fertility) is per mille: RLRM's xml/animals.xml, a map's
+--- RL-format override (RLMapBridge) and the built-in default curve all peak below 1000 (e.g. 985).
+--- The loader keeps raw values, so every reader divides by the type's fertilityScale.
+AnimalReproduction.FERTILITY_CURVE_SCALE = 1000
+
 local Log = RmLogging.getLogger("RLRM")
 
 
@@ -44,16 +49,25 @@ local function resolveInsemination(animal, month, year)
     Log:trace("resolveInsemination: animal=%s insemination from %s/%s",
         animal.uniqueId or "?", tostring(insemination.farmId), tostring(insemination.uniqueId))
 
-    local fertility = AnimalReproduction.getConceptionFertility(animal)
-    local childNum = animal:generateRandomOffspring()
-    -- The dam's roll: the old (2 - fertility) x 0.25 threshold as a probability, times her body
-    -- condition factor (RLBodyCondition, 1 at a normal BCS, so the old roll). Same random calls.
-    local conception = RLBodyCondition.getConceptionProbability(fertility, 0.25, RLBodyCondition.getFertilityFactor(animal))
+    -- One roll against the chance the AI dialog shows: the dam's fertility, her conception
+    -- (fertility gene, disease, body condition) and the batch's quality. The litter size is
+    -- drawn only once she has conceived.
+    local chance, parts = AnimalReproduction.getInseminationChance(animal, insemination)
+    local fertility = parts.conceptionFertility
+    local childNum = 0
 
-    if childNum > 0
-        and math.random() >= 1 - conception
-        and math.random() <= insemination.success * (math.random(80, 120) / 100)
-    then
+    local roll = math.random()
+    if roll < chance then childNum = math.max(1, AnimalReproduction.drawLitterSize(animal)) end
+
+    Log:info("Insemination result: dam=%s age=%s sire=%s %s %s batch=%s | age curve %s/%s=%.3f x gene %.3f -> fertility %.3f"
+        .. " | conception (gene x disease %.3f, condition %.3f) %.3f | semen quality %.3f | chance %.4f roll %.4f -> %s (litter %d)",
+        animal.getIdentifiers ~= nil and animal:getIdentifiers() or tostring(animal.uniqueId), tostring(animal.age),
+        tostring(insemination.country), tostring(insemination.farmId), tostring(insemination.uniqueId),
+        tostring(insemination.batchId), tostring(parts.ageRaw), tostring(parts.ageScale), parts.ageFactor or 0,
+        parts.genetic or 0, parts.fertility or 0, parts.conceptionFertility or 0, parts.conditionFactor or 0,
+        parts.conception or 0, parts.quality or 0, chance, roll, childNum > 0 and "CONCEIVED" or "NOT CONCEIVED", childNum)
+
+    if childNum > 0 then
         animal:addMessage("INSEMINATION_SUCCESS")
         g_server:broadcastEvent(AnimalInseminationResultEvent.new(
             animal.clusterSystem.owner, animal, true))
@@ -410,15 +424,13 @@ function AnimalReproduction.createPregnancy(animal, childNum, month, year, fathe
 
             if otherAnimal.gender ~= "male" or otherAnimal.isCastrated or otherAnimal.genetics.fertility <= 0 or otherAnimal:getIdentifiers() == animal.fatherId then continue end
 
-            if otherAnimal.subType == "BULL_WATERBUFFALO" and animal.subType ~= "COW_WATERBUFFALO" then continue end
-            if otherAnimal.subType == "RAM_GOAT" and animal.subType ~= "GOAT" then continue end
-            if animal.subType == "COW_WATERBUFFALO" and otherAnimal.subType ~= "BULL_WATERBUFFALO" then continue end
-            if animal.subType == "GOAT" and otherAnimal.subType ~= "RAM_GOAT" then continue end
+            if not AnimalReproduction.isSubTypeCompatible(otherAnimal.subType, animal.subType) then
+                Log:debug("createPregnancy: '%s' cannot sire '%s', skipping father", tostring(otherAnimal.subType), tostring(animal.subType))
+                continue
+            end
 
-            -- Bridge breeding compatibility check
-            if RLMapBridge.isBreedingCompatible(otherAnimal.subType, animal.subType) == false then
-                Log:debug("createPregnancy: Bridge says '%s' incompatible with '%s', skipping father",
-                    otherAnimal.subType, animal.subType)
+            if select(2, RLPedigree.checkMating(animal, otherAnimal)) == RLPedigree.LEVEL.FORBIDDEN then
+                Log:debug("createPregnancy: '%s' is a close relative of %s, skipping father", otherAnimal:getIdentifiers(), animal:getIdentifiers())
                 continue
             end
 
@@ -703,27 +715,49 @@ function AnimalReproduction.createPregnancy(animal, childNum, month, year, fathe
 end
 
 
+--- The age term of fertility for `animalType` at `age` months: the curve's raw value over its
+--- unit (fertilityScale, per mille), 0..1. One reader for natural mating, insemination and the dealer.
+--- @return number factor 0..1, number raw, number scale
+function AnimalReproduction.getAgeFertility(animalType, age)
+    local scale = animalType.fertilityScale or AnimalReproduction.FERTILITY_CURVE_SCALE
+    local raw = animalType.fertility:get(age) or 0
+    return math.clamp(raw / scale, 0, 1), raw, scale
+end
+
+
+--- The dam's own chance to carry a litter this attempt: her fertility gene times her species'
+--- age curve (AnimalReproduction.getAgeFertility).
+--- @param animal table Animal instance
+--- @return number chance 0..1
+function AnimalReproduction.getOffspringFertility(animal)
+    local animalType = g_currentMission.animalSystem:getTypeByIndex(animal.animalTypeIndex)
+    local age = AnimalReproduction.getAgeFertility(animalType, animal.age)
+    return math.clamp(animal.genetics.fertility * age, 0, 1)
+end
+
+
+--- The size of a litter once one is carried: the species average three times in four,
+--- otherwise drawn from the pregnancy table scaled by fertility.
+--- @param animal table Animal instance
+--- @return number count
+function AnimalReproduction.drawLitterSize(animal)
+    local animalType = g_currentMission.animalSystem:getTypeByIndex(animal.animalTypeIndex)
+    local factor = 0.75 + animal.genetics.fertility / 4
+
+    if math.random() >= 0.25 then return animalType.pregnancy.average end
+
+    return animalType.pregnancy.get(math.random() * factor)
+end
+
+
 --- Generate random offspring count based on animal's fertility and type pregnancy data.
 --- @param animal table Animal instance
 --- @return number count Number of offspring (0 if fertility check fails)
 function AnimalReproduction.generateRandomOffspring(animal)
 
-    local animalSystem = g_currentMission.animalSystem
-    local animalType = animalSystem:getTypeByIndex(animal.animalTypeIndex)
+    if math.random() >= AnimalReproduction.getOffspringFertility(animal) then return 0 end
 
-    local fertility = animal.genetics.fertility
-
-    local fertilityValue = fertility * (animalType.fertility:get(animal.age) / 100)
-
-    if math.random() >= fertilityValue then return 0 end
-
-    local factor = 0.75 + fertility / 4
-
-    if math.random() >= 0.25 then return animalType.pregnancy.average end
-
-    local amount = animalType.pregnancy.get(math.random() * factor)
-
-    return amount
+    return AnimalReproduction.drawLitterSize(animal)
 
 end
 
@@ -1167,11 +1201,54 @@ end
 -- INSEMINATION METHODS (from Animal.lua)
 -- =============================================================================
 
+--- Whether a male subtype can sire a female subtype: water buffalo only with water buffalo,
+--- goats only with goats, and a map bridge's breeding groups only within the group.
+--- @param maleSubTypeName string|nil
+--- @param femaleSubTypeName string|nil
+--- @return boolean compatible (true when either name is unknown)
+function AnimalReproduction.isSubTypeCompatible(maleSubTypeName, femaleSubTypeName)
+    if maleSubTypeName == nil or femaleSubTypeName == nil then return true end
+
+    local maleBuffalo, femaleBuffalo = maleSubTypeName == "BULL_WATERBUFFALO", femaleSubTypeName == "COW_WATERBUFFALO"
+    local maleGoat, femaleGoat = maleSubTypeName == "RAM_GOAT", femaleSubTypeName == "GOAT"
+    if maleBuffalo ~= femaleBuffalo or maleGoat ~= femaleGoat then return false end
+
+    return RLMapBridge.isBreedingCompatible(maleSubTypeName, femaleSubTypeName) ~= false
+end
+
+
+--- The chance an insemination with a straw/semen record makes this female pregnant, and its
+--- parts: the dam's fertility (gene x age curve), her conception (fertility gene with disease,
+--- body condition) and the batch quality (`success`).
+--- @param animal table Animal instance (the female)
+--- @param record table Straw/semen record with `success`
+--- @return number chance 0..1
+--- @return table parts { fertility, conception, quality, conceptionFertility }
+function AnimalReproduction.getInseminationChance(animal, record)
+    local animalType = g_currentMission.animalSystem:getTypeByIndex(animal.animalTypeIndex)
+    local ageFactor, ageRaw, ageScale = AnimalReproduction.getAgeFertility(animalType, animal.age)
+    local conceptionFertility = AnimalReproduction.getConceptionFertility(animal)
+    local conditionFactor = RLBodyCondition.getFertilityFactor(animal)
+    local parts = {
+        fertility = AnimalReproduction.getOffspringFertility(animal),
+        conception = RLBodyCondition.getConceptionProbability(conceptionFertility, 0.25, conditionFactor),
+        quality = math.clamp(record ~= nil and record.success or 0, 0, 1),
+        conceptionFertility = conceptionFertility,
+        genetic = animal.genetics.fertility,
+        ageRaw = ageRaw, ageScale = ageScale, ageFactor = ageFactor,
+        conditionFactor = conditionFactor,
+    }
+    return parts.fertility * parts.conception * parts.quality, parts
+end
+
+
 --- Check if this animal can be inseminated by the given straw/semen record.
---- Checks 7 rejection conditions: male gender, already pregnant, wrong animal type,
---- already inseminated, too young, recovering from birth, same father.
+--- Refuses: male, already pregnant, wrong animal type, a sire subtype that cannot sire hers
+--- (goat/sheep, water buffalo, map breeding groups), already inseminated, too young,
+--- recovering from birth, her father, and any sire as close as a first cousin (RLPedigree).
+--- A second cousin is allowed; the dialog advises against it.
 --- @param animal table Animal instance
---- @param otherAnimal table Straw/semen record with typeIndex, country, farmId, uniqueId
+--- @param otherAnimal table Straw/semen record with typeIndex, subTypeIndex, country, farmId, uniqueId
 --- @return boolean canInseminate
 --- @return string|nil reason Rejection reason i18n text (nil if can inseminate)
 function AnimalReproduction.getCanBeInseminatedByAnimal(animal, otherAnimal)
@@ -1182,6 +1259,11 @@ function AnimalReproduction.getCanBeInseminatedByAnimal(animal, otherAnimal)
 
     if animal.animalTypeIndex ~= otherAnimal.typeIndex then return false, g_i18n:getText("rl_insemination_animalType") end
 
+    local sireSubType = otherAnimal.subTypeIndex ~= nil and g_currentMission.animalSystem:getSubTypeByIndex(otherAnimal.subTypeIndex) or nil
+    if sireSubType ~= nil and not AnimalReproduction.isSubTypeCompatible(sireSubType.name, animal.subType) then
+        return false, g_i18n:getText("rl_insemination_incompatible")
+    end
+
     if animal.insemination ~= nil then return false, g_i18n:getText("rl_insemination_inseminated") end
 
     if animal.age < animal:getSubType().reproductionMinAgeMonth then return false, g_i18n:getText("rl_insemination_young") end
@@ -1189,6 +1271,9 @@ function AnimalReproduction.getCanBeInseminatedByAnimal(animal, otherAnimal)
     if animal.isParent and animal.monthsSinceLastBirth <= 2 then return false, g_i18n:getText("rl_insemination_recovering") end
 
     if string.format("%s %s %s", RLConstants.AREA_CODES[otherAnimal.country].code, otherAnimal.farmId, otherAnimal.uniqueId) == animal.fatherId then return false, g_i18n:getText("rl_insemination_father") end
+
+    local f, level = RLPedigree.checkMating(animal, otherAnimal)
+    if level == RLPedigree.LEVEL.FORBIDDEN then return false, RLPedigree.getText(f, level) end
 
     return true
 
@@ -1198,6 +1283,16 @@ end
 --- Store insemination data from a straw/semen record on this animal.
 --- @param animal table Animal instance
 --- @param strawAnimal table Straw record with country, farmId, uniqueId, genetics, name, subTypeIndex, success
+--- Tell the local player an insemination was submitted: the straw is used, but whether she
+--- conceived is decided by one roll at the next day change (resolveInsemination).
+function AnimalReproduction.notifySubmitted(animal)
+    if g_currentMission == nil or g_currentMission.addIngameNotification == nil or animal == nil then return end
+    local name = animal.getIdentifiers ~= nil and animal:getIdentifiers() or tostring(animal.uniqueId)
+    g_currentMission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_INFO,
+        string.format(g_i18n:getText("rl_insemination_submitted"), name))
+end
+
+
 function AnimalReproduction.setInsemination(animal, strawAnimal)
 
     animal.insemination = {

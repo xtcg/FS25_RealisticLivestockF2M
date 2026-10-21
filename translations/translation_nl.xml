@@ -268,6 +268,9 @@
 
         <text name="rl_ui_castrated" text="Gecastreerd"/>
         <text name="rl_ui_castrate" text="Castreren"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Castratie bevestigen"/>
+        <text name="rl_ui_castrateConfirmYes" text="Castreren"/>
+        <text name="rl_ui_castrateConfirm" text="%s (%s) castreren?&#10;Het dier verliest blijvend het vermogen om te fokken en sperma te leveren. Dit kan niet ongedaan worden gemaakt."/>
         <text name="rl_ui_unknownCauses" text="onbekende oorzaak"/>
         <text name="rl_ui_unreadMessages" text="Bedrijf '%s' heeft ongelezen berichten!"/>
         <text name="rl_ui_herdsman" text="Veehoeder"/>
@@ -310,6 +313,16 @@
         <text name="rl_ui_inseminateAnimal" text="%s insemineren"/>
         <text name="rl_ui_inseminate" text="Insemineren"/>
         <text name="rl_ui_strawEmpty" text="Dit rietje is leeg"/>
+        <text name="rl_ui_aiStraw" text="Semen straw"/>
+        <text name="rl_ui_returnStraw" text="Return straw"/>
+        <text name="rl_strawReturn_used" text="This straw has been used"/>
+        <text name="rl_strawReturn_missing" text="This dewar is no longer there"/>
+        <text name="rl_strawReturn_otherFarm" text="This dewar belongs to another farm"/>
+        <text name="rl_strawReturn_otherBatch" text="Another batch: a straw goes back only into its own batch"/>
+        <text name="rl_strawReturn_full" text="This dewar is full"/>
+        <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
+        <text name="rl_semen_discardEmpty" text="Discard empty dewar"/>
+        <text name="rl_semen_discardConfirm" text="Discard this empty dewar? A straw taken from it can then only go into another dewar of its batch."/>
         <text name="rl_ui_averageSuccess" text="Gemiddeld succes"/>
         <text name="rl_ui_success" text="Succes"/>
 
@@ -324,6 +337,8 @@
         <text name="rl_insemination_inseminated" text="Dit dier is al kunstmatig geïnsemineerd"/>
         <text name="rl_insemination_recovering" text="Dit dier herstelt nog van de vorige dracht"/>
         <text name="rl_insemination_father" text="Inteelt is niet toegestaan"/>
+        <text name="rl_insemination_pending" text="Wachten op bevestiging van de server"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Dit dier is te jong om kunstmatig geïnsemineerd te worden"/>
 
 
@@ -957,6 +972,10 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Sperma verkopen %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="De handelaar koopt deze maand nog maar %d rietjes. Die verkopen van de %d in dit vat voor %s? De rest blijft in het vat."/>
+        <text name="rl_semen_quotaFull" text="Sperma verkopen (maandquotum op)"/>
+        <text name="rl_semen_quotaFullInfo" text="De handelaar heeft deze maand al het eigen sperma van deze diersoort gekocht dat hij afneemt. Verkoop volgende maand weer."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_semen_collectionFee" text="Spermawinning"/>
@@ -973,6 +992,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Gekocht"/>
         <text name="rl_semen_sourceLEGACY" text="Oude voorraad"/>
         <text name="rl_semen_batchMonth" text="Partijmaand"/>
+        <text name="rl_insemination_incompatible" text="Sperma past niet bij dit ras"/>
+        <text name="rl_pedigree_forbidden" text="Inteelt %s: te nauw verwant, niet toegestaan"/>
+        <text name="rl_pedigree_adviseAgainst" text="Inteelt %s: nauw verwant, afgeraden"/>
+        <text name="rl_pedigree_info" text="Inteelt van de nakomeling %s"/>
+        <text name="rl_pedigree_none" text="Geen gemeenschappelijke voorouder gevonden"/>
+        <text name="rl_ai_chance" text="Partijkwaliteit %s | Verwachte dracht voor dit dier %s (vruchtbaarheid %s x bevruchting %s x partij %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

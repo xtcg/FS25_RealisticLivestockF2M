@@ -268,6 +268,9 @@
 
         <text name="rl_ui_castrated" text="Castrated"/>
         <text name="rl_ui_castrate" text="Castrate"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Confirmar castração"/>
+        <text name="rl_ui_castrateConfirmYes" text="Castrar"/>
+        <text name="rl_ui_castrateConfirm" text="Castrar %s (%s)?&#10;O animal perde permanentemente a capacidade de reprodução e de recolha de sémen. Esta ação não pode ser desfeita."/>
         <text name="rl_ui_unknownCauses" text="unknown causes"/>
         <text name="rl_ui_unreadMessages" text="Husbandry '%s' has unread messages!"/>
         <text name="rl_ui_herdsman" text="Herdsman"/>
@@ -310,6 +313,16 @@
         <text name="rl_ui_inseminateAnimal" text="Inseminate %s"/>
         <text name="rl_ui_inseminate" text="Inseminate"/>
         <text name="rl_ui_strawEmpty" text="This straw is empty"/>
+        <text name="rl_ui_aiStraw" text="Semen straw"/>
+        <text name="rl_ui_returnStraw" text="Return straw"/>
+        <text name="rl_strawReturn_used" text="This straw has been used"/>
+        <text name="rl_strawReturn_missing" text="This dewar is no longer there"/>
+        <text name="rl_strawReturn_otherFarm" text="This dewar belongs to another farm"/>
+        <text name="rl_strawReturn_otherBatch" text="Another batch: a straw goes back only into its own batch"/>
+        <text name="rl_strawReturn_full" text="This dewar is full"/>
+        <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
+        <text name="rl_semen_discardEmpty" text="Discard empty dewar"/>
+        <text name="rl_semen_discardConfirm" text="Discard this empty dewar? A straw taken from it can then only go into another dewar of its batch."/>
         <text name="rl_ui_averageSuccess" text="Average Success"/>
         <text name="rl_ui_success" text="Success"/>
 
@@ -324,6 +337,8 @@
         <text name="rl_insemination_inseminated" text="This animal has already been artificially inseminated"/>
         <text name="rl_insemination_recovering" text="This animal is still recovering from its previous pregnancy"/>
         <text name="rl_insemination_father" text="Inbreeding is not permitted"/>
+        <text name="rl_insemination_pending" text="A aguardar confirmação do servidor"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="This animal is too young to be artificially inseminated"/>
 
 
@@ -960,6 +975,10 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Vender sémen %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="O comerciante só compra mais %d palhinhas este mês. Vendê-las das %d deste contentor por %s? O resto fica no contentor."/>
+        <text name="rl_semen_quotaFull" text="Vender sémen (quota mensal esgotada)"/>
+        <text name="rl_semen_quotaFullInfo" text="O comerciante já comprou todo o sémen próprio desta espécie que aceita este mês. Venda novamente no próximo mês."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_semen_collectionFee" text="Recolha de sémen"/>
@@ -976,6 +995,12 @@
         <text name="rl_semen_sourcePURCHASED" text="Comprado"/>
         <text name="rl_semen_sourceLEGACY" text="Stock antigo"/>
         <text name="rl_semen_batchMonth" text="Mês do lote"/>
+        <text name="rl_insemination_incompatible" text="O sémen não serve para esta raça"/>
+        <text name="rl_pedigree_forbidden" text="Consanguinidade %s: parentesco demasiado próximo, não permitido"/>
+        <text name="rl_pedigree_adviseAgainst" text="Consanguinidade %s: parentesco próximo, não recomendado"/>
+        <text name="rl_pedigree_info" text="Consanguinidade da cria %s"/>
+        <text name="rl_pedigree_none" text="Nenhum antepassado comum encontrado"/>
+        <text name="rl_ai_chance" text="Qualidade do lote %s | Conceção esperada para esta fêmea %s (fertilidade %s x conceção %s x lote %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

@@ -40,8 +40,10 @@ RLSemenCollection.MAX_FERTILE_AGE = { COW = 132, SHEEP = 72, PIG = 48, HORSE = 3
 --- Collection service fee per species, on HARD (x RLLivestockPrices.getMultiplier like the prices):
 --- a fixed part for the visit (collection, semen check) plus processing per straw (dilution,
 --- filling, freezing). Starting values for game balance, not real-world costs: an average bull's
---- 300 straws cost 400 against about 760 if sold and about 1080 to buy, so own use saves clearly,
---- selling an average sire's semen nets about half its value, and a poor sire's does not pay.
+--- 300 straws cost 400 against about 680 if sold (B4 prices) and about 1080 to buy, so own use
+--- saves clearly, selling an average sire's semen nets about 40% of its value, and a poor sire's
+--- does not pay. An average boar's 20 doses (30) sell for less than the fee: on-farm boar semen
+--- is for the farm's own sows.
 RLSemenCollection.FEE = {
     COW = { base = 100, perStraw = 1 },
     SHEEP = { base = 30, perStraw = 1 },
@@ -59,23 +61,53 @@ RLSemenCollection.CONDITION_CURVE = {
     { 1.5, 0 }, { 2.0, 0.7 }, { 2.5, 1 }, { 4.5, 1 }, { 5.0, 0.9 },
 }
 
+--- Price of one straw (or dose) from an average sire (breeding index 1) at conception rate 1 and
+--- dealer price factor 1, per species, on HARD. Set from what the AI dealer's average sire then
+--- costs (its farms' price factor about 1.55, conception about 65%, index about 1.5, so 3.84 x
+--- this): a beef or dairy straw about 18 (real conventional straws 15-25), a frozen ram straw
+--- about 15 (10-30), a fresh boar dose about 5 (3-6). Horses keep the cattle value until their
+--- economy is calibrated. A species not listed uses DewarData.PRICE_PER_STRAW.
+RLSemenCollection.STRAW_PRICE = {
+    COW = 4.65,
+    SHEEP = 3.90,
+    PIG = 1.30,
+    HORSE = 4.65,
+}
+
+--- Straws (doses) of the player's own semen the dealer buys per farm and species each calendar
+--- month, about one full collection of one sire: on-farm semen is mostly for own use, and the
+--- private market for it is small. Semen the player bought is not counted (reselling it loses).
+RLSemenCollection.SALE_QUOTA = {
+    COW = 300,
+    SHEEP = 200,
+    PIG = 100,
+    HORSE = 12,
+}
+
 --- Share of the dealer's price a dewar sells for: a breeder selling straws privately keeps
 --- roughly 70-90% of retail after sale commission and storage. Below 1 so buying and reselling
 --- never profits.
 RLSemenCollection.SELL_SHARE = 0.7
 
 --- Dealer price factor for the player's own semen. The dealer's sires come from farms of quality
---- 1.35 to 1.75 whose price factor is 0.75-1.25 x quality, 1.55 on average; the player's semen is
---- priced like an average AI stud's, so the same genetics resell at about 70% of the dealer's
---- price instead of losing the stud premium on top.
-RLSemenCollection.COLLECTED_PRICE_FACTOR = 1.55
+--- 1.35 to 1.75 whose price factor is 0.75-1.25 x quality, so the cheapest dealer straw of given
+--- genetics has factor 0.75 x 1.35 = 1.0125. The player's semen is priced like an AI stud's, just
+--- low enough that it sells (x SELL_SHARE) under that cheapest straw: 1.40 x 0.7 = 0.98, so no
+--- straw ever sells back for more than the same genetics cost to buy.
+RLSemenCollection.COLLECTED_PRICE_FACTOR = 1.40
+RLSemenCollection.DEALER_MIN_PRICE_FACTOR = 0.75 * 1.35
 
 --- Breeding index weights. Real sire indices (Net Merit, TPI, beef $indices) are weighted sums of
 --- the traits a breed is kept for: dairy sires are ranked mostly on their daughters' milk, then
 --- fertility and health; meat and wool sires on carcass merit and growth/feed efficiency.
+--- Pigs follow terminal/maternal sire indices: growth and feed efficiency (metabolism) as much as
+--- lean meat (quality), then litter size (fertility) and robustness. Sheep follow terminal and
+--- maternal ram indices (Signet): muscle and growth, then prolificacy, health and fleece or milk.
 RLSemenCollection.INDEX_WEIGHTS = {
     DAIRY = { productivity = 0.40, fertility = 0.20, health = 0.20, quality = 0.10, metabolism = 0.10 },
     MEAT = { quality = 0.35, metabolism = 0.25, fertility = 0.20, health = 0.10, productivity = 0.10 },
+    PIG = { metabolism = 0.35, quality = 0.35, fertility = 0.20, health = 0.10 },
+    SHEEP = { quality = 0.30, metabolism = 0.30, fertility = 0.20, health = 0.10, productivity = 0.10 },
 }
 
 --- Breeds kept for milk; every other breed is weighted as a meat (or wool) breed.
@@ -329,9 +361,17 @@ function RLSemenCollection.getPreviewText(animal)
 end
 
 
---- Conception rate of a collection: the same roll the AI dealer gives its bulls.
-function RLSemenCollection.rollSuccess(animal)
-    return math.clamp((math.random(35, 50) * (animal.genetics.fertility or 1)) / 100, 0.5, 1)
+--- A batch's quality (the conception rate it adds to an insemination) from the sire's
+--- fertility gene, with no random: the mean of the old roll, clamp(k x fertility / 100, 0.5, 1)
+--- over k = 35..50, so a sire's batches keep the old average and all of them are the same.
+--- Collected batches and the AI dealer's bulls both use it.
+--- @param fertility number|nil the sire's fertility gene (1 when unknown)
+--- @return number quality 0.5..1
+function RLSemenCollection.getBatchQuality(fertility)
+    fertility = fertility or 1
+    local sum = 0
+    for k = 35, 50 do sum = sum + math.clamp(k * fertility / 100, 0.5, 1) end
+    return sum / 16
 end
 
 
@@ -346,7 +386,7 @@ function RLSemenCollection.createSnapshot(animal)
         typeIndex = animal.animalTypeIndex,
         subTypeIndex = animal.subTypeIndex,
         genetics = table.clone(animal.genetics, 3),
-        success = RLSemenCollection.rollSuccess(animal),
+        success = RLSemenCollection.getBatchQuality(animal.genetics.fertility),
         collected = true,
     }, RLSemenBatch.SOURCE.COLLECTED, RLSemenCollection.getMonthIndex(), animal)
 end
@@ -364,7 +404,9 @@ function RLSemenCollection.getBreedingIndex(sire)
     local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
     local subType = animalSystem ~= nil and sire.subTypeIndex ~= nil and animalSystem:getSubTypeByIndex(sire.subTypeIndex) or nil
     local isDairy = subType ~= nil and RLSemenCollection.DAIRY_BREEDS[subType.breed or ""] == true
-    local weights = RLSemenCollection.INDEX_WEIGHTS[isDairy and "DAIRY" or "MEAT"]
+    local typeName = RLSemenCollection.getSireTypeName(sire)
+    local weights = RLSemenCollection.INDEX_WEIGHTS[isDairy and "DAIRY" or typeName or "MEAT"]
+        or RLSemenCollection.INDEX_WEIGHTS.MEAT
 
     local sum, weightSum = 0, 0
     for gene, weight in pairs(weights) do
@@ -379,15 +421,26 @@ function RLSemenCollection.getBreedingIndex(sire)
 end
 
 
+--- The animal type name of an Animal (animalTypeIndex) or a dewar snapshot (typeIndex), or nil.
+function RLSemenCollection.getSireTypeName(sire)
+    if sire == nil then return nil end
+    local typeIndex = sire.typeIndex or sire.animalTypeIndex
+    local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
+    local animalType = animalSystem ~= nil and typeIndex ~= nil and animalSystem:getTypeByIndex(typeIndex) or nil
+    return animalType ~= nil and animalType.name or nil
+end
+
+
 --- The dealer's price for one straw of a sire:
----   priceFactor x PRICE_PER_STRAW x conception rate x breedingIndex ^ INDEX_PRICE_EXPONENT
+---   priceFactor x STRAW_PRICE[species] x conception rate x breedingIndex ^ INDEX_PRICE_EXPONENT
 ---   x the difficulty price multiplier (RLLivestockPrices: 1 on HARD, 1.8 NORMAL, 3 EASY)
 --- @param sire table Animal or dewar snapshot with `.success`, `.genetics`, `.subTypeIndex`
 --- @param priceFactor number The breeding farm's semen price factor
 --- @return number price
 function RLSemenCollection.getStrawPrice(sire, priceFactor)
     local index = RLSemenCollection.getBreedingIndex(sire)
-    return math.max((priceFactor or 1) * DewarData.PRICE_PER_STRAW * ((sire ~= nil and sire.success) or 0)
+    local base = RLSemenCollection.STRAW_PRICE[RLSemenCollection.getSireTypeName(sire) or ""] or DewarData.PRICE_PER_STRAW
+    return math.max((priceFactor or 1) * base * ((sire ~= nil and sire.success) or 0)
         * index ^ RLSemenCollection.INDEX_PRICE_EXPONENT * RLLivestockPrices.getMultiplier(), 0)
 end
 
@@ -408,6 +461,86 @@ function RLSemenCollection.getSellValue(snapshot, straws)
     end
 
     return straws * RLSemenCollection.getStrawPrice(snapshot, priceFactor) * RLSemenCollection.SELL_SHARE
+end
+
+
+
+-- =============================================================================
+-- DEALER PURCHASE QUOTA (SALE_QUOTA)
+-- =============================================================================
+
+--- Straws sold this month by farm and species: quotaUsed[farmId][typeName] = { month, used }.
+--- Server-authoritative; saved in rm_RlAnimalSystem.xml (semenQuota) and mirrored to clients.
+RLSemenCollection.quotaUsed = {}
+
+
+--- Straws of this species the dealer still buys from this farm this month; nil when unlimited
+--- (a species without a quota, or no calendar).
+function RLSemenCollection.getQuotaLeft(farmId, typeName)
+    local quota = RLSemenCollection.SALE_QUOTA[typeName or ""]
+    local month = RLSemenCollection.getMonthIndex()
+    if quota == nil or month == nil then return nil end
+    local entry = (RLSemenCollection.quotaUsed[farmId] or {})[typeName]
+    local used = (entry ~= nil and entry.month == month) and entry.used or 0
+    return math.max(quota - used, 0)
+end
+
+
+--- Record straws sold this month (server), or a server's record (client).
+function RLSemenCollection.setQuotaUsed(farmId, typeName, month, used)
+    if farmId == nil or typeName == nil or month == nil then return end
+    RLSemenCollection.quotaUsed[farmId] = RLSemenCollection.quotaUsed[farmId] or {}
+    RLSemenCollection.quotaUsed[farmId][typeName] = { month = month, used = used }
+end
+
+
+function RLSemenCollection.addQuotaUsed(farmId, typeName, straws)
+    local quota = RLSemenCollection.SALE_QUOTA[typeName or ""]
+    local month = RLSemenCollection.getMonthIndex()
+    if quota == nil or month == nil then return nil end
+    local used = quota - RLSemenCollection.getQuotaLeft(farmId, typeName) + straws
+    RLSemenCollection.setQuotaUsed(farmId, typeName, month, used)
+    return used
+end
+
+
+--- How many of a dewar's straws the dealer takes now: all of bought semen, up to the month's
+--- quota of the player's own.
+--- @return number straws, string|nil typeName (set when a quota applies)
+function RLSemenCollection.getSellableStraws(snapshot, straws, farmId)
+    if snapshot == nil or straws == nil or straws <= 0 then return 0, nil end
+    if not snapshot.collected then return straws, nil end
+    local typeName = RLSemenCollection.getSireTypeName(snapshot)
+    local left = RLSemenCollection.getQuotaLeft(farmId, typeName)
+    if left == nil then return straws, nil end
+    return math.min(straws, left), typeName
+end
+
+
+function RLSemenCollection.saveQuotaToXMLFile(xmlFile, key)
+    local month = RLSemenCollection.getMonthIndex()
+    local i = 0
+    for farmId, types in pairs(RLSemenCollection.quotaUsed) do
+        for typeName, entry in pairs(types) do
+            if month == nil or entry.month >= month then
+                local entryKey = string.format("%s.farm(%d)", key, i)
+                xmlFile:setInt(entryKey .. "#farmId", farmId)
+                xmlFile:setString(entryKey .. "#type", typeName)
+                xmlFile:setInt(entryKey .. "#month", entry.month)
+                xmlFile:setInt(entryKey .. "#used", entry.used)
+                i = i + 1
+            end
+        end
+    end
+end
+
+
+function RLSemenCollection.loadQuotaFromXMLFile(xmlFile, key)
+    RLSemenCollection.quotaUsed = {}
+    xmlFile:iterate(key .. ".farm", function(_, entryKey)
+        RLSemenCollection.setQuotaUsed(xmlFile:getInt(entryKey .. "#farmId"), xmlFile:getString(entryKey .. "#type"),
+            xmlFile:getInt(entryKey .. "#month"), xmlFile:getInt(entryKey .. "#used", 0))
+    end)
 end
 
 

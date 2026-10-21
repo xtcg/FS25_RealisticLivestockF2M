@@ -425,7 +425,8 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
 
         if animal.clusterSystem ~= nil then
 
-            local childNum = animal:generateRandomOffspring()
+            -- A saved pregnancy without its young: she is pregnant, so only the litter size is drawn.
+            local childNum = math.max(1, AnimalReproduction.drawLitterSize(animal))
 
             if childNum > 0 then
 
