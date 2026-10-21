@@ -151,6 +151,7 @@ function AnimalSerialization.writeStream(animal, streamId, connection)
 
     streamWriteBool(streamId, animal.isCastrated or false)
     streamWriteInt32(streamId, animal.semenCollectedAge or -1)
+    streamWriteInt32(streamId, animal.semenCollectedMonth or -1)
     streamWriteInt32(streamId, animal.semenProducedAge or -1)
 
     streamWriteUInt8(streamId, #animal.diseases)
@@ -176,6 +177,7 @@ function AnimalSerialization.writeStream(animal, streamId, connection)
         streamWriteFloat32(streamId, animal.insemination.genetics.fertility)
         streamWriteFloat32(streamId, animal.insemination.genetics.quality)
         streamWriteFloat32(streamId, animal.insemination.genetics.productivity or 0)
+        RLSemenBatch.writeStream(streamId, animal.insemination)
     end
 
     streamWriteBool(streamId, animal.canBeSold == false)
@@ -348,6 +350,8 @@ function AnimalSerialization.readStream(animal, streamId, connection)
     animal.isCastrated = streamReadBool(streamId)
     animal.semenCollectedAge = streamReadInt32(streamId)
     if animal.semenCollectedAge < 0 then animal.semenCollectedAge = nil end
+    animal.semenCollectedMonth = streamReadInt32(streamId)
+    if animal.semenCollectedMonth < 0 then animal.semenCollectedMonth = nil end
     animal.semenProducedAge = streamReadInt32(streamId)
     if animal.semenProducedAge < 0 then animal.semenProducedAge = nil end
 
@@ -406,6 +410,7 @@ function AnimalSerialization.readStream(animal, streamId, connection)
         insemination.genetics.productivity = streamReadFloat32(streamId)
 
         if insemination.genetics.productivity == 0 then insemination.genetics.productivity = nil end
+        RLSemenBatch.readStream(streamId, insemination)
 
         local animalSystem = g_currentMission.animalSystem
         local st = animalSystem:getSubTypeByIndex(insemination.subTypeIndex)

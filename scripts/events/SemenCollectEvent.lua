@@ -4,11 +4,13 @@
 
     REQUEST  client -> server: husbandry, sire identifiers, spawn position. The server
              re-validates (farm access, tradeAnimals permission, RLSemenCollection rules),
-             spawns the dewar through VehicleLoadingData like SemenBuyEvent, and on success
-             records the collection month on the sire.
-    STATE    server -> all clients: the sire's new semenCollectedAge, so every copy of the
-             animal refuses a second collection this month.
-    RESULT   server -> requester: success with the straw count, or the refusal reason.
+             spawns the dewar through VehicleLoadingData like SemenBuyEvent, and once it loaded
+             charges the service fee (RLSemenCollection.getFee, checked before the load and again
+             after it, when a short balance removes the dewar) and records the collection month
+             on the sire.
+    STATE    server -> all clients: the sire's new semenCollectedMonth and semenCollectedAge, so
+             every copy of the animal refuses a second collection this month.
+    RESULT   server -> requester: success with the straw count and fee, or the refusal reason.
 ]]
 
 local Log = RmLogging.getLogger("RLRM")
@@ -46,21 +48,23 @@ function SemenCollectEvent.newRequest(object, animal, position, rotation)
 end
 
 
-function SemenCollectEvent.newState(object, animal, collectedAge)
+function SemenCollectEvent.newState(object, animal, collectedAge, collectedMonth)
     local self = SemenCollectEvent.emptyNew()
     self.mode = SemenCollectEvent.MODE_STATE
     self.object = object
     self.animal = animal
     self.collectedAge = collectedAge
+    self.collectedMonth = collectedMonth
     return self
 end
 
 
-function SemenCollectEvent.newResult(resultKey, straws)
+function SemenCollectEvent.newResult(resultKey, straws, fee)
     local self = SemenCollectEvent.emptyNew()
     self.mode = SemenCollectEvent.MODE_RESULT
     self.resultKey = resultKey
     self.straws = straws or 0
+    self.fee = fee or 0
     return self
 end
 
@@ -71,6 +75,7 @@ function SemenCollectEvent:writeStream(streamId, connection)
     if self.mode == SemenCollectEvent.MODE_RESULT then
         streamWriteString(streamId, self.resultKey or "")
         streamWriteUInt16(streamId, self.straws)
+        streamWriteFloat32(streamId, self.fee or 0)
         return
     end
 
@@ -79,6 +84,7 @@ function SemenCollectEvent:writeStream(streamId, connection)
 
     if self.mode == SemenCollectEvent.MODE_STATE then
         streamWriteInt32(streamId, self.collectedAge)
+        streamWriteInt32(streamId, self.collectedMonth or -1)
     else
         for i = 1, 3 do streamWriteFloat32(streamId, self.position[i]) end
         for i = 1, 3 do streamWriteFloat32(streamId, self.rotation[i]) end
@@ -92,12 +98,15 @@ function SemenCollectEvent:readStream(streamId, connection)
     if self.mode == SemenCollectEvent.MODE_RESULT then
         self.resultKey = streamReadString(streamId)
         self.straws = streamReadUInt16(streamId)
+        self.fee = streamReadFloat32(streamId)
     else
         self.object = NetworkUtil.readNodeObject(streamId)
         self.animal = RLAnimalUtil.readStreamIdentifiers(streamId, connection)
 
         if self.mode == SemenCollectEvent.MODE_STATE then
             self.collectedAge = streamReadInt32(streamId)
+            self.collectedMonth = streamReadInt32(streamId)
+            if self.collectedMonth < 0 then self.collectedMonth = nil end
         else
             self.position = { streamReadFloat32(streamId), streamReadFloat32(streamId), streamReadFloat32(streamId) }
             self.rotation = { streamReadFloat32(streamId), streamReadFloat32(streamId), streamReadFloat32(streamId) }
@@ -128,7 +137,10 @@ function SemenCollectEvent:run(connection)
         RmSafeUtils.safeCall("SemenCollectEvent:run", function() self:runRequest(connection) end)
     elseif self.mode == SemenCollectEvent.MODE_STATE and fromServer then
         local animal = findAnimal(self.object, self.animal)
-        if animal ~= nil then animal.semenCollectedAge = self.collectedAge end
+        if animal ~= nil then
+            animal.semenCollectedAge = self.collectedAge
+            animal.semenCollectedMonth = self.collectedMonth
+        end
     elseif self.mode == SemenCollectEvent.MODE_RESULT and fromServer then
         self:runResult()
     else
@@ -137,10 +149,21 @@ function SemenCollectEvent:run(connection)
 end
 
 
+--- Server: fees of collections whose dewar is still loading, by farm. A request counts them
+--- against the farm's money, so two requests in flight cannot both pass on the same balance.
+SemenCollectEvent.reservedFees = {}
+
+
+local function reserveFee(farmId, delta)
+    local reserved = math.max((SemenCollectEvent.reservedFees[farmId] or 0) + delta, 0)
+    SemenCollectEvent.reservedFees[farmId] = reserved > 0 and reserved or nil
+end
+
+
 --- Server: validate the request and spawn the dewar.
 function SemenCollectEvent:runRequest(connection)
-    local function reply(resultKey, straws)
-        connection:sendEvent(SemenCollectEvent.newResult(resultKey, straws))
+    local function reply(resultKey, straws, fee)
+        connection:sendEvent(SemenCollectEvent.newResult(resultKey, straws, fee))
     end
 
     local userId = g_currentMission.userManager:getUniqueUserIdByConnection(connection)
@@ -177,10 +200,20 @@ function SemenCollectEvent:runRequest(connection)
     end
 
     local straws = RLSemenCollection.getStrawYield(animal)
+    local fee = RLSemenCollection.getFee(animal)
+    local reserved = SemenCollectEvent.reservedFees[farmId] or 0
+    if fee > 0 and g_currentMission:getMoney(farmId) - reserved < fee then
+        Log:debug("SemenCollectEvent: refused uniqueId=%s, fee %.2f over the farm's money (%.2f held for loading dewars)",
+            tostring(animal.uniqueId), fee, reserved)
+        reply(RLSemenCollection.REFUSAL_NO_MONEY, 0, fee)
+        return
+    end
+
     local snapshot = RLSemenCollection.createSnapshot(animal)
 
     -- Claim the month before the async load, so a second request in flight is refused.
-    animal.semenCollectedAge = animal.age
+    local previousMonth, previousAge = animal.semenCollectedMonth, animal.semenCollectedAge
+    RLSemenCollection.markCollected(animal)
 
     -- Drop the sire's cached semen rate at once; the building's own hourly total can still carry
     -- at most the rest of the current hour.
@@ -196,24 +229,42 @@ function SemenCollectEvent:runRequest(connection)
     data:setPosition(self.position[1], self.position[2], self.position[3])
     data:setRotation(self.rotation[1], self.rotation[2], self.rotation[3])
 
-    local object, identifiers, collectedAge = self.object, self.animal, animal.age
+    local object, identifiers = self.object, self.animal
+    local collectedAge, collectedMonth = animal.semenCollectedAge, animal.semenCollectedMonth
+    reserveFee(farmId, fee)
     data:load(function(_, vehicles, loadingState)
+        reserveFee(farmId, -fee)
         local vehicle = vehicles ~= nil and vehicles[1] or nil
         if loadingState ~= VehicleLoadingState.OK or vehicle == nil then
             Log:warning("SemenCollectEvent: dewar failed to load (state=%s), month released", tostring(loadingState))
-            animal.semenCollectedAge = nil
+            RLSemenCollection.restoreCollected(animal, previousMonth, previousAge)
             reply(SemenCollectEvent.RESULT_FAILED)
+            return
+        end
+
+        -- The hold only stops other collections; any other spending of the farm during the load
+        -- does not see it, so the balance is checked again before charging.
+        if fee > 0 and g_currentMission:getMoney(farmId) < fee then
+            Log:info("SemenCollectEvent: uniqueId=%s, fee %.2f over the farm's money after the load, dewar removed",
+                tostring(animal.uniqueId), fee)
+            vehicle:delete()
+            RLSemenCollection.restoreCollected(animal, previousMonth, previousAge)
+            reply(RLSemenCollection.REFUSAL_NO_MONEY, 0, fee)
             return
         end
 
         vehicle:setAnimal(snapshot)
         vehicle:setStraws(straws)
 
-        g_server:broadcastEvent(SemenCollectEvent.newState(object, identifiers, collectedAge))
-        reply("", straws)
+        if fee > 0 then
+            g_currentMission:addMoney(-fee, farmId, MoneyType.SEMEN_COLLECTION, true, true)
+        end
 
-        Log:info("SemenCollectEvent: collected %d straw(s) from uniqueId=%s farmId=%d success=%.2f",
-            straws, tostring(animal.uniqueId), farmId, snapshot.success)
+        g_server:broadcastEvent(SemenCollectEvent.newState(object, identifiers, collectedAge, collectedMonth))
+        reply("", straws, fee)
+
+        Log:info("SemenCollectEvent: collected %d straw(s) from uniqueId=%s farmId=%d success=%.2f fee=%.2f",
+            straws, tostring(animal.uniqueId), farmId, snapshot.success, fee)
     end, self)
 end
 
@@ -223,8 +274,13 @@ function SemenCollectEvent:runResult()
     local text
     if self.resultKey == "" then
         text = string.format(g_i18n:getText("rl_semen_collected"), self.straws)
+        if (self.fee or 0) > 0 then
+            text = text .. " " .. string.format(g_i18n:getText("rl_semen_feeCharged"), g_i18n:formatMoney(self.fee, 0, true, true))
+        end
+    elseif self.resultKey == RLSemenCollection.REFUSAL_NO_MONEY then
+        text = string.format(g_i18n:getText(self.resultKey), g_i18n:formatMoney(self.fee or 0, 0, true, true))
     else
-        text = g_i18n:getText(self.resultKey)
+        text = RLSemenCollection.getRefusalText(self.resultKey)
     end
 
     local pending = SemenCollectEvent.pendingResult

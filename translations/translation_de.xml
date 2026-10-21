@@ -268,6 +268,9 @@
 
         <text name="rl_ui_castrated" text="Kastriert"/>
         <text name="rl_ui_castrate" text="Kastrieren"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Kastration bestätigen"/>
+        <text name="rl_ui_castrateConfirmYes" text="Kastrieren"/>
+        <text name="rl_ui_castrateConfirm" text="%s (%s) kastrieren?&#10;Das Tier verliert dauerhaft die Fähigkeit zur Zucht und zur Samengewinnung. Dies kann nicht rückgängig gemacht werden."/>
         <text name="rl_ui_unknownCauses" text="unbekannte Ursachen"/>
         <text name="rl_ui_unreadMessages" text="Stall '%s' hat ungelesene Nachrichten!"/>
         <text name="rl_ui_herdsman" text="Herdenmanager"/>
@@ -310,7 +313,17 @@
         <text name="rl_ui_inseminateAnimal" text="Besamen %s"/>
         <text name="rl_ui_inseminate" text="Besamen"/>
         <text name="rl_ui_strawEmpty" text="Dieses Besamungsröhrchen ist leer."/>
-        <text name="rl_ui_averageSuccess" text="Durchschnittlicher Erfolg"/>
+        <text name="rl_ui_aiStraw" text="Besamungsröhrchen"/>
+        <text name="rl_ui_returnStraw" text="Röhrchen zurückgeben"/>
+        <text name="rl_strawReturn_used" text="Dieses Röhrchen wurde schon verwendet"/>
+        <text name="rl_strawReturn_missing" text="Dieser Behälter ist nicht mehr da"/>
+        <text name="rl_strawReturn_otherFarm" text="Dieser Behälter gehört einem anderen Hof"/>
+        <text name="rl_strawReturn_otherBatch" text="Andere Charge: ein Röhrchen kommt nur in seine eigene Charge zurück"/>
+        <text name="rl_strawReturn_full" text="Dieser Behälter ist voll"/>
+        <text name="rl_strawReturn_notHeld" text="Der Server kennt dieses Röhrchen nicht"/>
+        <text name="rl_semen_discardEmpty" text="Leeren Behälter entsorgen"/>
+        <text name="rl_semen_discardConfirm" text="Diesen leeren Behälter entsorgen? Ein daraus genommenes Röhrchen kann dann nur noch in einen anderen Behälter seiner Charge."/>
+        <text name="rl_ui_averageSuccess" text="Spermaqualität"/>
         <text name="rl_ui_success" text="Erfolg"/>
 
 
@@ -320,6 +333,8 @@
         <text name="rl_insemination_inseminated" text="Dieses Tier wurde bereits künstlich besamt."/>
         <text name="rl_insemination_recovering" text="Dieses Tier erholt sich noch von seiner letzten Schwangerschaft."/>
         <text name="rl_insemination_father" text="Inzucht ist nicht erlaubt."/>
+        <text name="rl_insemination_pending" text="Warte auf Bestätigung des Servers"/>
+        <text name="rl_insemination_submitted" text="%s besamt: ob sie aufgenommen hat, entscheidet sich beim nächsten Tageswechsel"/>
         <text name="rl_insemination_young" text="Dieses Tier ist zu jung, um künstlich befruchtet zu werden."/>
 
         <text name="rl_ui_healthy" text="Gesund"/>
@@ -959,8 +974,32 @@
         <text name="rl_semen_sell" text="Sperma verkaufen"/>
         <text name="rl_semen_sellPrompt" text="Sperma verkaufen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Diesen Behälter mit %d Pailletten für %s verkaufen?"/>
+        <text name="rl_semen_sellPromptPartial" text="Sperma verkaufen %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="Der Händler kauft diesen Monat nur noch %d Halme. Diese aus den %d im Behälter für %s verkaufen? Der Rest bleibt im Behälter."/>
+        <text name="rl_semen_quotaFull" text="Sperma verkaufen (Monatskontingent erschöpft)"/>
+        <text name="rl_semen_quotaFullInfo" text="Der Händler hat diesen Monat so viel hofeigenes Sperma dieser Tierart gekauft, wie er abnimmt. Nächsten Monat wieder verkaufen."/>
         <text name="rl_semen_saleValue" text="Verkaufswert"/>
         <text name="rl_semen_sale" text="Spermaverkauf"/>
+        <text name="rl_semen_collectionFee" text="Samengewinnung"/>
+        <text name="rl_semen_feeCharged" text="Servicegebühr: %s."/>
+        <text name="rl_semen_refuseNoMoney" text="Nicht genug Geld für die Gewinnungsgebühr (%s)."/>
+        <text name="rl_semen_refuseCondition" text="Dieses Vatertier ist zu mager für die Samengewinnung. Verbessere zuerst seine Fütterung."/>
+        <text name="rl_semen_refuseNoYield" text="Dieses Vatertier würde jetzt weniger als ein Röhrchen liefern."/>
+        <text name="rl_semen_nextCollection" text="Nächste Gewinnung möglich im %s."/>
+        <text name="rl_semen_minAge" text="Gewinnung ab einem Alter von %d Monaten."/>
+        <text name="rl_semen_preview" text="Samen von %s gewinnen?&#10;&#10;Erwartete Röhrchen: %d&#10;(Basis %d x Fruchtbarkeit %.2f x Alter %.2f x Kondition %.2f)&#10;Zuchtindex: %.2f&#10;Servicegebühr: %s"/>
+        <text name="rl_semen_batch" text="Charge"/>
+        <text name="rl_semen_source" text="Herkunft"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Eigene Gewinnung"/>
+        <text name="rl_semen_sourcePURCHASED" text="Gekauft"/>
+        <text name="rl_semen_sourceLEGACY" text="Altbestand"/>
+        <text name="rl_semen_batchMonth" text="Chargenmonat"/>
+        <text name="rl_insemination_incompatible" text="Sperma passt nicht zu dieser Rasse"/>
+        <text name="rl_pedigree_forbidden" text="Inzucht %s: zu nah verwandt, nicht erlaubt"/>
+        <text name="rl_pedigree_adviseAgainst" text="Inzucht %s: nah verwandt, nicht empfohlen"/>
+        <text name="rl_pedigree_info" text="Inzucht der Nachkommen %s"/>
+        <text name="rl_pedigree_none" text="Kein gemeinsamer Vorfahre gefunden"/>
+        <text name="rl_ai_chance" text="Chargenqualität %s | Erwartete Trächtigkeit für dieses Tier %s (Fruchtbarkeit %s x Empfängnis %s x Charge %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Ernährungsmodell"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Rinder: Alt behält die alten Futterregeln. Real-äquivalent rechnet Aufnahme und Ration in echter Trockenmasse und Energie Der Standardverbrauch beträgt 1/8 des realen Äquivalentvolumens, nicht des alten Verbrauchs."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Alt"/>

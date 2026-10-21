@@ -84,6 +84,7 @@ function AnimalAIDialog:onClickOk()
             dewar:changeStraws(-1)
             self.animal:setInsemination(dewar.animal)
             AIAnimalInseminationEvent.sendEvent(self.object, { { animal = self.animal, dewar = dewar } })
+            AnimalReproduction.notifySubmitted(self.animal)
             Log:info("AnimalAIDialog:onClickOk: inseminated uniqueId=%s via dewar=%s",
                 tostring(self.animal.uniqueId), tostring(uniqueId))
             break
@@ -107,10 +108,16 @@ end
 function AnimalAIDialog:updateDewars()
 
     local farmDewars = g_dewarManager:getDewarsByFarm(self.farmId)
-    self.dewars = farmDewars and table.clone(farmDewars[self.animalTypeIndex], 5) or {}
+    self.dewars = {}
+    -- A dewar kept empty for a straw in hand to come back has nothing to inseminate with.
+    for _, dewar in ipairs(farmDewars and table.clone(farmDewars[self.animalTypeIndex], 5) or {}) do
+        if (dewar.straws or 0) > 0 then table.insert(self.dewars, dewar) end
+    end
 
     self:resetButtonStates()
     self.dewarList:reloadData()
+
+    if #self.dewars == 0 then self:updateDetail(nil) end
 
 end
 
@@ -122,12 +129,41 @@ function AnimalAIDialog:onListSelectionChanged(list, section, index)
 
     local dewar = self.dewars[index]
 
-    if dewar == nil then return end
+    if dewar == nil then
+        self:updateDetail(nil)
+        return
+    end
 
     local canInseminate, reason = self.animal:getCanBeInseminatedByAnimal(dewar.animal)
     Log:trace("AnimalAIDialog:onListSelectionChanged: index=%s canInseminate=%s reason=%s", tostring(index), tostring(canInseminate), tostring(reason))
 
     self.okButton:setDisabled(not canInseminate)
+    self:updateDetail(dewar, canInseminate, reason)
+
+end
+
+
+--- The two lines under the list for the selected dewar: its batch quality and the expected
+--- conception for this female with its parts, then the refusal or the offspring's inbreeding.
+function AnimalAIDialog:updateDetail(dewar, canInseminate, reason)
+
+    if self.chanceText == nil or self.pedigreeText == nil then return end
+
+    if dewar == nil or dewar.animal == nil then
+        self.chanceText:setText("")
+        self.pedigreeText:setText("")
+        return
+    end
+
+    local function percent(value) return string.format("%d%%", math.round(math.clamp(value or 0, 0, 1) * 100)) end
+
+    local chance, parts = AnimalReproduction.getInseminationChance(self.animal, dewar.animal)
+    self.chanceText:setText(string.format(g_i18n:getText("rl_ai_chance"), percent(parts.quality), percent(chance),
+        percent(parts.fertility), percent(parts.conception), percent(parts.quality)))
+
+    local text = (not canInseminate and reason) or RLPedigree.getText(RLPedigree.checkMating(self.animal, dewar.animal))
+        or g_i18n:getText("rl_pedigree_none")
+    self.pedigreeText:setText(text)
 
 end
 

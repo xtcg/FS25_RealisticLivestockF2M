@@ -68,8 +68,9 @@ function B.generationWorld(animalSystem, typeIndex, now)
         return reshaped or genetics
     end
     world.generateOffspring = function(subType, genetics, rng, age)
-        local fertilityValue = genetics.fertility * (animalType.fertility:get(age) / 100)
-        if rng.random() >= fertilityValue then return 0 end
+        -- Only pregnant stock asks for offspring, so there is no conception roll here: the draw
+        -- the old roll took is still taken, keeping every later draw (and replays) the same.
+        rng.random()
         local factor = 0.75 + genetics.fertility / 4
         if rng.random() >= 0.25 then return animalType.pregnancy.average end
         return animalType.pregnancy.get(rng.random() * factor)

@@ -172,6 +172,10 @@ loadMod("scripts/feed/RLFeedRationPlanner.lua")
 loadMod("scripts/feed/RLFeed.lua")
 loadMod("scripts/feed/RLFeedInfoService.lua")
 
+-- Pedigree registry (pure): reproduction, the cluster system and the save read it. Empty unless a
+-- test registers parents, so other tests see no relatives; tests/test_semen_b3.lua covers it.
+loadMod("scripts/animal/RLPedigree.lua")
+
 -- RLPEN_DUMP=path: tests that capture RLPEN records append them there as log.txt lines.
 function DUMP(line)
     local path = os.getenv("RLPEN_DUMP")

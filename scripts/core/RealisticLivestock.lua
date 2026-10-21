@@ -157,6 +157,9 @@ function RealisticLivestock.loadMap()
     MoneyType.SEMEN_SALE = MoneyType.register("semenSale", "rl_semen_sale")
     MoneyType.LAST_ID = MoneyType.LAST_ID + 1
 
+    MoneyType.SEMEN_COLLECTION = MoneyType.register("semenCollection", "rl_semen_collectionFee")
+    MoneyType.LAST_ID = MoneyType.LAST_ID + 1
+
     -- Migrate old PhysicsObject dewars from items.xml to Vehicle dewars
     DewarMigration.run()
 end
@@ -929,6 +932,12 @@ function RealisticLivestock.hasMaleAnimalInPen(spec, subT, female)
 
         if animal:getIdentifiers() == fatherId then
             Log:trace("hasMaleAnimalInPen:   skip '%s' (is father)", s.name)
+            continue
+        end
+
+        -- First cousins or closer (RLPedigree) do not mate; the same rule refuses the AI straw.
+        if female ~= nil and animal.gender == "male" and select(2, RLPedigree.checkMating(female, animal)) == RLPedigree.LEVEL.FORBIDDEN then
+            Log:trace("hasMaleAnimalInPen:   skip '%s' (close relative)", s.name)
             continue
         end
 

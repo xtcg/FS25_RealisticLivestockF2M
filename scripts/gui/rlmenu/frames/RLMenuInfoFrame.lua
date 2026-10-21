@@ -564,12 +564,12 @@ function RLMenuInfoFrame:updateButtonVisibility()
             table.insert(self.menuButtonInfo, self.castrateButtonInfo)
         end
 
-        -- Collect semen - males of a species with an AI trade, disabled while RLSemenCollection
-        -- refuses (castrated, age, already collected this month, sick) or trading is not allowed.
+        -- Collect semen - males of a species with an AI trade. Disabled only without the trading
+        -- permission: while RLSemenCollection refuses (castrated, age, condition, already collected
+        -- this month, sick) the button stays live and says why, and when it can collect again.
         local semenRefusal = RLSemenCollection.getRefusal(animal)
         if semenRefusal ~= RLSemenCollection.REFUSAL.NOT_MALE and semenRefusal ~= RLSemenCollection.REFUSAL.SPECIES then
-            self.collectSemenButtonInfo.disabled = semenRefusal ~= nil
-                or not RLPermissionHelper.hasLocalPermission("tradeAnimals")
+            self.collectSemenButtonInfo.disabled = not RLPermissionHelper.hasLocalPermission("tradeAnimals")
             table.insert(self.menuButtonInfo, self.collectSemenButtonInfo)
         end
 
@@ -968,8 +968,9 @@ function RLMenuInfoFrame:onClickInseminate()
         animal.animalTypeIndex, animal, self.refreshAfterMutation, self)
 end
 
----Collect semen from the selected sire into a dewar delivered to the store spawn area. The
----server re-validates and answers with a result dialog, after which the pane refreshes.
+---Collect semen from the selected sire into a dewar delivered to the store spawn area. A refusal
+---shows its reason; otherwise a confirmation lists the straws, what they come from and the fee.
+---The server re-validates and answers with a result dialog, after which the pane refreshes.
 function RLMenuInfoFrame:onClickCollectSemen()
     local animal = self:getSelectedAnimal()
     if animal == nil or self.selectedHusbandry == nil then
@@ -979,31 +980,80 @@ function RLMenuInfoFrame:onClickCollectSemen()
 
     local refusal = RLSemenCollection.getRefusal(animal)
     if refusal ~= nil then
-        InfoDialog.show(g_i18n:getText(refusal), nil, nil, DialogElement.TYPE_WARNING)
+        InfoDialog.show(RLSemenCollection.getRefusalText(refusal, animal), nil, nil, DialogElement.TYPE_WARNING)
         return
     end
 
-    Log:debug("RLMenuInfoFrame:onClickCollectSemen: farmId=%s uniqueId=%s expected straws=%d",
-        tostring(animal.farmId), tostring(animal.uniqueId), RLSemenCollection.getStrawYield(animal))
-    SemenCollectEvent.sendRequest(self.selectedHusbandry, animal, self.refreshAfterMutation, self)
+    local preview = RLSemenCollection.getPreviewText(animal)
+    Log:debug("RLMenuInfoFrame:onClickCollectSemen: farmId=%s uniqueId=%s expected straws=%d fee=%.2f",
+        tostring(animal.farmId), tostring(animal.uniqueId), RLSemenCollection.getStrawYield(animal), RLSemenCollection.getFee(animal))
+
+    local husbandry = self.selectedHusbandry
+    YesNoDialog.show(function(_, yes)
+        if yes then SemenCollectEvent.sendRequest(husbandry, animal, self.refreshAfterMutation, self) end
+    end, self, preview, g_i18n:getText("rl_semen_collect"))
 end
 
----Castrate the selected animal. Delegates to RLAnimalInfoService (mutation + MP event).
+---Ask before castrating the selected animal (button and C key both land here). Nothing changes
+---until the player confirms; the animal is remembered by identity and looked up again then.
 function RLMenuInfoFrame:onClickCastrate()
     local animal = self:getSelectedAnimal()
     if animal == nil then
         Log:trace("RLMenuInfoFrame:onClickCastrate: no animal selected, early return")
         return
     end
+    if animal.isCastrated or animal.gender ~= "male" then
+        Log:trace("RLMenuInfoFrame:onClickCastrate: uniqueId=%s not an intact male, ignored", tostring(animal.uniqueId))
+        return
+    end
 
-    Log:trace("RLMenuInfoFrame:onClickCastrate: farmId=%s uniqueId=%s isCastrated=%s fertility=%.2f",
-        tostring(animal.farmId), tostring(animal.uniqueId),
-        tostring(animal.isCastrated), animal.genetics and animal.genetics.fertility or -1)
+    local target = {
+        husbandry = self.selectedHusbandry,
+        farmId = animal.farmId,
+        uniqueId = animal.uniqueId,
+        identifiers = animal:getIdentifiers(),
+    }
+    local name = RLAnimalSellService.getAnimalName(animal)
+    local label = RLAnimalSellService.getAnimalTypeTitle(animal)
+    if name ~= nil and name ~= "" then label = label .. ", " .. name end
+    local text = string.format(g_i18n:getText("rl_ui_castrateConfirm"), label, target.identifiers)
 
-    RLAnimalInfoService.castrateAnimal(animal)
+    Log:debug("RLMenuInfoFrame:onClickCastrate: confirming farmId=%s uniqueId=%s", tostring(target.farmId), tostring(target.uniqueId))
+    local dialog = YesNoDialog.show(self.onCastrateConfirmed, self, text, g_i18n:getText("rl_ui_castrateConfirmTitle"),
+        g_i18n:getText("rl_ui_castrateConfirmYes"), g_i18n:getText("rl_button_cancel"),
+        DialogElement.TYPE_WARNING, nil, nil, target)
+    if dialog ~= nil and dialog.noButton ~= nil then
+        FocusManager:setFocus(dialog.noButton)
+    end
+end
 
-    Log:debug("RLMenuInfoFrame:onClickCastrate: farmId=%s uniqueId=%s castrated via service",
-        tostring(animal.farmId), tostring(animal.uniqueId))
+---The confirm's answer. Finds the remembered animal again in its pen and castrates it only while it
+---is still an intact male there; a sold, moved or already castrated animal is left alone.
+---@param yes boolean
+---@param target table husbandry, farmId, uniqueId, identifiers captured when the dialog opened
+function RLMenuInfoFrame:onCastrateConfirmed(yes, target)
+    if not yes or target == nil then return end
+
+    local husbandry = target.husbandry
+    local found = nil
+    if husbandry ~= nil and husbandry.getClusters ~= nil then
+        for _, candidate in ipairs(husbandry:getClusters() or {}) do
+            if candidate.uniqueId == target.uniqueId and candidate.farmId == target.farmId
+                and candidate.getIdentifiers ~= nil and candidate:getIdentifiers() == target.identifiers then
+                found = candidate
+                break
+            end
+        end
+    end
+
+    if found == nil or found.isCastrated or found.gender ~= "male" then
+        Log:debug("RLMenuInfoFrame:onCastrateConfirmed: uniqueId=%s no longer an intact male in its pen, nothing done", tostring(target.uniqueId))
+        self:refreshAfterMutation()
+        return
+    end
+
+    RLAnimalInfoService.castrateAnimal(found)
+    Log:debug("RLMenuInfoFrame:onCastrateConfirmed: farmId=%s uniqueId=%s castrated via service", tostring(found.farmId), tostring(found.uniqueId))
     self:refreshAfterMutation()
 end
 
