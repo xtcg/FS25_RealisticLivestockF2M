@@ -66,9 +66,11 @@ end
 
 
 --- One row per feed of a pen running the mode, in the order the ration takes them (complete
---- rations and forages in the map's order, then concentrates, then milk in a rearing pen): every
---- usable feed the trough takes with stock, eaten this month or in the plan, the grains always,
---- and any unconfigured feed with stock (never eaten).
+--- rations and forages in the map's order, then concentrates, then milk in a rearing pen): each
+--- food group's main feed (its first complete ration or forage) always, so an empty hay rack
+--- reads 0 l rather than looking unsupported; every other usable feed the trough takes with
+--- stock, eaten this month or in the plan; the grains always; and any unconfigured feed with
+--- stock (never eaten).
 --- @param placeable table
 --- @return table rows { name, index, title, stock (the trough's), available (with a meadow's),
 ---         capacity, status ("EATEN", "STOCKED", "EMPTY", "UNCONFIGURED"), dmShare (of the last
@@ -128,10 +130,14 @@ function RLFeedInfoService.buildFeedRows(placeable, ration)
     local animalFood = foodSystem ~= nil and foodSystem:getAnimalFood(spec.animalTypeIndex) or nil
     for _, group in ipairs(animalFood ~= nil and animalFood.groups or {}) do
         if not group.rlGrain then
+            local mainShown = false
             for _, index in ipairs(group.fillTypes or {}) do
                 local name = g_fillTypeManager:getFillTypeNameByIndex(index)
                 local profile = RLFeedProfiles.getFeed(name)
-                if profile == nil or profile.role ~= "CONCENTRATE" then add(name, index, false) end
+                local main = not mainShown and profile ~= nil and profile.valid and spec.supportedFillTypes[index]
+                    and (profile.role == "COMPLETE" or profile.role == "FORAGE")
+                if main then mainShown = true end
+                if profile == nil or profile.role ~= "CONCENTRATE" then add(name, index, main) end
             end
         end
     end
@@ -623,6 +629,16 @@ function RLFeedInfoService.adjustFoodInfos(placeable, infos)
             end
             table.insert(out, { title = title, value = row.stock, capacity = row.capacity, ratio = row.capacity > 0 and row.stock / row.capacity or 0,
                 valueText = valueText, disabled = row.status == "UNCONFIGURED" or row.status == "EMPTY", rlFeedRow = row })
+        end
+        -- A meadow's grass keeps its own row (when the meadow spec added it underneath this one);
+        -- the grass grows on the field, so it never counts against the trough's capacity.
+        local meadow = placeable.spec_husbandryMeadow
+        local meadowInfo = meadow ~= nil and meadow.foodInfo or nil
+        for _, info in ipairs(infos) do
+            if meadowInfo ~= nil and info == meadowInfo then
+                info.ignoreCapacity = true
+                table.insert(out, info)
+            end
         end
         return out
     end
