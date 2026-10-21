@@ -1,0 +1,478 @@
+<?xml version='1.0' encoding='utf-8'?>
+<playerManual language="cs" baselineCommit="adf72752f9ae133ef9fa8242116a3253138ff5eb" baselineVersion="1.4.0.1-dev.8">
+  <chapter title="导读与版本说明" navTitle="导读与版本说明">
+    <paragraph text="Realistic Livestock: Farm to Market" heading="true" image="gui/rlmenu/manual/text_001.dds" imageY="0" imageHeight="76" />
+    <paragraph text="玩家玩法手册与界面数值解读（代码核对长版）" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="76" imageHeight="68" />
+    <paragraph text="文档性质：可供作者删减的完整素材稿，不是已经压缩排版的 ModHub 简介。先尽量解释“玩家会看到什么、该怎样读、可以做什么、为什么”，作者可以删去原理、表格和示例后对外发布。游戏内将表格改为逐项说明，便于阅读。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="144" imageHeight="172" />
+    <paragraph text="代码基准：xtcg/FS25_RealisticLivestockF2M，main，提交 adf72752f9ae133ef9fa8242116a3253138ff5eb（2026-10-18），modDesc.xml 标示版本 1.4.0.1-dev.8。主要参考同一提交中的 Lua、XML、菜单代码，辅以上游用户文档和本项目变更记录。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="316" imageHeight="172" />
+    <paragraph text="重要声明：本文解释的是该提交的代码行为与设计意图，不等于所有功能都已完成真实游戏、多人联机和完整存档迁移验收。若玩家的 Mod ZIP、地图版本、配置覆盖文件或存档设置不同，以实际游戏为准。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="488" imageHeight="120" />
+    <paragraph text="地图：首选 Hof Bergmann。它提供犊牛栏、公牛舍、奶链、屠宰与下游加工、出售渠道。本 Mod 不包含 Hof Bergmann 地图本体。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="608" imageHeight="120" />
+    <paragraph text="源码：https://github.com/xtcg/FS25_RealisticLivestockF2M&#10;问题反馈：https://github.com/xtcg/FS25_RealisticLivestockF2M/issues" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="728" imageHeight="120" />
+    <paragraph text="先看这 8 条" heading="true" image="gui/rlmenu/manual/text_001.dds" imageY="848" imageHeight="76" />
+    <paragraph text="1. 每一头动物是独立个体。即使同品种同月龄，体重、基因、健康、繁殖状态、生产表现和市场价值也可能不同。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="924" imageHeight="68" />
+    <paragraph text="2. “当前健康”和“健康基因”不同。前者是会变化的 0–100 健康状态；后者是遗传性状，关系到健康变化与抗风险表现。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="992" imageHeight="68" />
+    <paragraph text="3. “成年目标体重”不等于“出栏目标体重”。牛不需要长到完全成年体重才适合送去屠宰。界面专设 Finish weight / 出栏参考体重。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="1060" imageHeight="120" />
+    <paragraph text="4. “育肥度（Finish）”和“体况（BCS）”不是同一套读数。牛的公畜通常显示 0–100 育肥评分；成年母牛使用 1–5 的 BCS 体况分数。最佳决策不总是越胖越好。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="1180" imageHeight="120" />
+    <paragraph text="5. 有基因优势不等于一定值得保留。养奶牛关注产奶与繁殖，养商品肉牛关注体型、可售肉和饲料投入，种公牛还要评估后代价值。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="1300" imageHeight="120" />
+    <paragraph text="6. 买卖价、出肉量、肉品售价分属三个环节。经销商报价不等于屠宰后的净收益；屠宰产肉还要受体重、品种、肉用基因和育肥状态影响。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="1420" imageHeight="120" />
+    <paragraph text="7. 默认饲喂模式仍是 Legacy（传统模式）。更复杂的 Real-equivalent（现实等效营养）需要到设置中主动开启，且并非所有畜舍/动物都能适用。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="1540" imageHeight="120" />
+    <paragraph text="8. 存在已写入代码但默认禁用的玩法。例如羊、猪的部分新生长/营养曲线、实验性交易事务和新版经销商底层流程。本文会与正式生效功能严格区分。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="1660" imageHeight="120" />
+    <paragraph text="功能状态图例" heading="true" image="gui/rlmenu/manual/text_001.dds" imageY="1780" imageHeight="76" />
+    <paragraph text="【默认生效】当前配置已启用，或属于已有核心玩法。正常进入存档即可使用，仍可能受地图/物种限制。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="1856" imageHeight="68" />
+    <paragraph text="【手动启用】设置为默认关闭，玩家需要打开。不打开就不按文中“开启后”的方式运行。" heading="false" image="gui/rlmenu/manual/text_001.dds" imageY="1924" imageHeight="68" />
+    <paragraph text="【地图限定】依赖 Hof Bergmann 等地图资源或 Mod 桥接。换地图未必有同样的奶罐、屠宰场或栏舍。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="0" imageHeight="68" />
+    <paragraph text="【开发/未验收】代码、数据、界面可能已经存在，但未作为默认玩法交付。不应在发布简介里写成已全面开放。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="68" imageHeight="68" />
+    <paragraph text="【示例】用虚构的游戏界面数值解释概念。不是固定产量、官方售价或保证结果。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="136" imageHeight="68" />
+  </chapter>
+  <chapter title="第一篇　快速进入游戏" navTitle="第一部分　快速进入游戏">
+    <paragraph text="1. 它和普通《模拟农场 25》畜牧有什么不同？" heading="true" image="gui/rlmenu/manual/text_002.dds" imageY="204" imageHeight="76" />
+    <paragraph text="普通玩法容易把养殖理解为“给一个畜舍喂料、时间到了获得产品”。本项目继承 Realistic Livestock 的逐头动物系统，让玩家更像实际养殖场经营者：购买哪头犊牛、如何配种、要不要保留种畜、使用什么饲料、什么时候停肥出售、是卖活畜还是委托屠宰，都有各自的意义。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="280" imageHeight="172" />
+    <paragraph text="这里的“拟真”并不意味着所有现实数据都直接放进游戏。真实世界牛羊生长历时、饲料干物质、屠宰率和收购价，是模型校准的参考；游戏仍要顾及一个游戏月可能只有一天、仓储以升计价、地图生产线以通用商品结算等规则。因此正确的心态是：比较不同经营选择的得失，而不是只盯住一个价格或体重。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="452" imageHeight="172" />
+    <paragraph text="2. 推荐的第一次游玩流程" heading="true" image="gui/rlmenu/manual/text_002.dds" imageY="624" imageHeight="76" />
+    <paragraph text="1. 在新存档或备份后的旧存档中启用 F2M；Hof Bergmann 适合作为首个体验地图。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="700" imageHeight="68" />
+    <paragraph text="2. 打开 RL Menu，默认按键 Right Shift + O（右 Shift + O）。也可在 ESC 的动物页面选择畜舍，再按所示的“管理动物”按键（文档基线通常为 R）。游戏按键可重新绑定。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="768" imageHeight="120" />
+    <paragraph text="3. 先进入 Info / Manage（信息/管理）页，选择畜舍和一头动物，认识左侧畜舍汇总与右侧个体详情。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="888" imageHeight="68" />
+    <paragraph text="4. 试着比较两头同品种动物：一头偏高肉用基因、一头偏高产奶基因；再看它们的年龄、体重、育肥度和售价。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="956" imageHeight="68" />
+    <paragraph text="5. 先用默认 Legacy 饲喂模式熟悉牲畜管理；有条件再启用 Real-equivalent 模式，在日粮窗口观察干物质比例、能量、饲料预计用量。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="1024" imageHeight="120" />
+    <paragraph text="6. 给动物取名或做标记，尝试设置一个保存筛选器；只有在熟悉规则后，再让 Herdsman 自动买卖和移动。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="1144" imageHeight="68" />
+    <paragraph text="7. 真正出售前，比较直接卖活畜与送屠宰设施加工后出售肉品的净收益。不要只比较两处的毛收入。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="1212" imageHeight="68" />
+    <paragraph text="3. 游戏月份、模型时间和“每天多少升”" heading="true" image="gui/rlmenu/manual/text_002.dds" imageY="1280" imageHeight="76" />
+    <paragraph text="游戏月 / period：动物年龄按月增长；许多动物生长曲线、输入输出曲线按 period 配置。用于年龄、奶量、监测输入输出、价格曲线。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="1356" imageHeight="120" />
+    <paragraph text="游戏内天/小时：玩家设置的每月游戏天数；脚本按小时或天更新。用于喂料、健康与状态刷新。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="1476" imageHeight="68" />
+    <paragraph text="模型日：在 Real-equivalent 模式中，一个游戏月按 30 个模型日处理，分步计算现实营养需求。用于 kg DM/head/day、ME、日粮与生长预算。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="1544" imageHeight="120" />
+    <paragraph text="最重要的区别：动物页面的许多输入/输出量按游戏月表达；而开启现实等效营养后，界面出现的 kg/d 表示模型中的每头每天摄入干物质，不能直接当作玩家 24 小时游戏时间消耗的公斤数。一个游戏月设置一天或多天，不应该简单地将每月经济结果按游戏天数相乘。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="1664" imageHeight="172" />
+  </chapter>
+  <chapter title="第二篇　看懂动物页面" navTitle="第二部分　解读动物页面">
+    <paragraph text="4. 动物列表卡片有什么？" heading="true" image="gui/rlmenu/manual/text_002.dds" imageY="1836" imageHeight="76" />
+    <paragraph text="列表用于快速决定“选谁”。卡片可能显示动物图片、品种/名字、编号、当前价格，以及疾病、孕育或生育状态等状态图标。标记色和图标是辅助，不建议只根据卡片价格判断该动物是否优秀。" heading="false" image="gui/rlmenu/manual/text_002.dds" imageY="1912" imageHeight="120" />
+    <paragraph text="推荐阅读顺序：先确认动物品种、性别和月龄，再观察价格与重要状态图标，最后打开详情确认遗传、生产、健康和体重。对繁殖群，应优先排除不适合繁殖或正在患病的个体。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="0" imageHeight="120" />
+    <paragraph text="动物的身份并非只靠名字。Unique ID 是个体识别用编号；Farm ID 和来源/耳标等用于识别登记和归属。父母、后代等系谱记录也是通过身份关联。改名字不会把两头动物变成同一头。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="120" imageHeight="120" />
+    <paragraph text="5. 左侧：畜舍（Pen / Husbandry）信息" heading="true" image="gui/rlmenu/manual/text_003.dds" imageY="240" imageHeight="76" />
+    <paragraph text="选择一个畜舍后，左侧通常展示该畜舍的数量、环境条件、食物库存及其状态条。这里的数值大多是“整栏合计”而不是某一头动物的表现。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="316" imageHeight="120" />
+    <paragraph text="Animals / Capacity：当前存栏头数与设施可容纳数量。留出产犊和购入空间；满栏可能阻止交易或后代正常留栏。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="436" imageHeight="68" />
+    <paragraph text="Food / Food total：槽内各饲料与适用草场资源的总量。这是库存量，不是饲料是否均衡的证明。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="504" imageHeight="68" />
+    <paragraph text="Food bar / 容量条：当前食物相对库存容量的填充比例。“槽很满”不意味着蛋白、纤维、水都足够。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="572" imageHeight="68" />
+    <paragraph text="Food months / 食物可维持时间：依据当前头数、采食估计的库存可维持月份。动物购入、长大或配种后，预计用量会变。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="640" imageHeight="68" />
+    <paragraph text="(&lt;1d) / (&lt;2d)：该栏当前饲料预计不足 1 或 2 个游戏日，显示告警。及时补料；不是剩余 1 或 2 个模型日。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="708" imageHeight="68" />
+    <paragraph text="Condition / 环境条件：游戏本体提供的水、垫草等栏舍需求及状态。环境条件会影响健康、生产或畜舍正常工作。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="776" imageHeight="68" />
+    <paragraph text="草场（Meadow）：地图草场资源通常会计入可用食物总量。草场全年供应有季节性，不要以夏季库存推断冬季。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="844" imageHeight="68" />
+    <paragraph text="细节：当前代码中，食物总量可以包含草场；但某些库存条的百分比只测量食槽/仓储容量的占比。因此“食物总量有数值，但容量条看起来不满”并不一定是计算错误。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="912" imageHeight="120" />
+    <paragraph text="5.1 畜舍新增体况汇总【默认生效，适用品种受限】" heading="true" image="gui/rlmenu/manual/text_003.dds" imageY="1032" imageHeight="76" />
+    <paragraph text="Avg. BCS（平均 BCS）：该栏适用母畜的平均体况评分。适合看整个母牛群是在消瘦还是逐渐变肥；平均值会掩盖极端个体。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="1108" imageHeight="68" />
+    <paragraph text="Cows thin / fat：BCS 偏瘦与偏肥的母牛数量，例如 2 / 1。需要分别定位个体；不等于两组基因好坏。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="1176" imageHeight="68" />
+    <paragraph text="Bulls ready：达到代码出栏判定的公畜数，例如 3 / 8。比单纯以月龄设统一卖出阈值更有用。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="1244" imageHeight="68" />
+    <paragraph text="Bulls overfat：育肥过度的公畜数量。关注是否已经错过更理想的出栏状态。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="1312" imageHeight="68" />
+    <paragraph text="Feed eaten：上一次采食步骤中实际吃下的饲料量占需求的比例。判断是否缺粮或是否因槽内食物不可用而饿着。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="1380" imageHeight="68" />
+    <paragraph text="Ration energy：实际采食所提供能量相对该步骤需求的覆盖状况。与 Food eaten 不同；吃够升数未必摄入足够能量。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="1448" imageHeight="68" />
+    <paragraph text="Water cover：可用饮水对需要量的覆盖情况。产奶群尤须关注水；别只看粮食。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="1516" imageHeight="68" />
+    <paragraph text="示例：畜舍显示 Bulls ready 3/8、Bulls overfat 1，不代表其余四头都会继续涨价。一头可能太轻，一头可能肥度不足，一头已经偏肥，还有一头可能未达到准入年龄。应进入对应个体的 Slaughter / 出栏判定查看具体原因。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="1584" imageHeight="172" />
+    <paragraph text="5.2 现实等效营养模式下的畜舍补充栏【手动启用】" heading="true" image="gui/rlmenu/manual/text_003.dds" imageY="1756" imageHeight="76" />
+    <paragraph text="开启 Real-equivalent 且该畜舍确实支持时，左侧会显示：" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="1832" imageHeight="68" />
+    <paragraph text="Feed model：当前饲喂模型是 Real-equivalent 还是旧规则，以及如果没有启用的原因。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="1900" imageHeight="68" />
+    <paragraph text="Ration target：正在执行的饲养目标与精饲料选择，如“育肥 · 自动精料”。" heading="false" image="gui/rlmenu/manual/text_003.dds" imageY="1968" imageHeight="68" />
+    <paragraph text="ME plan covered：代谢能（Metabolizable Energy, ME）预算完成比例。例如 83% 表示该步规划的能量供给只覆盖了约 83%，不是“饲料槽有 83% 的库存”。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="0" imageHeight="120" />
+    <paragraph text="First to run out：按该日粮预测最先耗尽的某项饲料；不是全栏所有饲料都会同时耗尽。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="120" imageHeight="68" />
+    <paragraph text="Calves on milk：对仍需代乳/奶的犊牛发出断奶粉或余量不足提示。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="188" imageHeight="68" />
+    <paragraph text="若显示 Legacy mode、No supported trough、Unsupported animal、Calf on milk: dam/calf pen 等提示，不能假设该畜舍正在使用现实等效日粮计划。完整原因见饲喂篇。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="256" imageHeight="120" />
+    <paragraph text="6. 右侧：个体信息页面结构" heading="true" image="gui/rlmenu/manual/text_004.dds" imageY="376" imageHeight="76" />
+    <paragraph text="右侧通常比左侧宽，依次容纳动物种类图像、基本数值、父母子女、遗传评分、疾病记录，以及（使用监测后）输入输出统计。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="452" imageHeight="68" />
+    <paragraph text="关键提示：部分项目“天生可见”，另一部分需要监测器。这不是 UI 遗漏：代码将部分准确的数值放在监测信息之后，将能目视评价的体况/育肥度始终公开。而从经销商购买时的预览会强制展示完整数值，便于玩家做购买决策。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="520" imageHeight="172" />
+    <paragraph text="6.1 动物基本数值总表" heading="true" image="gui/rlmenu/manual/text_004.dds" imageY="692" imageHeight="76" />
+    <paragraph text="Age / 年龄：月（有时格式为年+月），总是显示。动物的生物年龄，决定是否可繁殖、出栏资格等。不要认为所有同龄动物体重相同。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="768" imageHeight="120" />
+    <paragraph text="Health / 健康：0–100%。自有动物通常需要监测；经销商预览完整。是现在这头动物的生存/健康状态，会变化，不是遗传栏的 Health。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="888" imageHeight="120" />
+    <paragraph text="Reproduction / 繁殖：% 或限制原因，显示于支持繁殖的个体。当前繁殖进度/状态/资格，受月龄、健康、雄性可用性、产后恢复等限制。不要将任意百分比理解为下一次必然怀孕概率。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="1008" imageHeight="120" />
+    <paragraph text="Weight / 体重：当前 kg / 目标 kg。自有动物通常需要监测；经销商预览完整。当前活体重量与该个体的成年目标重量。分母不是“屠宰场要求重量”。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="1128" imageHeight="120" />
+    <paragraph text="Finish / 育肥度：0–100 + 等级 + 趋势。用于生效的公畜体况系统，表示体储备与脂肪完成度的综合评分。100 分不是最佳出栏状态。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="1248" imageHeight="120" />
+    <paragraph text="Condition / BCS：1.0–5.0 + 等级 + 趋势。用于生效的母畜体况系统，是母畜体储备评分；偏瘦/偏肥各有代价。4.5 不是“健康 90%”。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="1368" imageHeight="120" />
+    <paragraph text="Slaughter / 出栏判断：适用育肥动物的文本判定。同时考虑年龄、体重相对出栏参照、育肥度和销售资格。不是重量够就一定 Ready。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="1488" imageHeight="120" />
+    <paragraph text="Finish weight：当前 kg / 出栏参考 kg。判断当前距离商品出栏参照还有多少重量，与成年 Target weight 不同。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="1608" imageHeight="68" />
+    <paragraph text="Ration cover：体况能量预算可用时显示的百分比，是需求由实际日粮满足的比例，不是桶里剩余百分比。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="1676" imageHeight="68" />
+    <paragraph text="Milk output：适用泌乳母畜有营养预算时显示的百分比，是实际产奶与该牛当前潜在产奶能力的比例，不是已卖掉/存储的奶量。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="1744" imageHeight="120" />
+    <paragraph text="Fertility (BCS)：生效且适用的繁殖母畜显示的百分比。体况对受胎几率的乘数修正，正常体况可为 100%。不表示每次交配都怀孕。" heading="false" image="gui/rlmenu/manual/text_004.dds" imageY="1864" imageHeight="120" />
+    <paragraph text="Pregnant：母畜 Yes / No，当前是否已怀孕。与泌乳状态、可再次交配资格不同。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="0" imageHeight="68" />
+    <paragraph text="Expecting：有妊娠记录时预计的后代数，不是最后保证存活数量。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="68" imageHeight="68" />
+    <paragraph text="Expected：有妊娠记录时的预计分娩日期，不是经销商购入日期。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="136" imageHeight="68" />
+    <paragraph text="Lactating：适用母畜是否处于产乳/哺乳阶段，通常有监测限制。Yes 不保证一定有可以出售的剩余奶。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="204" imageHeight="68" />
+    <paragraph text="Pedigree：父母 ID、子女计数，用于血统与繁殖管理。父母不详不表示无遗传性状。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="272" imageHeight="68" />
+    <paragraph text="Genetics：0–99 + 等级，出生时确定的遗传性状。数值不是百分比或即时产量。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="340" imageHeight="68" />
+    <paragraph text="Inputs / Outputs：使用监测后按游戏月显示的资源输入输出。不是每现实日或全部畜舍合计。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="408" imageHeight="68" />
+    <paragraph text="Disease：疾病启用且允许显示时，记录患病、恢复、免疫、接种或携带等状态。隐性潜伏期没图标不代表绝不感染。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="476" imageHeight="68" />
+    <paragraph text="Value / 当前价值：游戏货币，当前估价受品种、年龄、遗传、体重、状态和行情影响。不是扣完运输费的纯利润。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="544" imageHeight="68" />
+    <paragraph text="6.2 一个虚拟界面，教你逐行阅读【示例】" heading="true" image="gui/rlmenu/manual/text_005.dds" imageY="612" imageHeight="76" />
+    <paragraph text="假设一头安格斯育肥公牛显示：&#10;Age：19 months；Health：94%；Weight：585.00 kg / 1000.00 kg；Finish：72 (moderate) +；Slaughter：Ready；Finish weight：585 / 600 kg；Ration cover：100%；Genetics Overall：64 — Good；Genetics Meat：78 — High（遗传分数仅为示例）。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="688" imageHeight="224" />
+    <paragraph text="1. 19 月龄是它目前的年龄；该数值并不直接代表“还有 5 个月才能卖”。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="912" imageHeight="68" />
+    <paragraph text="2. 健康 94% 是今天的健康状态，不是遗传品质 94 分；要看是否继续下降及有什么疾病原因。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="980" imageHeight="68" />
+    <paragraph text="3. 585/1000 kg 表示尚未达到完整成年目标体重 1000 kg，但并不意味着必须继续养到 1000 kg。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="1048" imageHeight="68" />
+    <paragraph text="4. 585/600 kg 才是离出栏参考重量的距离。由于达到参照值的 95% 就满足重量端要求，585 kg 已越过约 570 kg 的代码门槛。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="1116" imageHeight="120" />
+    <paragraph text="5. 育肥 72 分（moderate）位于理想的中等肥度区间，且 + 指示近期体储备趋于增加；结合年龄和准入条件，出栏显示 Ready。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="1236" imageHeight="120" />
+    <paragraph text="6. 继续喂养可能增加体重，但也消耗饲料，还可能进入过肥区间，不代表收益一定更高。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="1356" imageHeight="68" />
+    <paragraph text="7. 肉用遗传分数高可能改善出肉及价值；78 是遗传显示分数，不是屠宰率 78%。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="1424" imageHeight="68" />
+    <paragraph text="以上体重、月龄、遗传分数是教学示例，不是当前存档的实测截图。具体出栏参考取决于品种、个体、配置与兼容 Mod。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="1492" imageHeight="68" />
+    <paragraph text="7. 监测器（Monitor）究竟有什么用？" heading="true" image="gui/rlmenu/manual/text_005.dds" imageY="1560" imageHeight="76" />
+    <paragraph text="监测器并非动物健康的必需用品，而是一个获取更精确数据的管理投入。代码对玩家自有牲畜的当前健康、精确体重、部分泌乳状态以及个体输入/输出信息实施监测可见性限制；但在经销商预览时，购买前可看到更完整的数值。体况分数和育肥判定属于可在实际畜牧中凭经验观察的指标，不要求购买监测器。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="1636" imageHeight="172" />
+    <paragraph text="一个有效策略是：先给核心种公畜、核心奶牛、需要跟踪育肥进度的动物安装监测器，再考虑是否给整群动物装。不要仅为了追求每头都有数字而忽略监测成本。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="1808" imageHeight="120" />
+    <paragraph text="注意：状态中可能保留“已移除的监测器”的历史痕迹；界面可显示历史统计，但不要把它当作持续的实时监测。实际按钮状态以游戏所示为准。" heading="false" image="gui/rlmenu/manual/text_005.dds" imageY="1928" imageHeight="120" />
+  </chapter>
+  <chapter title="第三篇　基因与种畜选择" navTitle="第三部分　基因与种畜选择">
+    <paragraph text="8. 基因分数 0–99 的来源" heading="true" image="gui/rlmenu/manual/text_006.dds" imageY="0" imageHeight="76" />
+    <paragraph text="动物在底层保存的普通遗传系数通常约为 0.25–1.75（平均/中性系数为 1.00）；为方便玩家阅读，界面换算为 0–99 整数：&#10;界面分数 = round((底层基因系数 - 0.25) ÷ 1.50 × 99)" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="76" imageHeight="120" />
+    <paragraph text="近似对应：0 → 0.25，接近最差；17 → 0.50，明显低于平均；33 → 0.75，略低于平均；50 → 1.00，接近中性平均；66 → 1.25，高于平均；83 → 1.50，显著高于平均；99 → 1.75，接近最高值。" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="196" imageHeight="120" />
+    <paragraph text="因此：“Milk 75”不表示一天生产 75 L 奶；“Fertility 80”也不表示受孕概率就是 80%。它表示该遗传系数在允许区间中偏高，最终结果仍与年龄、品种曲线、健康、体况和饲喂等机制共同计算。" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="316" imageHeight="120" />
+    <paragraph text="极少数绝育个体的底层 Fertility 会记录为特殊值 0，而正常遗传区间下限是 0.25。界面可能同样显示数值 0，必须配合文字 Infertile / 不育判断：不育 ≠ 只是低繁殖基因。" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="436" imageHeight="120" />
+    <paragraph text="9. 五项遗传指标与 Overall" heading="true" image="gui/rlmenu/manual/text_006.dds" imageY="556" imageHeight="76" />
+    <paragraph text="Metabolism（代谢/生长与采食倾向）：高值可能有利于增重和个体体型，但通常也提高食量和维持开销，并非单向利好。商品肉牛、育肥猪、成本敏感的农场应关注。" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="632" imageHeight="120" />
+    <paragraph text="Health（健康遗传）：影响健康下降/恢复与生存能力相关表现；不是当前健康值。所有保留繁殖的动物、核心母畜都应关注。" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="752" imageHeight="68" />
+    <paragraph text="Fertility（繁殖遗传）：影响自然繁殖/人工授精以及部分物种的产仔潜力；0 代表绝育特殊情况。种公畜、母牛、母猪、母羊应关注。" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="820" imageHeight="120" />
+    <paragraph text="Quality / Meat（肉用遗传，代码键 quality）：影响肉用价值及经屠宰模型计算的产肉表现；也是活畜估价因素。肉牛、育肥猪、羔羊、淘汰畜应关注。" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="940" imageHeight="120" />
+    <paragraph text="Productivity（产出遗传）：具体含义随物种变化：牛多为奶，羊为毛，山羊为奶，鸡为蛋。奶牛、繁殖羊群、蛋禽应关注。" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="1060" imageHeight="68" />
+    <paragraph text="Overall（综合遗传评价）：对该动物实际拥有的几项遗传值取简单平均后给出总体评级。适合快速筛选、经销商初步比较。" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="1128" imageHeight="68" />
+    <paragraph text="请特别注意 Metabolism。在这个 Mod 中，高代谢并不等同于“效率更高”：动物可能长得快，但也更能吃。决定育肥是否赚钱的是每单位增重消耗多少饲料和多少时间，不能只看生长速度。" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="1196" imageHeight="120" />
+    <paragraph text="请特别注意 Overall。它是概括指标，不是为“奶业收益”或“育种总价值”优化的加权育种指数。例如某头牛因健康、代谢、肉用都很高而获得 Overall 80，但产奶遗传仅有 25；对乳品经营者而言，另一头 Overall 65、产奶 90 的母牛可能更合适。" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="1316" imageHeight="120" />
+    <paragraph text="10. 文字等级是如何分的？" heading="true" image="gui/rlmenu/manual/text_006.dds" imageY="1436" imageHeight="76" />
+    <paragraph text="10.1 单个遗传性状等级：阈值来自 RLGenetics.lua，比较底层 0.25–1.75 基因系数，而非界面整数。&#10;≥1.65：Extremely High，极高。&#10;1.40–&lt;1.65：Very High，很高。&#10;1.10–&lt;1.40：High，较高。&#10;0.90–&lt;1.10：Average，普通。&#10;0.70–&lt;0.90：Low，较低。&#10;0.35–&lt;0.70：Very Low，很低。&#10;&lt;0.35：Extremely Low，极低。&#10;Fertility 特殊值 0：Infertile，完全不育。" heading="false" image="gui/rlmenu/manual/text_006.dds" imageY="1512" imageHeight="484" />
+    <paragraph text="10.2 Overall 为什么看起来“高分很少”？综合等级先把遗传平均值除以允许最高值 1.75，得到 0–1 的相对最高水平，随后使用另一组阈值：&#10;≥0.95：Extremely Good；≥0.80：Very Good；≥0.60：Good；≥0.40：Average；≥0.20：Bad；≥0.05：Very Bad；&lt;0.05：Extremely Bad。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="0" imageHeight="224" />
+    <paragraph text="例如平均底层基因 1.00，除以最高 1.75 后约为 0.571，所以总体显示 Average 是正常的。不要拿单项 High 的阈值强行套到综合评价上。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="224" imageHeight="120" />
+    <paragraph text="11. 基因怎么遗传？怎样选留种畜？" heading="true" image="gui/rlmenu/manual/text_007.dds" imageY="344" imageHeight="76" />
+    <paragraph text="本项目继承了双亲基因与随机变异的繁殖机制。通常可以理解为：后代遗传受父母双方影响，但会有随机波动，因此“两个高分父母生下高分后代”是概率优势，不是必然保证。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="420" imageHeight="120" />
+    <paragraph text="奶牛繁育场：产奶遗传为主，同时看繁殖与健康；如果母牛产奶很高但体况长期下降、反复难受孕，仍可能不适合作为主力母牛。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="540" imageHeight="120" />
+    <paragraph text="肉用种公牛：看肉用遗传、繁殖遗传、健康和遗传传递给后代的潜力；优良种公价值并不只能用自身可产肉 kg 衡量。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="660" imageHeight="68" />
+    <paragraph text="商品肉牛育肥：关注购入价格、实际增重、肉用遗传、当前肥度和饲料经济。对准备出栏的公牛，生殖遗传分数未必是主要盈利因素。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="728" imageHeight="120" />
+    <paragraph text="羊群：考虑繁殖能力、母羊毛产出、羔羊销售或育肥目标；不要因某项分数极高就忽视季节性草场成本。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="848" imageHeight="68" />
+    <paragraph text="11.1 遗传病：CVM（牛）" heading="true" image="gui/rlmenu/manual/text_007.dds" imageY="916" imageHeight="76" />
+    <paragraph text="上游系统包含 CVM（Complex Vertebral Malformation，复杂椎体畸形）遗传机制，与一般传染病不同。简化孟德尔比例：&#10;非携带 × 非携带：不携带。&#10;携带 × 非携带：50% 携带 / 50% 不携带，理论上不出现双拷贝患病个体。&#10;携带 × 携带：25% 不携带 / 50% 携带 / 25% 患病。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="992" imageHeight="224" />
+    <paragraph text="携带者可能看起来健康，也可能带来某些奶量方面的经济诱因；但让两个携带者交配有明确的后代风险。系统是否生效还受疾病开关及 CVM 选择影响。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="1216" imageHeight="120" />
+    <paragraph text="12. “繁育价值”为什么不能只看肉用价值？【牛只经济】" heading="true" image="gui/rlmenu/manual/text_007.dds" imageY="1336" imageHeight="76" />
+    <paragraph text="当前代码启用了 breedingValue.xml 活牛估价机制。它针对牛计算的不仅是自身肉用底价，还会评估作为母牛或种公牛在剩余繁殖时期的潜在经济贡献：母牛考虑后续产奶、繁殖及后代价值；种公牛考虑优秀遗传传递给后代产生的潜在收益。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="1412" imageHeight="120" />
+    <paragraph text="阉割、完全不育或已超出适用繁殖年龄的公畜，失去主要种公溢价逻辑，更接近肉用价值路线。这是活畜买卖定价模型，不会自动提高屠宰时的肉 kg 或产品肉价。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="1532" imageHeight="120" />
+    <paragraph text="因此，两头体重相同的成年公牛，一头繁殖指标优秀、可作种公畜，另一头遗传普通或已阉割，可能出现明显活畜价差。这不意味着前者能产生同等比例更多的牛肉。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="1652" imageHeight="120" />
+  </chapter>
+  <chapter title="第四篇　牛的生长与出栏" navTitle="第四部分　牛的生长与出栏">
+    <paragraph text="13. 为什么牛有“成年体重”和“出栏重量”两种概念？" heading="true" image="gui/rlmenu/manual/text_007.dds" imageY="1772" imageHeight="76" />
+    <paragraph text="一头成年种公牛可以长得非常大，但商品肉牛通常不会等到完全长成种公牛才出售。F2M 因此把至少三种重量概念分开：" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="1848" imageHeight="68" />
+    <paragraph text="当前体重 / Live weight：动物当前实际状态。用于判断生长、载重、出售价值和肉产出。" heading="false" image="gui/rlmenu/manual/text_007.dds" imageY="1916" imageHeight="68" />
+    <paragraph text="成年目标体重 / Target weight：来自品种、性别、个体基因等。描述成年体型潜力，而非屠宰要求。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="0" imageHeight="68" />
+    <paragraph text="出栏参考体重 / Finish reference：成年目标 × 品种/性别屠宰成熟度等。比较商品肉畜是否达到理想加工体型。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="68" imageHeight="68" />
+    <paragraph text="例如，示例牛成年目标重 1000 kg、屠宰成熟度 0.60，出栏参考约 600 kg。它达到 590 kg 时，成年目标完成 59%，出栏参考却完成约 98%；没有矛盾。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="136" imageHeight="120" />
+    <paragraph text="代码对公牛成熟度按品种区分（如荷斯坦、安格斯、利木赞、高地牛、水牛等），所以同样 600 kg 的牛不一定属于相同育肥阶段。部分个体目标体重还会随代谢/体型遗传而变。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="256" imageHeight="120" />
+    <paragraph text="13.1 成长曲线会影响哪些事情？" heading="true" image="gui/rlmenu/manual/text_008.dds" imageY="376" imageHeight="76" />
+    <paragraph text="牛只新一代生长系统不是所有品种用同一个“每月固定增重”。weightProfiles.xml 将母畜与公畜按不同月龄设置增长节点；出生体重、性别、个体发育速度、阉割、日粮营养和身体储备参与动态计算。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="452" imageHeight="120" />
+    <paragraph text="“现在比标准曲线轻 50 kg”不能自动解释为“多喂一个月一定追得回来”。长期营养不足导致生长落后，后期能否补偿取决于剩余生长时间和供给条件。预算有限时，定期称重和记录曲线比临近屠宰才突然补 TMR 更稳妥。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="572" imageHeight="120" />
+    <paragraph text="weightProfiles.xml 有一批由文献与设计目标推算的数值，文件也将部分品种标为尚未重新实机验证；本手册把它们当游戏模型参数，不宣称是任何现实牧场的统一标准。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="692" imageHeight="120" />
+    <paragraph text="14. 育肥度 Finish：0–100 到底如何解释？【默认生效，主要适用于牛】" heading="true" image="gui/rlmenu/manual/text_008.dds" imageY="812" imageHeight="76" />
+    <paragraph text="育肥度不是体重百分比，也不是肉用基因分数。它衡量当前体储备与肥育完成度，属于随喂养变化的后天状态。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="888" imageHeight="68" />
+    <paragraph text="&lt;50，lean：偏瘦、储备不足。检查营养与健康，不建议只凭年龄强行屠宰。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="956" imageHeight="68" />
+    <paragraph text="50–&lt;65，store：架子/尚未育肥完成。可能适合继续养，需测算饲料成本。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="1024" imageHeight="68" />
+    <paragraph text="65–80，moderate：中等/较理想育肥。体况端适合出栏；还要检查重量与年龄。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="1092" imageHeight="68" />
+    <paragraph text="&gt;80–90，fat：偏肥。继续投入饲料不一定提高可售肉价值。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="1160" imageHeight="68" />
+    <paragraph text="&gt;90，overfat：过肥。屠宰转化效率与部分估价可能受罚。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="1228" imageHeight="68" />
+    <paragraph text="moderate 是界面等级，不意味着只有 72 最佳。通常寻找的是满足屠宰条件的一个区间，而不是单点满分。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="1296" imageHeight="68" />
+    <paragraph text="14.1 育肥度上升 / 下降符号" heading="true" image="gui/rlmenu/manual/text_008.dds" imageY="1364" imageHeight="76" />
+    <paragraph text="+：近期体储备趋向上升，可能继续长膘。&#10;-：近期体储备趋向下降，可能掉膘或能量不足。&#10;无符号：近期变化较小，不等于永久不变。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="1440" imageHeight="172" />
+    <paragraph text="Finish 78 (moderate) + 已接近理想区间上沿，若当前重已达标，应考虑出栏；继续强喂可能进入 fat。Finish 62 (store) - 正在掉储备，先检查食物质量、实际供给、水和疾病。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="1612" imageHeight="120" />
+    <paragraph text="14.2 肥度与可售肉有什么关系？" heading="true" image="gui/rlmenu/manual/text_008.dds" imageY="1732" imageHeight="76" />
+    <paragraph text="屠宰模型会使用育肥度产生的产出倍率。默认模型适宜区间的产肉倍率可以为 1；过度肥育使部分重量无法按理想比例转化为可售产品。后期增加的体重未必都值钱。活畜价中的体重贡献也受体况修正，但母牛繁殖或泌乳价值不应等同于公牛肉用肥度。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="1808" imageHeight="172" />
+    <paragraph text="不要用 Finish 分数直接乘牛肉价格。不是“72 分 = 72% 的价格”，也不是“100 分 = 100% 出肉”。" heading="false" image="gui/rlmenu/manual/text_008.dds" imageY="1980" imageHeight="68" />
+    <paragraph text="15. BCS：母牛的 1–5 体况分数【默认生效，主要适用于牛】" heading="true" image="gui/rlmenu/manual/text_009.dds" imageY="0" imageHeight="76" />
+    <paragraph text="BCS（Body Condition Score）表示母畜体储备水平，更接近牧场通过触诊或外形判断膘情的做法。BCS 是后天可变状态，不是遗传分数。" heading="false" image="gui/rlmenu/manual/text_009.dds" imageY="76" imageHeight="120" />
+    <paragraph text="&lt;2.5，thin：偏瘦，尤其担心高峰泌乳或繁殖准备期。&#10;2.5–3.25，good：当前模型适宜区间，体况对受胎修正较小/为 1。&#10;&gt;3.25–4.0，fleshy：储备较多；未必有问题，关注繁殖趋势。&#10;&gt;4.0，fat：过肥，可能影响繁殖或增加无效饲料消耗。" heading="false" image="gui/rlmenu/manual/text_009.dds" imageY="196" imageHeight="224" />
+    <paragraph text="示例：荷斯坦 BCS 2.7 - 目前仍在适宜范围，近期却在下降。若正处产奶高峰，先观察奶产出是否依赖储备维持，再决定升级日粮，而不是尚未跌破 2.5 就完全不管。" heading="false" image="gui/rlmenu/manual/text_009.dds" imageY="420" imageHeight="120" />
+    <paragraph text="15.1 母牛身体状态为何影响奶和繁殖？" heading="true" image="gui/rlmenu/manual/text_009.dds" imageY="540" imageHeight="76" />
+    <paragraph text="奶牛泌乳初期可能产奶需求高于短期摄入能量。F2M 使用体储备预算模型，让母牛在特定条件下动用储备供应奶量，而非永远在固定体重上“无中生有”产奶。" heading="false" image="gui/rlmenu/manual/text_009.dds" imageY="616" imageHeight="120" />
+    <paragraph text="高峰过去、饲料充足或进入干奶期，可逐渐恢复储备。长期供料不足、体况太低时奶量受限，受胎表现也变差。过肥同样可能产生繁殖折减。管理的是泌乳—干奶—再次繁殖的整轮体况变化，而非全年最高 BCS。" heading="false" image="gui/rlmenu/manual/text_009.dds" imageY="736" imageHeight="120" />
+    <paragraph text="15.2 Fertility (BCS) 不是受孕概率" heading="true" image="gui/rlmenu/manual/text_009.dds" imageY="856" imageHeight="76" />
+    <paragraph text="例如显示 75%：原本依据繁殖基因、疾病等形成的受胎模型，再乘以约 0.75 的体况修正，不是“75% 几率怀孕”。快速掉膘也可能追加折减；不在适用范围的动物不显示此项。100% 仅意味着体况不额外扣分，不等于受胎必成功。" heading="false" image="gui/rlmenu/manual/text_009.dds" imageY="932" imageHeight="120" />
+    <paragraph text="16. Slaughter / 出栏判断：为什么“重够了仍不 Ready”？" heading="true" image="gui/rlmenu/manual/text_009.dds" imageY="1052" imageHeight="76" />
+    <paragraph text="Ready 不是单由体重决定。至少按以下次序检查：能否出售（死亡、不可出售标记或其他限制优先阻断）；最小屠宰年龄；是否过肥；重量和肥度是否均达标。重量通常须达出栏参考的 95%，育肥评分至少 65。" heading="false" image="gui/rlmenu/manual/text_009.dds" imageY="1128" imageHeight="120" />
+    <paragraph text="Cannot be sold：当前不可出售。先解决销售阻断条件。&#10;Too young：未到屠宰年龄。继续饲养，不要绕过设施限制。&#10;Overfat, past best：过肥，已过较佳阶段。及时考虑出售，继续增肥未必划算。&#10;Ready：适宜出栏。比较活畜卖价与屠宰净收入。&#10;Needs finishing：重量够了，尚需育肥。改善能量供给，等待肥度达标。&#10;Still growing：肥度够了，仍需增重。给生长留时间，留意成本/效率。&#10;Growing：重量与肥度都不足。继续饲养或择机出售架子畜。" heading="false" image="gui/rlmenu/manual/text_009.dds" imageY="1248" imageHeight="380" />
+    <paragraph text="操作口诀：看 Ready / Slaughter，先核实年龄和可售资格，再看 Finish weight，最后结合 Finish、饲料成本和肉价决定是否真正屠宰。" heading="false" image="gui/rlmenu/manual/text_009.dds" imageY="1628" imageHeight="120" />
+    <paragraph text="17. 阉割：为什么会更值钱，也可能不适合保留？" heading="true" image="gui/rlmenu/manual/text_009.dds" imageY="1748" imageHeight="76" />
+    <paragraph text="阉割是经营目的的选择。阉割雄性无法正常繁殖；部分旧规则给予生长或商品价值加成，而新牛只繁育估价使其失去种公遗传溢价。" heading="false" image="gui/rlmenu/manual/text_009.dds" imageY="1824" imageHeight="120" />
+    <paragraph text="无繁殖计划的育肥公畜可考虑阉割。高品质种公畜一旦阉割，其传递优秀基因的经济潜力不再计入正常种公估价。不要把所有高遗传公牛都阉掉。" heading="false" image="gui/rlmenu/manual/text_010.dds" imageY="0" imageHeight="120" />
+    <paragraph text="不同物种和估价模型规则不同；操作前用当前估价和对照存档验证，尤其是昂贵育种公牛。" heading="false" image="gui/rlmenu/manual/text_010.dds" imageY="120" imageHeight="68" />
+  </chapter>
+  <chapter title="第五篇　饲喂与犊牛培育" navTitle="第五部分　饲喂与小牛培育">
+    <paragraph text="18. 两套饲喂系统必须分清" heading="true" image="gui/rlmenu/manual/text_010.dds" imageY="188" imageHeight="76" />
+    <paragraph text="Legacy（传统模式）【默认】：新存档默认使用；依赖地图原饲料组优先级与食品生产权重；主要按游戏饲料体积和动物曲线。新登记谷物组在旧模式不被进食。不具备同等级的栏舍日粮控制，兼容更多旧物种和地图设施，使用地图原有与 Mod 育犊规则，容易上手。" heading="false" image="gui/rlmenu/manual/text_010.dds" imageY="264" imageHeight="172" />
+    <paragraph text="Real-equivalent（现实等效）【手动启用】：RL Settings → Nutrition Model 改为 Real-equivalent。依据 DM、ME、粗蛋白、纤维、精料适应能力规划；现实需求换算为游戏升数，实际扣料反算营养。谷物可作精料，但受安全/营养限制。支持 AUTO / FINISH / GROW / MAINTAIN 和精料占比。仅栏内所有动物受支持时生效，否则回退。叠加现实等效的犊牛奶与固体食物需求。需要更多自主决策与库存检查。" heading="false" image="gui/rlmenu/manual/text_010.dds" imageY="436" imageHeight="276" />
+    <paragraph text="核心提醒：“已经选择 Real-equivalent” ≠ “每一个动物栏都已切换成功”。混养不支持动物或无支持食槽的栏舍会显示原因，继续使用旧规则。" heading="false" image="gui/rlmenu/manual/text_010.dds" imageY="712" imageHeight="120" />
+    <paragraph text="19. Legacy 下，不同饲料仍然不同" heading="true" image="gui/rlmenu/manual/text_010.dds" imageY="832" imageHeight="76" />
+    <paragraph text="即使传统模式，青草、干草、青贮和 TMR 也不等价。体重增长参考地图食品生产权重和品种饲草利用系数，TMR 通常更容易支持快速育肥；各草料成长效果不同，各牛种利用能力也不同。" heading="false" image="gui/rlmenu/manual/text_010.dds" imageY="908" imageHeight="120" />
+    <paragraph text="例如高地牛更适合较粗放青草环境；高产荷斯坦对优质日粮更敏感。这是按品种配置的相对差异，不能直接推断哪种草料最便宜。" heading="false" image="gui/rlmenu/manual/text_010.dds" imageY="1028" imageHeight="120" />
+    <paragraph text="19.1 给牛槽倒进谷物，却没吃" heading="true" image="gui/rlmenu/manual/text_010.dds" imageY="1148" imageHeight="76" />
+    <paragraph text="为支持现实等效精料日粮，F2M 向一些牛槽注册谷物等类别。槽可能接受粮食，但仍使用 Legacy 时新增谷物组不会消耗。" heading="false" image="gui/rlmenu/manual/text_010.dds" imageY="1224" imageHeight="68" />
+    <paragraph text="“有 2000 L 玉米但动物仍缺料”时，先看 Feed model。Legacy 或回退时应提供真正会吃的基础料，而非继续加玉米。UI 会标注 Not fed in legacy 或类似状态。" heading="false" image="gui/rlmenu/manual/text_010.dds" imageY="1292" imageHeight="120" />
+    <paragraph text="20. DM / ME / CP / NDF" heading="true" image="gui/rlmenu/manual/text_010.dds" imageY="1412" imageHeight="76" />
+    <paragraph text="DM（Dry Matter，干物质）：去掉大部分水分后真正构成营养的饲料干质量。&#10;ME（Metabolizable Energy，代谢能）：用于维持、生长、怀孕、产奶的能量预算。&#10;CP（Crude Protein，粗蛋白）：生长、产奶蛋白供给的近似指标。&#10;NDF（Neutral Detergent Fibre，中性洗涤纤维）：反映纤维与瘤胃填充限制。&#10;peNDF（Physically Effective NDF，物理有效纤维）：约束精料过高、粗饲料不足。&#10;DM share（干物质占比）：按实际干物质算，不按游戏升数算。&#10;Intake（采食量）：实际吃下多少营养、是否达到需求。" heading="false" image="gui/rlmenu/manual/text_010.dds" imageY="1488" imageHeight="380" />
+    <paragraph text="20.1 为什么 1000 L 青草不等于 1000 L TMR？" heading="true" image="gui/rlmenu/manual/text_010.dds" imageY="1868" imageHeight="76" />
+    <paragraph text="游戏按升储存，鲜草含水较多，干草更干，TMR 密度与干物质比例不同。现实等效先用密度、干物质率把升换算为干物质公斤，再算能量、蛋白和纤维。同升数不等于能喂同样久；观察 DM share、计划每月升数和剩余时间，不只看桶有多满。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="0" imageHeight="120" />
+    <paragraph text="20.2 resourceScale = 0.125" heading="true" image="gui/rlmenu/manual/text_011.dds" imageY="120" imageHeight="76" />
+    <paragraph text="默认现实等效配置在动物现实营养需求不变的前提下，游戏饲料资源按现实等效体积的 1/8 计量，适配地图产量、运输容量和游戏节奏。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="196" imageHeight="120" />
+    <paragraph text="不代表真实料肉比提高八倍，更不代表相比 Legacy 必少吃八倍。Legacy 数量已缩放，两模式实际比例要按品种、饲料和成长状态比较。该参数默认只用于此模式的饲料转换，不可把水、秸秆、肉价、奶产量一起除以 8。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="316" imageHeight="172" />
+    <paragraph text="21. 日粮设置（Ration）【手动启用】" heading="true" image="gui/rlmenu/manual/text_011.dds" imageY="488" imageHeight="76" />
+    <paragraph text="支持现实等效的栏舍，在 RL 菜单 Info 页提供 Ration 按钮（通常 G，以实际提示为准）。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="564" imageHeight="68" />
+    <paragraph text="Feed for / 饲喂目标：Automatic、Finishing、Growth、Maintenance。快速出栏通常选 Finishing，维持种畜和怀孕母牛可研究 Maintenance。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="632" imageHeight="120" />
+    <paragraph text="Concentrate / 精饲料类型：Auto grain、No grain、可用谷物。有粮时可允许自动决策，不必所有牛都补粮。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="752" imageHeight="68" />
+    <paragraph text="Concentrate share (DM) / 精料干物质占比：AUTO 或 0%–80%，每档 5%。是目标，不是无条件执行值。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="820" imageHeight="68" />
+    <paragraph text="Substitute when out / 缺料替代：Allowed / Not allowed。允许可在原料缺货时维持饲养；精确控制则关闭。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="888" imageHeight="68" />
+    <paragraph text="Preview / 预览：各料升数、DM 占比、库存、能用多久、能量覆盖。先看再 Apply，预览不扣料。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="956" imageHeight="68" />
+    <paragraph text="Apply / 应用：保存并执行，多人游戏由服务器确认。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="1024" imageHeight="68" />
+    <paragraph text="21.1 饲喂目标分别是什么意思？" heading="true" image="gui/rlmenu/manual/text_011.dds" imageY="1092" imageHeight="76" />
+    <paragraph text="Automatic：按类别选择，公牛/阉牛通常倾向 FINISH，母牛倾向 GROW；吃奶犊牛另有安排。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="1168" imageHeight="68" />
+    <paragraph text="Finishing：给足合理日粮持续增重，取得较好出栏状态；能量投入与成本可能较高。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="1236" imageHeight="68" />
+    <paragraph text="Growth：满足规划成长、生理需求与适度储备恢复，不是无限上精料。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="1304" imageHeight="68" />
+    <paragraph text="Maintenance：维持体重、基本代谢与怀孕，不追求快速增肥。高产奶牛须特别检查奶量与 BCS。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="1372" imageHeight="68" />
+    <paragraph text="这是栏舍级目标，按规则和动物类型统一规划，不是逐头勾选的高级配方界面。" heading="false" image="gui/rlmenu/manual/text_011.dds" imageY="1440" imageHeight="68" />
+    <paragraph text="21.2 为什么选 50% 精料，预览却显示 30%？" heading="true" image="gui/rlmenu/manual/text_011.dds" imageY="1508" imageHeight="76" />
+    <paragraph text="50% 是目标，系统还受下列限制：&#10;Fibre limit：有效纤维不足，补粗料或降低精料。&#10;Starch limit：淀粉/快速发酵碳水约束，降谷物或换料。&#10;Wheat limit：小麦上限，换谷物或降小麦。&#10;Adapting：瘤胃尚未适应，逐步提高。&#10;No roughage：缺粗料，不能纯谷物维持。&#10;Grain short / Feed short：缺精料或其他库存，补料并检查替代。&#10;Intake limit / Rumen full：采食或填充上限，需要提高营养密度而非更多升数。&#10;Low protein：蛋白限制，检查蛋白料或 TMR。&#10;Needs met：需求已满足，未必需继续提高精料。&#10;Water short：缺水，先补水尤其泌乳群。" heading="false" image="gui/rlmenu/manual/text_012.dds" imageY="0" imageHeight="588" />
+    <paragraph text="示例：Target 50%，Now 20% (Adapting)、Adapted 35% (Fibre limit)。刚开始仅 20%，过渡后预计最多 35%，不是忘记了设置的 50%。" heading="false" image="gui/rlmenu/manual/text_012.dds" imageY="588" imageHeight="120" />
+    <paragraph text="21.3 日粮预览五列" heading="true" image="gui/rlmenu/manual/text_012.dds" imageY="708" imageHeight="76" />
+    <paragraph text="Feed：食物名称，确认畜舍真能吃。&#10;L/month：预测游戏每月消耗升数，规划储备和运输。&#10;DM share：该料对全栏干物质比例，判断能量来源。&#10;Stock：存量，数值高仍可能消耗很快。&#10;Lasts：当前计划可维持时间，优先补最早耗尽者。" heading="false" image="gui/rlmenu/manual/text_012.dds" imageY="784" imageHeight="276" />
+    <paragraph text="动物数、孕产状态、饲料质量、天气草场及玩家变更都会影响计划。预览是当前预测，不是一个月后自动兑现的账单。" heading="false" image="gui/rlmenu/manual/text_012.dds" imageY="1060" imageHeight="68" />
+    <paragraph text="22. 现实等效的个体新增读数" heading="true" image="gui/rlmenu/manual/text_012.dds" imageY="1128" imageHeight="76" />
+    <paragraph text="22.1 DM / ME cover: 6.2 kg/d (85%)：6.2 是每模型日每头摄入干物质；85% 是能量需求或日粮计划覆盖，不是需求升数的 85%。结合 Grain DM / limit、草料、水、BCS/Finish 趋势判断缺库存、营养密度、蛋白还是采食限制。" heading="false" image="gui/rlmenu/manual/text_012.dds" imageY="1204" imageHeight="120" />
+    <paragraph text="22.2 Grain DM / limit: 25% · Fibre limit：25% 是摄入干物质中的精料占比，Fibre limit 是纤维约束；不是槽内 25% 谷物，也不是每日 25 L。" heading="false" image="gui/rlmenu/manual/text_012.dds" imageY="1324" imageHeight="120" />
+    <paragraph text="22.3 Finish estimate：~2.4 mo 表示按当前条件预计约 2.4 个模型月份/游戏月，换日粮会变。Gain too low 表示增重不足以可靠推算，应改善日粮、健康、生长条件，非永久锁死。Ready 表示满足对应预测完成条件，结合 Slaughter 安排交易。" heading="false" image="gui/rlmenu/manual/text_012.dds" imageY="1444" imageHeight="172" />
+    <paragraph text="预测不保证未来售价或届时屠宰利润最大。" heading="false" image="gui/rlmenu/manual/text_012.dds" imageY="1616" imageHeight="68" />
+    <paragraph text="23. 犊牛培育：奶不是吃到成年才停" heading="true" image="gui/rlmenu/manual/text_012.dds" imageY="1684" imageHeight="76" />
+    <paragraph text="23.1 Hof Bergmann 育犊设施【地图限定】：犊牛屋/小牛栏有奶+固体料过渡，默认启用。xml/calfRearing.xml 参考断奶月龄 3 个月，但与换舍时间不同。" heading="false" image="gui/rlmenu/manual/text_012.dds" imageY="1760" imageHeight="120" />
+    <paragraph text="连续月龄 / 奶最高需求份额 / 固体料最高份额：新生 100% / 10%；1 月 90% / 30%；2 月 70% / 60%；3 月 35% / 90%；4 月及以上 0% / 100%。" heading="false" image="gui/rlmenu/manual/text_012.dds" imageY="1880" imageHeight="120" />
+    <paragraph text="这是每头请求比例上限，不是食槽容积混配比例，两列不必合计 100%。真正摄入受库存和营养影响。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="0" imageHeight="68" />
+    <paragraph text="幼犊只给干草/TMR 不给所需奶，会营养不足、健康与增重出问题；断奶后期只给奶不给固体食物，同样营养不足。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="68" imageHeight="68" />
+    <paragraph text="23.2 换到群养栏不等于断奶" heading="true" image="gui/rlmenu/manual/text_013.dds" imageY="136" imageHeight="76" />
+    <paragraph text="单头小牛屋主要 0–1 月龄，群体犊牛栏主要 0–5 月龄；约 2 月换群栏，断奶可能在之后。先换舍，再逐步断奶。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="212" imageHeight="68" />
+    <paragraph text="超龄不会被强行踢出，会提醒与建议去向，玩家决定何时移动。能留原栏不代表长期最合适。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="280" imageHeight="68" />
+    <paragraph text="23.3 和母牛一起放牧的犊牛" heading="true" image="gui/rlmenu/manual/text_013.dds" imageY="348" imageHeight="76" />
+    <paragraph text="母犊同群哺乳肉牛与单栏人工哺乳不同。现实等效在适用普通牛栏允许犊牛从有奶的亲生母牛获得供给；优先满足幼犊，剩余可售奶才可能入罐。无母牛或停止供奶可能提示缺少哺乳母牛并回退。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="424" imageHeight="120" />
+    <paragraph text="安格斯、海福特等育犊母牛的奶不能全部当可销售奶。幼犊吃奶与售奶存在资源竞争。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="544" imageHeight="68" />
+    <paragraph text="24. 奶牛：产奶、饲料和体况一起看" heading="true" image="gui/rlmenu/manual/text_013.dds" imageY="612" imageHeight="76" />
+    <paragraph text="泌乳、干奶和再次分娩构成循环。奶量受月龄、品种、产奶遗传、健康、饲料和体况影响。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="688" imageHeight="68" />
+    <paragraph text="旧讨论中荷斯坦“378 L/月”成熟月曲线已非本稿最新刻度：2026-10-11 新设计调高部分曲线标尺，并用现实等效营养桥接供能。不要跨版本数字推断产奶翻倍。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="756" imageHeight="120" />
+    <paragraph text="关注 Lactating Yes/No（是否泌乳）、Milk output 82%（潜能实现比例）、BCS/趋势（是否耗储备）、Ration cover/ME（能量与蛋白是否够），以及监测、奶罐和销售得到的实际游戏月产量。不要把产奶基因当升数。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="876" imageHeight="120" />
+    <paragraph text="示例：A 奶基因更高但 BCS 2.1、只实现 70% 潜力；B 基因略低但 BCS 3.0、营养足。短期 B 可能更稳。改善 A 需比较加料成本与恢复奶量、受胎收益。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="996" imageHeight="120" />
+  </chapter>
+  <chapter title="第六篇　繁殖、疾病与死亡" navTitle="第六部分　繁殖、健康与死亡">
+    <paragraph text="25. 繁殖不是“有公有母就自动有后代”" heading="true" image="gui/rlmenu/manual/text_013.dds" imageY="1116" imageHeight="76" />
+    <paragraph text="至少检查物种、性别、最低月龄、健康、产后恢复、可用公畜/精液、是否怀孕及随机判定。部分物种还受体况影响。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="1192" imageHeight="68" />
+    <paragraph text="Under X months：未达年龄，优秀基因不能越过门槛。&#10;Recovers in X：产后恢复，不能无间隔配种。&#10;No suitable male：缺合适公畜，需满足品种、性别、年龄、位置或安排授精。&#10;Health below X：健康不足。&#10;Pregnant Yes：已妊娠，再交配不提高产仔数。&#10;Infertile：生殖遗传特殊 0 值，不能正常种用。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="1260" imageHeight="328" />
+    <paragraph text="Reproduction 是状态/过程；Fertility 是遗传分数；BCS 又是受胎时的修正，不能看成同一百分比。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="1588" imageHeight="68" />
+    <paragraph text="26. Pregnancy / Expecting / Expected" heading="true" image="gui/rlmenu/manual/text_013.dds" imageY="1656" imageHeight="76" />
+    <paragraph text="Pregnant Yes：已怀孕。&#10;Expecting：这胎预计幼崽数，物种不同有单胎、双胎和窝产差别。&#10;Expected：预计出生日期。&#10;Father / Impregnated by：部分记录中的父本来源。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="1732" imageHeight="224" />
+    <paragraph text="程序推进妊娠、出生、遗传、出生体重与存活判定。“预计两只”不保证活两只；疾病、健康、出生规则与空间会改变结果。" heading="false" image="gui/rlmenu/manual/text_013.dds" imageY="1956" imageHeight="68" />
+    <paragraph text="26.1 典型周期：牛约 10 游戏月，通常单胎偶双胎；猪约 4 月，一胎多仔；绵羊/山羊约 5 月，单/双胎常见；马约 11 月、后代少周期长；鸡有独立繁殖流程，不等于现实孵化时长。" heading="false" image="gui/rlmenu/manual/text_014.dds" imageY="0" imageHeight="120" />
+    <paragraph text="这是通俗介绍，不保证每个品种。最低配种月龄、妊娠时间与生育能力以子类型配置和存档为准，鹅鸭兔等额外物种可能不同。" heading="false" image="gui/rlmenu/manual/text_014.dds" imageY="120" imageHeight="68" />
+    <paragraph text="27. 人工授精与自有种公畜采精" heading="true" image="gui/rlmenu/manual/text_014.dds" imageY="188" imageHeight="76" />
+    <paragraph text="AI（Artificial Insemination）可购买精液；F2M 增加自有种公畜采集、保存与出售：&#10;1. 选适龄合格种公畜采精。&#10;2. 放入杜瓦罐等载体，记录父本身份与遗传快照。&#10;3. 对适合母畜安排授精，仍受成功率与母畜状态判定。&#10;4. 剩余可按交互出售；与 Hof Bergmann 公牛舍原生采精/包装链相连但不完全相同。" heading="false" image="gui/rlmenu/manual/text_014.dds" imageY="264" imageHeight="276" />
+    <paragraph text="精液经济不只看牛肉量。父本品质提高育种指数，年龄、繁殖力、成功率影响数量或价格。采精、活畜种公身价与肉用价值是不同系统，不能用活畜价除管数算固定精液单价。" heading="false" image="gui/rlmenu/manual/text_014.dds" imageY="540" imageHeight="120" />
+    <paragraph text="27.1 配种用途：奶群优先奶与健康，不只追求大体型肉父本；育肥小牛看肉用、体型、料效和市场承接；种畜出售需优良遗传、母群、育成时间与市场；遗传风险要避免不适合携带者配对。" heading="false" image="gui/rlmenu/manual/text_014.dds" imageY="660" imageHeight="120" />
+    <paragraph text="28. 三种健康读数" heading="true" image="gui/rlmenu/manual/text_014.dds" imageY="780" imageHeight="76" />
+    <paragraph text="Current Health 0–100：会变，当前健康，条件不足会下降。&#10;Health Genetics 0–99：遗传固定，健康损失/恢复的先天倾向。&#10;Disease status：感染、治疗、恢复、免疫、接种、携带状态，不能被一个健康分概括。" heading="false" image="gui/rlmenu/manual/text_014.dds" imageY="856" imageHeight="172" />
+    <paragraph text="健康基因 80 的牛可因长期缺水降到健康 50%；健康基因 20 的牛照料充分也可暂时健康 100%。状态是今天，基因是倾向。" heading="false" image="gui/rlmenu/manual/text_014.dds" imageY="1028" imageHeight="68" />
+    <paragraph text="28.1 低健康：先查可吃饲料、水、实际能量、疾病、长期体重落后及额外风险。死亡/疾病开启时严重问题可造成损失，高健康基因不免死。现实等效中连维持、怀孕等基本需求长期无力支付时，会耗储备再损健康。短暂缺料不必然当小时死亡。" heading="false" image="gui/rlmenu/manual/text_014.dds" imageY="1096" imageHeight="120" />
+    <paragraph text="29. 疾病系统【默认可用，可调难度】" heading="true" image="gui/rlmenu/manual/text_014.dds" imageY="1216" imageHeight="76" />
+    <paragraph text="可选 Off、Easy、Normal、Hard、Very Hard，可单独关疾病。难度影响发病、传播与部分潜伏期可见性。" heading="false" image="gui/rlmenu/manual/text_014.dds" imageY="1292" imageHeight="68" />
+    <paragraph text="Mastitis / 乳房炎：泌乳牛、山羊等，直接威胁奶产出。&#10;Foot and Mouth / 口蹄疫：牛猪羊等，广泛传播，生产损失大。&#10;BRD / 牛呼吸道疾病：牛尤其幼牛。&#10;PED / 猪流行性腹泻：猪尤其幼猪，风险高，可能改变粪污。&#10;Footrot / 腐蹄病：牛羊山羊，可长期拖累生产。&#10;Avian Flu LPAI：禽类低致病性流感，影响蛋与健康。&#10;Avian Flu HPAI：禽类高致病性流感，高风险，可能需淘汰。&#10;Pulpy Kidney / 肠毒血症：羊山羊，幼畜高风险，治疗不保证。&#10;Colic / 疝痛/腹绞痛：马，可有严重个体损失，不是典型群体传染。&#10;CVM / 遗传性椎体畸形：牛，非传染，由父母遗传。" heading="false" image="gui/rlmenu/manual/text_014.dds" imageY="1360" imageHeight="536" />
+    <paragraph text="这是导读，非最新逐项症状、费用、疗程、免疫期清单。以当前疾病页面和配置为准。" heading="false" image="gui/rlmenu/manual/text_014.dds" imageY="1896" imageHeight="68" />
+    <paragraph text="29.1 潜伏、症状、治疗、免疫与接种" heading="true" image="gui/rlmenu/manual/text_014.dds" imageY="1964" imageHeight="76" />
+    <paragraph text="潜伏感染：部分高难度已带病却无症状/图标，没图标不等于没感染。&#10;症状：开始明显影响生产、健康、交易；普通交易/屠宰通常不能出售显症病畜。&#10;治疗：按疗程付费，可成功或失败。&#10;康复免疫：康复后暂时保护。&#10;接种：期限内保护，非所有病有疫苗，也不是治疗已感染动物。&#10;遗传携带：如 CVM 可健康但有遗传风险，与传染病发作不同。" heading="false" image="gui/rlmenu/manual/text_015.dds" imageY="0" imageHeight="328" />
+    <paragraph text="29.2 病畜能直接卖吗？" heading="true" image="gui/rlmenu/manual/text_015.dds" imageY="328" imageHeight="76" />
+    <paragraph text="有症状病畜通常不能普通出售或屠宰。Cull 主动淘汰可有折减回收，按上游逻辑约当前估价 33%，但不等于意外死亡自动赔付。最新 F2M 已取消意外死亡自动返还 33% 售价；主动处置与事故、疾病、衰老死亡结算不同。" heading="false" image="gui/rlmenu/manual/text_015.dds" imageY="404" imageHeight="172" />
+    <paragraph text="30. 意外死亡和自然淘汰" heading="true" image="gui/rlmenu/manual/text_015.dds" imageY="576" imageHeight="76" />
+    <paragraph text="Animal Death 和 Accident Chance 可设置。最新事故按物种、年龄的低基础概率，以模型月计算再乘设置；每月天数从 1 改 28 不使同年事故变 28 倍。" heading="false" image="gui/rlmenu/manual/text_015.dds" imageY="652" imageHeight="120" />
+    <paragraph text="事故与疾病不同：背景事故模型不因寒冷、疾病、水、健康再上调，疾病与低健康有各自机制。重点避免幼畜无食物、奶牛缺水、待屠病畜无法售、昂贵种畜不合用途等可控损失。" heading="false" image="gui/rlmenu/manual/text_015.dds" imageY="772" imageHeight="120" />
+  </chapter>
+  <chapter title="第七篇　买卖、屠宰与收益" navTitle="第七部分　买卖、加工与收益">
+    <paragraph text="31. 一头牛的三重价值" heading="true" image="gui/rlmenu/manual/text_015.dds" imageY="892" imageHeight="76" />
+    <paragraph text="活畜市场价值：经销商按规则支付的动物自身售价，用于直接出售、淘汰、选留。&#10;屠宰加工价值：可售肉 × 渠道肉价 - 屠宰/加工费，用于公共屠宰与农场屠夫。&#10;繁殖/生产潜在价值：未来奶、后代与优秀遗传的贡献，用于留母牛、选种公、是否转肉用。" heading="false" image="gui/rlmenu/manual/text_015.dds" imageY="968" imageHeight="172" />
+    <paragraph text="优秀种公可能远贵于肉值；无繁殖优势的育肥公牛更该看加工净值与活牛价差。" heading="false" image="gui/rlmenu/manual/text_015.dds" imageY="1140" imageHeight="68" />
+    <paragraph text="32. 活重、胴体和可售肉" heading="true" image="gui/rlmenu/manual/text_015.dds" imageY="1208" imageHeight="76" />
+    <paragraph text="标准牛计量：600 kg 活重 × 0.60 屠宰率 = 360 kg 胴体；× 0.75 可售率 = 270 kg 可售肉。" heading="false" image="gui/rlmenu/manual/text_015.dds" imageY="1284" imageHeight="68" />
+    <paragraph text="270 kg 是标准动物基准，不保证任何 600 kg 牛都产 270 kg。单头受品种大小、成熟程度、肉用遗传和体况倍率影响。" heading="false" image="gui/rlmenu/manual/text_015.dds" imageY="1352" imageHeight="68" />
+    <paragraph text="标准基数：物种配置不同，胴体率/可售率不同。&#10;品种体型：自身体型和参考值不同，水牛不能完全等同利木赞。&#10;成熟程度：当前体重相对出栏参照，轻犊不能按成年全肉量。&#10;肉用遗传：Quality / Meat 系数改善量/价值。&#10;过肥：增加活重未必都成高价值肉。&#10;准入：年龄、订单、容量、资金、设施状态影响可否交付。" heading="false" image="gui/rlmenu/manual/text_015.dds" imageY="1420" imageHeight="328" />
+    <paragraph text="32.1 其他畜种的建模基准" heading="true" image="gui/rlmenu/manual/text_015.dds" imageY="1748" imageHeight="76" />
+    <paragraph text="牛：600 kg 活重 → 270 kg（0.60 × 0.75）。&#10;猪：125 kg → 75 kg（0.80 × 0.75）。&#10;羔羊：约 42.67 kg → 19.2 kg，按品种可变。&#10;鸡/常见小型家禽：3 kg → 1.89 kg，桥接可不同。" heading="false" image="gui/rlmenu/manual/text_015.dds" imageY="1824" imageHeight="224" />
+    <paragraph text="这是标准头基准，不是月产量或每头保证量。以配方、状态和订单为准。鹅鸭兔山羊等有独立规则，不用近似值覆盖所有地图动物。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="0" imageHeight="120" />
+    <paragraph text="33. 产肉公式" heading="true" image="gui/rlmenu/manual/text_016.dds" imageY="120" imageHeight="76" />
+    <paragraph text="最终可售肉 ≈ 物种标准产肉 × 品种/个体体型修正 × 当前体重相对出栏参照修正 × 品种胴体优势 × 肉用遗传修正 × 育肥状态修正（适用时）。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="196" imageHeight="120" />
+    <paragraph text="体型采用有界非线性系数，不是成年 kg 无限线性增加，避免巨大种公比商品牛多出不合理的肉。基因也有明确系数幅度，不直接变额外公斤。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="316" imageHeight="120" />
+    <paragraph text="34. 公共屠宰场与农场屠夫【Hof Bergmann 地图限定】" heading="true" image="gui/rlmenu/manual/text_016.dds" imageY="436" imageHeight="76" />
+    <paragraph text="公共屠宰场 / Contract slaughterhouse：订单、交付、收费的委托加工，节省自营工作。&#10;农场屠夫 / Farm butcher：自营设施按配方运行。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="512" imageHeight="120" />
+    <paragraph text="桥接力求同头动物在两处的商品肉量一致，区别是方式、费用、订单限制、吞吐与劳务。设施订单单位、标准头系数和真正肉 kg 不同。“交付 1 单位”不必等于 1 kg。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="632" imageHeight="120" />
+    <paragraph text="若仍每头固定 1000 肉产品，查地图与桥接。早期 Hof Bergmann 1.5 Beta2 的 COW/MILKCOW 共输入类别曾使配方失败，当前代码有处理，发布前仍需实测。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="752" imageHeight="120" />
+    <paragraph text="35. 屠宰费用" heading="true" image="gui/rlmenu/manual/text_016.dds" imageY="872" imageHeight="76" />
+    <paragraph text="当前 carcassYield.xml 牛典型委托费：每标准头基础 100 + 精分切/包装 0.37 × 实际可售肉 kg。&#10;标准牛 270 kg：100 + 0.37 × 270 = 199.90（HARD 基准）。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="948" imageHeight="120" />
+    <paragraph text="大小牛基础费可能按标准头等效份额折算，分切随实际公斤；不是一律 200。猪羊有不同参数，禽兔可能按整只计价，难度倍率也影响交易。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="1068" imageHeight="120" />
+    <paragraph text="36. 肉旺季为何直接卖牛可能不如屠宰？" heading="true" image="gui/rlmenu/manual/text_016.dds" imageY="1188" imageHeight="76" />
+    <paragraph text="活畜部分跟随肉价，常见传导系数约 0.6，非完全同步。高峰更可能有加工增值，低谷未必值得费用。设计含防套利的净收入与活畜低价底线。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="1264" imageHeight="120" />
+    <paragraph text="“屠宰必赚 12%”错误。约 12% 是特定标定价、平均牛、季节模型的年度参考差，不是订单保证。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="1384" imageHeight="68" />
+    <paragraph text="36.1 标准牛示例【示例】" heading="true" image="gui/rlmenu/manual/text_016.dds" imageY="1452" imageHeight="76" />
+    <paragraph text="假设肉价 8.4/公斤、肉 270 kg：&#10;毛收入 = 270 × 8.4 = 2268.0。&#10;加工费 ≈ 100 + 270 × 0.37 = 199.9。&#10;加工后净入账 ≈ 2068.1。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="1528" imageHeight="224" />
+    <paragraph text="若直接卖 1900，加工高约 168，尚未扣历史饲料、买入、占栏时间。8.4 是校准参考，非所有档、难度、卖点固定价。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="1752" imageHeight="68" />
+    <paragraph text="36.2 经营利润表" heading="true" image="gui/rlmenu/manual/text_016.dds" imageY="1820" imageHeight="76" />
+    <paragraph text="要记录幼畜/架子畜购入及运输；饲料机会成本（同批料也可卖）；栏位占用时间；药物、监测、人工、死亡；活畜收入；屠宰基础与按 kg 分切费用；肉收入；超市、农场店、酒吧等渠道差价。" heading="false" image="gui/rlmenu/manual/text_016.dds" imageY="1896" imageHeight="120" />
+    <paragraph text="单头育肥净利润 = 最终出售净收入 - 买入全部成本 - 全部饲料与照护费用 - 时间与设施成本。&#10;“1500 买、1800 卖、赚 300”通常只是未扣喂养的毛价差。" heading="false" image="gui/rlmenu/manual/text_017.dds" imageY="0" imageHeight="120" />
+    <paragraph text="37. 奶牛何时保留、何时淘汰？" heading="true" image="gui/rlmenu/manual/text_017.dds" imageY="120" imageHeight="76" />
+    <paragraph text="没有通用 X 月龄。比较奶量下降是正常曲线、缺料或病；BCS 是否恢复、能否再配；奶/繁殖/健康基因值得传代否；现卖价与下一胎、剩余奶、未来淘汰价；有无更好后备替换。" heading="false" image="gui/rlmenu/manual/text_017.dds" imageY="196" imageHeight="120" />
+    <paragraph text="牛只估价纳入剩余繁殖/生产价值，优秀泌乳高峰母牛可能远贵于仅作肉用的老牛。" heading="false" image="gui/rlmenu/manual/text_017.dds" imageY="316" imageHeight="68" />
+  </chapter>
+  <chapter title="第八篇　品种与设施分工" navTitle="第八部分　品种与设施分工">
+    <paragraph text="38. 牛种不只是名字和颜色" heading="true" image="gui/rlmenu/manual/text_017.dds" imageY="384" imageHeight="76" />
+    <paragraph text="以下是当前游戏设计的经营定位，非现实官方排名。" heading="false" image="gui/rlmenu/manual/text_017.dds" imageY="460" imageHeight="68" />
+    <paragraph text="Holstein / 荷斯坦：高奶、高采食；奶业为主，公犊可独立育肥，注意乳肉价值差。&#10;Swiss Brown / 瑞士褐牛：奶肉双用途、高奶；奶业加后备繁育，保留健康/奶基因。&#10;Angus / 安格斯：商品肉牛和犊牛育种；看肥度、肉基因、种公价值。&#10;Limousin / 利木赞：大体型、肉用；看阶段供料、个体出栏重和实际价。&#10;Hereford / 海福特：放牧与常规育肥，平衡粗料利用与成本。&#10;Highland / 高地牛：慢生长、粗放饲草；勿强套集约月龄，关注牧场成本。&#10;Water Buffalo / 水牛：特殊牛种/专舍，检查水牛奶等渠道。" heading="false" image="gui/rlmenu/manual/text_017.dds" imageY="528" imageHeight="380" />
+    <paragraph text="第三方 Cow Breeds Pack 等通过桥接、映射、参数表配置，不保证全部新增品种在所有地图同等验证。" heading="false" image="gui/rlmenu/manual/text_017.dds" imageY="908" imageHeight="68" />
+    <paragraph text="39. 买架子畜还是育种家畜？" heading="true" image="gui/rlmenu/manual/text_017.dds" imageY="976" imageHeight="76" />
+    <paragraph text="经销商按用途 purpose 组织，而非随机全部月龄：断奶犊牛、后备、待配、怀孕青年母牛、初产、年轻经产、架子公牛、年轻种公等。用途对应年龄、妊娠/产史和条件。" heading="false" image="gui/rlmenu/manual/text_017.dds" imageY="1052" imageHeight="120" />
+    <paragraph text="Weaned calf：便宜轻，可自控育肥，承担长料费与风险。&#10;Replacement heifer：扩建未来母群，不一定已可配。&#10;In-calf heifer：缩短配种等待，通常更贵。&#10;Store bull / Feeder：继续育肥，关键增重成本与出栏价。&#10;Young sire：看种用、繁殖/生产基因，不只肉价。" heading="false" image="gui/rlmenu/manual/text_017.dds" imageY="1172" imageHeight="276" />
+    <paragraph text="来源含奶牛场、肉牛母牛场、育成/育种场，部分品种只在适用来源出现。未覆盖额外动物可能沿用旧规则。" heading="false" image="gui/rlmenu/manual/text_017.dds" imageY="1448" imageHeight="68" />
+    <paragraph text="39.1 Budget / Standard / Premium：库存品质等级及定价，不是物种或纯年龄。预期遗传越好通常越贵，Premium 仍须看个体五项与状态。默认 Standard，可设置更改；会引起重新生成，连续测试别反复改且不记条件。" heading="false" image="gui/rlmenu/manual/text_017.dds" imageY="1516" imageHeight="120" />
+    <paragraph text="39.2 买价是从商人买走付的款，通常高于基础活体出售值；出售可能扣运输，栏舍直卖和拖车交付不同；屠宰是另一价值链。不应把买入立即屠宰当稳定免费利润，肉价、费、底线、利润上限和品质都有防套利作用。" heading="false" image="gui/rlmenu/manual/text_017.dds" imageY="1636" imageHeight="120" />
+    <paragraph text="40. Hof Bergmann 畜舍分工【地图限定】" heading="true" image="gui/rlmenu/manual/text_017.dds" imageY="1756" imageHeight="76" />
+    <paragraph text="按年龄、性别、品种、建造阶段准入。" heading="false" image="gui/rlmenu/manual/text_017.dds" imageY="1832" imageHeight="68" />
+    <paragraph text="Calf igloos / 单头小牛屋：主要 0–1 月龄，约 2 月考虑转群舍。&#10;Calf rearing boxes A/B / 育成栏：适龄公母犊与阉犊，约 0–5 月，不再只公犊。&#10;Bull barn：适龄未阉公牛与配种，约 6 月起，核对实际公牛类型。&#10;Dairy/cow barn：奶牛与储奶，品种/母牛条件有限。&#10;Mixed cow barn：母牛、部分小牛、阉牛等，约 3 月以上已断奶犊可入；管理混公繁殖风险。&#10;Cattle pasture：草场资源，季节草不等于稳定高能育肥。&#10;Highland pasture：品种白名单，非任意牛。&#10;Buffalo pasture：水牛及特殊奶链，匹配类型与版本。" heading="false" image="gui/rlmenu/manual/text_018.dds" imageY="0" imageHeight="432" />
+    <paragraph text="封闭 MILKCOW 奶牛场用地图独立动物类型，不自动由所有 COW 功能接管。现实等效明确显示 Milk cows: legacy；即便生长配置有 Holstein female 代理映射，也不能声称营养、繁殖、牛舍、肉流程与普通 COW 完全一致。" heading="false" image="gui/rlmenu/manual/text_018.dds" imageY="432" imageHeight="120" />
+    <paragraph text="40.1 超龄通常不会强制搬走，规则在购买/进入/移动时判定；原栏长大后会提醒去向，不自动删除或赶走。玩家或自动化仍需安排转育成、育肥、奶厅。" heading="false" image="gui/rlmenu/manual/text_018.dds" imageY="552" imageHeight="120" />
+    <paragraph text="40.2 部分小牛屋、草场、屠夫须完成特定施工阶段，桥接检查阶段。地图出现建筑不等于已能接受交付。" heading="false" image="gui/rlmenu/manual/text_018.dds" imageY="672" imageHeight="68" />
+    <paragraph text="41. 其他畜种怎么玩？" heading="true" image="gui/rlmenu/manual/text_018.dds" imageY="740" imageHeight="76" />
+    <paragraph text="41.1 猪：按母猪繁殖与育肥批次经营，关注多仔、育成、容量、集中出栏。不必所有年轻商品猪都长期留种。PIG v2 生长/真实营养在 weightProfiles.xml 仍关闭，部分代码只覆盖计划的生长商品猪，带仔母猪/新生仔猪回退；不能宣传全猪种精料/消化/体况体系上线。" heading="false" image="gui/rlmenu/manual/text_018.dds" imageY="816" imageHeight="172" />
+    <paragraph text="41.2 羊：基本繁殖、羊毛、遗传、肉链可用，按品种体重、生长、毛量、价格经营。虽有母羊奶、断奶、creep feed、EUROP 肥度和 BCS 代码，但配置为 SHEEP enabled=false、status=S5_CALIBRATION_OFF；S5 深度模型非默认，待校准。" heading="false" image="gui/rlmenu/manual/text_018.dds" imageY="988" imageHeight="120" />
+    <paragraph text="41.3 山羊：可能底层同 SHEEP，但奶、交易、参数不同，不能按羊毛养。高阶 S5 明确排除山羊。" heading="false" image="gui/rlmenu/manual/text_018.dds" imageY="1108" imageHeight="68" />
+    <paragraph text="41.4 鸡鹅鸭兔及扩展：独立繁殖、生产、屠宰基数，部分地图桥接；蛋用与淘汰肉有取舍，兔有专门周期。地图未必有全部设施/卖点。核心是个体、遗传、疾病、繁殖和肉经济统一思路，牛 BCS/奶预算/评分不会一比一套到鸡兔。" heading="false" image="gui/rlmenu/manual/text_018.dds" imageY="1176" imageHeight="120" />
+    <paragraph text="41.5 马：依赖训练照护，Horse Care 含骑乘、清洁、自动保养，不按肉牛屠宰或奶量算。" heading="false" image="gui/rlmenu/manual/text_018.dds" imageY="1296" imageHeight="68" />
+  </chapter>
+  <chapter title="第九篇　菜单与自动管理" navTitle="第九部分　菜单与自动管理">
+    <paragraph text="42. RL Menu 标签用途" heading="true" image="gui/rlmenu/manual/text_018.dds" imageY="1364" imageHeight="76" />
+    <paragraph text="Manage / Info：状态、体重、遗传、疾病、血统，命名、监测、阉割。先看详情再决定出售。&#10;Buy：购买、选接收栏，预览完整数值，核对准入/余额。&#10;Sell：卖自有动物，服务端按最新状态结算，旧数不锁价。&#10;Move：自有栏间移动，部分设施加工交付；守年龄/性别/物种/阶段/容量。&#10;Transfer：拖车装卸转移，与直卖运输费可不同。&#10;Insemination / AI：选精液、购买、授精，看成功率、状态、父本。&#10;Herdsman：每日自动化，先小量测试筛选。&#10;Messages：妊娠、出生、销售、疾病、规则及自动结果。&#10;Settings：模型、疾病、商人、筛选、显示，部分共享/需权限。" heading="false" image="gui/rlmenu/manual/text_018.dds" imageY="1440" imageHeight="484" />
+    <paragraph text="入口、联机权限、地图决定有哪些标签。某入口缺设置不等于功能消失。" heading="false" image="gui/rlmenu/manual/text_018.dds" imageY="1924" imageHeight="68" />
+    <paragraph text="43. 快捷键（可更改）" heading="true" image="gui/rlmenu/manual/text_019.dds" imageY="0" imageHeight="76" />
+    <paragraph text="Right Shift + O：RL Menu。&#10;R：本体动物页进入 Mod 管理。&#10;X：标记；M：监测；I：授精；C：阉割；D：疾病；N：命名；F：轮换保存筛选；G：适用栏日粮编辑。" heading="false" image="gui/rlmenu/manual/text_019.dds" imageY="76" imageHeight="172" />
+    <paragraph text="以实际提示为准，冲突、版本、本地化、自定义会变。动作受性别、物种、所有权等限制。" heading="false" image="gui/rlmenu/manual/text_019.dds" imageY="248" imageHeight="68" />
+    <paragraph text="44. 保存筛选器" heading="true" image="gui/rlmenu/manual/text_019.dds" imageY="316" imageHeight="76" />
+    <paragraph text="可复用出栏候选公牛、不孕高龄母牛、高肉/繁殖/健康种公、病畜、低遗传后备等条件。别假设目录必有 Ready 字段，可先筛月龄/重量再人工看出栏。" heading="false" image="gui/rlmenu/manual/text_019.dds" imageY="392" imageHeight="120" />
+    <paragraph text="AND / Match all：每条成立，如公牛且 ≥18 月且肉基因 ≥70。&#10;OR / Match any：任一成立，如 ≥30 月或有症状。" heading="false" image="gui/rlmenu/manual/text_019.dds" imageY="512" imageHeight="120" />
+    <paragraph text="临时快速筛选后保存，在适用页面 F 轮换。设置中可设物种范围与自有/经销商/全部页显示。" heading="false" image="gui/rlmenu/manual/text_019.dds" imageY="632" imageHeight="68" />
+    <paragraph text="44.1 遗传筛选用 0–99 界面分数，不是 1.75 或健康百分比；年龄月、重量 kg、健康 0–100。无有效监测的自有个体可能不匹配精确健康/Weight &gt;500 等条件，先看字段可用性。" heading="false" image="gui/rlmenu/manual/text_019.dds" imageY="700" imageHeight="120" />
+    <paragraph text="44.2 快速筛选只临时浏览，保存筛选可跨页和作 Herdsman 输入；价格滑块等未必有可保存字段，不保证无损转换。" heading="false" image="gui/rlmenu/manual/text_019.dds" imageY="820" imageHeight="68" />
+    <paragraph text="45. Herdsman 自动化牧场工" heading="true" image="gui/rlmenu/manual/text_019.dds" imageY="888" imageHeight="76" />
+    <paragraph text="服务端每游戏日运行 Sell、Move、Buy、Castrate、Naming、AI、Horse Care。任务需操作、筛选、畜舍、数量、预算、启用。" heading="false" image="gui/rlmenu/manual/text_019.dds" imageY="964" imageHeight="120" />
+    <paragraph text="45.1 顺序：Sell → Move → Buy → Castrate → Naming → AI → Horse Care。&#10;可先卖腾栏再买，但宽泛出售筛选会先卖掉优秀种畜。初设只选一栏、少量、严格条件，执行看日志再扩大。" heading="false" image="gui/rlmenu/manual/text_019.dds" imageY="1084" imageHeight="120" />
+    <paragraph text="45.2 常见错误：没选栏不会自动所有栏；只筛性别年龄会卖种畜，需标记/品种/遗传/专群；满栏无法买，先卖后买；目的栏不收则拒/跳过，检查白名单；显症病畜不会普通卖，先治/隔离/淘汰；旧报价会变，以服务端日志为准。" heading="false" image="gui/rlmenu/manual/text_019.dds" imageY="1204" imageHeight="120" />
+    <paragraph text="Herdsman 有工资/管理费，不是免费传送或无限人工。联机需共享任务权限。" heading="false" image="gui/rlmenu/manual/text_019.dds" imageY="1324" imageHeight="68" />
+  </chapter>
+  <chapter title="第十篇　设置与兼容边界" navTitle="第十部分　设置与兼容边界">
+    <paragraph text="46. RL Settings 重要选项" heading="true" image="gui/rlmenu/manual/text_019.dds" imageY="1392" imageHeight="76" />
+    <paragraph text="Animal Death：默认 On，疾病、健康、衰老、事故可损失；拟真保留，入门可按需关。&#10;Accident Chance：默认 1.0，是基础事故乘数，2.0 非每月 2%。&#10;Diseases：默认 Normal，影响发病、传播、潜伏。&#10;Choose Diseases：单病开关，影响繁育/奶逻辑，开档前决定 CVM 等。&#10;Food Scale：默认 1.0，传统消耗倍率；研究料肉比勿无记录中途改。&#10;Nutrition Model：默认 Legacy，主动开启 Real-equivalent，适用栏才切换。&#10;Max Dealer Animals：默认 50，列表容量，按性能调。&#10;Dealer Quality：默认 Standard，Budget/Standard/Premium 品质报价，研究时固定。&#10;Monitoring / 显示：依设置、个体变化，影响可见与费用，重要畜优先。&#10;Saved Filters：玩家创建，管理自动化，建议出栏/留种专用。" heading="false" image="gui/rlmenu/manual/text_019.dds" imageY="1468" imageHeight="536" />
+    <paragraph text="经济 HARD/NORMAL/EASY 影响部分商品、费、活畜价格；疾病 Normal/Hard 仅疾病模型，两套不可混淆。" heading="false" image="gui/rlmenu/manual/text_020.dds" imageY="0" imageHeight="68" />
+    <paragraph text="47. 模式真实状态清单（文档基准）" heading="true" image="gui/rlmenu/manual/text_020.dds" imageY="68" imageHeight="76" />
+    <paragraph text="逐头身份血统：默认生效。&#10;基因、繁殖、授精、疾病：默认核心，部分可设置关闭。&#10;COW 生长 v2：weightProfiles.xml enabled=true，依赖其他条件。&#10;COW 体储备、Finish、BCS：bodyCondition.xml enabled=true，合格牛显示并生效。&#10;牛繁育现金流估价：breedingValue.xml enabled=1，进入活畜报价。&#10;Hof Bergmann 独立育犊：calfRearing.xml enabled=true + 桥接。&#10;现实等效：存档默认关闭，主动启用且适用栏才用 DM/ME。&#10;SHEEP S5 母羊奶/羊体况/羔羊脂肪：enabled=false，校准非默认。&#10;PIG 新体重/营养：enabled=false，非全猪种默认。&#10;Dealer v2 事务底层：另有开关/门槛，默认仍常规商人。&#10;T02 事务恢复：OFF/SHADOW/TEST 开发开关，默认不启用，未验收别开正式档。&#10;Hof Bergmann MILKCOW：独立类型，不适用全部普通 COW 高级机制。" heading="false" image="gui/rlmenu/manual/text_020.dds" imageY="144" imageHeight="640" />
+    <paragraph text="GitHub 可能先合开发代码再离线校准/实测。函数、测试通过、翻译存在，都不能单独证明玩家已进入该玩法。" heading="false" image="gui/rlmenu/manual/text_020.dds" imageY="784" imageHeight="68" />
+    <paragraph text="48. 文件、版本与存档兼容" heading="true" image="gui/rlmenu/manual/text_020.dds" imageY="852" imageHeight="76" />
+    <paragraph text="1. 备份存档，尤其高基因种畜、妊娠、ID、设施多的档。&#10;2. 不同时启用另一独立 Realistic Livestock，避免重写相同对象/脚本。&#10;3. 扩展动物依桥接，地图升级重查白名单、公共屠宰输入、生产点。&#10;4. 独立 SellPrices 非 F2M 同义词，作物/青贮/奶/肉价会改机会成本和收益，注明是否安装。&#10;5. 改名非迁移完成。覆盖路径仍有 modSettings/FS25_RealisticLivestockRM/，是兼容/迁移考虑，别全部替换 F2M。&#10;6. 联机以服务器为准，交易、繁殖、生产、日粮、自动化会重新校验，不以客户端旧显示为准。" heading="false" image="gui/rlmenu/manual/text_020.dds" imageY="928" imageHeight="328" />
+    <paragraph text="49. 高级 XML 配置" heading="true" image="gui/rlmenu/manual/text_020.dds" imageY="1256" imageHeight="76" />
+    <paragraph text="breedTraits.xml：品种生长、采食、饲草利用；误改使料效/价格失衡。&#10;weightProfiles.xml：年龄体重与开关；误改成长/迁移。&#10;bodyCondition.xml：储备营养分配；连动奶、体况、受胎、肉。&#10;feedProfiles.xml：DM/ME/蛋白/精料；影响摄入、健康、出栏。&#10;carcassYield.xml：屠宰、可售率、费、联价；可能固定肉/套利/零利润。&#10;breedingValue.xml：繁育估值；极端种畜过贵或低至肉值。&#10;calfRearing.xml：奶转固体；误改幼犊吃不到有效食物。&#10;dealerStock.xml：年龄用途来源；误改市场不出现品种。" heading="false" image="gui/rlmenu/manual/text_020.dds" imageY="1332" imageHeight="432" />
+    <paragraph text="先懂成年体型、出栏参照、肉量、卖价分别校准。不要为加重随改 targetWeight、为多赚将 saleableRate 改 1，会触发连锁。覆盖前在测试档观察体重—采食—屠宰—售价闭环。" heading="false" image="gui/rlmenu/manual/text_020.dds" imageY="1764" imageHeight="120" />
+  </chapter>
+  <chapter title="第十一篇　经营路线" navTitle="第十一部分　经营路线">
+    <paragraph text="50. 路线 A：低投入草场型肉牛" heading="true" image="gui/rlmenu/manual/text_020.dds" imageY="1884" imageHeight="76" />
+    <paragraph text="适合体验草场、母牛繁殖和架子牛育成，选牧草适应品种，利用地图牧场。&#10;路线：留种母牛 → 配种产犊 → 随母/育犊舍 → 断奶 → 草场育成 → 继续育肥、卖架子或屠宰。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="0" imageHeight="120" />
+    <paragraph text="看母牛健康遗传、繁殖、BCS，犊牛是否落后，草场季节供应，后期每月增重与耗料。别以为草场全年免费快速育肥，冬天不备料；别因便宜就一直养到成年重导致占栏过长。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="120" imageHeight="120" />
+    <paragraph text="51. 路线 B：架子牛集中育肥" heading="true" image="gui/rlmenu/manual/text_021.dds" imageY="240" imageHeight="76" />
+    <paragraph text="适合稳定 TMR、青贮、谷物供应、追求商品周转。&#10;1. 选断奶或有重量架子公牛，记购价、重、龄、肉基因。&#10;2. 选准入育肥栏，检查预计周期库存。&#10;3. 用 Finish weight，不只 Target weight。&#10;4. 定期记重与 Finish，现实等效看 DM/ME、估时和限制。&#10;5. Ready 后比较活价与加工净值；继续增值不足覆盖下一月饲料/资金就出栏。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="316" imageHeight="328" />
+    <paragraph text="多喂一月未必多赚。盈利依初始重、价差、距规格；买来已肥很难靠一月增重抵成本。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="644" imageHeight="68" />
+    <paragraph text="52. 路线 C：奶牛与后备母牛繁育" heading="true" image="gui/rlmenu/manual/text_021.dds" imageY="712" imageHeight="76" />
+    <paragraph text="高奶基因健康后备，确认配种/怀孕；泌乳保证能量蛋白水，监看潜力百分比；掉膘可正常但别长期低 BCS；优秀精液/种公改良奶基因并防 CVM；分配育犊、断奶群栏、后备舍；淘汰老低产病牛前评估剩余繁育价值。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="788" imageHeight="120" />
+    <paragraph text="53. 路线 D：肉牛种畜场" heading="true" image="gui/rlmenu/manual/text_021.dds" imageY="908" imageHeight="76" />
+    <paragraph text="Overall 只初筛，种公要在目标性状突出。昂贵种公需足够母群和周期承接，否则为用不到的潜力付钱。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="984" imageHeight="68" />
+    <paragraph text="示例：仅 4 头商品公牛全屠宰的小场，不必为 Meat 90 之外全项 90 支付种公溢价；40 母牛长期改良的场更有理由。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="1052" imageHeight="68" />
+    <paragraph text="54. 路线 E：羊猪阶段经营" heading="true" image="gui/rlmenu/manual/text_021.dds" imageY="1120" imageHeight="76" />
+    <paragraph text="羊：先母羊繁殖、羔羊销售、毛/肉，待 S5 默认启用再介绍奶池、creep feed、EUROP。&#10;猪：区分母群与商品猪，别为全猪繁殖无止境扩母群。等 P4 等正式启用再强化阶段日粮和母猪体况。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="1196" imageHeight="120" />
+  </chapter>
+  <chapter title="第十二篇　常见问题 FAQ" navTitle="第十二部分　常见问题 FAQ">
+    <paragraph text="Q1：1100 kg 成年目标，650 kg 为何可出栏？" heading="true" image="gui/rlmenu/manual/text_021.dds" imageY="1316" imageHeight="76" />
+    <paragraph text="成年体型与经济出栏不同，达到出栏参照约 95%，肥度/月龄等合格即可，不必长成完整种公。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="1392" imageHeight="68" />
+    <paragraph text="Q2：Finish 100 是最高等级肉牛？" heading="true" image="gui/rlmenu/manual/text_021.dds" imageY="1460" imageHeight="76" />
+    <paragraph text="不是，过肥可能降低可售比例，通常 65–80 较理想，还看体重利润。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="1536" imageHeight="68" />
+    <paragraph text="Q3：BCS 3.0 与 Health 100%？" heading="true" image="gui/rlmenu/manual/text_021.dds" imageY="1604" imageHeight="76" />
+    <paragraph text="前者体储备，后者当前健康。健康 100 仍可瘦或过肥。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="1680" imageHeight="68" />
+    <paragraph text="Q4：健康基因 95 为何生病？" heading="true" image="gui/rlmenu/manual/text_021.dds" imageY="1748" imageHeight="76" />
+    <paragraph text="遗传倾向不是免疫证明，缺水断料与疾病仍会发生。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="1824" imageHeight="68" />
+    <paragraph text="Q5：Overall 50 只有 50% 潜力？" heading="true" image="gui/rlmenu/manual/text_021.dds" imageY="1892" imageHeight="76" />
+    <paragraph text="不是，是平均系数的 0–99 映射，中性 1.0 约显示 50。" heading="false" image="gui/rlmenu/manual/text_021.dds" imageY="1968" imageHeight="68" />
+    <paragraph text="Q6：Fertility 80 多次不怀孕？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="0" imageHeight="76" />
+    <paragraph text="遗传分数非每次成功率。月龄、健康、恢复、体况、随机都重要。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="76" imageHeight="68" />
+    <paragraph text="Q7：Fertility (BCS) 100% 保证受孕？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="144" imageHeight="76" />
+    <paragraph text="不保证，只表示体况当前不扣分。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="220" imageHeight="68" />
+    <paragraph text="Q8：Milk output 80% 是卖掉 80% 奶？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="288" imageHeight="76" />
+    <paragraph text="不是，是潜在产量实现率。库存/销售看奶罐和账单。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="364" imageHeight="68" />
+    <paragraph text="Q9：高奶遗传为何没奶？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="432" imageHeight="76" />
+    <paragraph text="可能未泌乳、设施不适合、缺料水、病或 MILKCOW 独立规则。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="508" imageHeight="68" />
+    <paragraph text="Q10：食槽满还掉膘？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="576" imageHeight="76" />
+    <paragraph text="可能旧规则不吃该粮、营养密度不足、缺水或疾病，满不等于有效能量足。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="652" imageHeight="68" />
+    <paragraph text="Q11：玉米为何不吃？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="720" imageHeight="76" />
+    <paragraph text="可能 Legacy，新精料不摄入，看 Feed model / Not fed in legacy。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="796" imageHeight="68" />
+    <paragraph text="Q12：60% 精料却只有 35%？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="864" imageHeight="76" />
+    <paragraph text="目标受纤维、淀粉、小麦、适应和库存限制。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="940" imageHeight="68" />
+    <paragraph text="Q13：6 kg/d 是游戏一天 6 kg？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="1008" imageHeight="76" />
+    <paragraph text="是模型日干物质，一个游戏月当前按 30 模型日。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="1084" imageHeight="68" />
+    <paragraph text="Q14：开启现实等效后所有栏生效？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="1152" imageHeight="76" />
+    <paragraph text="不是，物种、生长、食槽、全栏动物、哺乳条件不满足会回退并说明。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="1228" imageHeight="68" />
+    <paragraph text="Q15：MILKCOW 为何没完整新日粮？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="1296" imageHeight="76" />
+    <paragraph text="地图独立类型，明确留 Legacy，不能完全套普通 COW。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="1372" imageHeight="68" />
+    <paragraph text="Q16：小牛搬群栏立刻断奶？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="1440" imageHeight="76" />
+    <paragraph text="不一定，约 2 月换栏与约 3 月开始断奶过渡是两件事。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="1516" imageHeight="68" />
+    <paragraph text="Q17：羔羊显示 EUROP？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="1584" imageHeight="76" />
+    <paragraph text="有代码但 SHEEP S5 默认关，不能承诺全面启用。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="1660" imageHeight="68" />
+    <paragraph text="Q18：猪新现实营养完成？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="1728" imageHeight="76" />
+    <paragraph text="参数与测试已开发，PIG 新曲线仍关，不是稳定完整新猪系统。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="1804" imageHeight="68" />
+    <paragraph text="Q19：600 kg 牛为何非 270 kg 肉？" heading="true" image="gui/rlmenu/manual/text_022.dds" imageY="1872" imageHeight="76" />
+    <paragraph text="270 是标准基数，个体受品种、状态、基因和体型修正。" heading="false" image="gui/rlmenu/manual/text_022.dds" imageY="1948" imageHeight="68" />
+    <paragraph text="Q20：交一头显示非整数头？" heading="true" image="gui/rlmenu/manual/text_023.dds" imageY="0" imageHeight="76" />
+    <paragraph text="订单可能用标准动物等效量，确认规则及最终肉 kg。" heading="false" image="gui/rlmenu/manual/text_023.dds" imageY="76" imageHeight="68" />
+    <paragraph text="Q21：屠宰必多赚 12%？" heading="true" image="gui/rlmenu/manual/text_023.dds" imageY="144" imageHeight="76" />
+    <paragraph text="不是，只是标定下年度参考；看肉价、季节、状态、加工费与活价。" heading="false" image="gui/rlmenu/manual/text_023.dds" imageY="220" imageHeight="68" />
+    <paragraph text="Q22：优秀种公远贵于肉？" heading="true" image="gui/rlmenu/manual/text_023.dds" imageY="288" imageHeight="76" />
+    <paragraph text="活价含遗传传代潜力，屠宰只按肉和加工收入。" heading="false" image="gui/rlmenu/manual/text_023.dds" imageY="364" imageHeight="68" />
+    <paragraph text="Q23：为何商人没老公牛？" heading="true" image="gui/rlmenu/manual/text_023.dds" imageY="432" imageHeight="76" />
+    <paragraph text="常规库存按实际用途/年龄段，不是全年龄等概率。旧档和额外动物可能不同。" heading="false" image="gui/rlmenu/manual/text_023.dds" imageY="508" imageHeight="68" />
+    <paragraph text="Q24：搬牛失败？" heading="true" image="gui/rlmenu/manual/text_023.dds" imageY="576" imageHeight="76" />
+    <paragraph text="查品种、龄、性别、阉割、容量、建设阶段、地图筛选和权限。" heading="false" image="gui/rlmenu/manual/text_023.dds" imageY="652" imageHeight="68" />
+    <paragraph text="Q25：超龄小牛不自动搬？" heading="true" image="gui/rlmenu/manual/text_023.dds" imageY="720" imageHeight="76" />
+    <paragraph text="只提醒，需要玩家或自动化移动。" heading="false" image="gui/rlmenu/manual/text_023.dds" imageY="796" imageHeight="68" />
+    <paragraph text="Q26：没精确体重/健康？" heading="true" image="gui/rlmenu/manual/text_023.dds" imageY="864" imageHeight="76" />
+    <paragraph text="自有常需监测；目测体况/Finish 无监测可见；商人预览更完整。" heading="false" image="gui/rlmenu/manual/text_023.dds" imageY="940" imageHeight="68" />
+    <paragraph text="Q27：怎样批量选育肥牛？" heading="true" image="gui/rlmenu/manual/text_023.dds" imageY="1008" imageHeight="76" />
+    <paragraph text="保存筛选在 Manage/Sell 使用，别假定必有 Ready 字段，可先筛龄/性别再人工复核。" heading="false" image="gui/rlmenu/manual/text_023.dds" imageY="1084" imageHeight="68" />
+    <paragraph text="Q28：Herdsman 不动？" heading="true" image="gui/rlmenu/manual/text_023.dds" imageY="1152" imageHeight="76" />
+    <paragraph text="查启用、绑定至少一栏、筛选、目标准入、商人、资金、权限。" heading="false" image="gui/rlmenu/manual/text_023.dds" imageY="1228" imageHeight="68" />
+    <paragraph text="Q29：改价后攻略不准？" heading="true" image="gui/rlmenu/manual/text_023.dds" imageY="1296" imageHeight="76" />
+    <paragraph text="活牛肉价联动，料价改变机会成本。比较需同地图/难度/价格配置。" heading="false" image="gui/rlmenu/manual/text_023.dds" imageY="1372" imageHeight="68" />
+    <paragraph text="Q30：为何没事故赔偿？" heading="true" image="gui/rlmenu/manual/text_023.dds" imageY="1440" imageHeight="76" />
+    <paragraph text="当前取消事故自动旧 33% 回收，主动病畜淘汰是另一结算。" heading="false" image="gui/rlmenu/manual/text_023.dds" imageY="1516" imageHeight="68" />
+  </chapter>
+  <chapter title="第十三篇　术语速查" navTitle="第十三部分　术语速查">
+    <paragraph text="术语与易混淆对象" heading="true" image="gui/rlmenu/manual/text_023.dds" imageY="1584" imageHeight="76" />
+    <paragraph text="Live weight：当前活重，不是成年目标重。&#10;Target weight：成年目标重，不是 Finish reference。&#10;Finish weight：出栏参考，不是成年目标。&#10;Finish / Finish score：育肥度/脂肪完成评分，不是肉用基因或健康。&#10;BCS：体况评分，不是健康百分比。&#10;Body reserve：内部身体储备，不是直接可售肉 kg。&#10;Ration cover：需求覆盖，不是库存条。&#10;Milk output %：奶潜力实现比例，不是奶基因 0–99 或罐内升数。&#10;Fertility (BCS)：受胎的体况修正，不是 Fertility 遗传。" heading="false" image="gui/rlmenu/manual/text_024.dds" imageY="0" imageHeight="484" />
+    <paragraph text="DM：干物质，不是湿重/升数。&#10;ME：代谢能，不是已吃升数比例。&#10;CP：粗蛋白，不是完整蛋白品质分析。&#10;NDF / peNDF：纤维/物理有效纤维，不是食物体积或罐容量。&#10;Slaughter reference：出栏参照，不是厂内标准订单单位。&#10;Dressing rate：活体到胴体比率，不是可售率。&#10;Saleable rate：胴体到可售肉比率，不是售价倍率。&#10;Market pass-through：肉价对活价传导，不是屠宰利润。" heading="false" image="gui/rlmenu/manual/text_024.dds" imageY="484" imageHeight="432" />
+    <paragraph text="Cull：主动淘汰/处置，不同正常卖商品或事故死亡。&#10;Heifer：未产犊青年母牛，不是经产母牛。&#10;Sire：种公/父本，不是普通育肥公牛。&#10;Store / Feeder：架子/待育肥，不是完成育肥。&#10;Weaning：断奶，不是换栏。&#10;Legacy：传统，不是装 Mod 就全部新营养。&#10;Real-equivalent：现实等效模式，不等于现实采购原始吨数。&#10;Herdsman：自动化牧场工，不是无条件自动出售。" heading="false" image="gui/rlmenu/manual/text_024.dds" imageY="916" imageHeight="432" />
+  </chapter>
+  <chapter title="附录　作者删减与校验" navTitle="附录　作者删减与校验">
+    <paragraph text="第十四篇　给作者的建议（发布可整篇删除）" heading="true" image="gui/rlmenu/manual/text_024.dds" imageY="1348" imageHeight="76" />
+    <paragraph text="以下为作者维护/校验资料，非普通玩家必须阅读的玩法指引。" heading="false" image="gui/rlmenu/manual/text_024.dds" imageY="1424" imageHeight="68" />
+    <paragraph text="55. 如何拆成公开文档" heading="true" image="gui/rlmenu/manual/text_024.dds" imageY="1492" imageHeight="76" />
+    <paragraph text="ModHub/Mod 页面：第 1、2、3 章压缩版，品种、经济、畜牧亮点与致谢，面向新读者。&#10;GitHub README：概览、默认/可选、兼容、手册链接，面向安装者。&#10;入门：第 1、2、4、5、6、18、21、34、38、42、46 章。&#10;界面：第 5–12、14–16、20–23、44 章。&#10;经营：第 25–40、50–54 章。&#10;FAQ：第十二篇。&#10;开发：公式、参数、未启用 S5/P4/T02。" heading="false" image="gui/rlmenu/manual/text_024.dds" imageY="1568" imageHeight="380" />
+    <paragraph text="公开可说“更真实的牛只育肥与体况”，不宜说“所有动物完整实时营养”；可说“参考英国市场平衡活畜与屠宰”，不宜说“所有地图全部作物产品已严格对齐英国市场”。" heading="false" image="gui/rlmenu/manual/text_025.dds" imageY="0" imageHeight="120" />
+    <paragraph text="56. 需要实机截图验证的地方" heading="true" image="gui/rlmenu/manual/text_025.dds" imageY="120" imageHeight="76" />
+    <paragraph text="本稿读取 Lua/XML，不是从截图反推。正式发布前，在新 Hof Bergmann 测试档逐项录屏/截图，以下均须重新实机测：" heading="false" image="gui/rlmenu/manual/text_025.dds" imageY="196" imageHeight="68" />
+    <paragraph text="6 月龄以上公牛：Finish、Slaughter、Finish weight。&#10;产犊母牛：BCS、Fertility (BCS)，监测后健康/重量/乳量。&#10;更换好/差料：BCS 趋势、Milk output 依预算变化。&#10;无监测自有牛：可见体况，非全部监测项。&#10;商人预览：健康、重量、完整基因。&#10;育犊栏：奶固体过渡和缺奶提醒。&#10;现实等效：日粮编辑、预览、精料实际占比、能量。&#10;Legacy 谷物：标未食用，非基础口粮。&#10;MILKCOW：保留 Legacy，不误显示完整新营养。&#10;普通牛公共屠宰：肉随状态，非固定 1000。&#10;同牛农场屠夫：模型肉量与公共场一致。&#10;不同遗传母/公牛：繁育溢价非单肉价。&#10;自采、售罐、授精：费、成功率、父 ID、基因。&#10;猪羊默认：不出现未启用整套 S5/P4 界面。&#10;旧档：身份、重、孕、价合理，无重复丢失。&#10;双人联机：数量、价格、日粮端服一致。" heading="false" image="gui/rlmenu/manual/text_025.dds" imageY="264" imageHeight="848" />
+    <paragraph text="57. “已实现”与“未实测”的写法" heading="true" image="gui/rlmenu/manual/text_025.dds" imageY="1112" imageHeight="76" />
+    <paragraph text="enabled=true 可写默认启用；有当前地图实测才写已通过 Hof Bergmann 1.5.x 实测。enabled=false 写开发/校准，不写直接可用。需配套 Mod/配置写需要/支持，不写所有地图通用。" heading="false" image="gui/rlmenu/manual/text_025.dds" imageY="1188" imageHeight="120" />
+    <paragraph text="2026-10-18 提交为冻结检查点。后续重查翻译、出生/断奶、代谢体况、屠宰、商人报价。旧讨论的 Holstein 奶量、羊 8 月屠宰、固定 1000 L 牛肉等可能已被替换，不作现行指引。" heading="false" image="gui/rlmenu/manual/text_025.dds" imageY="1308" imageHeight="120" />
+    <paragraph text="58. 主要代码与资料" heading="true" image="gui/rlmenu/manual/text_025.dds" imageY="1428" imageHeight="76" />
+    <paragraph text="scripts/animal/RealisticLivestock_Animal.lua：Animal:addInfos、监测、健康/繁殖/体重、活价。&#10;scripts/gui/rlmenu/services/RLAnimalInfoService.lua：年龄、疾病、血统、监测输入输出、预览。&#10;RLGeneticsFormatter.lua、scripts/animal/RLGenetics.lua、scripts/utils/RLScaleHelper.lua：数值分档。&#10;scripts/nutrition/RLBodyCondition.lua、xml/bodyCondition.xml：BCS/Finish/出栏/奶/受胎。&#10;scripts/animal/RLGrowth.lua、xml/weightProfiles.xml、xml/breedTraits.xml：v2、生长目标、SHEEP/PIG 开关。&#10;scripts/feed/RLFeed.lua、RLFeedInfoService.lua、RLFeedMath.lua、RLFeedRationPlanner.lua、xml/feedProfiles.xml：饲喂、DM/ME、预览。&#10;scripts/nutrition/RLCalfRearing.lua、xml/calfRearing.xml：育犊断奶。&#10;scripts/animal/RLBreedingValue.lua、xml/breedingValue.xml：繁育价值。&#10;scripts/animal/RLMeatValue.lua、xml/carcassYield.xml：肉价、基数、费、套利。&#10;scripts/animal/AnimalReproduction.lua、AnimalHealth.lua、xml/diseases.xml：繁殖、疾病、死亡。&#10;xml/dealerStock.xml、scripts/dealer/：用途来源与实验流程。&#10;scripts/core/RLSettings.lua：默认设置。&#10;mod_support/FS25_HofBergmann/v1.5/husbandryProfiles.xml：准入、育犊、建造。&#10;translations/translation_en.xml 及中文文件：实际提示。&#10;docs/user-guide/：上游指南，本文按 fork 调整。&#10;docs/SHEEP_S5_PROGRESS.md、docs/DEALER_V2_STATUS.md、CHANGELOG.md：校准与合入状态。" heading="false" image="gui/rlmenu/manual/text_026.dds" imageY="0" imageHeight="900" />
+    <paragraph text="以上为仓库路径，私有仓库须有权限，普通玩家不必阅读。" heading="false" image="gui/rlmenu/manual/text_026.dds" imageY="900" imageHeight="68" />
+  </chapter>
+  <chapter title="致谢与反馈" navTitle="致谢与反馈">
+    <paragraph text="致谢" heading="true" image="gui/rlmenu/manual/text_026.dds" imageY="968" imageHeight="76" />
+    <paragraph text="本项目以 Arrow-kb 最初开发的 Realistic Livestock，以及 Ritter 长期维护的 Realistic Livestock RM 为基础继续扩展。感谢原作者和开源贡献者为个体动物、遗传、繁殖、疾病与畜群管理奠定基础；感谢 Hof Bergmann 地图团队构建丰富的奶业、屠宰和终端销售链。完整版权、许可和再分发说明请以项目 README / LICENSE 为准。" heading="false" image="gui/rlmenu/manual/text_026.dds" imageY="1044" imageHeight="172" />
+    <paragraph text="之所以在德国地图上参考英国畜牧市场，理由很简单：《克拉克森的农场》（Clarkson's Farm）让我对现实农牧业经营产生了浓厚兴趣。而 Hof Bergmann 正好提供了实现完整畜牧产业链的丰富游戏环境。" heading="false" image="gui/rlmenu/manual/text_026.dds" imageY="1216" imageHeight="120" />
+    <paragraph text="欢迎在 GitHub 提交 Issue，反馈实际游戏中的数值、生产链逻辑、界面翻译、兼容性或新的玩法建议：&#10;https://github.com/xtcg/FS25_RealisticLivestockF2M/issues" heading="false" image="gui/rlmenu/manual/text_026.dds" imageY="1336" imageHeight="120" />
+  </chapter>
+</playerManual>

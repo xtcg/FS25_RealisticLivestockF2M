@@ -361,6 +361,10 @@ function RealisticLivestock_FSBaseMission:sendInitialClientState(connection, _, 
     connection:sendEvent(HusbandryMessageStateEvent.new(g_currentMission.husbandrySystem.placeables))
     -- Body condition: the server's config, so the client shows what the server computes.
     connection:sendEvent(RLBodyConditionConfigEvent.new(RLBodyConditionConfig.get()))
+    -- Pedigree: sold and dead ancestors, for the client's inbreeding check.
+    connection:sendEvent(RLPedigreeStateEvent.new())
+    -- Dealer quota for the player's own semen this month.
+    connection:sendEvent(RLSemenQuotaEvent.new())
 
     -- P4: push the authoritative saveable-filter state to the new client so
     -- late-joiners converge with the server. Empty-set (count=0) is a valid

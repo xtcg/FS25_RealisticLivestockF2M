@@ -62,6 +62,8 @@ function Animal.new(config)
     self.isCastrated = cfg.isCastrated or false
     -- Age (months) at the last semen collection; one collection per month (RLSemenCollection).
     self.semenCollectedAge = cfg.semenCollectedAge
+    -- Running month index (RLSemenCollection.getMonthIndex) of the last collection; nil in old saves.
+    self.semenCollectedMonth = cfg.semenCollectedMonth
     -- Age (months) in which a semen-storing building last took this sire's semen output.
     self.semenProducedAge = cfg.semenProducedAge
 
@@ -438,6 +440,7 @@ function Animal:clone()
         monitor = self.monitor,
         isCastrated = self.isCastrated,
         semenCollectedAge = self.semenCollectedAge,
+        semenCollectedMonth = self.semenCollectedMonth,
         semenProducedAge = self.semenProducedAge,
         diseases = self.diseases,
         recentlyBoughtByAI = self.recentlyBoughtByAI,
@@ -571,6 +574,17 @@ end
 
 function Animal:getAge()
     return self.age
+end
+
+-- Game 1.25 asks list items for their visual (InGameMenuAnimalsFrame cells) instead of
+-- looking it up by sub type and age; answer with the same lookup the older pages used.
+function Animal:getVisual()
+    return g_currentMission.animalSystem:getVisualByAge(self:getSubTypeIndex(), self:getAge())
+end
+
+-- Game 1.25 list cells also ask each item how many animals it can hold; an RL animal is one animal.
+function Animal:getMaxNumAnimals()
+    return 1
 end
 
 function Animal:getName()
@@ -2064,7 +2078,7 @@ function Animal:updateOutput(temp)
             -- nothing at all while Animal.MAP_SEMEN_OUTPUT is off (the default). The age
             -- shape is dewar collection's (RLSemenCollection.getAgeOutputFactor); the XML curve
             -- only sets the peak amount.
-            local collectedThisMonth = self.semenCollectedAge ~= nil and self.semenCollectedAge >= self.age
+            local collectedThisMonth = RLSemenCollection.isCollectedThisMonth(self)
             local fertility = (self.isCastrated or collectedThisMonth or not Animal.MAP_SEMEN_OUTPUT) and 0
                 or (self.genetics.fertility or 1)
             local ageFactor = RLSemenCollection.getAgeOutputFactor(self)

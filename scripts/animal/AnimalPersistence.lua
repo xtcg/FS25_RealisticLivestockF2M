@@ -219,6 +219,7 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
 
     local isCastrated = xmlFile:getBool(key .. "#isCastrated", false)
     local semenCollectedAge = xmlFile:getInt(key .. "#semenCollectedAge")
+    local semenCollectedMonth = xmlFile:getInt(key .. "#semenCollectedMonth")
     local semenProducedAge = xmlFile:getInt(key .. "#semenProducedAge")
 
     -- nil when absent (backward compatible, treated as sellable); false when explicitly saved
@@ -392,6 +393,7 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
         insemination.genetics.fertility = xmlFile:getFloat(key .. ".insemination.genetics#fertility")
         insemination.genetics.quality = xmlFile:getFloat(key .. ".insemination.genetics#quality")
         insemination.genetics.productivity = xmlFile:getFloat(key .. ".insemination.genetics#productivity")
+        RLSemenBatch.loadFromXML(xmlFile, key .. ".insemination", insemination)
 
     end
 
@@ -406,7 +408,7 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
         fitness = fitness, riding = riding, farmId = farmId, weight = weight,
         genetics = genetics, impregnatedBy = impregnatedBy, variation = variation,
         children = children, monitor = monitor, isCastrated = isCastrated,
-        semenCollectedAge = semenCollectedAge, semenProducedAge = semenProducedAge,
+        semenCollectedAge = semenCollectedAge, semenCollectedMonth = semenCollectedMonth, semenProducedAge = semenProducedAge,
         diseases = diseases, recentlyBoughtByAI = recentlyBoughtByAI,
         marks = marks, insemination = insemination,
         canBeSold = canBeSold, bodyCondition = bodyCondition, growth = growth,
@@ -423,7 +425,8 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
 
         if animal.clusterSystem ~= nil then
 
-            local childNum = animal:generateRandomOffspring()
+            -- A saved pregnancy without its young: she is pregnant, so only the litter size is drawn.
+            local childNum = math.max(1, AnimalReproduction.drawLitterSize(animal))
 
             if childNum > 0 then
 
@@ -590,6 +593,7 @@ function AnimalPersistence.saveToXMLFile(animal, xmlFile, key)
         xmlFile:setFloat(key .. ".insemination.genetics#health", insemination.genetics.health)
         xmlFile:setFloat(key .. ".insemination.genetics#fertility", insemination.genetics.fertility)
         if insemination.genetics.productivity ~= nil then xmlFile:setFloat(key .. ".insemination.genetics#productivity", insemination.genetics.productivity) end
+        RLSemenBatch.saveToXML(xmlFile, key .. ".insemination", insemination)
 
     end
 
@@ -598,6 +602,7 @@ function AnimalPersistence.saveToXMLFile(animal, xmlFile, key)
 
     if animal.isCastrated then xmlFile:setBool(key .. "#isCastrated", true) end
     if animal.semenCollectedAge ~= nil then xmlFile:setInt(key .. "#semenCollectedAge", animal.semenCollectedAge) end
+    if animal.semenCollectedMonth ~= nil then xmlFile:setInt(key .. "#semenCollectedMonth", animal.semenCollectedMonth) end
     if animal.semenProducedAge ~= nil then xmlFile:setInt(key .. "#semenProducedAge", animal.semenProducedAge) end
     if animal.canBeSold == false then xmlFile:setBool(key .. "#canBeSold", false) end
     -- Saved whether or not the feature is on, so switching it off loses nothing.

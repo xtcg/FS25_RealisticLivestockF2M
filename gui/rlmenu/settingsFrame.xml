@@ -2,7 +2,7 @@
 <!--
     settingsFrame.xml
     RL Tabbed Menu Settings tab: horizontal subcategory tab bar with
-    [General] and [Filters] panes.
+    [General], [Filters] and [Player manual] panes.
 -->
 <GUI name="RLMenuSettingsFrame">
     <GuiElement profile="fs25_menuContainer">
@@ -23,6 +23,10 @@
             </Button>
             <Button profile="fs25_subCategorySelectorTabbedTab" id="subCategoryTabs[2]"
                     text="$l10n_rl_menu_settings_tab_filters" onClick="onClickFiltersTab">
+                <ThreePartBitmap profile="fs25_subCategorySelectorTabbedTabBg" name="background"/>
+            </Button>
+            <Button profile="fs25_subCategorySelectorTabbedTab" id="subCategoryTabs[3]"
+                    text="$l10n_rl_menu_settings_tab_manual" onClick="onClickManualTab">
                 <ThreePartBitmap profile="fs25_subCategorySelectorTabbedTabBg" name="background"/>
             </Button>
         </BoxLayout>
@@ -381,6 +385,35 @@
 
             </GuiElement>
 
+        </GuiElement>
+
+
+        <!-- Page 3: read-only handbook, available to all players. -->
+        <GuiElement profile="fs25_subCategorySelectorTabbedContainer" id="subCategoryPages[3]">
+            <GuiElement profile="fs25_subCategoryContainer">
+                <Bitmap profile="fs25_subCategoryStartClipper" name="manualStartClipper"/>
+                <Bitmap profile="fs25_subCategoryStopClipper" name="manualEndClipper"/>
+                <SmoothList profile="rl_filterList" id="manualChapters"
+                            startClipperElementName="manualStartClipper" endClipperElementName="manualEndClipper">
+                    <ListItem profile="rl_filterListItem" name="defaultCell">
+                        <Text profile="rlMenu_manualChapterName" name="title"/>
+                    </ListItem>
+                </SmoothList>
+                <ThreePartBitmap profile="fs25_subCategoryListSliderBox">
+                    <Slider profile="fs25_listSlider" dataElementId="manualChapters"/>
+                </ThreePartBitmap>
+            </GuiElement>
+            <GuiElement profile="rlMenu_manualPanel">
+                <Text profile="rlMenu_manualTitle" id="manualTitle"/>
+                <ScrollingLayout profile="rlMenu_manualContent" id="manualContent">
+                    <Bitmap profile="rlMenu_manualParagraphImage" id="manualImageTemplate"/>
+                    <Text profile="rlMenu_manualParagraph" id="manualParagraphTemplate"/>
+                    <Text profile="rlMenu_manualHeading" id="manualHeadingTemplate"/>
+                </ScrollingLayout>
+                <ThreePartBitmap profile="rlMenu_manualSliderBox">
+                    <Slider profile="rlMenu_manualSlider" id="manualContentSlider" dataElementId="manualContent"/>
+                </ThreePartBitmap>
+            </GuiElement>
         </GuiElement>
 
     </GuiElement>

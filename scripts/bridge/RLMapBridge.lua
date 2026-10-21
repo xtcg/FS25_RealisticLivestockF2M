@@ -1440,6 +1440,8 @@ function RLMapBridge.applyTypeOverrides(animalType, animalSystem, xmlFile, key, 
     local fertility = AnimalSystem.loadAnimCurve(animalSystem, xmlFile, key .. ".fertility")
     if fertility ~= nil then
         animalType.fertility = fertility
+        -- A map's RL-format fertility curve is per mille, like RLRM's own.
+        animalType.fertilityScale = 1000
         table.insert(patches, "fertility")
         Log:debug("MapBridge: Type '%s' fertility keys: %s", typeName, RLMapBridge._formatCurveKeys(fertility))
     end

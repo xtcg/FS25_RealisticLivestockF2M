@@ -161,6 +161,8 @@ function RealisticLivestock_AnimalClusterSystem:loadFromXMLFile(_, xmlFile, key)
         end
     end
 
+    RLPedigree.noteAnimals(self.animals)
+
     self:updateClusters()
     self.needsUpdate = false
 
@@ -316,6 +318,7 @@ function RealisticLivestock_AnimalClusterSystem:addCluster(superFunc, animal)
     if animal.uniqueId == nil or animal.uniqueId == "1-1" or animal.uniqueId == "0-0" then return end
     animal:setClusterSystem(self)
     table.insert(self.animals, animal)
+    RLPedigree.noteAnimal(animal)
 
     Log:trace("AnimalClusterSystem:addCluster: husbandry=%s animal uniqueId=%s farmId=%s",
         tostring(self.owner and self.owner.getName and self.owner:getName() or self.owner),

@@ -283,6 +283,9 @@
 
         <text name="rl_ui_castrated" text="Kasztrált"/>
         <text name="rl_ui_castrate" text="Kasztrálás"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Ivartalanítás megerősítése"/>
+        <text name="rl_ui_castrateConfirmYes" text="Ivartalanítás"/>
+        <text name="rl_ui_castrateConfirm" text="Ivartalanítja: %s (%s)?&#10;Az állat végleg elveszíti a szaporodási és a spermagyűjtési képességét. Ez nem vonható vissza."/>
 
         <text name="rl_ui_unknownCauses" text="ismeretlen okok"/>
         <text name="rl_ui_unreadMessages" text="A(z) '%s' istállóban olvasatlan üzeneteid vannak!"/>
@@ -326,6 +329,16 @@
         <text name="rl_ui_inseminateAnimal" text="%s megtermékenyítése"/>
         <text name="rl_ui_inseminate" text="Megtermékenyítés"/>
         <text name="rl_ui_strawEmpty" text="Ez a fiola üres"/>
+        <text name="rl_ui_aiStraw" text="Semen straw"/>
+        <text name="rl_ui_returnStraw" text="Return straw"/>
+        <text name="rl_strawReturn_used" text="This straw has been used"/>
+        <text name="rl_strawReturn_missing" text="This dewar is no longer there"/>
+        <text name="rl_strawReturn_otherFarm" text="This dewar belongs to another farm"/>
+        <text name="rl_strawReturn_otherBatch" text="Another batch: a straw goes back only into its own batch"/>
+        <text name="rl_strawReturn_full" text="This dewar is full"/>
+        <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
+        <text name="rl_semen_discardEmpty" text="Discard empty dewar"/>
+        <text name="rl_semen_discardConfirm" text="Discard this empty dewar? A straw taken from it can then only go into another dewar of its batch."/>
         <text name="rl_ui_averageSuccess" text="Átlagos sikeresség"/>
         <text name="rl_ui_success" text="Sikeresség"/>
 
@@ -340,6 +353,8 @@
         <text name="rl_insemination_inseminated" text="Ezt az állatot már megtermékenyítették mesterségesen"/>
         <text name="rl_insemination_recovering" text="Ez az állat még lábadozik az előző ellés után"/>
         <text name="rl_insemination_father" text="A beltenyésztés nem megengedett"/>
+        <text name="rl_insemination_pending" text="Várakozás a szerver megerősítésére"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Ez az állat még túl fiatal a mesterséges megtermékenyítéshez"/>
 
 
@@ -968,8 +983,32 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Sperma eladása %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="A kereskedő ebben a hónapban már csak %d szalmát vesz. Eladod őket a tartály %d szalmájából %s áron? A többi a tartályban marad."/>
+        <text name="rl_semen_quotaFull" text="Sperma eladása (havi keret elfogyott)"/>
+        <text name="rl_semen_quotaFullInfo" text="A kereskedő ebben a hónapban már megvette az ebből a fajból elfogadott saját spermát. Jövő hónapban adj el újra."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_semen_collectionFee" text="Spermagyűjtés"/>
+        <text name="rl_semen_feeCharged" text="Szolgáltatási díj: %s."/>
+        <text name="rl_semen_refuseNoMoney" text="Nincs elég pénz a gyűjtési díjra (%s)."/>
+        <text name="rl_semen_refuseCondition" text="Ez a tenyészállat túl sovány a spermagyűjtéshez. Előbb javítsd a takarmányozását."/>
+        <text name="rl_semen_refuseNoYield" text="Ez a tenyészállat most egy szalmánál kevesebbet adna."/>
+        <text name="rl_semen_nextCollection" text="Következő gyűjtés lehetséges: %s."/>
+        <text name="rl_semen_minAge" text="Gyűjtés %d hónapos kortól."/>
+        <text name="rl_semen_preview" text="Spermagyűjtés innen: %s?&#10;&#10;Várható szalmák: %d&#10;(alap %d x termékenység %.2f x kor %.2f x kondíció %.2f)&#10;Tenyészérték-index: %.2f&#10;Szolgáltatási díj: %s"/>
+        <text name="rl_semen_batch" text="Tétel"/>
+        <text name="rl_semen_source" text="Eredet"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Saját gyűjtés"/>
+        <text name="rl_semen_sourcePURCHASED" text="Vásárolt"/>
+        <text name="rl_semen_sourceLEGACY" text="Régi készlet"/>
+        <text name="rl_semen_batchMonth" text="Tétel hónapja"/>
+        <text name="rl_insemination_incompatible" text="A sperma nem illik ehhez a fajtához"/>
+        <text name="rl_pedigree_forbidden" text="Beltenyésztés %s: túl közeli rokon, nem engedélyezett"/>
+        <text name="rl_pedigree_adviseAgainst" text="Beltenyésztés %s: közeli rokon, nem ajánlott"/>
+        <text name="rl_pedigree_info" text="Utód beltenyésztettsége %s"/>
+        <text name="rl_pedigree_none" text="Nincs közös ős"/>
+        <text name="rl_ai_chance" text="Tétel minősége %s | Várható vemhesülés ennél a nőstényénél %s (termékenység %s x fogamzás %s x tétel %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>
@@ -1083,5 +1122,6 @@
         <text name="rl_dealer_v2_generic" text="The order could not be completed."/>
         <text name="rl_meadow_witherWarning" text="%s: the pasture grass dies back for winter in about %d days - put hay or silage in the trough"/>
         <text name="rl_wool_shorn" text="%s: %d sheep shorn, %d l of wool waiting for pallets"/>
+        <text name="rl_menu_settings_tab_manual" text="Player guide"/>
     </texts>
 </l10n>

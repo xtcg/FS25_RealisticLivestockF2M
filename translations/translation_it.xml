@@ -275,6 +275,9 @@
         <text name="rl_ui_doesHaveName" text="Con nome"/>
         <text name="rl_ui_castrated" text="Castrato"/>
         <text name="rl_ui_castrate" text="Castra"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Conferma castrazione"/>
+        <text name="rl_ui_castrateConfirmYes" text="Castra"/>
+        <text name="rl_ui_castrateConfirm" text="Castrare %s (%s)?&#10;L'animale perde per sempre la capacità di riprodursi e di fornire seme. L'azione non può essere annullata."/>
         <text name="rl_ui_unknownCauses" text="cause sconosciute"/>
         <text name="rl_ui_unreadMessages" text="L'allevamento '%s' ha messaggi non letti!"/>
         <text name="rl_ui_herdsman" text="Mandriano"/>
@@ -317,6 +320,16 @@
         <text name="rl_ui_inseminateAnimal" text="Insemina %s"/>
         <text name="rl_ui_inseminate" text="Insemina"/>
         <text name="rl_ui_strawEmpty" text="Questa paglia è vuota"/>
+        <text name="rl_ui_aiStraw" text="Semen straw"/>
+        <text name="rl_ui_returnStraw" text="Return straw"/>
+        <text name="rl_strawReturn_used" text="This straw has been used"/>
+        <text name="rl_strawReturn_missing" text="This dewar is no longer there"/>
+        <text name="rl_strawReturn_otherFarm" text="This dewar belongs to another farm"/>
+        <text name="rl_strawReturn_otherBatch" text="Another batch: a straw goes back only into its own batch"/>
+        <text name="rl_strawReturn_full" text="This dewar is full"/>
+        <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
+        <text name="rl_semen_discardEmpty" text="Discard empty dewar"/>
+        <text name="rl_semen_discardConfirm" text="Discard this empty dewar? A straw taken from it can then only go into another dewar of its batch."/>
         <text name="rl_ui_averageSuccess" text="Successo medio"/>
         <text name="rl_ui_success" text="Successo"/>
 
@@ -330,6 +343,8 @@
         <text name="rl_insemination_inseminated" text="Questo animale è già stato inseminato artificialmente"/>
         <text name="rl_insemination_recovering" text="Questo animale si sta ancora riprendendo dalla gravidanza precedente"/>
         <text name="rl_insemination_father" text="L'accoppiamento tra consanguinei non è permesso"/>
+        <text name="rl_insemination_pending" text="In attesa di conferma dal server"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Questo animale è troppo giovane per essere inseminato artificialmente"/>
 
         <text name="rl_mark_aiManager_sell" text="Mandriano contrassegnato per la vendita"/>
@@ -938,8 +953,32 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Vendi seme %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="Il commerciante compra solo altre %d paillette questo mese. Venderle dalle %d di questo contenitore per %s? Il resto resta nel contenitore."/>
+        <text name="rl_semen_quotaFull" text="Vendi seme (quota mensile esaurita)"/>
+        <text name="rl_semen_quotaFullInfo" text="Il commerciante ha già comprato tutto il seme aziendale di questa specie che accetta questo mese. Vendi di nuovo il mese prossimo."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
+        <text name="rl_semen_collectionFee" text="Raccolta del seme"/>
+        <text name="rl_semen_feeCharged" text="Costo del servizio: %s."/>
+        <text name="rl_semen_refuseNoMoney" text="Denaro insufficiente per il costo di raccolta (%s)."/>
+        <text name="rl_semen_refuseCondition" text="Questo riproduttore è troppo magro per la raccolta. Migliora prima la sua alimentazione."/>
+        <text name="rl_semen_refuseNoYield" text="Questo riproduttore darebbe ora meno di una paillette."/>
+        <text name="rl_semen_nextCollection" text="Prossima raccolta possibile a %s."/>
+        <text name="rl_semen_minAge" text="La raccolta inizia a %d mesi di età."/>
+        <text name="rl_semen_preview" text="Raccogliere il seme di %s?&#10;&#10;Paillette previste: %d&#10;(base %d x fertilità %.2f x età %.2f x condizione %.2f)&#10;Indice genetico: %.2f&#10;Costo del servizio: %s"/>
+        <text name="rl_semen_batch" text="Lotto"/>
+        <text name="rl_semen_source" text="Origine"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Raccolta propria"/>
+        <text name="rl_semen_sourcePURCHASED" text="Acquistato"/>
+        <text name="rl_semen_sourceLEGACY" text="Vecchie scorte"/>
+        <text name="rl_semen_batchMonth" text="Mese del lotto"/>
+        <text name="rl_insemination_incompatible" text="Il seme non è adatto a questa razza"/>
+        <text name="rl_pedigree_forbidden" text="Consanguineità %s: parentela troppo stretta, non consentito"/>
+        <text name="rl_pedigree_adviseAgainst" text="Consanguineità %s: parentela stretta, sconsigliato"/>
+        <text name="rl_pedigree_info" text="Consanguineità della prole %s"/>
+        <text name="rl_pedigree_none" text="Nessun antenato comune trovato"/>
+        <text name="rl_ai_chance" text="Qualità del lotto %s | Concepimento previsto per questa femmina %s (fertilità %s x concepimento %s x lotto %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>
@@ -1053,5 +1092,6 @@
         <text name="rl_dealer_v2_generic" text="The order could not be completed."/>
         <text name="rl_meadow_witherWarning" text="%s: the pasture grass dies back for winter in about %d days - put hay or silage in the trough"/>
         <text name="rl_wool_shorn" text="%s: %d sheep shorn, %d l of wool waiting for pallets"/>
+        <text name="rl_menu_settings_tab_manual" text="Player guide"/>
     </texts>
 </l10n>

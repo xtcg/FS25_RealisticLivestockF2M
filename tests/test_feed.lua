@@ -646,7 +646,11 @@ do
     check("panel: one row per feed - hay and maize eaten with their DM share, wheat shown at zero stock, the unconfigured bale flagged",
         byName.DRYGRASS_WINDROW ~= nil and byName.DRYGRASS_WINDROW.status == "EATEN" and byName.MAIZE.status == "EATEN"
         and byName.DRYGRASS_WINDROW.dmShare > 0.5 and byName.WHEAT ~= nil and byName.WHEAT.status == "EMPTY" and byName.WHEAT.stock == 0
-        and byName.ROUNDBALE ~= nil and byName.ROUNDBALE.status == "UNCONFIGURED" and byName.FORAGE == nil and byName.CALFMILK == nil)
+        and byName.ROUNDBALE ~= nil and byName.ROUNDBALE.status == "UNCONFIGURED" and byName.CALFMILK == nil)
+    check("panel: each food group's main feed is listed at 0 l when empty (TMR, silage, grass), other empty feeds are not (clover)",
+        byName.FORAGE ~= nil and byName.FORAGE.status == "EMPTY" and byName.FORAGE.stock == 0
+        and byName.SILAGE ~= nil and byName.SILAGE.status == "EMPTY" and byName.GRASS_WINDROW ~= nil
+        and byName.CLOVER_WINDROW == nil and byName.SUGARBEET_CUT == nil)
     local months, first = I.getMonthsLeft(pen)
     check(string.format("forecast: each feed at its own planned liters a month - maize runs out first (%.2f months), not a pooled liter count",
         months or -1), first ~= nil and first.name == "MAIZE" and months < byName.DRYGRASS_WINDROW.monthsLeft
@@ -662,6 +666,17 @@ do
                 end
             end
         end)())
+
+    -- A meadow pen: the meadow spec appends its grass row under the mode's rows; when that row is
+    -- already in the incoming list it is kept on its own and not counted against the trough.
+    local meadowInfo = { title = "Meadow (100%)", value = 900, capacity = 1000, ratio = 0.9 }
+    pen.spec_husbandryMeadow = { foodInfo = meadowInfo }
+    pen.spec_husbandryFood.rlFeedRowsCache = nil
+    local withMeadow = I.adjustFoodInfos(pen, { { title = "forage" }, meadowInfo })
+    check("panel: a meadow's grass keeps its own row in the mode, outside the trough's capacity",
+        #withMeadow == #rows + 1 and withMeadow[#withMeadow] == meadowInfo and meadowInfo.ignoreCapacity == true)
+    check("panel: without the meadow row in the list nothing is added", #I.adjustFoodInfos(pen, {}) == #rows)
+    pen.spec_husbandryMeadow = nil
 
     local penRows = I.getPenInfoRows(pen)
     check("panel: the pen info box shows the mode, the ration, the energy fed and the feed that runs out first",

@@ -4,8 +4,9 @@
     or put back. The straw hand tool exists only on the client that holds it, so without this
     record the server would have to trust a client that says it is returning or using a straw.
 
-    TakeStrawEvent records a straw with a copy of its dewar's sire snapshot; ReturnStrawEvent and
-    the hand-tool AnimalInseminationEvent each spend one matching record, and insemination uses
+    TakeStrawEvent records a straw with a copy of its dewar's sire snapshot; ReturnStrawEvent (after
+    checking the return rule against that record) and the hand-tool AnimalInseminationEvent each
+    spend one matching record, and insemination uses
     the recorded snapshot rather than genetics the client sent. A host or single player applies
     these actions locally and never goes through the record.
 
@@ -56,42 +57,65 @@ function RLStrawLedger.count(userId)
 end
 
 
---- Spend one of the user's straws from `dewar` to put it back. False when the user holds none.
-function RLStrawLedger.spendForReturn(userId, dewar)
+--- The user's straw that a return of `claim` (the straw's batch and its own dewar, as the client
+--- names it) into `dewar` would spend, without spending it: one of the claim's batch, preferring
+--- one taken from `dewar` itself.
+--- @return table|nil entry { dewarId, snapshot }, number|nil index
+function RLStrawLedger.findForReturn(userId, dewar, claim)
     local list = RLStrawLedger.held[userId]
-    local dewarId = dewar ~= nil and dewar:getUniqueId() or nil
+    local dewarId = dewar ~= nil and dewar.getUniqueId ~= nil and dewar:getUniqueId() or nil
+    local fallback, fallbackIndex
 
     for i, entry in ipairs(list or {}) do
-        if entry.dewarId == dewarId then
-            table.remove(list, i)
-            return true
+        if claim == nil or RLSemenBatch.isSameBatch(entry.snapshot, claim) then
+            if entry.dewarId == dewarId then return entry, i end
+            if fallback == nil then fallback, fallbackIndex = entry, i end
         end
     end
 
-    return false
+    return fallback, fallbackIndex
 end
 
 
---- Whether a semen record names the same sire as a snapshot (ear tag: country, herd, id).
-local function isSameSire(a, b)
-    return a ~= nil and b ~= nil
-        and tostring(a.country) == tostring(b.country)
-        and tostring(a.farmId) == tostring(b.farmId)
-        and tostring(a.uniqueId) == tostring(b.uniqueId)
+--- Spend the straw findForReturn found (by its index), once the return was checked.
+function RLStrawLedger.spendAt(userId, index)
+    local list = RLStrawLedger.held[userId]
+    if list == nil or index == nil or list[index] == nil then return nil end
+    return table.remove(list, index)
 end
 
 
---- Spend one of the user's straws of the sire `semen` names, for an insemination.
---- @return table|nil snapshot The server's copy of that sire, or nil when the user holds none
+--- Spend one of the user's straws to put it back into `dewar` when the return rule
+--- (RLStrawReturn) allows it for a player of `farmId`.
+--- @return boolean spent, string|nil refusal (RLStrawReturn.REFUSAL) when nothing was spent
+function RLStrawLedger.spendForReturn(userId, dewar, claim, farmId)
+    local entry, index = RLStrawLedger.findForReturn(userId, dewar, claim)
+    if entry == nil then return false, RLStrawReturn.REFUSAL.NOT_HELD end
+
+    local refusal = RLStrawReturn.getRefusal({ animal = entry.snapshot, dewarUniqueId = entry.dewarId }, dewar, farmId)
+    if refusal ~= nil then return false, refusal end
+
+    RLStrawLedger.spendAt(userId, index)
+    return true
+end
+
+
+--- Spend one of the user's straws of the batch `semen` names (or, for data without batch ids,
+--- the sire), for an insemination.
+--- @return table|nil snapshot The server's copy of that straw's sire and batch, or nil when the user holds none
 function RLStrawLedger.spendForSemen(userId, semen)
-    local list = RLStrawLedger.held[userId]
+    local snapshot, index = RLStrawLedger.findForSemen(userId, semen)
+    if snapshot ~= nil then table.remove(RLStrawLedger.held[userId], index) end
+    return snapshot
+end
 
-    for i, entry in ipairs(list or {}) do
-        if isSameSire(entry.snapshot, semen) then
-            table.remove(list, i)
-            return entry.snapshot
-        end
+
+--- The server's copy of the straw `spendForSemen` would spend, without spending it, so the
+--- insemination can be checked against the recorded sire first.
+--- @return table|nil snapshot, number|nil index
+function RLStrawLedger.findForSemen(userId, semen)
+    for i, entry in ipairs(RLStrawLedger.held[userId] or {}) do
+        if RLSemenBatch.isSameBatch(entry.snapshot, semen) then return entry.snapshot, i end
     end
-
-    return nil
+    return nil, nil
 end
