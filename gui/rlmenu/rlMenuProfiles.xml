@@ -763,4 +763,58 @@
     </Profile>
 
 
+    <!-- Handbook body uses generated atlases: the native font lacks Chinese
+         livestock terms. Text profiles are retained for a missing-file message. -->
+    <Profile name="rlMenu_manualParagraphImage" extends="baseReference" with="anchorTopStretchingX pivotTopLeft">
+        <size value="100% 30px"/>
+        <margin value="0px 0px 0px 18px"/>
+        <imageSliceId value="noSlice"/>
+        <imageColor value="1 1 1 1"/>
+        <handleFocus value="false"/>
+    </Profile>
+    <Profile name="rlMenu_manualChapterName" extends="rl_filterListItemName">
+        <textUpperCase value="false"/>
+        <textLayoutMode value="resize"/>
+        <textMaxNumLines value="2"/>
+        <textSize value="18px"/>
+    </Profile>
+    <Profile name="rlMenu_manualPanel" extends="emptyPanel" with="anchorStretchingYStretchingX pivotTopLeft">
+        <position value="440px -16px"/>
+        <absoluteSizeOffset value="460px 20px"/>
+    </Profile>
+    <Profile name="rlMenu_manualTitle" extends="fs25_textDefault" with="anchorTopStretchingX pivotTopLeft">
+        <size value="100% 42px"/>
+        <textSize value="22px"/>
+        <textBold value="true"/>
+        <textLayoutMode value="resize"/>
+        <textMaxNumLines value="2"/>
+        <handleFocus value="false"/>
+    </Profile>
+    <Profile name="rlMenu_manualContent" extends="emptyPanel" with="anchorStretchingYStretchingX pivotTopLeft">
+        <position value="0px -58px"/>
+        <absoluteSizeOffset value="40px 64px"/>
+        <flowDirection value="vertical"/>
+    </Profile>
+    <Profile name="rlMenu_manualParagraph" extends="fs25_textDefault" with="anchorTopStretchingX pivotTopLeft">
+        <size value="100% 30px"/>
+        <margin value="0px 0px 0px 18px"/>
+        <textSize value="18px"/>
+        <textMaxNumLines value="1000"/>
+        <textVerticalAlignment value="top"/>
+        <textColor value="$preset_fs25_colorGreyText"/>
+        <handleFocus value="false"/>
+    </Profile>
+    <Profile name="rlMenu_manualHeading" extends="rlMenu_manualParagraph">
+        <textSize value="22px"/>
+        <textBold value="true"/>
+        <textColor value="$preset_fs25_colorMainLight"/>
+    </Profile>
+    <Profile name="rlMenu_manualSliderBox" extends="fs25_subCategoryListSliderBox">
+        <position value="0px -58px"/>
+        <absoluteSizeOffset value="0px 64px"/>
+    </Profile>
+    <Profile name="rlMenu_manualSlider" extends="fs25_listSlider">
+        <handleFocus value="true"/>
+        <sliderImageFocusedColor value="$preset_fs25_colorMainHighlight"/>
+    </Profile>
 </GUIProfiles>

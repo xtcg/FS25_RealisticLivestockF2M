@@ -4,6 +4,9 @@
 
 ## Unreleased
 
+- Added Settings > Player guide with chapter navigation, scrolling, and Chinese/English handbooks. Chinese game languages show Chinese; every other game language shows English. Chinese DDS text atlases avoid missing native glyphs; English uses native text without extra atlases. The guide identifies its dev.8 code baseline and separates optional and disabled systems from default gameplay.
+
+
 ### Changed
 
 - Semen review fixes (2026-10-19): a collection's fee is held while its dewar loads, so two requests on one balance cannot overdraw the farm (batch 1). Saving keeps the pedigree of sires still referenced by a dewar in object storage, a hand-tool straw, a straw on the server's ledger or a pending insemination (batch 3). The hand-tool insemination is checked on the server against the ledger's recorded sire before the straw is spent, and a female with a pending insemination refuses a second one (batch 4).
