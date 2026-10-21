@@ -349,6 +349,7 @@
         <text name="rl_insemination_recovering" text="Este animal todavía se está recuperando de su embarazo anterior"/>
         <text name="rl_insemination_father" text="No se permite la consanguinidad"/>
         <text name="rl_insemination_pending" text="Esperando la confirmación del servidor"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Este animal es demasiado joven para ser inseminado artificialmente"/>
 
 

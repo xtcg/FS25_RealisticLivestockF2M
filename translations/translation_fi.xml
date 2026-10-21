@@ -341,6 +341,7 @@
         <text name="rl_insemination_recovering" text="Tämä eläin toipuu edellisestä tiineydestä"/>
         <text name="rl_insemination_father" text="Sukusiitos ei ole sallittua"/>
         <text name="rl_insemination_pending" text="Odotetaan palvelimen vahvistusta"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Tämä eläin on liian nuori keinosiemennykseen"/>
 
 

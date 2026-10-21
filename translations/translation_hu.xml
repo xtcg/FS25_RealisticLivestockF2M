@@ -354,6 +354,7 @@
         <text name="rl_insemination_recovering" text="Ez az állat még lábadozik az előző ellés után"/>
         <text name="rl_insemination_father" text="A beltenyésztés nem megengedett"/>
         <text name="rl_insemination_pending" text="Várakozás a szerver megerősítésére"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Ez az állat még túl fiatal a mesterséges megtermékenyítéshez"/>
 
 

@@ -500,6 +500,7 @@ function HandToolAIStraw:onInseminate()
 	if g_server == nil then
 		if g_client == nil or not AnimalInseminationEvent.awaitServer(animal, self) then return end
 		spec.awaitingServer = true
+		spec.requestedAnimal = animal
 		g_client:getServerConnection():sendEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
 		Log:debug("onInseminate: straw held until the server answers")
 		return
@@ -507,6 +508,7 @@ function HandToolAIStraw:onInseminate()
 
 	animal:setInsemination(spec.animal)
 	g_server:broadcastEvent(AnimalInseminationEvent.new(husbandry, animal, spec.animal))
+	if AnimalReproduction ~= nil then AnimalReproduction.notifySubmitted(animal) end
 
 	spec.isEmpty = true
 	g_currentMission.handToolSystem:markHandToolForDeletion(self)
@@ -526,6 +528,7 @@ function HandToolAIStraw:onServerAnswer(accepted)
 	if accepted then
 		spec.isEmpty = true
 		g_currentMission.handToolSystem:markHandToolForDeletion(self)
+		if AnimalReproduction ~= nil then AnimalReproduction.notifySubmitted(spec.requestedAnimal) end
 		Log:debug("onServerAnswer: insemination accepted, straw marked for deletion")
 	else
 		Log:debug("onServerAnswer: insemination refused, straw kept")

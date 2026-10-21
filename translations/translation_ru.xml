@@ -336,6 +336,7 @@
         <text name="rl_insemination_recovering" text="Это животное все еще восстанавливается после предыдущей беременности"/>
         <text name="rl_insemination_father" text="Инбридинг (близкородственное скрещивание) запрещен"/>
         <text name="rl_insemination_pending" text="Ожидание подтверждения сервера"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Это животное слишком молодо для искусственного осеменения"/>
 
 

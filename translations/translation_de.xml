@@ -323,7 +323,7 @@
         <text name="rl_strawReturn_notHeld" text="Der Server kennt dieses Röhrchen nicht"/>
         <text name="rl_semen_discardEmpty" text="Leeren Behälter entsorgen"/>
         <text name="rl_semen_discardConfirm" text="Diesen leeren Behälter entsorgen? Ein daraus genommenes Röhrchen kann dann nur noch in einen anderen Behälter seiner Charge."/>
-        <text name="rl_ui_averageSuccess" text="Durchschnittlicher Erfolg"/>
+        <text name="rl_ui_averageSuccess" text="Spermaqualität"/>
         <text name="rl_ui_success" text="Erfolg"/>
 
 
@@ -334,6 +334,7 @@
         <text name="rl_insemination_recovering" text="Dieses Tier erholt sich noch von seiner letzten Schwangerschaft."/>
         <text name="rl_insemination_father" text="Inzucht ist nicht erlaubt."/>
         <text name="rl_insemination_pending" text="Warte auf Bestätigung des Servers"/>
+        <text name="rl_insemination_submitted" text="%s besamt: ob sie aufgenommen hat, entscheidet sich beim nächsten Tageswechsel"/>
         <text name="rl_insemination_young" text="Dieses Tier ist zu jung, um künstlich befruchtet zu werden."/>
 
         <text name="rl_ui_healthy" text="Gesund"/>

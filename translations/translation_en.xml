@@ -339,7 +339,7 @@
         <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
         <text name="rl_semen_discardEmpty" text="Discard empty dewar"/>
         <text name="rl_semen_discardConfirm" text="Discard this empty dewar? A straw taken from it can then only go into another dewar of its batch."/>
-        <text name="rl_ui_averageSuccess" text="Average Success"/>
+        <text name="rl_ui_averageSuccess" text="Semen quality"/>
         <text name="rl_ui_success" text="Success"/>
 
         <text name="rl_ui_healthy" text="Healthy"/>
@@ -354,6 +354,7 @@
         <text name="rl_insemination_recovering" text="This animal is still recovering from its previous pregnancy"/>
         <text name="rl_insemination_father" text="Inbreeding is not permitted"/>
         <text name="rl_insemination_pending" text="Waiting for the server to confirm"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="This animal is too young to be artificially inseminated"/>
 
 
@@ -678,8 +679,8 @@
         <text name="rl_message_aiManager_mark_castrate_multiple" text="Herdsman marked %s animals for castrating"/>
         <text name="rl_message_aiManager_mark_disease_single" text="Herdsman marked 1 animal for treatment"/>
         <text name="rl_message_aiManager_mark_disease_multiple" text="Herdsman marked %s animals for treatment"/>
-        <text name="rl_message_insemination_success" text="Insemination was successful"/>
-        <text name="rl_message_insemination_fail" text="Insemination was unsuccessful"/>
+        <text name="rl_message_insemination_success" text="Conceived after insemination"/>
+        <text name="rl_message_insemination_fail" text="Did not conceive after insemination"/>
         <text name="rl_message_aiManager_mark_ai_single" text="Herdsman marked 1 animal for AI"/>
         <text name="rl_message_aiManager_mark_ai_multiple" text="Herdsman marked %s animals for AI"/>
         <text name="rl_message_aiManager_ai_single" text="Herdsman inseminated 1 animal"/>

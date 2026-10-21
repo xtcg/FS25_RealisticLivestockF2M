@@ -338,6 +338,7 @@
         <text name="rl_insemination_recovering" text="This animal is still recovering from its previous pregnancy"/>
         <text name="rl_insemination_father" text="Inbreeding is not permitted"/>
         <text name="rl_insemination_pending" text="Oczekiwanie na potwierdzenie serwera"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="This animal is too young to be artificially inseminated"/>
 
 

@@ -465,6 +465,8 @@ function RealisticLivestock_AnimalSystem:loadAnimals(_, xmlFile, directory)
                     ["average"] = averageChildren
                 },
                 ["fertility"] = fertility,
+                -- Raw curve values are per mille (AnimalReproduction.getAgeFertility).
+                ["fertilityScale"] = 1000,
                 ["breeds"] = {}
 		    }
 
@@ -1715,7 +1717,8 @@ end
 --- off the subtype's.
 local function createSalePregnancy(self, animal, animalType, subType, subTypeIndex, genetics, plan, month, year)
 
-    local childNum = animal:generateRandomOffspring()
+    -- She is pregnant already: only the litter size is drawn, not another conception roll.
+    local childNum = math.max(1, AnimalReproduction.drawLitterSize(animal))
     local children = {}
 
     Log:trace("createNewSaleAnimal: generating %d offspring for %s(%d)",
