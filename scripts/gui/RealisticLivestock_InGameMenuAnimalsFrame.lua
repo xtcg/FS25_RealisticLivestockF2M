@@ -109,15 +109,57 @@ function RealisticLivestock_InGameMenuAnimalsFrame.stopSelectorRepeat(frame)
 end
 
 
---- A reload step threw: stop the selector repeating it, then re-raise the original error.
+--- Give back list cells left without a row. SmoothListElement:updateView links a cell before
+--- populating it and numbers it only afterwards; when the populate throws, that cell stays on
+--- screen with stale content, and every later updateView fails comparing its nil sectionIndex.
+--- @param list table the Animals page list
+--- @return integer recycled number of cells returned to the cell cache
+function RealisticLivestock_InGameMenuAnimalsFrame.recycleOrphanCells(list)
+    if list.elements == nil or list.queueReusableCell == nil or list.cellCache == nil then return 0 end
+    local orphans = {}
+    for _, cell in ipairs(list.elements) do
+        if cell.sectionIndex == nil or cell.indexInSection == nil then
+            orphans[#orphans + 1] = cell
+        end
+    end
+    local recycled = 0
+    for _, cell in ipairs(orphans) do
+        if list.cellCache[cell.reusableName] ~= nil then
+            list:queueReusableCell(cell)
+            recycled = recycled + 1
+        end
+    end
+    return recycled
+end
+
+
+--- A reload step threw: stop the selector repeating it and hide the previous animal's details.
+--- The first occurrence of an error per page opening is re-raised for the log; repeats of the
+--- same error are only counted, so one broken pen does not flood the log on every input.
+--- @return nil only returns (instead of raising) for a repeated error
 local function failReload(frame, callId, step, err)
     RealisticLivestock_InGameMenuAnimalsFrame.stopSelectorRepeat(frame)
-    Log:error("InGameMenuAnimalsFrame:reloadList #%d: %s failed; list restored, selector released", callId, step)
+    local recycled = RealisticLivestock_InGameMenuAnimalsFrame.recycleOrphanCells(frame.list)
+    if frame.animalBox ~= nil then frame.animalBox:setVisible(false) end
+    if frame.detailDescriptionText ~= nil then frame.detailDescriptionText:setVisible(false) end
+
+    local message = tostring(err)
+    frame.rlReloadErrors = frame.rlReloadErrors or {}
+    local seen = frame.rlReloadErrors[message]
+    frame.rlReloadErrors[message] = (seen or 0) + 1
+    if seen ~= nil then
+        Log:debug("InGameMenuAnimalsFrame:reloadList #%d: %s failed again (%d times): %s",
+            callId, step, seen + 1, message)
+        return
+    end
+    Log:error("InGameMenuAnimalsFrame:reloadList #%d: %s failed; list restored (%d stale cells recycled), selector released",
+        callId, step, recycled)
     error(err, 0)
 end
 
 
 --- Reload the list rows; whatever happens, the click sound comes back on.
+--- @return boolean ok false when the rows failed (and the failure was a repeat, so not raised)
 local function reloadListData(frame, callId)
     local ok, err = pcall(frame.list.reloadData, frame.list)
     frame.list.soundDisabled = false
@@ -128,6 +170,7 @@ local function reloadListData(frame, callId)
         end
         failReload(frame, callId, "list reloadData", err)
     end
+    return ok
 end
 
 
@@ -175,11 +218,12 @@ function RealisticLivestock_InGameMenuAnimalsFrame:reloadList(superFunc)
     self.list.reloadData = ownReloadData
     if not ok then
         failReload(self, callId, "base reloadList", err)
+        return
     end
     local tSuperMs = (getTimeSec() - tSuperStart) * 1000
 
     if self.husbandrySubTypes == nil or #self.husbandrySubTypes == 0 then
-        reloadListData(self, callId)
+        if not reloadListData(self, callId) then return end
         Log:debug("InGameMenuAnimalsFrame:reloadList #%d exit: empty (super=%.2fms)", callId, tSuperMs)
         return
     end
@@ -216,7 +260,7 @@ function RealisticLivestock_InGameMenuAnimalsFrame:reloadList(superFunc)
     -- Suppress click sound during reload.
     local tReloadDataStart = getTimeSec()
     self.list.soundDisabled = true
-    reloadListData(self, callId)
+    if not reloadListData(self, callId) then return end
     local tReloadDataMs = (getTimeSec() - tReloadDataStart) * 1000
 
     Log:debug("InGameMenuAnimalsFrame:reloadList #%d exit: subTypes=%d super=%.2fms sort=%.2fms find=%.2fms reloadData=%.2fms",
@@ -318,6 +362,10 @@ function RealisticLivestock_InGameMenuAnimalsFrame:onFrameClose()
         end
     end
     RealisticLivestock_InGameMenuAnimalsFrame.stopSelectorRepeat(self)
+    for message, count in pairs(self.rlReloadErrors or {}) do
+        Log:warning("InGameMenuAnimalsFrame: reload error repeated %d times while open: %s", count, message)
+    end
+    self.rlReloadErrors = nil
     Log:debug("InGameMenuAnimalsFrame:onFrameClose: frame=%s, dataChangedSubscriptions=%d",
         tostring(self), RealisticLivestock_InGameMenuAnimalsFrame.countDataChangedSubscriptions(self))
 end

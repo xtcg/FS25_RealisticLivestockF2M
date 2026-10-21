@@ -37,6 +37,8 @@ local visual = Animal.getVisual({ subTypeIndex = 3, age = 14, getSubTypeIndex = 
 check("1.25 getVisual: an RL animal answers with its sub type and age visual",
     visual.store.imageFilename == "cow.dds" and looked[1] == 3 and looked[2] == 14)
 
+check("1.25 getMaxNumAnimals: an RL animal holds exactly one animal", Animal.getMaxNumAnimals({}) == 1)
+
 local function makeFrame()
     local listClass = {}
     local reloads = 0
@@ -77,6 +79,40 @@ ok = pcall(InGameMenuAnimalsFrame.reloadList, frame)
 check("failed row reload: sound flags restored and selector released",
     not ok and frame.list.soundDisabled == false and suppressed == false
     and frame.subCategorySelector.isLeftButtonPressed == false)
+
+-- 1.25 Animals page log: a cell populate threw inside updateView, leaving a linked cell with no
+-- row; every later reload then failed comparing its nil sectionIndex. The stale cell goes back to
+-- the cache, the previous animal's details are hidden, and a repeat of the same error is not re-raised.
+frame = makeFrame()
+local hidden = {}
+frame.animalBox = { setVisible = function(_, v) hidden.box = v end }
+frame.detailDescriptionText = { setVisible = function(_, v) hidden.desc = v end }
+local good = { sectionIndex = 1, indexInSection = 1, reusableName = "animalCell" }
+local orphan = { reusableName = "animalCell" }
+frame.list.elements = { good, orphan }
+frame.list.cellCache = { animalCell = {} }
+frame.list.queueReusableCell = function(list, cell)
+    for i = #list.elements, 1, -1 do
+        if list.elements[i] == cell then table.remove(list.elements, i) end
+    end
+    table.insert(list.cellCache[cell.reusableName], cell)
+end
+frame.list.reloadData = function() error("InGameMenuAnimalsFrame.lua:581: attempt to call missing method 'getMaxNumAnimals'", 0) end
+LOG = {}
+ok = pcall(InGameMenuAnimalsFrame.reloadList, frame)
+check("failed populate: the first error is raised and the orphan cell is recycled",
+    not ok and #frame.list.elements == 1 and frame.list.elements[1] == good
+    and frame.list.cellCache.animalCell[1] == orphan)
+check("failed populate: the previous animal's details are hidden", hidden.box == false and hidden.desc == false)
+frame.subCategorySelector.isLeftButtonPressed = true
+ok = pcall(InGameMenuAnimalsFrame.reloadList, frame)
+check("repeated failure: the same error is counted, not raised again, and the arrow is released",
+    ok and frame.rlReloadErrors["InGameMenuAnimalsFrame.lua:581: attempt to call missing method 'getMaxNumAnimals'"] == 2
+    and frame.subCategorySelector.isLeftButtonPressed == false)
+LOG = {}
+InGameMenuAnimalsFrame.onFrameClose(frame)
+check("page close: the repeat count is logged once and reset",
+    frame.rlReloadErrors == nil and LOG[1] ~= nil and LOG[1]:find("repeated 2 times") ~= nil)
 
 -- A normal reload into an empty pen keeps the selector working and resets a stale index.
 frame, reloads = makeFrame()
