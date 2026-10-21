@@ -34,7 +34,7 @@ Animal target weights, growth rates, finishing ages, and feed requirements have 
 
 Different breeds now have more meaningful distinctions. Angus, Limousin, Holstein, and Highland cattle, for example, differ in growth characteristics, feed efficiency, and their suitability for beef or dairy production.
 
-The same approach extends to pigs, sheep, and other supported livestock.
+This rebalancing currently focuses on cattle, pigs, and sheep. Horses are outside the scope of the meat-production overhaul. If the work is extended to smaller livestock in the future, the intention is to reuse simplified versions of the cattle, pig, and sheep models; no concrete development plan has been set.
 
 ### 2. More Meaningful Feeding and Fattening Decisions
 
@@ -94,12 +94,19 @@ Raise with purpose. Finish with care. Sell with strategy.
 - Hof Bergmann is not included and must be downloaded separately through its [official distribution channels](https://www.lsfarming-mods.com/).
 - Built upon the open-source Realistic Livestock project and Ritter's maintained version.
 - Released under the GPL-3.0 license, with attribution retained for the original contributors. See [LICENSE](LICENSE); corresponding source is available in this repository.
-- The display name has changed; the internal mod ID and ZIP filename remain `FS25_RealisticLivestockRM` / `FS25_RealisticLivestockRM.zip` for savegame and integration compatibility.
-- This introduction covers livestock economics. The separate FS25_SellPrices work is not presented as a completed overhaul of all agricultural prices. Unreleased changes and validation status remain in [CHANGELOG.md](CHANGELOG.md).
+- The installation ZIP is now named `FS25_RealisticLivestockF2M.zip` (formerly `FS25_RealisticLivestockRM.zip`). The ZIP filename is part of how FS25 identifies a mod, so switching names may affect existing savegames or integrations. Back up your savegame before upgrading, and do not enable the old and new ZIPs together.
+- This introduction focuses on livestock production and economics. Broader crop and agricultural price tuning is handled separately by [FS25_EconomyTuner](https://github.com/xtcg/FS25_EconomyTuner), formerly FS25_SellPrices. Unreleased changes and validation status remain in [CHANGELOG.md](CHANGELOG.md).
+
+## Related Mods (Optional)
+
+These are separate projects, not bundled with Farm to Market, and are not required to use this livestock mod. Download and install them individually if you want the corresponding changes:
+
+- **[FS25_EconomyTuner](https://github.com/xtcg/FS25_EconomyTuner)** (formerly FS25_SellPrices) — Tunes agricultural selling and buying prices, seasonal price curves, crop yields, seed usage, and shop consumable prices through configurable XML tables. It can complement the livestock and meat economy described here, but it is a separate mod rather than part of this package.
+- **[FS25_ProductionInputFix](https://github.com/xtcg/FS25_ProductionInputFix)** — Fixes production points creating more output than their actual available inputs support, including cases observed with Hof Bergmann production chains. It addresses a production calculation issue independently of this livestock overhaul.
 
 ## Installation
 
-Place `FS25_RealisticLivestockRM.zip` in your FS25 mods folder without extracting it, then enable it in the game. Back up your savegame before updating and replace the previous ZIP rather than loading both versions.
+Place `FS25_RealisticLivestockF2M.zip` in your FS25 mods folder **without extracting it**, and enable it in the game. Back up your savegame before updating. Remove the previous `FS25_RealisticLivestockRM.zip` rather than loading both versions.
 
 For inherited animal management features, compatibility details and original migration instructions, see the [upstream README](docs/UPSTREAM_README.md) and [user guide](https://xtcg.github.io/FS25_RealisticLivestockF2M/).
 

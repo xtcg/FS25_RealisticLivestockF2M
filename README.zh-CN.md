@@ -28,9 +28,11 @@
 
 ### 1. 基于真实品种的生长与生产曲线
 
-参考现实畜牧资料，重新调整不同牛、猪、羊及其他支持动物的目标体重、生长速度、适宜出栏月龄和饲料消耗。
+参考现实畜牧资料，目前主要针对牛、猪、羊重新调整目标体重、生长速度、适宜出栏月龄和饲料消耗。
 
 不同品种拥有更鲜明的生产特点。例如，安格斯、利木赞、荷斯坦和高地牛不再只是外观不同，而是在生长、饲料利用和肉用或奶用价值方面呈现差异。
+
+马不属于本项目的肉畜产出改造范围。如果未来扩展到其他小型家畜，将优先考虑复用牛、猪、羊系统的简化模型；目前尚无明确开发计划。
 
 ### 2. 更有意义的饲料管理与育肥选择
 
@@ -78,12 +80,19 @@
 - 本 Mod 不包含 Hof Bergmann 地图本体，地图需通过原作者的[官方渠道](https://www.lsfarming-mods.com/)单独获取。
 - 本项目基于 Realistic Livestock 的开源版本继续开发，并保留原项目的核心动物管理系统。
 - 采用 GPL-3.0 开源许可证。原项目及相关作者的贡献均保留署名；许可证见 [LICENSE](LICENSE)，对应源码公开于本仓库。
-- 本次更名调整展示名称，内部 Mod 标识及安装包名继续使用 `FS25_RealisticLivestockRM` / `FS25_RealisticLivestockRM.zip`，以保持存档及集成兼容。
-- 本介绍中的经济调整指畜牧经济；独立的 FS25_SellPrices 全面农产品重定价工作不属于已完成的宣传内容。未发布功能及验证状态以 [CHANGELOG.md](CHANGELOG.md) 为准。
+- 当前安装包已更名为 `FS25_RealisticLivestockF2M.zip`（原名 `FS25_RealisticLivestockRM.zip`）。FS25 会使用 ZIP 文件名识别 Mod，更名可能影响已有存档和其他 Mod 的兼容性。升级前请备份存档，不要同时启用新旧两个 ZIP。
+- 本介绍主要涵盖畜牧生产与经济调整。更广泛的作物、农产品价格与投入品经济调整由独立项目 [FS25_EconomyTuner](https://github.com/xtcg/FS25_EconomyTuner)（原 FS25_SellPrices）负责。尚未发布的改动和验证状态以 [CHANGELOG.md](CHANGELOG.md) 为准。
+
+## 相关独立 Mod（可选）
+
+以下两个项目与本 Mod 分开发布，不包含在 Farm to Market 安装包内，也不是使用本畜牧 Mod 的必需依赖。可根据需要分别下载安装：
+
+- **[FS25_EconomyTuner](https://github.com/xtcg/FS25_EconomyTuner)**（原 FS25_SellPrices）——通过可配置的 XML 表调整农产品卖价、买价、季节价格曲线、作物产量、种子用量及商店消耗品价格。可以与本项目的活畜及肉品经济系统配合使用，但两者是独立 Mod。
+- **[FS25_ProductionInputFix](https://github.com/xtcg/FS25_ProductionInputFix)** ——修复生产设施在投入原料不足时仍可能产出超额成品的问题，涵盖 Hof Bergmann 部分生产链中出现的情况。这是独立的生产计算修复 Mod，不属于本项目内置功能。
 
 ## 安装
 
-将 `FS25_RealisticLivestockRM.zip` 放入 FS25 的 mods 文件夹，无需解压，然后在游戏中启用。更新前请备份存档，替换旧安装包，避免同时加载两个版本。
+将 `FS25_RealisticLivestockF2M.zip` 放入 FS25 的 mods 文件夹，**无需解压**，然后在游戏中启用。更新前请备份存档，并移除旧版 `FS25_RealisticLivestockRM.zip`，不要同时加载新旧两个版本。
 
 原有动物管理功能、兼容性及旧版迁移说明见[上游 README](docs/UPSTREAM_README.md) 和[用户指南](https://xtcg.github.io/FS25_RealisticLivestockF2M/)。
 

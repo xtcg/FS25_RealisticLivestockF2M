@@ -1,6 +1,6 @@
 <modDesc descVersion="114">
     <author>xtcg; based on work by Arrow-kb, Ritter and Renfordt</author>
-    <version>1.4.0.1-dev.8</version>
+    <version>0.1.0.0</version>
     <title>
         <en>Realistic Livestock: Farm to Market</en>
         <de>Realistic Livestock: Farm to Market</de>
@@ -41,6 +41,12 @@ Documentation: https://xtcg.github.io/FS25_RealisticLivestockF2M/
 Source code and issue tracker: https://github.com/xtcg/FS25_RealisticLivestockF2M
 
 Changelog:
+0.1.0.0 (Farm to Market):
+- First release in the 0.1 version series, continuing the former development builds.
+- Livestock production and economic rebalancing, upstream 1.4.1.0 integration and Hof Bergmann compatibility fixes.
+- Species navigation, monthly input/output display and scrollable pen requirements.
+- One-time startup feedback invitation. Package: FS25_RealisticLivestockF2M.zip.
+
 1.4.1.0:
 Added:
 - Added vaccination: from the Diseases dialog, vaccinate cattle against BRD, pigs against PED, sheep and goats against pulpy kidney, and cows and female goats against mastitis.
@@ -160,7 +166,7 @@ Documentation:
 中英文完整介绍及源码：https://github.com/xtcg/FS25_RealisticLivestockF2M
 Issue：https://github.com/xtcg/FS25_RealisticLivestockF2M/issues
 
-内部 Mod 标识及安装包名保持 FS25_RealisticLivestockRM，以兼容旧存档。]]></ct>
+Release 安装包名为 FS25_RealisticLivestockF2M.zip；更新前请备份存档，并验证旧存档及集成兼容性。]]></ct>
         <it>
             <![CDATA[Sostituisce i semplici cluster di animali di FS25 con animali individualmente tracciati, ciascuno con genetica unica, allevamento, malattie e tratti produttivi. Una versione mantenuta del mod Realistic Livestock di Arrow-kb.
 

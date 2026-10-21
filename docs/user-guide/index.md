@@ -2,7 +2,7 @@
 
 A livestock production and economy expansion for Farming Simulator 25, built on Arrow-kb's Realistic Livestock and Ritter's maintained version. Primarily developed and tested with Hof Bergmann, with breed-specific production, feeding decisions, slaughter yields and British-market livestock economics.
 
-Read the full [English introduction](https://github.com/xtcg/FS25_RealisticLivestockF2M#readme) or [中文版介绍](https://github.com/xtcg/FS25_RealisticLivestockF2M/blob/main/README.zh-CN.md). Hof Bergmann is distributed separately by LSFM / FarmerAndy. The internal mod ID and ZIP filename remain `FS25_RealisticLivestockRM` for compatibility.
+Read the full [English introduction](https://github.com/xtcg/FS25_RealisticLivestockF2M#readme) or [中文版介绍](https://github.com/xtcg/FS25_RealisticLivestockF2M/blob/main/README.zh-CN.md). Hof Bergmann is distributed separately by LSFM / FarmerAndy. Release packages use `FS25_RealisticLivestockF2M.zip`; compatibility with saves and integrations using the former `FS25_RealisticLivestockRM` mod ID must be verified before updating.
 
 A Farming Simulator 25 mod that replaces the default animal cluster system with individual animal simulation - each animal has unique genetics, health, and a full lifecycle.
 
@@ -25,7 +25,7 @@ A Farming Simulator 25 mod that replaces the default animal cluster system with 
 
 ## Installation
 
-1. Download the latest `FS25_RealisticLivestockRM.zip` from the link above
+1. Download the latest `FS25_RealisticLivestockF2M.zip` from the link above
 2. Place the ZIP file in your FS25 mods folder (do not extract it)
 3. Enable the mod in the in-game mod manager
 
