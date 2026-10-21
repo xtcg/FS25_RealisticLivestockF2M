@@ -336,6 +336,7 @@
         <text name="rl_insemination_recovering" text="Dette dyr er stadig ved at komme sig efter sin forrige drægtighed"/>
         <text name="rl_insemination_father" text="Indavl er ikke tilladt"/>
         <text name="rl_insemination_pending" text="Venter på bekræftelse fra serveren"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Dette dyr er for ungt til at blive drægtiggjort ved assisteret avl"/>
 
 

@@ -338,6 +338,7 @@
         <text name="rl_insemination_recovering" text="Dit dier herstelt nog van de vorige dracht"/>
         <text name="rl_insemination_father" text="Inteelt is niet toegestaan"/>
         <text name="rl_insemination_pending" text="Wachten op bevestiging van de server"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Dit dier is te jong om kunstmatig geïnsemineerd te worden"/>
 
 

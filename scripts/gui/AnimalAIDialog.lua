@@ -84,6 +84,7 @@ function AnimalAIDialog:onClickOk()
             dewar:changeStraws(-1)
             self.animal:setInsemination(dewar.animal)
             AIAnimalInseminationEvent.sendEvent(self.object, { { animal = self.animal, dewar = dewar } })
+            AnimalReproduction.notifySubmitted(self.animal)
             Log:info("AnimalAIDialog:onClickOk: inseminated uniqueId=%s via dewar=%s",
                 tostring(self.animal.uniqueId), tostring(uniqueId))
             break
