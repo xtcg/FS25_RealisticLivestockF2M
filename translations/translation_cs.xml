@@ -271,6 +271,9 @@
 
         <text name="rl_ui_castrated" text="已去势"/>
         <text name="rl_ui_castrate" text="去势"/>
+        <text name="rl_ui_castrateConfirmTitle" text="确认去势"/>
+        <text name="rl_ui_castrateConfirmYes" text="确认去势"/>
+        <text name="rl_ui_castrateConfirm" text="要给%s（%s）去势吗？&#10;去势后永久失去繁殖和采精能力，此操作无法撤销。"/>
 
         <text name="rl_ui_unknownCauses" text="未知原因"/>
         <text name="rl_ui_unreadMessages" text="畜牧场'%s'有未读消息！"/>
@@ -314,7 +317,17 @@
         <text name="rl_ui_inseminateAnimal" text="为%s授精"/>
         <text name="rl_ui_inseminate" text="授精"/>
         <text name="rl_ui_strawEmpty" text="此支精液为空"/>
-        <text name="rl_ui_averageSuccess" text="平均成功率"/>
+        <text name="rl_ui_aiStraw" text="精液管"/>
+        <text name="rl_ui_returnStraw" text="归还精液管"/>
+        <text name="rl_strawReturn_used" text="精液管已使用"/>
+        <text name="rl_strawReturn_missing" text="精液罐已不存在"/>
+        <text name="rl_strawReturn_otherFarm" text="非本农场的精液罐"/>
+        <text name="rl_strawReturn_otherBatch" text="批次不同：只能放回同批次的精液罐"/>
+        <text name="rl_strawReturn_full" text="精液罐已满"/>
+        <text name="rl_strawReturn_notHeld" text="服务器无此精液管记录"/>
+        <text name="rl_semen_discardEmpty" text="丢弃空精液罐"/>
+        <text name="rl_semen_discardConfirm" text="确定丢弃这个空精液罐？之后从中取出的精液管只能放回同批次的其他精液罐。"/>
+        <text name="rl_ui_averageSuccess" text="精液质量"/>
         <text name="rl_ui_success" text="成功率"/>
 
         <text name="rl_ui_healthy" text="健康"/>
@@ -329,6 +342,7 @@
         <text name="rl_insemination_recovering" text="此动物仍在恢复期"/>
         <text name="rl_insemination_father" text="禁止近亲繁殖"/>
         <text name="rl_insemination_pending" text="等待服务器确认"/>
+        <text name="rl_insemination_submitted" text="%s 已授精，等待次日结算是否受胎"/>
         <text name="rl_insemination_young" text="此动物过于年幼，无法进行人工授精"/>
 
 
@@ -636,8 +650,8 @@
         <text name="rl_message_aiManager_mark_castrate_multiple" text="牧工标记了%s头待去势动物"/>
         <text name="rl_message_aiManager_mark_disease_single" text="牧工标记了1头待护理动物"/>
         <text name="rl_message_aiManager_mark_disease_multiple" text="牧工标记了%s头待护理动物"/>
-        <text name="rl_message_insemination_success" text="授精成功"/>
-        <text name="rl_message_insemination_fail" text="授精失败"/>
+        <text name="rl_message_insemination_success" text="授精后受胎成功"/>
+        <text name="rl_message_insemination_fail" text="授精后未受胎"/>
         <text name="rl_message_aiManager_mark_ai_single" text="牧工标记了1头待授精动物"/>
         <text name="rl_message_aiManager_mark_ai_multiple" text="牧工标记了%s头待授精动物"/>
         <text name="rl_message_aiManager_ai_single" text="牧工为1头动物授精"/>

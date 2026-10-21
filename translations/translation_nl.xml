@@ -268,6 +268,9 @@
 
         <text name="rl_ui_castrated" text="Gecastreerd"/>
         <text name="rl_ui_castrate" text="Castreren"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Castratie bevestigen"/>
+        <text name="rl_ui_castrateConfirmYes" text="Castreren"/>
+        <text name="rl_ui_castrateConfirm" text="%s (%s) castreren?&#10;Het dier verliest blijvend het vermogen om te fokken en sperma te leveren. Dit kan niet ongedaan worden gemaakt."/>
         <text name="rl_ui_unknownCauses" text="onbekende oorzaak"/>
         <text name="rl_ui_unreadMessages" text="Bedrijf '%s' heeft ongelezen berichten!"/>
         <text name="rl_ui_herdsman" text="Veehoeder"/>
@@ -310,6 +313,16 @@
         <text name="rl_ui_inseminateAnimal" text="%s insemineren"/>
         <text name="rl_ui_inseminate" text="Insemineren"/>
         <text name="rl_ui_strawEmpty" text="Dit rietje is leeg"/>
+        <text name="rl_ui_aiStraw" text="Semen straw"/>
+        <text name="rl_ui_returnStraw" text="Return straw"/>
+        <text name="rl_strawReturn_used" text="This straw has been used"/>
+        <text name="rl_strawReturn_missing" text="This dewar is no longer there"/>
+        <text name="rl_strawReturn_otherFarm" text="This dewar belongs to another farm"/>
+        <text name="rl_strawReturn_otherBatch" text="Another batch: a straw goes back only into its own batch"/>
+        <text name="rl_strawReturn_full" text="This dewar is full"/>
+        <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
+        <text name="rl_semen_discardEmpty" text="Discard empty dewar"/>
+        <text name="rl_semen_discardConfirm" text="Discard this empty dewar? A straw taken from it can then only go into another dewar of its batch."/>
         <text name="rl_ui_averageSuccess" text="Gemiddeld succes"/>
         <text name="rl_ui_success" text="Succes"/>
 
@@ -325,6 +338,7 @@
         <text name="rl_insemination_recovering" text="Dit dier herstelt nog van de vorige dracht"/>
         <text name="rl_insemination_father" text="Inteelt is niet toegestaan"/>
         <text name="rl_insemination_pending" text="Wachten op bevestiging van de server"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Dit dier is te jong om kunstmatig geïnsemineerd te worden"/>
 
 

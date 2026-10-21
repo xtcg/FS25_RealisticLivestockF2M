@@ -2,7 +2,7 @@
     SemenSellEvent.lua
     Sell a dewar the player's farm owns. The server prices it with
     RLSemenCollection.getSellValue from the dewar's own snapshot and straw count - never a
-    client-sent price - credits the farm, and deletes the dewar.
+    client-sent price - credits the farm, and deletes the dewar. An empty dewar is discarded.
 ]]
 
 local Log = RmLogging.getLogger("RLRM")
@@ -50,6 +50,13 @@ function SemenSellEvent:run(connection)
             or not g_currentMission:getHasPlayerPermission("tradeAnimals", connection) then
             Log:warning("SemenSellEvent: refused (dewar=%s farmId=%s owner=%s)", tostring(dewar), tostring(farmId),
                 tostring(dewar ~= nil and dewar.getOwnerFarmId ~= nil and dewar:getOwnerFarmId()))
+            return
+        end
+
+        -- An empty dewar (kept for a straw in hand to come back) is discarded, for nothing.
+        if (dewar.straws or 0) <= 0 then
+            Log:info("SemenSellEvent: farmId=%d discarded empty dewar uniqueId=%s", farmId, tostring(dewar:getUniqueId()))
+            dewar:delete()
             return
         end
 

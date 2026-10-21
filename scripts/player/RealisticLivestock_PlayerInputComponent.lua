@@ -53,12 +53,16 @@ function RealisticLivestock_PlayerInputComponent:update(_)
 
                     local object = g_currentMission:getNodeObject(closestNode)
 
-                    if object ~= nil and object.isDewar == true and object.straws > 0 then
+                    -- An empty dewar (kept for a straw to come back) is still targeted, for the
+                    -- discard prompt (RLSemenSalePrompt), but offers no straw.
+                    if object ~= nil and object.isDewar == true then
 
                         self.dewar = object
 
-                        g_inputBinding:setActionEventText(self.enterActionId, g_i18n:getText("rl_ui_takeStraw"))
-                        g_inputBinding:setActionEventActive(self.enterActionId, true)        
+                        if (object.straws or 0) > 0 then
+                            g_inputBinding:setActionEventText(self.enterActionId, g_i18n:getText("rl_ui_takeStraw"))
+                            g_inputBinding:setActionEventActive(self.enterActionId, true)
+                        end
 
                     end
 
@@ -78,7 +82,7 @@ PlayerInputComponent.update = Utils.appendedFunction(PlayerInputComponent.update
 --- Take a straw from the targeted dewar: spawn hand tool, decrement count, sync to server.
 function RealisticLivestock_PlayerInputComponent:onInputEnter()
 
-    if g_time <= g_currentMission.lastInteractionTime + 200 or g_currentMission.interactiveVehicleInRange ~= nil or self.rideablePlaceable ~= nil or self.dewar == nil or HandToolAIStraw.numHeldStraws > 10 then return end
+    if g_time <= g_currentMission.lastInteractionTime + 200 or g_currentMission.interactiveVehicleInRange ~= nil or self.rideablePlaceable ~= nil or self.dewar == nil or (self.dewar.straws or 0) <= 0 or HandToolAIStraw.numHeldStraws > 10 then return end
 
     local strawType = g_handToolTypeManager:getTypeByName(modName .. ".aiStraw")
     local handTool = _G[strawType.className].new(g_currentMission:getIsServer(), g_currentMission:getIsClient())
@@ -87,7 +91,7 @@ function RealisticLivestock_PlayerInputComponent:onInputEnter()
     handTool:setLoadCallback(self.onFinishedLoadStraw, self, { ["animal"] = self.dewar:getAnimal(), ["dewarUniqueId"] = self.dewar:getUniqueId() })
     handTool:loadNonStoreItem({ ["ownerFarmId"] = g_localPlayer.farmId, ["isRegistered"] = false, ["holder"] = g_localPlayer }, RLHandTools.xmlPaths.aiStraw)
 
-    self.dewar:changeStraws(-1)
+    self.dewar:changeStraws(-1, true)
 
     if g_server ~= nil then
         g_server:broadcastEvent(TakeStrawEvent.new(self.dewar))
