@@ -254,6 +254,9 @@
 
         <text name="rl_ui_castrated" text="Кастровано"/>
         <text name="rl_ui_castrate" text="Каструвати"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Підтвердьте кастрацію"/>
+        <text name="rl_ui_castrateConfirmYes" text="Каструвати"/>
+        <text name="rl_ui_castrateConfirm" text="Каструвати %s (%s)?&#10;Тварина назавжди втратить здатність до розмноження і отримання сім'я. Скасувати це неможливо."/>
         <text name="rl_ui_unknownCauses" text="невідомі причини"/>
         <text name="rl_ui_unreadMessages" text="У загоні '%s' є непрочитані повідомлення!"/>
         <text name="rl_ui_herdsman" text="Пастух"/>
@@ -296,6 +299,16 @@
         <text name="rl_ui_inseminateAnimal" text="Запліднити %s"/>
         <text name="rl_ui_inseminate" text="Запліднити"/>
         <text name="rl_ui_strawEmpty" text="Ця паєта порожня"/>
+        <text name="rl_ui_aiStraw" text="Semen straw"/>
+        <text name="rl_ui_returnStraw" text="Return straw"/>
+        <text name="rl_strawReturn_used" text="This straw has been used"/>
+        <text name="rl_strawReturn_missing" text="This dewar is no longer there"/>
+        <text name="rl_strawReturn_otherFarm" text="This dewar belongs to another farm"/>
+        <text name="rl_strawReturn_otherBatch" text="Another batch: a straw goes back only into its own batch"/>
+        <text name="rl_strawReturn_full" text="This dewar is full"/>
+        <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
+        <text name="rl_semen_discardEmpty" text="Discard empty dewar"/>
+        <text name="rl_semen_discardConfirm" text="Discard this empty dewar? A straw taken from it can then only go into another dewar of its batch."/>
         <text name="rl_ui_averageSuccess" text="Середній успіх"/>
         <text name="rl_ui_success" text="Успіх"/>
 
@@ -309,6 +322,8 @@
         <text name="rl_insemination_inseminated" text="Ця тварина вже штучно запліднена"/>
         <text name="rl_insemination_recovering" text="Ця тварина все ще відновлюється після попередньої вагітності"/>
         <text name="rl_insemination_father" text="Інбридинг заборонено"/>
+        <text name="rl_insemination_pending" text="Очікування підтвердження сервера"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Ця тварина занадто молода для штучного запліднення"/>
 
 
@@ -937,6 +952,10 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Продати сперму %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="Торговець цього місяця купить ще лише %d соломинок. Продати їх із %d у посудині за %s? Решта залишиться в посудині."/>
+        <text name="rl_semen_quotaFull" text="Продати сперму (місячну квоту вичерпано)"/>
+        <text name="rl_semen_quotaFullInfo" text="Торговець цього місяця вже купив усю власну сперму цього виду, яку бере. Продайте знову наступного місяця."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_semen_collectionFee" text="Збір сперми"/>
@@ -947,6 +966,18 @@
         <text name="rl_semen_nextCollection" text="Наступний збір можливий: %s."/>
         <text name="rl_semen_minAge" text="Збір з віку %d міс."/>
         <text name="rl_semen_preview" text="Зібрати сперму у %s?&#10;&#10;Очікується соломинок: %d&#10;(база %d x плодючість %.2f x вік %.2f x вгодованість %.2f)&#10;Племінний індекс: %.2f&#10;Плата за послугу: %s"/>
+        <text name="rl_semen_batch" text="Партія"/>
+        <text name="rl_semen_source" text="Джерело"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Власний збір"/>
+        <text name="rl_semen_sourcePURCHASED" text="Куплено"/>
+        <text name="rl_semen_sourceLEGACY" text="Старий запас"/>
+        <text name="rl_semen_batchMonth" text="Місяць партії"/>
+        <text name="rl_insemination_incompatible" text="Сперма не підходить для цієї породи"/>
+        <text name="rl_pedigree_forbidden" text="Інбридинг %s: надто близька спорідненість, заборонено"/>
+        <text name="rl_pedigree_adviseAgainst" text="Інбридинг %s: близька спорідненість, не рекомендовано"/>
+        <text name="rl_pedigree_info" text="Інбридинг потомства %s"/>
+        <text name="rl_pedigree_none" text="Спільних предків не знайдено"/>
+        <text name="rl_ai_chance" text="Якість партії %s | Очікуване запліднення цієї самиці %s (плідність %s x зачаття %s x партія %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

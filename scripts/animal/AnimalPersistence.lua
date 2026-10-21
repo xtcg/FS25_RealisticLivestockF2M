@@ -393,6 +393,7 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
         insemination.genetics.fertility = xmlFile:getFloat(key .. ".insemination.genetics#fertility")
         insemination.genetics.quality = xmlFile:getFloat(key .. ".insemination.genetics#quality")
         insemination.genetics.productivity = xmlFile:getFloat(key .. ".insemination.genetics#productivity")
+        RLSemenBatch.loadFromXML(xmlFile, key .. ".insemination", insemination)
 
     end
 
@@ -424,7 +425,8 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
 
         if animal.clusterSystem ~= nil then
 
-            local childNum = animal:generateRandomOffspring()
+            -- A saved pregnancy without its young: she is pregnant, so only the litter size is drawn.
+            local childNum = math.max(1, AnimalReproduction.drawLitterSize(animal))
 
             if childNum > 0 then
 
@@ -591,6 +593,7 @@ function AnimalPersistence.saveToXMLFile(animal, xmlFile, key)
         xmlFile:setFloat(key .. ".insemination.genetics#health", insemination.genetics.health)
         xmlFile:setFloat(key .. ".insemination.genetics#fertility", insemination.genetics.fertility)
         if insemination.genetics.productivity ~= nil then xmlFile:setFloat(key .. ".insemination.genetics#productivity", insemination.genetics.productivity) end
+        RLSemenBatch.saveToXML(xmlFile, key .. ".insemination", insemination)
 
     end
 

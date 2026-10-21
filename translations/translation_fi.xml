@@ -271,6 +271,9 @@
 
         <text name="rl_ui_castrated" text="Kastroitu"/>
         <text name="rl_ui_castrate" text="Kastroi"/>
+        <text name="rl_ui_castrateConfirmTitle" text="Vahvista kastraatio"/>
+        <text name="rl_ui_castrateConfirmYes" text="Kastroi"/>
+        <text name="rl_ui_castrateConfirm" text="Kastroidaanko %s (%s)?&#10;Eläin menettää pysyvästi kyvyn jalostukseen ja siemennesteen keräykseen. Tätä ei voi perua."/>
         <text name="rl_ui_unknownCauses" text="tuntemattomia syitä"/>
         <text name="rl_ui_unreadMessages" text="Navetalla '%s' on lukemattomia viestejä!"/>
         <text name="rl_ui_herdsman" text="Lomittaja"/>
@@ -313,6 +316,16 @@
         <text name="rl_ui_inseminateAnimal" text="Siemennä %s"/>
         <text name="rl_ui_inseminate" text="Siemennä"/>
         <text name="rl_ui_strawEmpty" text="Tämä siemennyskapillaari on tyhjä"/>
+        <text name="rl_ui_aiStraw" text="Semen straw"/>
+        <text name="rl_ui_returnStraw" text="Return straw"/>
+        <text name="rl_strawReturn_used" text="This straw has been used"/>
+        <text name="rl_strawReturn_missing" text="This dewar is no longer there"/>
+        <text name="rl_strawReturn_otherFarm" text="This dewar belongs to another farm"/>
+        <text name="rl_strawReturn_otherBatch" text="Another batch: a straw goes back only into its own batch"/>
+        <text name="rl_strawReturn_full" text="This dewar is full"/>
+        <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
+        <text name="rl_semen_discardEmpty" text="Discard empty dewar"/>
+        <text name="rl_semen_discardConfirm" text="Discard this empty dewar? A straw taken from it can then only go into another dewar of its batch."/>
         <text name="rl_ui_averageSuccess" text="Keskiarvo onnistumisessa"/>
         <text name="rl_ui_success" text="Onnistui"/>
 
@@ -327,6 +340,8 @@
         <text name="rl_insemination_inseminated" text="Tämä eläin on jo saanut keinosiemennyksen"/>
         <text name="rl_insemination_recovering" text="Tämä eläin toipuu edellisestä tiineydestä"/>
         <text name="rl_insemination_father" text="Sukusiitos ei ole sallittua"/>
+        <text name="rl_insemination_pending" text="Odotetaan palvelimen vahvistusta"/>
+        <text name="rl_insemination_submitted" text="%s inseminated: whether she conceived is settled at the next day change"/>
         <text name="rl_insemination_young" text="Tämä eläin on liian nuori keinosiemennykseen"/>
 
 
@@ -960,6 +975,10 @@
         <text name="rl_semen_sell" text="Sell Semen"/>
         <text name="rl_semen_sellPrompt" text="Sell semen (%s)"/>
         <text name="rl_semen_sellConfirm" text="Sell this dewar with %d straws for %s?"/>
+        <text name="rl_semen_sellPromptPartial" text="Myy siemen %d/%d (%s)"/>
+        <text name="rl_semen_sellConfirmPartial" text="Kauppias ostaa tässä kuussa enää %d olkea. Myydäänkö ne säiliön %d oljesta hintaan %s? Loput jäävät säiliöön."/>
+        <text name="rl_semen_quotaFull" text="Myy siemen (kuukauden kiintiö täynnä)"/>
+        <text name="rl_semen_quotaFullInfo" text="Kauppias on ostanut tässä kuussa kaiken tämän lajin tilan oman siemenen, jonka se ottaa. Myy taas ensi kuussa."/>
         <text name="rl_semen_saleValue" text="Sale value"/>
         <text name="rl_semen_sale" text="Semen Sales"/>
         <text name="rl_semen_collectionFee" text="Siemennesteen keräys"/>
@@ -970,6 +989,18 @@
         <text name="rl_semen_nextCollection" text="Seuraava keräys mahdollinen: %s."/>
         <text name="rl_semen_minAge" text="Keräys alkaa %d kuukauden iässä."/>
         <text name="rl_semen_preview" text="Kerätäänkö siemenneste eläimestä %s?&#10;&#10;Odotetut pillit: %d&#10;(perus %d x hedelmällisyys %.2f x ikä %.2f x kunto %.2f)&#10;Jalostusindeksi: %.2f&#10;Palvelumaksu: %s"/>
+        <text name="rl_semen_batch" text="Erä"/>
+        <text name="rl_semen_source" text="Lähde"/>
+        <text name="rl_semen_sourceCOLLECTED" text="Oma keräys"/>
+        <text name="rl_semen_sourcePURCHASED" text="Ostettu"/>
+        <text name="rl_semen_sourceLEGACY" text="Vanha varasto"/>
+        <text name="rl_semen_batchMonth" text="Erän kuukausi"/>
+        <text name="rl_insemination_incompatible" text="Siemen ei sovi tälle rodulle"/>
+        <text name="rl_pedigree_forbidden" text="Sukusiitos %s: liian läheistä sukua, ei sallittu"/>
+        <text name="rl_pedigree_adviseAgainst" text="Sukusiitos %s: läheistä sukua, ei suositella"/>
+        <text name="rl_pedigree_info" text="Jälkeläisen sukusiitos %s"/>
+        <text name="rl_pedigree_none" text="Yhteistä esivanhempaa ei löytynyt"/>
+        <text name="rl_ai_chance" text="Erän laatu %s | Odotettu tiinehtyminen tälle naaraalle %s (hedelmällisyys %s x hedelmöitys %s x erä %s)"/>
         <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
         <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
         <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>

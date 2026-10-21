@@ -63,6 +63,7 @@ function DewarObjectStorageHook.snapshot(vehicle)
             collected = a.collected,
             genetics = a.genetics and table.clone(a.genetics, 3) or nil,
         }
+        RLSemenBatch.copyFields(a, state.animal)
     end
     return state
 end
@@ -127,6 +128,7 @@ function DewarObjectStorageHook.writeStateToXML(state, xmlFile, baseKey)
         if a.subTypeIndex ~= nil then xmlFile:setValue(animalBase .. "#subTypeIndex", a.subTypeIndex) end
         if a.success      ~= nil then xmlFile:setValue(animalBase .. "#success",      a.success)      end
         if a.collected then xmlFile:setValue(animalBase .. "#collected", true) end
+        RLSemenBatch.saveToXML(xmlFile, animalBase, a, true)
         if a.genetics ~= nil then
             for _, gene in ipairs(DewarObjectStorageHook.GENETICS_FIELDS) do
                 if a.genetics[gene] ~= nil then
@@ -163,6 +165,7 @@ function DewarObjectStorageHook.readStateFromXML(xmlFile, baseKey)
             collected    = xmlFile:getValue(animalBase .. "#collected") == true,
             genetics = {},
         }
+        RLSemenBatch.loadFromXML(xmlFile, animalBase, animal, true)
         for _, gene in ipairs(DewarObjectStorageHook.GENETICS_FIELDS) do
             animal.genetics[gene] = xmlFile:getValue(animalBase .. ".genetics#" .. gene)
         end
@@ -219,6 +222,7 @@ local function installHooks()
         schema:register(XMLValueType.INT,    animalBase .. "#subTypeIndex", "Stored animal subtype index")
         schema:register(XMLValueType.FLOAT,  animalBase .. "#success",      "Stored animal breeding success")
         schema:register(XMLValueType.BOOL,   animalBase .. "#collected",    "Stored semen was collected on the owner's farm")
+        RLSemenBatch.registerXMLPaths(schema, animalBase)
         for _, gene in ipairs(DewarObjectStorageHook.GENETICS_FIELDS) do
             schema:register(XMLValueType.FLOAT, animalBase .. ".genetics#" .. gene, "Stored animal genetics " .. gene)
         end

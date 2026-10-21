@@ -62,6 +62,9 @@ function DewarData:onLoad(savegame)
     local spec = self[DewarData.SPEC_TABLE_NAME]
     spec.animal = nil
     spec.straws = 0
+    -- A straw was taken from this dewar by hand: it stays when empty so that straw can go back
+    -- (RLStrawReturn). Selling or discarding it is the only way it goes.
+    spec.keepEmpty = false
     spec.texts = {}
     spec.dirtyFlag = self:getNextDirtyFlag()
     spec.isRegistered = false
@@ -132,6 +135,7 @@ function DewarData:loadDewarFromSavegame(xmlFile, key)
         self:setUniqueId(uniqueId)
     end
     spec.straws = xmlFile:getInt(key .. "#straws") or 0
+    spec.keepEmpty = xmlFile:getBool(key .. "#keepEmpty", false)
 
     local animalKey = key .. ".animal"
     if xmlFile:hasProperty(animalKey) then
@@ -145,6 +149,8 @@ function DewarData:loadDewarFromSavegame(xmlFile, key)
         animal.subTypeIndex = xmlFile:getInt(animalKey .. "#subTypeIndex")
         animal.success = xmlFile:getFloat(animalKey .. "#success")
         animal.collected = xmlFile:getBool(animalKey .. "#collected", false)
+        RLSemenBatch.loadFromXML(xmlFile, animalKey, animal)
+        RLSemenBatch.ensure(animal, self:getUniqueId())
 
         animal.genetics = {
             ["metabolism"] = xmlFile:getFloat(animalKey .. ".genetics#metabolism"),
@@ -183,13 +189,13 @@ function DewarData:loadDewarFromSavegame(xmlFile, key)
     DewarData.updateStrawVisuals(self)
     DewarData.updateAnimalVisuals(self)
 
-    -- Zero-straw zombie cleanup at load time.
+    -- Zero-straw zombie cleanup at load time. A dewar kept empty for a straw to come back stays.
     -- Direct self:delete() here is unsafe because the vehicle is still
     -- mid-load - synchronous delete would leave subsequent spec callbacks
     -- firing on a partially-torn vehicle. Defer via Timer.createOneshot(0, ...)
     -- so cleanup runs after the load chain completes - the same idiom
     -- RLMessageAggregator uses for post-day-change consolidation.
-    if g_server ~= nil and spec.straws <= 0 then
+    if g_server ~= nil and spec.straws <= 0 and not spec.keepEmpty then
         Log:warning("DewarData:loadDewarFromSavegame zombie uniqueId=%s straws=%d, scheduling deferred delete",
             tostring(self:getUniqueId()), spec.straws)
         local target = self
@@ -212,6 +218,7 @@ function DewarData:saveToXMLFile(xmlFile, key, usedModNames)
         xmlFile:setString(key .. "#uniqueId", dewarUniqueId)
     end
     xmlFile:setInt(key .. "#straws", spec.straws)
+    if spec.keepEmpty then xmlFile:setBool(key .. "#keepEmpty", true) end
 
     if spec.animal ~= nil then
         local animalKey = key .. ".animal"
@@ -225,6 +232,7 @@ function DewarData:saveToXMLFile(xmlFile, key, usedModNames)
         xmlFile:setInt(animalKey .. "#subTypeIndex", animal.subTypeIndex)
         xmlFile:setFloat(animalKey .. "#success", animal.success)
         if animal.collected then xmlFile:setBool(animalKey .. "#collected", true) end
+        RLSemenBatch.saveToXML(xmlFile, animalKey, animal)
 
         for type, value in pairs(animal.genetics) do
             xmlFile:setFloat(animalKey .. ".genetics#" .. type, value)
@@ -258,6 +266,7 @@ function DewarData:onWriteStream(streamId, connection)
         streamWriteFloat32(streamId, animal.genetics.quality)
         streamWriteFloat32(streamId, animal.genetics.productivity or -1)
         streamWriteBool(streamId, animal.collected == true)
+        RLSemenBatch.writeStream(streamId, animal)
     end
 
     Log:trace("DewarData:onWriteStream uniqueId=%s straws=%d hasAnimal=%s",
@@ -287,6 +296,7 @@ function DewarData:onReadStream(streamId, connection)
         animal.genetics.productivity = streamReadFloat32(streamId)
         if animal.genetics.productivity < 0 then animal.genetics.productivity = nil end
         animal.collected = streamReadBool(streamId)
+        RLSemenBatch.readStream(streamId, animal)
 
         spec.animal = animal
     end
@@ -348,10 +358,10 @@ end
 function DewarData:setAnimal(animal)
     local spec = self[DewarData.SPEC_TABLE_NAME]
 
-    -- Accept either a live Animal object or a raw table
+    -- Accept either a live Animal object (a dealer bull: a purchase) or a raw table
     if animal.birthday ~= nil then
-        -- Live Animal object - extract snapshot
-        spec.animal = {
+        -- Live Animal object - extract snapshot, a purchased batch of this month
+        spec.animal = RLSemenBatch.stamp({
             ["country"] = animal.birthday.country,
             ["farmId"] = animal.farmId,
             ["uniqueId"] = animal.uniqueId,
@@ -360,10 +370,11 @@ function DewarData:setAnimal(animal)
             ["subTypeIndex"] = animal.subTypeIndex,
             ["genetics"] = table.clone(animal.genetics, 3),
             ["success"] = animal.success
-        }
+        }, RLSemenBatch.SOURCE.PURCHASED, RLSemenCollection.getMonthIndex(), animal)
     else
-        -- Raw table (from network/migration) - store directly
+        -- Raw table (collection/storage/migration) - store directly; old data gets a batch id
         spec.animal = animal
+        RLSemenBatch.ensure(animal, self:getUniqueId())
     end
 
     DewarData.syncCompatProperties(self)
@@ -378,7 +389,8 @@ end
 
 --- Set the straw count to an absolute value.
 ---
---- Server-side: if `value <= 0`, synchronously deletes the dewar via self:delete().
+--- Server-side: if `value <= 0`, synchronously deletes the dewar via self:delete(), unless it is
+--- kept empty for a straw taken from it by hand (spec.keepEmpty).
 --- **Contract: callers MUST NOT touch `self` after setStraws(0) returns** - the
 --- vehicle has been deleted. This mirrors the changeStraws zero-path contract.
 ---
@@ -390,7 +402,7 @@ function DewarData:setStraws(value)
     spec.straws = value or 0
     self.straws = spec.straws
 
-    if g_server ~= nil and spec.straws <= 0 then
+    if g_server ~= nil and spec.straws <= 0 and not spec.keepEmpty then
         DewarData.updateStrawVisuals(self)
         Log:info("DewarData:setStraws(0) auto-deleting empty dewar uniqueId=%s",
             tostring(self:getUniqueId()))
@@ -407,12 +419,17 @@ function DewarData:setStraws(value)
 end
 
 
-function DewarData:changeStraws(delta)
+--- Change the straw count by `delta`. Server-side, a dewar reaching 0 is deleted, unless
+--- `keepEmpty` (a straw taken by hand, which may come back) or an earlier such take keeps it.
+---@param delta number
+---@param keepEmpty boolean|nil
+function DewarData:changeStraws(delta, keepEmpty)
     local spec = self[DewarData.SPEC_TABLE_NAME]
     spec.straws = math.clamp(spec.straws + delta, 0, DewarData.CAPACITY)
     self.straws = spec.straws
+    if keepEmpty then spec.keepEmpty = true end
 
-    if spec.straws <= 0 then
+    if spec.straws <= 0 and not spec.keepEmpty then
         -- Update visuals to the "0 straws" frame on BOTH server and client BEFORE
         -- exit so the 3D sticky note shows empty for the last frame before delete
         -- (server) or before the early-return (client; the vehicle survives
@@ -453,6 +470,7 @@ function DewarData:showInfo(superFunc, box)
     box:addLine(g_i18n:getText("infohud_type"), g_fillTypeManager:getFillTypeTitleByIndex(subType.fillTypeIndex))
     box:addLine(g_i18n:getText("infohud_name"), animal.name)
     box:addLine(g_i18n:getText("rl_ui_earTag"), string.format("%s %s %s", RLConstants.AREA_CODES[animal.country].code, animal.farmId, animal.uniqueId))
+    for _, line in ipairs(RLSemenBatch.getInfoLines(animal)) do box:addLine(line[1], line[2]) end
 
     for type, value in pairs(animal.genetics) do
         local valueText

@@ -935,6 +935,12 @@ function RealisticLivestock.hasMaleAnimalInPen(spec, subT, female)
             continue
         end
 
+        -- First cousins or closer (RLPedigree) do not mate; the same rule refuses the AI straw.
+        if female ~= nil and animal.gender == "male" and select(2, RLPedigree.checkMating(female, animal)) == RLPedigree.LEVEL.FORBIDDEN then
+            Log:trace("hasMaleAnimalInPen:   skip '%s' (close relative)", s.name)
+            continue
+        end
+
         if subT == "COW_WATERBUFFALO" then
             if s.name == "BULL_WATERBUFFALO" and animal.age < 132 then return true end
         elseif subT == "GOAT" then

@@ -1,7 +1,7 @@
 <handTool xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" type="aiStraw">
 	<base canBeDropped="false">
 		<filename>objects/straw/straw.i3d</filename>
-		<typeDesc>AI Straw</typeDesc>
+		<typeDesc>$l10n_rl_ui_aiStraw</typeDesc>
 		<graphics node="graphics"/>
 		<handNode node="handNode"/>
 		<firstPersonNode node="firstPersonNode"/>
