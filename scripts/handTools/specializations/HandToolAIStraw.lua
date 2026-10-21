@@ -12,6 +12,7 @@ function HandToolAIStraw.registerFunctions(handTool)
 	SpecializationUtil.registerFunction(handTool, "updateStraw", HandToolAIStraw.updateStraw)
 	SpecializationUtil.registerFunction(handTool, "renderErrorText", HandToolAIStraw.renderErrorText)
 	SpecializationUtil.registerFunction(handTool, "getBelongsToDewar", HandToolAIStraw.getBelongsToDewar)
+	SpecializationUtil.registerFunction(handTool, "getReturnRefusal", HandToolAIStraw.getReturnRefusal)
 	SpecializationUtil.registerFunction(handTool, "onInseminate", HandToolAIStraw.onInseminate)
 	SpecializationUtil.registerFunction(handTool, "onReturnToDewar", HandToolAIStraw.onReturnToDewar)
 
@@ -20,6 +21,7 @@ end
 
 function HandToolAIStraw.registerOverwrittenFunctions(handTool)
 	SpecializationUtil.registerOverwrittenFunction(handTool, "getShowInHandToolsOverview", HandToolAIStraw.getShowInHandToolsOverview)
+	SpecializationUtil.registerOverwrittenFunction(handTool, "getName", HandToolAIStraw.getName)
 end
 
 
@@ -49,7 +51,7 @@ function HandToolAIStraw:onPostLoad(savegame)
 	if self.isClient then spec.defaultCrosshair = self:createCrosshairOverlay("gui.crosshairDefault") end
 
 	spec.inseminateText = g_i18n:getText("rl_ui_inseminateAnimal")
-	spec.returnText = "Return straw"
+	spec.returnText = g_i18n:getText("rl_ui_returnStraw")
 	spec.isEmpty = false
 	spec.textAlpha = 1
 	spec.textAlphaReverse = false
@@ -276,11 +278,14 @@ function HandToolAIStraw:updateStraw(dT)
 
 	if placeable == nil or animal == nil then
 
-		local object = g_currentMission:getNodeObject(node)
+		-- A dewar is a vehicle (pallet): its collision is in the VEHICLE group.
+		local object = RLStrawReturn.findDewar(node, function(n) return g_currentMission:getNodeObject(n) end, getParent)
 
-        if object ~= nil and object.isDewar == true then
+        if object ~= nil then
 
-			if self:getBelongsToDewar(object) then
+			local refusal = self:getReturnRefusal(object)
+
+			if refusal == nil then
 				
 				spec.targetedDewar = object
 				spec.actionContext = "return"
@@ -291,7 +296,7 @@ function HandToolAIStraw:updateStraw(dT)
 
 				g_inputBinding:setActionEventActive(spec.activateActionEventId, false)
 
-				self:renderErrorText("This straw can not be returned to this dewar")
+				self:renderErrorText(RLStrawReturn.getText(refusal))
 
 			end
 
@@ -343,7 +348,7 @@ function HandToolAIStraw:onHeldStart()
 
 	if g_localPlayer == nil or self:getCarryingPlayer() ~= g_localPlayer or not g_localPlayer.isOwner then return end
 	
-	g_localPlayer.targeter:addTargetType(HandToolAIStraw, CollisionFlag.ANIMAL + CollisionFlag.DYNAMIC_OBJECT, 0.5, 3)
+	g_localPlayer.targeter:addTargetType(HandToolAIStraw, CollisionFlag.ANIMAL + CollisionFlag.DYNAMIC_OBJECT + CollisionFlag.VEHICLE, 0.5, 3)
 	g_localPlayer.hudUpdater:setCarriedItem(self)
 	g_aiStrawUpdater:setStraw(self)
 	g_currentMission:addUpdateable(g_aiStrawUpdater)
@@ -560,6 +565,14 @@ function HandToolAIStraw:getShowInHandToolsOverview()
 end
 
 
+--- The straw has no store item, so the base getName (the store item's name) would be nil.
+function HandToolAIStraw:getName(superFunc)
+
+	return superFunc(self) or g_i18n:getText("rl_ui_aiStraw")
+
+end
+
+
 function HandToolAIStraw:renderErrorText(text)
 
 	local spec = self[specName]
@@ -576,18 +589,18 @@ function HandToolAIStraw:renderErrorText(text)
 end
 
 
---- A straw goes back to the dewar it came from, or to another dewar of the same batch (its own
---- may be empty and gone). Batches never mix: a legacy straw without a batch id returns to its
---- own dewar only.
+--- Why this straw cannot go into `dewar` (RLStrawReturn.REFUSAL), or nil when it can: its own
+--- dewar or another of the same batch, on the straw's farm, with room left.
+function HandToolAIStraw:getReturnRefusal(dewar)
+
+	return RLStrawReturn.getRefusal(self[specName], dewar, self:getOwnerFarmId())
+
+end
+
+
 function HandToolAIStraw:getBelongsToDewar(dewar)
 
-	local spec = self[specName]
-
-	if dewar:getUniqueId() == spec.dewarUniqueId then return true end
-
-	local dewarAnimal = dewar.getAnimal ~= nil and dewar:getAnimal() or nil
-	return spec.animal ~= nil and dewarAnimal ~= nil and spec.animal.batchId ~= nil
-		and dewarAnimal.batchId == spec.animal.batchId and dewar:getOwnerFarmId() == self:getOwnerFarmId()
+	return HandToolAIStraw.getReturnRefusal(self, dewar) == nil
 
 end
 

@@ -311,6 +311,14 @@
         <text name="rl_ui_inseminateAnimal" text="Осеменить %s"/>
         <text name="rl_ui_inseminate" text="Осеменить"/>
         <text name="rl_ui_strawEmpty" text="Эта соломинка пуста"/>
+        <text name="rl_ui_aiStraw" text="Semen straw"/>
+        <text name="rl_ui_returnStraw" text="Return straw"/>
+        <text name="rl_strawReturn_used" text="This straw has been used"/>
+        <text name="rl_strawReturn_missing" text="This dewar is no longer there"/>
+        <text name="rl_strawReturn_otherFarm" text="This dewar belongs to another farm"/>
+        <text name="rl_strawReturn_otherBatch" text="Another batch: a straw goes back only into its own batch"/>
+        <text name="rl_strawReturn_full" text="This dewar is full"/>
+        <text name="rl_strawReturn_notHeld" text="The server has no record of this straw"/>
         <text name="rl_ui_averageSuccess" text="Средняя успешность"/>
         <text name="rl_ui_success" text="Успешно"/>
 

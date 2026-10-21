@@ -317,6 +317,14 @@
         <text name="rl_ui_inseminateAnimal" text="为%s授精"/>
         <text name="rl_ui_inseminate" text="授精"/>
         <text name="rl_ui_strawEmpty" text="此支精液为空"/>
+        <text name="rl_ui_aiStraw" text="精液管"/>
+        <text name="rl_ui_returnStraw" text="归还精液管"/>
+        <text name="rl_strawReturn_used" text="精液管已使用"/>
+        <text name="rl_strawReturn_missing" text="精液罐已不存在"/>
+        <text name="rl_strawReturn_otherFarm" text="非本农场的精液罐"/>
+        <text name="rl_strawReturn_otherBatch" text="批次不同：只能放回同批次的精液罐"/>
+        <text name="rl_strawReturn_full" text="精液罐已满"/>
+        <text name="rl_strawReturn_notHeld" text="服务器无此精液管记录"/>
         <text name="rl_ui_averageSuccess" text="平均成功率"/>
         <text name="rl_ui_success" text="成功率"/>
 

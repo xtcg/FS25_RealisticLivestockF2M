@@ -313,6 +313,14 @@
         <text name="rl_ui_inseminateAnimal" text="Besamen %s"/>
         <text name="rl_ui_inseminate" text="Besamen"/>
         <text name="rl_ui_strawEmpty" text="Dieses Besamungsröhrchen ist leer."/>
+        <text name="rl_ui_aiStraw" text="Besamungsröhrchen"/>
+        <text name="rl_ui_returnStraw" text="Röhrchen zurückgeben"/>
+        <text name="rl_strawReturn_used" text="Dieses Röhrchen wurde schon verwendet"/>
+        <text name="rl_strawReturn_missing" text="Dieser Behälter ist nicht mehr da"/>
+        <text name="rl_strawReturn_otherFarm" text="Dieser Behälter gehört einem anderen Hof"/>
+        <text name="rl_strawReturn_otherBatch" text="Andere Charge: ein Röhrchen kommt nur in seine eigene Charge zurück"/>
+        <text name="rl_strawReturn_full" text="Dieser Behälter ist voll"/>
+        <text name="rl_strawReturn_notHeld" text="Der Server kennt dieses Röhrchen nicht"/>
         <text name="rl_ui_averageSuccess" text="Durchschnittlicher Erfolg"/>
         <text name="rl_ui_success" text="Erfolg"/>
 

@@ -185,6 +185,7 @@ DewarData.setAnimal(raw, sire())
 check("dewar: raw old data set on a dewar gets the dewar's legacy id", raw[DewarData.SPEC_TABLE_NAME].animal.batchId == "L-D6")
 
 -- Hand-tool straw: back to its own dewar or another of its batch, never into another batch
+loadMod("scripts/insemination/RLStrawReturn.lua")
 loadMod("scripts/handTools/specializations/HandToolAIStraw.lua")
 local function straw(fromDewar, snapshot, owner)
     local t = { ["spec_FS25_RealisticLivestockRM.aiStraw"] = { dewarUniqueId = fromDewar, animal = snapshot } }
@@ -198,6 +199,41 @@ check("straw: not another batch of the same sire", not HandToolAIStraw.getBelong
 check("straw: not another farm's dewar of the batch", not HandToolAIStraw.getBelongsToDewar(st, dewar("D-X", c, 2)))
 check("straw: a legacy straw only into its own dewar", not HandToolAIStraw.getBelongsToDewar(straw("D-L", sire()), dewar("D-M", sire())))
 
+-- The reason a straw is refused, as its prompt shows it
+local RR = RLStrawReturn.REFUSAL
+local why = HandToolAIStraw.getReturnRefusal
+check("refusal: another batch of the same sire", why(st, otherBatch) == RR.OTHER_BATCH)
+check("refusal: own dewar sold to another farm", why(st, dewar("D-A", c, 2)) == RR.OTHER_FARM)
+local full = dewar("D-A", c)
+full.straws = 1000
+check("refusal: a full dewar", why(st, full) == RR.FULL)
+local usedStraw = straw("D-A", c)
+usedStraw["spec_FS25_RealisticLivestockRM.aiStraw"].isEmpty = true
+check("refusal: a used straw", why(usedStraw, dewar("D-A", c)) == RR.USED)
+local waiting = straw("D-A", c)
+waiting["spec_FS25_RealisticLivestockRM.aiStraw"].awaitingServer = true
+check("refusal: a straw waiting for the server", why(waiting, dewar("D-A", c)) == RR.PENDING)
+local gone = dewar("D-A", c)
+gone.isDeleted = true
+check("refusal: a deleted dewar", why(st, gone) == RR.MISSING)
+local emptyOwn = dewar("D-A", c)
+emptyOwn.straws = 0
+check("refusal: none for its own empty dewar", why(st, emptyOwn) == nil)
+for code, key in pairs(RLStrawReturn.TEXT) do
+    check("refusal text: " .. code .. " has a key", RR[code] ~= nil and type(key) == "string")
+end
+
+-- A dewar's collision node, or a child below it, finds the dewar; other objects find none
+local dewarObject = dewar("D-A", c)
+local objects = { [10] = dewarObject, [30] = { isDewar = false } }
+local parents = { [11] = 10, [12] = 11, [31] = 30 }
+local function obj(n) return objects[n] end
+local function parentOf(n) return parents[n] or 0 end
+check("target: the dewar's own node", RLStrawReturn.findDewar(10, obj, parentOf) == dewarObject)
+check("target: a collision child two levels down", RLStrawReturn.findDewar(12, obj, parentOf) == dewarObject)
+check("target: a tractor is no dewar", RLStrawReturn.findDewar(31, obj, parentOf) == nil)
+check("target: nothing hit", RLStrawReturn.findDewar(0, obj, parentOf) == nil and RLStrawReturn.findDewar(99, obj, parentOf) == nil)
+
 -- Display
 local lines = B.getInfoLines(c)
 check("info: batch, source and month", #lines == 3 and lines[1][2] == c.batchId and lines[2][2] == "rl_semen_sourceCOLLECTED"
@@ -206,4 +242,19 @@ check("info: legacy batch shows no month", #B.getInfoLines(old) == 2)
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end
+end
+
+-- The straw's targeter sees vehicles: a dewar is a pallet whose collision is in the VEHICLE group
+do
+    local f = io.open(REPO .. "scripts/handTools/specializations/HandToolAIStraw.lua", "r")
+    local source = f:read("a")
+    f:close()
+    check("target: the straw targets VEHICLE collisions", source:find("CollisionFlag%.VEHICLE") ~= nil)
+    local i3d = io.open(REPO .. "objects/dewar/dewar.i3d", "r")
+    local group = i3d:read("a"):match('collisionFilterGroup="0x(%x+)"')
+    i3d:close()
+    check("target: the dewar's collision group is VEHICLE (bit 16)", group ~= nil and (tonumber(group, 16) >> 16) & 1 == 1)
+    local xml = io.open(REPO .. "objects/straw/straw.xml", "r")
+    check("name: the straw's type text is a translation key", xml:read("a"):find("<typeDesc>%$l10n_rl_ui_aiStraw</typeDesc>") ~= nil)
+    xml:close()
 end
