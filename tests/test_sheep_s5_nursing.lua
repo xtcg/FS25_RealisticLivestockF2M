@@ -108,11 +108,15 @@ do
     check("pool: another ewe's lamb gets none of her milk (no fostering)", strangerMilk == 0)
     check("pool: the ewe's milk is never stored or sold (milk to the store 0)",
         ewe.rlFeedIntake.milkLiters == 0 and ewe.rlMilkPaid.litersPerHour == 0 and ewe.rlFeedIntake.milkPaidLiters > 0)
-    local planned = 0
+    local planned, demand = 0, 0
     for _, d in ipairs(steps[1].dams) do planned = d.plannedKg end
-    -- Twins at full feed: her row 3.00 kg a day x 19% DM over a 0.25-day step, at most.
-    check(string.format("pool: twins plan at most her row's milk (%.4f <= %.4f kg DM a step)", planned, 3.00 * 0.19 * 0.25),
-        planned > 0 and planned <= 3.00 * 0.19 * 0.25 + 1e-12)
+    for _, e in ipairs(steps[1].animals) do
+        if e.animal.motherId == "P1" then demand = demand + (e.feed.nursingDemandKg or 0) end
+    end
+    -- Unified nursing (2026-10-22): the twins plan their own demand - no ewe milk table caps it; she
+    -- pays for it (or the share she can).
+    check(string.format("pool: twins plan their own demand from her (%.4f of %.4f kg DM a step), no milk table cap", planned, demand),
+        planned > 0 and planned <= demand + 1e-12 and planned >= 0.5 * demand)
 end
 
 
@@ -177,9 +181,11 @@ end
 
 do
     local ewe = SheepSim.ewe("SHEEP_LANDRACE", "C1")
-    local lamb = SheepSim.grown("RAM_LANDRACE", "CL1", 1.5, { motherId = "C1" })
+    -- On hay at 2.5 months its dam's milk and the forage leave a gap creep feed fills (on grass a
+    -- younger lamb at a ewe paying its whole demand needs none).
+    local lamb = SheepSim.grown("RAM_LANDRACE", "CL1", 2.5, { motherId = "C1" })
     local pen = SheepSim.makePen({ ewe, lamb })
-    local steps = stepEvents(pen, 10, { GRASS_WINDROW = 3000, BARLEY = 3000 })
+    local steps = stepEvents(pen, 10, { DRYGRASS_WINDROW = 3000, BARLEY = 3000 })
     local worst = 0
     for _, data in ipairs(steps) do
         for _, e in ipairs(data.animals) do

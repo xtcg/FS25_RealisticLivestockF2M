@@ -29,22 +29,25 @@ ewe.rlFeedNursingDams = nil
 pen.rlFeedNursingDams = nil
 check("ewe: her lamb taken away, she is not nursing", RLFeed.getNursingState(ewe) == false and ewe:getIsNursing() == false)
 
--- A sow with her litter under 28 days: suckling (shown), no milk made.
+-- A sow with her litter under 28 days: nursing (her budget pays her piglets' demand), no saleable milk.
 local sow = PigSim.grown("PIG_LANDRACE", 1, 18, { isParent = true, monthsSinceLastBirth = 0 })
 local piglet = PigSim.grown("PIG_LANDRACE", 2, 0.3, { motherId = 1 })
 local older = PigSim.grown("PIG_LANDRACE", 3, 2, { motherId = 1 })
 local pigPen = PigSim.makePen({ sow, piglet }, {})
 local sowNursing, sowKind = RLFeed.getNursingState(sow)
-check("sow: with her unweaned litter she is shown nursing (SUCKLING), milk flag false, no milk factor",
-    sowNursing == true and sowKind == "SUCKLING" and sow.isLactating == false and sow:getLactationFactor() == 0)
+check("sow: with her unweaned litter she is nursing (NURSING), milk flag false, no saleable milk factor",
+    sowNursing == true and sowKind == "NURSING" and sow.isLactating == false and sow:getLactationFactor() == 0)
 pigPen.animals = { sow, older }
 for _, a in ipairs(pigPen.animals) do a.clusterSystem = { owner = pigPen } end
+pigPen.rlFeedNursingDams = nil
 check("sow: with only weaned (2-month) pigs of hers, not nursing", RLFeed.getNursingState(sow) == false)
 
--- A cow in milk: the flag itself.
-local cow = GrowthSim.makeAnimal("COW_ANGUS", { age = 40, isParent = true, isLactating = true, monthsSinceLastBirth = 2 })
+-- A dairy cow in milk: the flag itself. A beef cow nurses only while her calf on milk is with her.
+local cow = GrowthSim.makeAnimal("COW_HOLSTEIN", { age = 40, isParent = true, isLactating = true, monthsSinceLastBirth = 2 })
 local cowNursing, cowKind = RLFeed.getNursingState(cow)
-check("cow: in milk is the flag (MILK)", cowNursing == true and cowKind == "MILK" and cow:getIsNursing() == true)
+check("cow: a dairy cow in milk is the flag (MILK)", cowNursing == true and cowKind == "MILK" and cow:getIsNursing() == true)
+local beef = GrowthSim.makeAnimal("COW_ANGUS", { age = 40, isParent = true, isLactating = true, monthsSinceLastBirth = 2 })
+check("cow: a beef cow without her calf is not nursing (no saleable milk, no flag reading)", RLFeed.getNursingState(beef) == false)
 check("a ram or a maiden ewe is never nursing", RLFeed.getNursingState(SheepSim.grown("RAM_LANDRACE", "RM", 20)) == false
     and RLFeed.getNursingState(SheepSim.grown("SHEEP_LANDRACE", "MD", 14)) == false)
 

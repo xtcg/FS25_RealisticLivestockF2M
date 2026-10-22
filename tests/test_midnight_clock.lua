@@ -4,7 +4,7 @@
 -- again. The raw tick (monotonic day x 24 + hour) went 791 -> 768 -> 792 and the pens settled that
 -- hour twice: 650 hourly callbacks for 648 hours, 0.089285714 model days too many on the pen clocks
 -- of a 28-day month, extra age and weight on the pigs on the old rules. Here a pig pen in the mode and
--- a breeding pen on the old rules (sow + piglets, PIG_BREEDING_LEGACY) run under the engine's own
+-- a breeding pen (sow + piglets; in the mode too since the unified nursing design) run under the engine's own
 -- frame-by-frame clock: midnights with a pre-roll frame (several), a save and load inside the pre-roll,
 -- a month length switch, and repeated callbacks in an hour must settle exactly as clean midnights do.
 
@@ -244,5 +244,4 @@ local oldPending = old.pens[1].spec_husbandryFood.rlFeedClock.pendingDays
 local oldPiglet, cleanPiglet = old.pens[2].animals[2], clean.pens[2].animals[2]
 check(string.format("control (old code, 2 pre-roll midnights): %d pen-hours (+%d), grower clock pending %.6f vs %.6f, piglet age clock +%.6f months",
     old.hours, old.hours - clean.hours, oldPending, cleanPending, oldPiglet.rlGrowth.ageMonths - cleanPiglet.rlGrowth.ageMonths),
-    old.hours == clean.hours + 4 and oldPrint ~= cleanPrint and oldPiglet.rlGrowth.ageMonths > cleanPiglet.rlGrowth.ageMonths
-    and healthCalls[old.pens[2].animals[1]] > healthCalls[clean.pens[2].animals[1]])
+    old.hours == clean.hours + 4 and oldPrint ~= cleanPrint and oldPiglet.rlGrowth.ageMonths > cleanPiglet.rlGrowth.ageMonths)

@@ -72,7 +72,18 @@ RLFeedProfiles.CALF_MILK = { realLitersPerDay = 5, density = 1.03, dm = 0.50, si
     earlyWeaningMonth = 3 }
 
 -- A dam's own milk as her calf drinks it (whole milk, NRC 2001: 12.5% DM, ME 5.37 Mcal/kg DM).
-RLFeedProfiles.DAM_MILK = { dm = 0.125, me = 22.5, cp = 0.25 }
+RLFeedProfiles.DAM_MILK = { dm = 0.125, me = 22.5, cp = 0.25, sidLys = 0 }
+
+-- Suckler (beef) calves at their dam (rearing, root only): what share of a calf's own needs it
+-- takes from milk (milkMax), what share of its appetite its rumen takes as solids (solidMax) and
+-- what solid forage is worth to it (solidEnergy), at x = its age / its breed's sucklingMonths
+-- (breedTraits; weaned at 1). Dairy calves keep calfRearing.xml's curves.
+RLFeedProfiles.REARING_CURVES = { "sucklerMilkMax", "sucklerSolidMax", "sucklerSolidEnergy" }
+RLFeedProfiles.REARING_DEFAULTS = {
+    sucklerMilkMax = { { 0, 1 }, { 0.15, 0.95 }, { 0.3, 0.8 }, { 0.45, 0.65 }, { 0.6, 0.5 }, { 0.72, 0.38 }, { 0.86, 0.25 }, { 1, 0 } },
+    sucklerSolidMax = { { 0, 0.05 }, { 0.15, 0.3 }, { 0.3, 0.55 }, { 0.45, 0.75 }, { 0.6, 0.9 }, { 0.75, 1 } },
+    sucklerSolidEnergy = { { 0, 0.4 }, { 0.15, 0.55 }, { 0.3, 0.75 }, { 0.45, 0.9 }, { 0.6, 1 } },
+}
 
 -- Water (a game fit, not a real formula): the share of its dry intake an animal may eat at a
 -- pen's water coverage - none held from fullFrom, halfIntake at halfCoverage, minIntake with no
@@ -131,7 +142,7 @@ RLFeedProfiles.NURSING_CURVES = { "milkMax", "solidMax", "solidEnergy" }
 -- a pregnant female or one that has given birth keeps the old rules (PIG_BREEDING_LEGACY: the sow's
 -- milk, pregnancy and body condition are a later batch).
 RLFeedProfiles.MONOGASTRIC = { maintenanceExponent = 0.75, physicalKgDMPerKg = 0.0999, physicalExponent = 0.803,
-    lysineMaintenance = 0.05, youngLegacyUntilMonth = 0 }
+    lysineMaintenance = 0.05, youngLegacyUntilMonth = 0, lactatingLysPerMe = 0 }
 RLFeedProfiles.MONO_SEXES = { "female", "castrate", "male" }
 
 --- Numeric fields of a feed profile and the range each must be in.
@@ -233,9 +244,13 @@ end
 --- @return boolean ok
 --- @return string|nil reason
 function RLFeedProfiles.validate(config)
+    -- Values that may be 0 (a dam's milk SID lysine: only species with a lysine need read it).
+    local mayBeZero = { sidLys = true }
     local function positive(group, name)
         for key, value in pairs(group) do
-            if not finite(value) or value <= 0 then return string.format("%s %s must be a number > 0 (got %s)", name, key, tostring(value)) end
+            if not finite(value) or value < 0 or (value == 0 and not mayBeZero[key]) then
+                return string.format("%s %s must be a number > 0 (got %s)", name, key, tostring(value))
+            end
         end
     end
     if not finite(config.resourceScale) or config.resourceScale <= 0 or config.resourceScale > 1 then
@@ -395,8 +410,8 @@ function RLFeedProfiles.validateSpecies(section)
         if n.weaningMonth <= 0 or n.earlyWeaningMonth > n.weaningMonth then
             return false, "nursing needs weaningMonth > 0 and earlyWeaningMonth <= weaningMonth"
         end
-        if n.readyDays <= 0 or n.readyCreepKgPerDay <= 0 or n.lambMilkKgPerDay <= 0 or n.maxSuckled < 1 then
-            return false, "nursing readyDays, readyCreepKgPerDay, lambMilkKgPerDay must be > 0 and maxSuckled >= 1"
+        if n.readyDays <= 0 or n.readyCreepKgPerDay <= 0 or n.maxSuckled < 1 then
+            return false, "nursing readyDays, readyCreepKgPerDay must be > 0 and maxSuckled >= 1"
         end
         for _, name in ipairs(RLFeedProfiles.NURSING_CURVES) do
             local points = n.curves[name]
@@ -411,8 +426,9 @@ function RLFeedProfiles.validateSpecies(section)
         if RLFeedProfiles.interpolate(n.curves.milkMax, n.weaningMonth) > 0 then return false, "nursing milkMax must be 0 at weaningMonth" end
         if RLFeedProfiles.interpolate(n.curves.solidMax, n.weaningMonth) < 1 then return false, "nursing solidMax must reach 1 at weaningMonth" end
         if RLFeedProfiles.interpolate(n.curves.solidEnergy, n.weaningMonth) < 1 then return false, "nursing solidEnergy must reach 1 at weaningMonth" end
+        -- A dam's lactation table is optional (shown only): what she makes is her young's demand.
         local lactation = n.lactation
-        if lactation == nil or next(lactation.systems) == nil then return false, "nursing has no lactation system" end
+        if lactation ~= nil and next(lactation.systems) ~= nil then
         for name, system in pairs(lactation.systems) do
             for _, row in ipairs({ "single", "twin" }) do
                 local months = system[row]
@@ -425,6 +441,7 @@ function RLFeedProfiles.validateSpecies(section)
         if lactation.systems[lactation.default] == nil then return false, "lactation default system " .. tostring(lactation.default) .. " is not listed" end
         for breed, system in pairs(lactation.breeds) do
             if lactation.systems[system] == nil then return false, "lactation breed " .. breed .. " names an unknown system " .. system end
+        end
         end
     end
     return true
@@ -588,6 +605,11 @@ function RLFeedProfiles.parse(xmlFile)
     config.calf = readGroup(xmlFile, "feedProfiles.calf", RLFeedProfiles.CALF)
     config.damMilk = readGroup(xmlFile, "feedProfiles.damMilk", RLFeedProfiles.DAM_MILK)
     config.water = readGroup(xmlFile, "feedProfiles.water", RLFeedProfiles.WATER)
+    config.rearing = {}
+    for _, curveName in ipairs(RLFeedProfiles.REARING_CURVES) do
+        config.rearing[curveName] = (xmlFile ~= nil and readCurve(xmlFile, "feedProfiles.rearing." .. curveName))
+            or table.clone(RLFeedProfiles.REARING_DEFAULTS[curveName], 2)
+    end
     config.milk.breeds = {}
     config.feeds, config.feedOrder = {}, {}
 
@@ -678,6 +700,9 @@ function RLFeedProfiles.computeHash(config)
     for i, point in ipairs(config.lowHealthDeath or {}) do add("health.lowHealthDeath." .. i, point[1] .. ":" .. point[2]) end
     for _, class in ipairs(RLFeedProfiles.CLASSES) do addGroup("class." .. class, config.classes[class]) end
     addGroup("milk", config.milk)
+    for _, name in ipairs(RLFeedProfiles.REARING_CURVES) do
+        for i, point in ipairs((config.rearing or {})[name] or {}) do add("rearing." .. name .. "." .. i, point[1] .. ":" .. point[2]) end
+    end
     addGroup("calfMilk", config.calfMilk)
     addGroup("calf", config.calf)
     addGroup("damMilk", config.damMilk)

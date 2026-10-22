@@ -15,8 +15,10 @@ local KCAL = 4.184 / 1000
 -- health rates and lowHealthDeath) added; number formatting differs between Lua 5.1 and 5.4, so the
 -- fingerprint is not compared across runtimes.
 -- With the water group (U14-WATER-01) in the root and the sections and the SHEEP concentrate routes (SHEEP-RAM-CONC-01), 2026-10-18.
-local DEV_HASH = { ["Lua 5.1"] = { root = "2ac43132", sheep = "697fc7a8" }, ["Lua 5.3"] = { root = "2ac43132", sheep = "9b9b649c" },
-    ["Lua 5.4"] = { root = "2ac43132", sheep = "9b9b649c" }, ["Lua 5.5"] = { root = "2ac43132", sheep = "9b9b649c" } }
+-- With the unified nursing groups (rearing suckler curves, damMilk sidLys), 2026-10-22; Lua 5.1 not recomputed
+-- (the test stubs need Lua 5.2+).
+local DEV_HASH = { ["Lua 5.3"] = { root = "93f90878", sheep = "7965a7a2" },
+    ["Lua 5.4"] = { root = "93f90878", sheep = "7965a7a2" }, ["Lua 5.5"] = { root = "93f90878", sheep = "7965a7a2" } }
 local expected = DEV_HASH[_VERSION]
 check("config: the PIG section is valid and monogastric, the root and sheep hashes as on dev in this runtime (" .. _VERSION .. ")",
     pig ~= nil and pig.valid == true and pig.monogastric ~= nil and expected ~= nil and feed.hash == expected.root
@@ -119,14 +121,15 @@ local function reason(animals)
     local _, r = RLFeed.evaluatePen(PigSim.makePen(animals, { PIGFOOD = 100 }))
     return r
 end
-check("gate: an unweaned piglet, a pregnant gilt or a sow that farrowed keeps the pen on the old rules",
-    reason({ PigSim.grown("PIG_LANDRACE", 3, 3), PigSim.grown("PIG_LANDRACE", 4, 0.5) }) == "PIG_BREEDING_LEGACY"
-    and reason({ PigSim.grown("PIG_LANDRACE", 5, 9, { isPregnant = true }) }) == "PIG_BREEDING_LEGACY"
-    and reason({ PigSim.grown("PIG_LANDRACE", 6, 18, { isParent = true }) }) == "PIG_BREEDING_LEGACY"
+-- Unified nursing (2026-10-22): sows, pregnant gilts and unweaned piglets run the mode (no PIG_BREEDING_LEGACY).
+check("gate: an unweaned piglet, a pregnant gilt or a sow that farrowed runs the mode like any pig",
+    reason({ PigSim.grown("PIG_LANDRACE", 3, 3), PigSim.grown("PIG_LANDRACE", 4, 0.5) }) == "OK"
+    and reason({ PigSim.grown("PIG_LANDRACE", 5, 9, { isPregnant = true }) }) == "OK"
+    and reason({ PigSim.grown("PIG_LANDRACE", 6, 18, { isParent = true }) }) == "OK"
     and reason({ PigSim.grown("PIG_LANDRACE", 7, 0.95) }) == "OK")
-local legacyPen = PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 8, 18, { isParent = true }) }, { PIGFOOD = 100 })
-FeedSim.hour(legacyPen)
-check("gate: a legacy pen's hour is not the mode's", legacyPen.spec_husbandryFood.rlFeedPen.active == false)
+local sowPen = PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 8, 18, { isParent = true }) }, { PIGFOOD = 100 })
+FeedSim.hour(sowPen)
+check("gate: a sow pen's hour is the mode's", sowPen.spec_husbandryFood.rlFeedPen.active == true)
 
 -- The ration preview (review F3): read only, a reason instead of an error wherever the mode cannot describe the pen.
 local function preview(p)
@@ -141,7 +144,7 @@ local okG, pv, _, sameG = preview(PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 
 check("preview: a grower pen previews (read only: trough and weights unchanged)", okG and pv ~= nil and pv.animals == 1 and sameG
     and #pv.rows == 1 and pv.rows[1].name == "PIGFOOD")
 local okS, sv, sErr, sameS = preview(PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 11, 18, { isParent = true }) }, { PIGFOOD = 500 }))
-check("preview: a sow pen gives its reason PIG_BREEDING_LEGACY, no error", okS and sv == nil and sErr == "PIG_BREEDING_LEGACY" and sameS)
+check("preview: a sow pen previews too (read only)", okS and sv ~= nil and sErr == nil and sameS)
 
 PigSim.enable(false)
 local okOff, ov, offErr, sameOff = preview(PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 12, 3) }, { PIGFOOD = 500 }))

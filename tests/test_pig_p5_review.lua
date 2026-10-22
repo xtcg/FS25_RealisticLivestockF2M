@@ -103,9 +103,9 @@ for _, withAdd in ipairs({ true, false }) do
         and (withAdd and returned > 0 and lost == 0 or (not withAdd and lost > 0 and returned == 0)) and eatenSoy > 0)
 end
 
--- F2: a newborn kept on the old rules reaches the gate's 28 model days on model time, not at its first whole
--- month. The gate is read at the start of an hour: the first hour that starts at or past 28 days runs the mode
--- (the error is under one game hour of model time). Its clock then runs on in the mode, never counted twice.
+-- F2 (unified nursing, 2026-10-22): there is no 28-day pen gate any more - a newborn piglet runs the mode from its
+-- first hour (its milk is its sow's, here an orphan's none: it lives on what it eats). Its clock runs on model time
+-- in the mode, never counted twice.
 for _, days in ipairs({ 1, 3, 7 }) do
     while GrowthSim.env.currentHour ~= 0 do GrowthSim.advanceHour() end
     GrowthSim.env.currentMonotonicDay = GrowthSim.env.currentMonotonicDay + 1
@@ -113,18 +113,18 @@ for _, days in ipairs({ 1, 3, 7 }) do
     local hourDays = 30 / (24 * days)
     local piglet = PigSim.grown("PIG_LANDRACE", 30 + days, 0)
     local nursery = PigSim.makePen({ piglet }, { PIGFOOD = 4000, PIGLETFOOD = 4000 })
-    local expected = math.ceil(28 / hourDays - 1e-9) + 1
+    local hours = math.ceil(28 / hourDays - 1e-9) + 1
     local entered, worstClock = nil, 0
-    for h = 1, expected + 24 do
+    for h = 1, hours + 24 do
         FeedSim.keepStocked({ PIGFOOD = 4000, PIGLETFOOD = 4000 })(nursery)
         FeedSim.hour(nursery)
         if nursery.spec_husbandryFood.rlFeedPen.active and entered == nil then entered = h end
         if GrowthSim.env.currentHour == 0 and GrowthSim.env.currentDayInPeriod == 1 then piglet.age = piglet.age + 1 end
         worstClock = math.max(worstClock, math.abs(RLGrowth.getContinuousAge(piglet) * 30 - h * hourDays))
     end
-    check(string.format("F2 %d-day month: a piglet on the old rules enters the mode in hour %d (the first that starts at or past 28 days), "
-        .. "entered %s; its clock follows model time within one step (worst %.3f days)", days, expected, tostring(entered), worstClock),
-        entered == expected and worstClock <= 0.25 + 1e-6)
+    check(string.format("F2 %d-day month: a newborn piglet runs the mode from hour 1 (entered %s); its clock follows model time "
+        .. "within one step (worst %.3f days)", days, tostring(entered), worstClock),
+        entered == 1 and worstClock <= 0.25 + 1e-6)
 end
 GrowthSim.setDaysPerPeriod(1)
 

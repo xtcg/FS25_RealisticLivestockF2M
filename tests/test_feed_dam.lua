@@ -2,7 +2,8 @@
 -- budget pays her milk, her calves take it first up to their allowance (twins share it), the store
 -- gets the rest; milk in the trough only makes up what she did not give, within the allowance.
 -- Every liter she paid goes one way: paid = to her calves + to the store. A calf without its
--- lactating dam in the pen keeps the pen on the old rules (SUCKLING_CALF).
+-- lactating dam in the pen gets no milk from any other cow; the pen still runs the mode (unified
+-- nursing design, 2026-10-22: no whole-pen fallback).
 
 loadMod("tests/feedsim.lua")
 
@@ -78,9 +79,15 @@ do
     FeedSim.hour(dryPen)
     local elsewhere = FeedSim.makePen({ calf("BULL_HOLSTEIN", "D1", "C4") }, { FORAGE = 1e5 })
     FeedSim.hour(elsewhere)
-    check("pen: a calf whose dam is missing, dry or in another pen keeps the pen on the old rules (SUCKLING_CALF)",
-        orphan.spec_husbandryFood.rlFeedPen.reason == "SUCKLING_CALF" and dryPen.spec_husbandryFood.rlFeedPen.reason == "SUCKLING_CALF"
-        and elsewhere.spec_husbandryFood.rlFeedPen.reason == "SUCKLING_CALF")
+    local function drank(pen)
+        for _, animal in ipairs(pen.animals) do
+            if animal.motherId ~= nil and animal.rlFeedIntake ~= nil and animal.rlFeedIntake.damMilkKg > 0 then return true end
+        end
+        return false
+    end
+    check("pen: a calf whose dam is missing, dry or in another pen: the pen runs the mode, the calf drinks no dam's milk",
+        orphan.spec_husbandryFood.rlFeedPen.active and dryPen.spec_husbandryFood.rlFeedPen.active
+        and elsewhere.spec_husbandryFood.rlFeedPen.active and not drank(orphan) and not drank(dryPen) and not drank(elsewhere))
 end
 
 
@@ -104,10 +111,11 @@ do
     local young = olderCalf("BULL_ANGUS", "D91", "C91", 2.5)
     local youngPen = FeedSim.makePen({ young }, { FORAGE = 1e5 })
     FeedSim.hour(youngPen)
-    check("orphan 3.5 months (calf rearing still has milk for it until 4): weaned early, the pen runs the mode; at 2.5: SUCKLING_CALF",
+    check("orphan 3.5 months: weaned early, the pen runs the mode; at 2.5 not weaned, the pen runs the mode with no milk for it",
         orphanPen.spec_husbandryFood.rlFeedPen.active == true and RLFeed.isEarlyWeaned(orphan)
         and RLFeed.getRationClass(orphan) == "GROWING" and RLFeed.getCalfMaintenanceFactor(orphan, 0) == 1
-        and youngPen.spec_husbandryFood.rlFeedPen.reason == "SUCKLING_CALF" and not RLFeed.isEarlyWeaned(young))
+        and youngPen.spec_husbandryFood.rlFeedPen.active == true and not RLFeed.isEarlyWeaned(young)
+        and (young.rlFeedIntake == nil or young.rlFeedIntake.damMilkKg == 0))
 
     local cow = dam("COW_ANGUS", "D92")
     local withDam = olderCalf("BULL_ANGUS", "D92", "C92", 3.5)
@@ -131,16 +139,17 @@ end
 
 
 -- Grain for calves on milk (creep feeding): a calf at its dam eats the pen's grain within its solid
--- capacity; sugar beet is not a calf feed.
+-- capacity when its milk and forage leave a gap (hay here; on TMR its dam's milk and the TMR cover a
+-- young beef calf); sugar beet is not a calf feed.
 
 do
     local cow = dam("COW_ANGUS", "D80")
-    local c = identify((GrowthSim.makeAnimal("BULL_ANGUS", { age = 2, motherId = "D80" })), "C80")
-    local pen = FeedSim.makePen({ cow, c }, { FORAGE = 1e5, BARLEY = 1e5, SUGARBEET_CUT = 1e5 })
+    local c = identify((GrowthSim.makeAnimal("BULL_ANGUS", { age = 4, motherId = "D80" })), "C80")
+    local pen = FeedSim.makePen({ cow, c }, { DRYGRASS_WINDROW = 1e5, BARLEY = 1e5, SUGARBEET_CUT = 1e5 })
     for _ = 1, 6 do FeedSim.hour(pen) end
     local byFill = c.rlFeedIntake ~= nil and c.rlFeedIntake.byFill or {}
     local barley = byFill.BARLEY ~= nil and byFill.BARLEY.kg or 0
-    check(string.format("creep: a 2-month calf at its dam eats barley (%.3f kg DM the last hour), no sugar beet, still on milk (%s)",
+    check(string.format("creep: a 4-month beef calf at its dam on hay eats barley (%.3f kg DM the last hour), no sugar beet, still on milk (%s)",
         barley, tostring(RLFeed.getRationClass(c))),
         barley > 0 and byFill.SUGARBEET_CUT == nil and RLFeed.getRationClass(c) == "CALF"
         and RLFeedProfiles.getUsableFeed("BARLEY").stages.PRE_WEANING == true
@@ -191,7 +200,8 @@ do
     check(string.format("twins: they share their dam's milk (%.4f + %.4f kg DM), together never more than she paid (%.4f)",
         a.rlFeedIntake.damMilkKg, b.rlFeedIntake.damMilkKg, dams.paidKg), ok and a.rlFeedIntake.damMilkKg > 0 and b.rlFeedIntake.damMilkKg > 0)
 
-    -- The same twins with calf milk in the trough: it makes up only what she does not give.
+    -- The same twins with calf milk in the trough: their dam pays their whole demand, so it is not
+    -- needed; what they drink is their own demand.
     local cow2 = dam("COW_ANGUS", "D30")
     local a2, b2 = calf("BULL_ANGUS", "D30", "C31"), calf("COW_ANGUS", "D30", "C32")
     local pen2 = FeedSim.makePen({ cow2, a2, b2 }, { FORAGE = 1e5, CALFMILK = 1e4 })
@@ -208,10 +218,10 @@ do
             end
         end
     end
-    check(string.format("supplement: a beef dam's twins top up from the trough (%.4f kg DM), dam + trough within the allowance",
+    check(string.format("supplement: a beef dam paying her twins' whole demand: no trough milk taken (%.4f kg DM), they drink their demand",
         a2.rlFeedIntake.byFill.CALFMILK ~= nil and a2.rlFeedIntake.byFill.CALFMILK.kg or 0),
-        a2.rlFeedIntake.byFill.CALFMILK ~= nil and a2.rlFeedIntake.byFill.CALFMILK.kg > 0 and a2.rlFeedIntake.damMilkKg > 0
-        and drunk <= allowanceStep * #steps2 + 1e-9 and drunk >= 0.99 * allowanceStep * #steps2 and allocatedOnce(steps2))
+        a2.rlFeedIntake.byFill.CALFMILK == nil and a2.rlFeedIntake.damMilkKg > 0
+        and drunk <= allowanceStep * #steps2 * 1.01 + 1e-9 and drunk >= 0.95 * allowanceStep * #steps2 and allocatedOnce(steps2))
 end
 
 

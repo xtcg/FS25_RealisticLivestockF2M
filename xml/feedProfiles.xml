@@ -268,6 +268,47 @@
 
     <damMilk dm="0.125" me="22.5" cp="0.25"/>
 
+    <!--
+        rearing (unified nursing design, 2026-10-22): a young animal at its dam takes its own demand from her - its
+        stage's milk share of its own maintenance and normal growth at its actual weight (RLYoungDemandMath) - and
+        she pays it in her budget at her milk's ME a kg (milk meMJPerKg, by breed). A beef cow (breedTraits
+        productionUse BEEF), a ewe and a sow give exactly what their young drink and nothing saleable; their young
+        share one paid ratio. A dairy cow's milk is her genes' and lactation's; her calves drink first and the rest is
+        collected. Suckler (beef) calves at the dam follow these curves at x = age / their breed's sucklingMonths:
+        sucklerMilkMax  share of the calf's needs from milk (CANDIDATE: extension guides put milk at about half a
+                        beef calf's needs at 3-4 months and a quarter by 6; 0 at weaning).
+        sucklerSolidMax share of its appetite its rumen takes as solids; sucklerSolidEnergy what solid forage is
+                        worth to it (rumen development), as calfRearing.xml's curves stretched to suckling.
+        Dairy calves keep calfRearing.xml's curves; sheep and pigs their species' nursing curves.
+    -->
+    <rearing>
+        <sucklerMilkMax>
+            <point x="0" y="1.00"/>
+            <point x="0.15" y="0.95"/>
+            <point x="0.3" y="0.80"/>
+            <point x="0.45" y="0.65"/>
+            <point x="0.6" y="0.50"/>
+            <point x="0.72" y="0.38"/>
+            <point x="0.86" y="0.25"/>
+            <point x="1" y="0.00"/>
+        </sucklerMilkMax>
+        <sucklerSolidMax>
+            <point x="0" y="0.05"/>
+            <point x="0.15" y="0.30"/>
+            <point x="0.3" y="0.55"/>
+            <point x="0.45" y="0.75"/>
+            <point x="0.6" y="0.90"/>
+            <point x="0.75" y="1.00"/>
+        </sucklerSolidMax>
+        <sucklerSolidEnergy>
+            <point x="0" y="0.40"/>
+            <point x="0.15" y="0.55"/>
+            <point x="0.3" y="0.75"/>
+            <point x="0.45" y="0.90"/>
+            <point x="0.6" y="1.00"/>
+        </sucklerSolidEnergy>
+    </rearing>
+
     <water fullFrom="0.9" halfCoverage="0.5" halfIntake="0.6" minIntake="0.2" dropHours="6" recoveryDays="2"/>
 
     <protein maintenance="0.065" calf="0.18" young="0.14" growing="0.12" finishing="0.105"
@@ -517,20 +558,32 @@
         - SID lysine for full growth, g per MJ ME: Table 16-1A (5-135 kg, both sexes) and Table 16-2A from 50 kg by sex,
           each % at its diet ME (3300-3400 kcal/kg, 90% DM) / 4.184; growth falls linearly to nothing at 0.05 g/MJ (the
           gut and skin losses of Eqs. 8-40 to 8-42 at about 60 kg).
-        - A pen with a pig under 28 model days (not weaned, design D3), a pregnant female or one that has farrowed keeps
-          the old rules (PIG_BREEDING_LEGACY): the sow's milk, pregnancy and body condition are P6/P7. Its covered pigs'
-          weight still follows their own curve there (RLFeed.stepFallback: the budget pays their needs x the pen's food
-          factor), never the old fixed gain; an approximation until the sow's milk and litter budget exist.
+        - Sows and litters (unified nursing design, 2026-10-22) run the mode: a sow pays her piglets' own demand (each
+          piglet's maintenance and curve growth x its milk share by age, RLYoungDemandMath) at milk meMJPerKg, her
+          pregnancy is in her budget, and piglets take creep feed by age (nursing solidMax of what they can eat). Values,
+          all PROXY until calibrated (tests/pigcalib):
+          damMilk dm 0.185, cp 0.265 of DM: Hojgaard et al. 2023 (PMC10441587) Table 4, days 10-24: fat 6.9-7.7%,
+          protein 4.7-4.9%, lactose 5.0-5.2%, energy 4.74-4.99 kJ/g; DM = those + about 0.8% ash. me 25.5 MJ/kg DM:
+          4.9 kJ/g / 0.185 x 0.96 (ME/GE of milk for the piglet, assumed). sidLys 0.018 kg/kg DM: lysine about 7.2% of
+          milk protein (assumed) x digestibility 0.95. milk meMJPerKg 7.0: 4.9 MJ a kg / 0.70 (the usual efficiency
+          of ME use for milk; National Hog Farmer, citing Noblet and Etienne, gives 8-10 MJ a kg on a DE basis). The
+          same study's piglets drank 0.5 / 1.1 / 1.2 / 1.1 kg a day in weeks 1-4 (4-4.7 g of milk a g of gain).
+          nursing milkMax: the milk share of a piglet's needs by age (weaned at 28 days, 0.9333 months); solidMax: the
+          share of what it can physically eat taken as creep feed (little before 3 weeks). pregnancyFactor 0.04 a
+          fetus x maintenance at term (PROXY: about +50% for a litter of 12, NRC 2012 late gestation). lactatingLysPerMe
+          0.62 g SID lysine a MJ ME for a nursing sow (NRC 2012 lactation diets, 0.84-0.91% at 3.3 Mcal ME a kg).
+          Without these rules (an older copy of this file) such a pen keeps the old rules (PIG_BREEDING_LEGACY).
         - Feeds: INRA-CIRAD-AFZ tables (feedtables.com) and Feedipedia, read 2026-10-16, pig ME and SID lysine on DM;
           density the engine's massPerLiter (Hof Bergmann 1.5b1). A pig eats every feed in its trough it may, mixed as
           stocked (a mixed trough), each at most its maxShare; PIGLETFOOD only up to 25 kg.
     -->
     <species name="PIG">
         <requirements maintenanceMEPerKgMetabolic="0.8243" growthMEPerKgAt500="10.03" growthWeightExponent="0.133"
-            growthMEPerKgMin="7.0" reserveDepositMEPerKg="52.3" reserveMobilizeMEPerKg="31.46" catabolismMEPerKg="4.3"/>
+            growthMEPerKgMin="7.0" reserveDepositMEPerKg="52.3" reserveMobilizeMEPerKg="31.46" catabolismMEPerKg="4.3"
+            pregnancyFactor="0.04"/>
         <physiology growthReferenceKg="60" calfGrowthCost="0"/>
         <monogastric maintenanceExponent="0.60" physicalKgDMPerKg="0.0999" physicalExponent="0.803" lysineMaintenance="0.05"
-            youngLegacyUntilMonth="0.9333">
+            youngLegacyUntilMonth="0.9333" lactatingLysPerMe="0.62">
             <energy sex="female" a="45.886" b="-3.803" c="0.9072"/>
             <energy sex="castrate" a="43.710" b="-4.283" c="1.0843"/>
             <energy sex="male" a="44.509" b="-3.803" c="0.9072"/>
@@ -538,6 +591,29 @@
             <lysine sex="castrate" points="6:1.054 9:0.949 18:0.877 37.5:0.710 62.5:0.587 87.5:0.500 117.5:0.420"/>
             <lysine sex="male" points="6:1.054 9:0.949 18:0.877 37.5:0.710 62.5:0.637 87.5:0.594 117.5:0.529"/>
         </monogastric>
+        <milk realKgPerDay="9" meMJPerKg="7.0"/>
+        <damMilk dm="0.185" me="25.5" cp="0.265" sidLys="0.018"/>
+        <nursing weaningMonth="0.9333" earlyWeaningMonth="0.9333" readyCreepKgPerDay="0.25" readyDays="3.5"
+            creepMaxKgDMPerDay="0.5" maxSuckled="16">
+            <milkMax>
+                <point x="0" y="1.00"/>
+                <point x="0.5" y="1.00"/>
+                <point x="0.75" y="0.95"/>
+                <point x="0.9" y="0.90"/>
+                <point x="0.9333" y="0.00"/>
+            </milkMax>
+            <solidMax>
+                <point x="0" y="0.02"/>
+                <point x="0.5" y="0.05"/>
+                <point x="0.75" y="0.15"/>
+                <point x="0.9" y="0.30"/>
+                <point x="0.9333" y="1.00"/>
+            </solidMax>
+            <solidEnergy>
+                <point x="0" y="1.00"/>
+                <point x="0.9333" y="1.00"/>
+            </solidEnergy>
+        </nursing>
         <feed fillType="WHEAT" role="CONCENTRATE" status="TYPICAL" form="soft wheat grain"
             density="0.78" dm="0.869" me="15.4" meBasis="ME_DIRECT" cp="0.126" ndf="0.147" peFactor="0"
             starch="0.691" sugar="0.03" sidLys="0.0029" stages="WEANED"

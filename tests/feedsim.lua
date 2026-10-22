@@ -126,8 +126,10 @@ function FeedSim.hour(pen, opts)
             -- As Animal:updateOutput: the curve at its mature age, the lactation number sets the level.
             local parity = RLMilkParity.getFactor(RLMilkParity.getParity(animal.birthCount or RLMilkParity.getImpliedBirths(animal.age)))
             local curve = Economics.curve(sub.milk, RLMilkParity.getCurveAge(animal.age)) * parity * RLBreedTraits.get(sub, "milkScale")
+            -- Beef cattle give no milk output (RLRearingPolicy; Animal:updateOutput).
+            if RLRearingPolicy.isBeef(sub) then curve = 0 end
             local lactation = animal.isLactating and lactationFactor(animal.monthsSinceLastBirth or 0) or 0
-            RLBodyCondition.applyMilk(animal, curve * lactation * animal.genetics.productivity, curve, 1)
+            RLBodyCondition.applyMilk(animal, curve * lactation * (animal.genetics.productivity or 0), curve, 1)
         end
     end
     GrowthSim.advanceHour()

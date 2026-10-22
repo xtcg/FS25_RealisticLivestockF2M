@@ -196,9 +196,9 @@ do
     local calf = GrowthSim.newborn("BULL_ANGUS")
     local mixed = FeedSim.makePen({ cow, calf }, { FORAGE = 5000 })
     FeedSim.hour(mixed)
-    check("mode: a calf on milk outside a rearing pen keeps the whole pen on the old rules (SUCKLING_CALF), no mixed rules",
-        mixed.spec_husbandryFood.rlFeedPen.active == false and mixed.spec_husbandryFood.rlFeedPen.reason == "SUCKLING_CALF"
-        and cow.rlFeedIntake == nil)
+    check("mode: a calf on milk without its dam: the whole pen still runs the mode (no old-rules fallback); it drinks no other cow's milk",
+        mixed.spec_husbandryFood.rlFeedPen.active == true and cow.rlFeedIntake ~= nil
+        and calf.rlFeedIntake ~= nil and calf.rlFeedIntake.damMilkKg == 0)
 
     local cluster = GrowthSim.makeAnimal("BULL_ANGUS", { age = 10 })
     cluster.isIndividual = false
@@ -756,7 +756,7 @@ do
         RLFeedMath.getProteinNeed("LACTATING", 48, protein, 0, 8) < 0.12 and within(RLFeedMath.getProteinNeed("LACTATING", 48, protein, 0, 30), 0.16, 1e-9)
         and within(RLFeedMath.getProteinNeed("LACTATING", 48, protein, 0, 45), 0.16, 1e-9))
 
-    -- Calf rearing off: a calf on milk still keeps its normal pen on the old rules.
+    -- Calf rearing off: a pen with a calf on milk still runs the mode.
     local rearing = RLCalfRearing.config
     RLCalfRearing.config = table.clone(RLCalfRearing.getConfig())
     RLCalfRearing.config.enabled = false
@@ -765,8 +765,7 @@ do
     local pen = FeedSim.makePen({ cow, newborn }, { FORAGE = 5000 })
     local active, reason = RLFeed.evaluatePen(pen)
     RLCalfRearing.config = rearing
-    check("calves: with calf rearing switched off, a suckling calf still keeps its pen on the old rules (SUCKLING_CALF)",
-        active == false and reason == "SUCKLING_CALF")
+    check("calves: with calf rearing switched off, a pen with a suckling calf runs the mode", active == true and reason == "OK")
 
     -- A planned fill with nothing removed was not eaten.
     local steer = GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })
