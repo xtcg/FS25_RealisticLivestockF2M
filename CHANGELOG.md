@@ -26,6 +26,8 @@
 
 ## Unreleased
 
+- Unified nursing (design 2026-10-22, batches A-D; not game-tested): beef cattle (cows, bulls, calves) have no milk yield gene - not drawn, inherited, shown, scored or valued; old values are dropped on load. Beef cows, ewes and sows pay their young's own demand (each young's maintenance and growth at its actual weight x its stage's milk share) in their energy budget; litters share one paid ratio; no milk gene, dairy curve, ewe milk table or litter cap limits it. Beef calves suckle to their breed's suckling months; sows and litters run the real-equivalent mode (sow milk ME and SID lysine, creep feed, weaning at 28 days without a jump). Dairy cows and goats: young drink first from what the dam actually paid, the rest is collected; collectable, deposited and unstored milk are kept apart. Goats get their own feed, body-condition and growth sections and share pens with sheep without leaving the mode. Unweaned or orphaned young no longer send a pen to the old rules (SUCKLING_CALF / PIG_BREEDING_LEGACY). Sow, suckler-curve and goat values are PROXY until calibrated; the Nutrition model setting and the old rules are not removed yet (batch E, after game testing).
+
 - Added Settings > Player guide with chapter navigation, scrolling, and Chinese/English handbooks. Chinese game languages show Chinese; every other game language shows English. Chinese DDS text atlases avoid missing native glyphs; English uses native text without extra atlases. The guide identifies its dev.8 code baseline and separates optional and disabled systems from default gameplay.
 
 

@@ -578,7 +578,10 @@ function RLFeedInfoService.notifyUnnursed(placeable, count)
     if mission == nil or mission.addIngameNotification == nil then return end
     if placeable.getOwnerFarmId ~= nil and mission.getFarmId ~= nil and placeable:getOwnerFarmId() ~= mission:getFarmId() then return end
     local name = placeable.getName ~= nil and placeable:getName() or ""
-    mission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_CRITICAL, string.format(getText("rl_feed_lambNoDam"), name, count))
+    -- A sheep pen's lambs by name; calves, piglets and kids (the same rule since the unified nursing design) as young animals.
+    local sheep = RLFeed ~= nil and RLFeed.getConfig(placeable).speciesName == "SHEEP"
+    mission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_CRITICAL,
+        string.format(getText(sheep and "rl_feed_lambNoDam" or "rl_feed_youngNoDam"), name, count))
 end
 
 

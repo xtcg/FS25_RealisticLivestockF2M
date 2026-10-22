@@ -1073,6 +1073,7 @@
         <text name="rl_feed_calfMilkAlert" text="%s：%d 头吃奶小牛没有小牛奶，会掉健康甚至死亡"/>
         <text name="rl_feed_calfMilkLowAlert" text="%s：小牛奶约 %s 后用完"/>
         <text name="rl_feed_lambNoDam" text="%s：%d 只仍需喝奶的小羊不在母羊身边，没有奶可喝，会掉健康甚至死亡"/>
+        <text name="rl_feed_youngNoDam" text="%s：%d 只仍需喝奶的幼畜不在母畜身边，没有奶可喝，会掉健康甚至死亡"/>
         <text name="rl_feed_penNotEaten" text="旧模式不吃"/>
         <text name="rl_feed_penNoBaseFeed" text="基础饲料"/>
         <text name="rl_feed_noBaseFeed" text="没有，动物吃不到饲料"/>

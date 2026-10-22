@@ -834,9 +834,8 @@ end
 --- @return number realKgPerGameLiter (0 without a milk curve)
 --- @return number meMJPerKg
 function RLFeed.getMilkRealPerGameLiter(animal)
-    -- Nursing rules (sheep): the dam's milk is counted in real kg from the start (her lactation
-    -- rows), never a game liter; the ME a kg costs her is her species' milk meMJPerKg.
-    if pairsYoung(animal) then return 1, RLFeed.getConfig(animal).milk.meMJPerKg end
+    -- A paired dam (sheep, pigs, beef cows): her milk is counted in real kg from the start (her
+    -- young's demand), never a game liter; the ME a kg costs her is her breed's or species' milk meMJPerKg.
     local subType = animal:getSubType()
     local binding = RLGrowth.getBinding(subType)
     if isBeefCattle(animal) then
@@ -844,6 +843,7 @@ function RLFeed.getMilkRealPerGameLiter(animal)
         local _, mePerKg = RLFeedProfiles.getMilkBridge(binding ~= nil and binding.profile or nil)
         return 1, mePerKg
     end
+    if pairsYoung(animal) then return 1, RLFeed.getConfig(animal).milk.meMJPerKg end
     local realKg, mePerKg = RLFeedProfiles.getMilkBridge(binding ~= nil and binding.profile or nil)
     local config = RLFeed.getConfig(animal)
     if config.speciesName ~= nil and (binding == nil or RLFeedProfiles.getConfig().milk.breeds[(binding.profile or ""):upper()] == nil) then
@@ -1838,6 +1838,14 @@ function RLFeed.settleDamMilk(a, hour, damMilk, observed)
         -- than they planned on when she paid more than her last step's share, never more than their
         -- demand. A dairy dam's store takes only what is left.
         local most = pool.fullKg ~= nil and planned > 0 and math.max(pool.fullKg / planned, 1) or 1
+        -- A young animal that already topped up from the trough's milk for the share it expected her
+        -- not to give has no room for more of hers: nobody drinks above its own demand.
+        for _, young in ipairs(pool.calves or {}) do
+            if (young.damMilkKg or 0) > 0 then
+                local room = math.max((young.milkPlanKg or 0) - (young.troughMilkKg or 0), 0)
+                most = math.min(most, math.max(room / young.damMilkKg, 1))
+            end
+        end
         pool.factor = planned > 0 and math.clamp(paid / planned, 0, most) or 0
         local allocated = planned * pool.factor
         local dam = pool.dam.animal
@@ -1918,8 +1926,10 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
         record.nursingPaidKg = (record.nursingPaidKg or 0) + paidLiters
     end
     if potentialLiters > 0 then
-        -- The share of her milk this step paid: what her calves' next step plans from her.
-        animal.rlFeedLastMilk = { tick = tick, owner = placeable, share = math.clamp(paidLiters / potentialLiters, 0, 1) }
+        -- The share of her milk this step paid: what her calves' next step plans from her. A paired dam's
+        -- is of her young's whole demand (her water and protein included), as their pool is.
+        local full = feed.nursingKgPerDay ~= nil and feed.nursingKgPerDay * (feed.dtDays or 0) or potentialLiters
+        animal.rlFeedLastMilk = { tick = tick, owner = placeable, share = full > 0 and math.clamp(paidLiters / full, 0, 1) or 0 }
     end
     record.milkPotential = (record.milkPotential or 0) + math.max(input.potentialMilk or 0, 0) * dtMonths
     record.coverage, record.growthFraction = result.coverage, result.growthFraction

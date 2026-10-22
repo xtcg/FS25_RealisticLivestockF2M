@@ -59,11 +59,13 @@ do
     local config = RLBreedTraits.getConfig()
     local saved = config.stringLayers
     config.stringLayers = nil
+    RLRearingPolicy.resetCache()
     check("use: an old breedTraits copy (no productionUse) still marks the suckler breeds BEEF and Holstein DAIRY",
         RLRearingPolicy.getUse(sub("COW_ANGUS")) == "BEEF" and RLRearingPolicy.getUse(sub("BULL_HIGHLAND_CATTLE")) == "BEEF"
         and RLRearingPolicy.getUse(packSub("BULL_CHAROLAIS_PACK", "male")) == "BEEF"
         and RLRearingPolicy.getUse(sub("COW_HOLSTEIN")) == "DAIRY")
     config.stringLayers = saved
+    RLRearingPolicy.resetCache()
 end
 
 

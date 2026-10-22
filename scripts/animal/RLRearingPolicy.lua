@@ -104,9 +104,30 @@ end
 --- A subtype's production use (see the header), nil for a type this does not cover.
 --- @param subType table|nil
 --- @return string|nil
+local useCache = setmetatable({}, { __mode = "k" })
+local cacheConfig = nil
+
 function RLRearingPolicy.getUse(subType)
     if subType == nil then return nil end
-    return RLRearingPolicy.getUseNamed(typeNameOf(subType), subType.breed, subType.name)
+    -- Asked for every animal in every feeding step: kept per subtype while the breed traits config
+    -- is the same table (a reload starts again); not kept before the type can be named.
+    local config = RLBreedTraits ~= nil and RLBreedTraits.config or nil
+    if config ~= cacheConfig then
+        useCache = setmetatable({}, { __mode = "k" })
+        cacheConfig = config
+    end
+    local cached = useCache[subType]
+    if cached ~= nil then return cached or nil end
+    local typeName = typeNameOf(subType)
+    local use = RLRearingPolicy.getUseNamed(typeName, subType.breed, subType.name)
+    if typeName ~= nil and config ~= nil then useCache[subType] = use or false end
+    return use
+end
+
+
+--- Forget the cached uses (tests, a config replaced in place).
+function RLRearingPolicy.resetCache()
+    useCache = setmetatable({}, { __mode = "k" })
 end
 
 

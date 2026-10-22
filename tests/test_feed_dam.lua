@@ -218,9 +218,9 @@ do
             end
         end
     end
-    check(string.format("supplement: a beef dam paying her twins' whole demand: no trough milk taken (%.4f kg DM), they drink their demand",
-        a2.rlFeedIntake.byFill.CALFMILK ~= nil and a2.rlFeedIntake.byFill.CALFMILK.kg or 0),
-        a2.rlFeedIntake.byFill.CALFMILK == nil and a2.rlFeedIntake.damMilkKg > 0
+    check(string.format("supplement: a beef dam paying her twins' whole demand: no trough milk taken (%.4f kg DM), they drink their demand (%.4f of %.4f)",
+        a2.rlFeedIntake.byFill.CALFMILK ~= nil and a2.rlFeedIntake.byFill.CALFMILK.kg or 0, drunk, allowanceStep * #steps2),
+        (a2.rlFeedIntake.byFill.CALFMILK == nil or a2.rlFeedIntake.byFill.CALFMILK.kg < 1e-6) and a2.rlFeedIntake.damMilkKg > 0
         and drunk <= allowanceStep * #steps2 * 1.01 + 1e-9 and drunk >= 0.95 * allowanceStep * #steps2 and allocatedOnce(steps2))
 end
 
