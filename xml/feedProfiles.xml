@@ -539,6 +539,61 @@
     </species>
 
     <!--
+        Goats (unified nursing design, 2026-10-22): the SHEEP type's GOAT breed reads this section, never the sheep's.
+        Dairy goats (RLRearingPolicy DAIRY_GOAT): a doe's milk is her productivity gene x lactation x her budget, her kids
+        drink first (their own demand) and the rest goes to the goat milk pallets. PROXY values: physiology, intake,
+        protein and ration rules are the sheep section's (small ruminants; no goat feeding standard configured yet);
+        milk realKgPerDay 3.0 (a dairy goat's lactation average, about 800 kg in 270 days) and meMJPerKg 5.0;
+        damMilk 13% DM, CP 27% of DM, ME 23 MJ/kg DM (goat milk about 3.5% fat, 3.3% protein, 4.5% lactose). Kids'
+        nursing curves as lambs' (weaned at 3 months). No concentrate routes (sheep only). To calibrate.
+    -->
+    <species name="GOAT">
+        <requirements maintenanceMEPerKgMetabolic="0.37" growthMEPerKgAt500="33" growthWeightExponent="1.0" growthMEPerKgMin="14"
+            reserveDepositMEPerKg="50" reserveMobilizeMEPerKg="35" catabolismMEPerKg="10" pregnancyFactor="0.55"/>
+        <physiology growthReferenceKg="35" youngMaintenanceMEPerKgMetabolic="0.475" youngMaintenanceUntilMonth="6"
+            adultMaintenanceFromMonth="12" calfGrowthCost="0"
+            growthCostMale="0.80" growthCostCastrate="1.0" growthCostFemale="1.25" pregnancyThirdLambFactor="0.50"/>
+        <calf maintenanceMEPerKgMetabolic="0.37"/>
+        <intake growingPerKgMetabolic="0.092" dryPerKgMetabolic="0.060" lactatingPerKgMetabolic="0.050"
+            lactatingPerKgMilk="0.50" calfSolidPerKgMetabolic="0.095"
+            ndfFillGrowing="0.018" ndfFillDry="0.012" ndfFillLactating="0.018" ndfFillCalf="0.016"/>
+        <protein maintenance="0.07" calf="0.18" young="0.15" growing="0.13" finishing="0.12"
+            lactating="0.15" dry="0.10" youngUntilMonth="4" growingUntilMonth="8" lactatingAtKg="3.0" milkResponse="2"/>
+        <ration wheatMaxShare="0.30" adaptationDays="14" adaptationMaxShare="0.90" stepAllowance="0.50" unadaptedUtilisation="0.85">
+            <class name="CALF" peNdfMin="0" fermentableMax="0.45"/>
+            <class name="GROWING" peNdfMin="0.10" fermentableMax="0.58"/>
+            <class name="LACTATING" peNdfMin="0.18" fermentableMax="0.35"/>
+            <class name="DRY" peNdfMin="0.20" fermentableMax="0.30"/>
+        </ration>
+        <milk realKgPerDay="3.0" meMJPerKg="5.0"/>
+        <damMilk dm="0.13" me="23.0" cp="0.27"/>
+        <nursing weaningMonth="3" earlyWeaningMonth="2" readyCreepKgPerDay="0.25" readyDays="3.5"
+            creepMaxKgDMPerDay="0.35" maxSuckled="2">
+            <milkMax>
+                <point x="0" y="1.00"/>
+                <point x="1" y="1.00"/>
+                <point x="2" y="0.80"/>
+                <point x="2.75" y="0.40"/>
+                <point x="3" y="0.00"/>
+            </milkMax>
+            <solidMax>
+                <point x="0" y="0.05"/>
+                <point x="0.5" y="0.20"/>
+                <point x="1" y="0.45"/>
+                <point x="1.5" y="0.70"/>
+                <point x="2" y="0.85"/>
+                <point x="3" y="1.00"/>
+            </solidMax>
+            <solidEnergy>
+                <point x="0" y="0.40"/>
+                <point x="1" y="0.65"/>
+                <point x="2" y="0.90"/>
+                <point x="3" y="1.00"/>
+            </solidEnergy>
+        </nursing>
+    </species>
+
+    <!--
         Pigs (pig P5, 2026-10-16; FS25_PigBreeds_离线准备_2026-10-16/PIG_P5_单胃营养设计.md, p5_derive.py). Growing pigs on
         NRC (2012) Nutrient Requirements of Swine, chapter 8 (growing-finishing model); the species stays off until the
         weight model's PIG type is enabled (on by default in 0.2.0.0). No rumen: monogastric (RLFeedRationPlanner.planMonogastric).

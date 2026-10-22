@@ -215,9 +215,9 @@ do
     for _, profile in pairs(config.profiles) do
         if profile.typeName == "COW" then profiles = profiles + 1 elseif profile.typeName == "SHEEP" then sheepProfiles = sheepProfiles + 1 end
     end
-    check(string.format("file: 22 physical cattle breeds and 3 map names (%d / %d), 16 sheep breeds of their own (%d, default on)", profiles,
+    check(string.format("file: 22 physical cattle breeds and 3 map names (%d / %d), 16 sheep breeds and the goat of their own (%d, default on)", profiles,
         (function() local n = 0; for _ in pairs(config.aliases) do n = n + 1 end; return n end)(), sheepProfiles),
-        profiles == 22 and sheepProfiles == 16 and config.types.SHEEP.enabled == true
+        profiles == 22 and sheepProfiles == 17 and config.profiles["SHEEP:GOAT"] ~= nil and config.types.SHEEP.enabled == true
         and config.aliases.CHAROLAISE.profile == "CHAROLAIS_PACK" and config.aliases.JERSEY.profile == "JERSEY_PACK")
 
     local xml = {

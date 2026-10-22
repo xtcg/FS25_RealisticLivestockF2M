@@ -1,6 +1,6 @@
 -- Sheep S5 run rules: whether a sheep takes the nutrition mode's step in an hour is decided by its
 -- pen that hour, not by its profile coverage (RLGrowth.covers). In a pen that runs the mode it is
--- stepped by the pen alone; in one that does not (a goat in it, no trough, the species config
+-- stepped by the pen alone; in one that does not (an uncovered animal in it, no trough, the species config
 -- invalid, the mode off) it takes the old weight rule, its state kept, and the next step in the
 -- mode splits the weight it left again (RLGrowth.resync). Every hour is settled once, also when
 -- a sheep changes pens within the hour. An orphan lamb weaned early stays weaned.
@@ -49,7 +49,7 @@ end
 local function setOwner(animal, pen) animal.clusterSystem = { owner = pen } end
 
 
--- Pure sheep -> a goat joins -> the goat leaves --------------------------------------------------
+-- Pure sheep -> an uncovered animal joins -> it leaves --------------------------------------------------
 
 do
     local lamb = SheepSim.grown("RAM_LANDRACE", "R1", 4.0)
@@ -71,7 +71,7 @@ do
     check("mixed pen: in the mode each hour's step is the lamb's last step (lastTick is the hour)",
         state.lastTick == RLBodyCondition.getTickId())
 
-    local goat = SheepSim.identify((GrowthSim.makeAnimal("GOAT", { age = 24 })), "RG")
+    local goat = SheepSim.identify((SheepSim.uncovered()), "RG")
     table.insert(pen.animals, goat)
     setOwner(goat, pen)
     local development, ageClock, reserve, lastTick = state.developmentMonths, state.ageMonths, state.reserveMassKg, state.lastTick
@@ -79,19 +79,19 @@ do
     for _ = 1, 3 do hour("goat") end
     local goatOk = true
     for i = 4, 6 do goatOk = goatOk and not hours[i].active and hours[i].reason == "UNCOVERED_ANIMAL" and hours[i].steps == 0 and hours[i].legacy == 1 end
-    check("mixed pen: with a goat the pen leaves the mode; the lamb takes the old weight rule once an hour, no step", goatOk)
+    check("mixed pen: with an uncovered animal the pen leaves the mode; the lamb takes the old weight rule once an hour, no step", goatOk)
     -- Its age clock alone runs on, on model time (U43-AGE-01): three hours of a one-day month.
     check(string.format("mixed pen: its state is kept as it was (development %.4f, age clock %.4f + 3 h -> %.4f, reserve %.3f kg, last step %s); only the weight moves (%.2f -> %.2f kg)",
         development, ageClock, state.ageMonths, reserve, tostring(lastTick), weightIn, lamb.weight),
         state.developmentMonths == development and math.abs(state.ageMonths - (ageClock + 3 / 24)) < 1e-9 and state.reserveMassKg == reserve
         and state.lastTick == lastTick and lamb.weight ~= weightIn)
-    check("mixed pen: profile coverage is unchanged by the goat (covers is the profile, the pen decides the run)",
+    check("mixed pen: profile coverage is unchanged by the uncovered animal (covers is the profile, the pen decides the run)",
         RLGrowth.covers(lamb) and not RLFeed.runsFor(lamb))
 
     table.remove(pen.animals)
     local weightOut = lamb.weight
     hour("back")
-    check(string.format("mixed pen: once the goat leaves the pen runs the mode again; the first step takes the lamb's weight as it is (%s), %.3f -> %.3f kg",
+    check(string.format("mixed pen: once the uncovered animal leaves the pen runs the mode again; the first step takes the lamb's weight as it is (%s), %.3f -> %.3f kg",
         tostring(state.source), weightOut, lamb.weight),
         hours[7].active and hours[7].steps > 0 and hours[7].legacy == 0 and state.source == "resync"
         and math.abs(lamb.weight - weightOut) < 0.5 and state.weightKg == lamb.weight and state.lastTick == RLBodyCondition.getTickId())
@@ -115,8 +115,8 @@ do
     SheepSim.run(pure, 1, GRASS)
     local weight, health = lamb.weight, lamb.health
     check("same hour: the lamb was stepped in its pure pen this hour", counts.steps > 0 and lamb.rlGrowth.lastTick == RLBodyCondition.getTickId())
-    -- Moved into a pen with a goat in the same hour: that pen takes neither its health nor the old rule.
-    local goat = SheepSim.identify((GrowthSim.makeAnimal("GOAT", { age = 24 })), "RG2")
+    -- Moved into a pen with an uncovered animal in the same hour: that pen takes neither its health nor the old rule.
+    local goat = SheepSim.identify((SheepSim.uncovered()), "RG2")
     local mixed = SheepSim.makePen({ goat }, GRASS)
     table.insert(mixed.animals, lamb)
     setOwner(lamb, mixed)
@@ -391,8 +391,8 @@ do
     end
     local section = RLFeedProfiles.getConfig().species.SHEEP
     local gaps = {
-        { "a goat in the pen (grass only)", function(lamb, pen)
-            local goat = SheepSim.identify((GrowthSim.makeAnimal("GOAT", { age = 24 })), "CG")
+        { "an uncovered animal in the pen (grass only)", function(lamb, pen)
+            local goat = SheepSim.identify((SheepSim.uncovered()), "CG")
             table.insert(pen.animals, goat)
             setOwner(goat, pen)
             SheepSim.run(pen, 8, GRASS)
@@ -412,8 +412,8 @@ do
     }
     -- The shortest gap: a single hour (1.25 model days at a 1-day month) off the mode.
     local oneHour = {
-        { "a goat in the pen (grass only)", function(lamb, pen)
-            local goat = SheepSim.identify((GrowthSim.makeAnimal("GOAT", { age = 24 })), "CG1")
+        { "an uncovered animal in the pen (grass only)", function(lamb, pen)
+            local goat = SheepSim.identify((SheepSim.uncovered()), "CG1")
             table.insert(pen.animals, goat)
             setOwner(goat, pen)
             SheepSim.run(pen, 1, GRASS)
@@ -450,7 +450,7 @@ do
     -- A weaned lamb stays weaned through a gap.
     local weaned, wpen = orphan("CRW")
     SheepSim.run(wpen, 1, CREEP)
-    local goat = SheepSim.identify((GrowthSim.makeAnimal("GOAT", { age = 24 })), "CGW")
+    local goat = SheepSim.identify((SheepSim.uncovered()), "CGW")
     table.insert(wpen.animals, goat); setOwner(goat, wpen)
     SheepSim.run(wpen, 8, GRASS)
     table.remove(wpen.animals)

@@ -284,6 +284,57 @@
         <fatClass name="5" minReserve="0.75"/>
     </species>
 
+    <!-- Goats (2026-10-22): PROXY, the sheep section's values (small ruminant reserve and fat classes) until a goat
+         calibration; goats read this section, never the sheep's (RLSpecies). -->
+    <species name="GOAT" calfLegacyUntilAgeMonth="0" initialReserve="0.50" reserveCapacityRatio="0.48" referenceReserve="0.50" minReserve="0.05"
+        gainRatePerMonth="0.30" lossRatePerMonth="0.25" heiferReserveCeiling="0.55" cowReserveCeiling="0.80"
+        steerFinishShift="0.09" femaleFinishShift="0.18" youngUntilMonth="12" fertilityEffect="0" birthReserve="0.25"
+        finishReadyReserve="0.25" finishOverfatReserve="0.58">
+        <finishingTarget>
+            <point x="0.50" y="0.30"/>
+            <point x="0.80" y="0.38"/>
+            <point x="1.00" y="0.45"/>
+            <point x="1.15" y="0.58"/>
+            <point x="1.30" y="0.70"/>
+            <point x="1.50" y="0.82"/>
+        </finishingTarget>
+        <finishScore>
+            <point x="0" y="0"/>
+            <point x="1" y="100"/>
+        </finishScore>
+        <yield>
+            <point x="24.9" y="0.95"/>
+            <point x="25" y="1.00"/>
+            <point x="49.9" y="1.00"/>
+            <point x="50" y="0.99"/>
+            <point x="57.9" y="0.99"/>
+            <point x="58" y="0.97"/>
+            <point x="65.9" y="0.97"/>
+            <point x="66" y="0.955"/>
+            <point x="74.9" y="0.955"/>
+            <point x="75" y="0.90"/>
+        </yield>
+        <market>
+            <point x="24.9" y="0.95"/>
+            <point x="25" y="1.00"/>
+            <point x="49.9" y="1.00"/>
+            <point x="50" y="0.99"/>
+            <point x="57.9" y="0.99"/>
+            <point x="58" y="0.97"/>
+            <point x="65.9" y="0.97"/>
+            <point x="66" y="0.955"/>
+            <point x="74.9" y="0.955"/>
+            <point x="75" y="0.90"/>
+        </market>
+        <fatClass name="1" minReserve="0"/>
+        <fatClass name="2" minReserve="0.25"/>
+        <fatClass name="3L" minReserve="0.38"/>
+        <fatClass name="3H" minReserve="0.50"/>
+        <fatClass name="4L" minReserve="0.58"/>
+        <fatClass name="4H" minReserve="0.66"/>
+        <fatClass name="5" minReserve="0.75"/>
+    </species>
+
     <!--
         Pigs (pig P5, 2026-10-16; FS25_PigBreeds_离线准备_2026-10-16/PIG_P5_单胃营养设计.md). The reserve is body lipid
         (NRC 2012 ch. 8), the frame everything else. One unit of the reserve index is 0.356 of the reference live weight,

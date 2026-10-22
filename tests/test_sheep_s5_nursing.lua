@@ -210,10 +210,10 @@ do
     FeedSim.hour(pen)
     check("troughs: with sheep running the mode the pen takes silage and grain", RLFeed.acceptsFill(pen, silage) and RLFeed.acceptsFill(pen, barley)
         and RLFeed.acceptsFill(pen, grass))
-    local goat = SheepSim.identify((GrowthSim.makeAnimal("GOAT", { age = 24 })), "G1")
+    local goat = SheepSim.identify((SheepSim.uncovered()), "G1")
     local mixed = SheepSim.makePen({ SheepSim.ewe("SHEEP_LANDRACE", "T2"), goat })
     FeedSim.hour(mixed)
-    check("troughs: a pen with a goat (never in the mode) takes no silage or grain; its pen keeps the old rules",
+    check("troughs: a pen with an uncovered animal (never in the mode) takes no silage or grain; its pen keeps the old rules",
         not RLFeed.acceptsFill(mixed, silage) and not RLFeed.acceptsFill(mixed, barley) and RLFeed.acceptsFill(mixed, grass)
         and mixed.spec_husbandryFood.rlFeedPen.reason == "UNCOVERED_ANIMAL")
     -- A sheep in that pen keeps the old weight rule: no budget on the old feeding (its ME
@@ -224,7 +224,7 @@ do
     local development, ageClock, weight = mixedLamb.rlGrowth.developmentMonths, mixedLamb.rlGrowth.ageMonths, mixedLamb.weight
     local lastTick = mixedLamb.rlGrowth.lastTick
     SheepSim.run(mixedPen, 6, GRASS)
-    check(string.format("mixed pen: a lamb with a goat takes the old weight rule (development %.4f -> %.4f, age clock %.4f -> %.4f, last step %s, weight %.2f -> %.2f)",
+    check(string.format("mixed pen: a lamb with an uncovered animal takes the old weight rule (development %.4f -> %.4f, age clock %.4f -> %.4f, last step %s, weight %.2f -> %.2f)",
         development, mixedLamb.rlGrowth.developmentMonths, ageClock, mixedLamb.rlGrowth.ageMonths, tostring(mixedLamb.rlGrowth.lastTick), weight, mixedLamb.weight),
         not mixedPen.spec_husbandryFood.rlFeedPen.active and mixedLamb.rlGrowth.developmentMonths == development
         and math.abs(mixedLamb.rlGrowth.ageMonths - (ageClock + 6 / 24)) < 1e-9 and mixedLamb.rlGrowth.lastTick == lastTick

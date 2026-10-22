@@ -2129,7 +2129,9 @@ function Animal:updateOutput(temp)
         -- the budget paid for instead (RLBodyCondition.depositMilk), otherwise this as before.
         if isMilk then
             litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, milkCurve, diseaseFactor, healthyLitersPerDay)
-        elseif palletMilkCurve ~= nil and Animal.isCowMilkPalletFillType(output.fillType) then
+        elseif palletMilkCurve ~= nil and Animal.isLactationPalletFillType(output.fillType) then
+            -- Milk in cans or pallets (cow and buffalo cans, goat milk): recorded for the budget the same
+            -- way, so a covered dam's store gets what her budget paid after her young drank (RLFeed).
             litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, palletMilkCurve, diseaseFactor, healthyLitersPerDay)
         end
         -- A suckler (beef) breed's milk is for her calf, not the store (breedTraits milkCollect 0):

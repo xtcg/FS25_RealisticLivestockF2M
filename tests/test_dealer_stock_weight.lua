@@ -90,13 +90,13 @@ local before = heavy.weight
 W.check(heavy, landrace, "SHELF")
 check("an existing heavy listing is not clipped, only warned", heavy.weight == before and warnings(logged) == 2)
 
--- A goat: no curve, the old rules' weight stays.
+-- A goat: its own GOAT curve (unified nursing design, 2026-10-22), never a sheep breed's.
 local goat = GrowthSim.makeAnimal("GOAT", { age = 5 })
-local goatWeight = goat.weight
 W.applyToNewStock(goat, goat:getSubType())
 goat.age = 6
 W.onShelfAged(goat, 5)
-check("a goat (no breed curve) keeps the old rules' weight", goat.weight == goatWeight and W.getBinding(goat:getSubType()) == nil)
+local goatBinding = W.getBinding(goat:getSubType())
+check("a goat's dealer stock binds to its own GOAT curve", goatBinding ~= nil and goatBinding.profile == "SHEEP:GOAT" and goat.weight > 0)
 
 -- Curves on (sheep): Animal.new already gives the curve and a generated state; the shelf moves both.
 SheepSim.enable(true)

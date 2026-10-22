@@ -310,6 +310,8 @@ RLFeed.isBeefCattle = isBeefCattle
 --- (the unified contract, NUTRITION_COVERAGE): a species with nursing rules (sheep, pigs) or beef
 --- cattle. A dairy cow is a dam while she gives milk (RLFeed.canNurse).
 local function pairsYoung(animal)
+    -- A dairy goat nurses as a dairy cow does (DAIRY_MILK): her milk is her genes' and lactation's.
+    if RLFeed.getRearingMode(animal) == "DAIRY_MILK" then return false end
     return getNursing(animal) ~= nil or isBeefCattle(animal)
 end
 RLFeed.pairsYoung = pairsYoung
@@ -834,7 +836,7 @@ end
 function RLFeed.getMilkRealPerGameLiter(animal)
     -- Nursing rules (sheep): the dam's milk is counted in real kg from the start (her lactation
     -- rows), never a game liter; the ME a kg costs her is her species' milk meMJPerKg.
-    if getNursing(animal) ~= nil then return 1, RLFeed.getConfig(animal).milk.meMJPerKg end
+    if pairsYoung(animal) then return 1, RLFeed.getConfig(animal).milk.meMJPerKg end
     local subType = animal:getSubType()
     local binding = RLGrowth.getBinding(subType)
     if isBeefCattle(animal) then
@@ -843,11 +845,35 @@ function RLFeed.getMilkRealPerGameLiter(animal)
         return 1, mePerKg
     end
     local realKg, mePerKg = RLFeedProfiles.getMilkBridge(binding ~= nil and binding.profile or nil)
-    local milkCurve = subType ~= nil and subType.output ~= nil and subType.output.milk or nil
-    local mature = milkCurve ~= nil and milkCurve.get ~= nil and milkCurve:get(60) * RLBreedTraits.get(subType, "milkScale") or 0
+    local config = RLFeed.getConfig(animal)
+    if config.speciesName ~= nil and (binding == nil or RLFeedProfiles.getConfig().milk.breeds[(binding.profile or ""):upper()] == nil) then
+        -- A species section's own milk (goats): its real lactation average and ME a kg.
+        realKg, mePerKg = config.milk.realKgPerDay, config.milk.meMJPerKg
+    end
+    local mature = RLFeed.getMatureMilk(subType) * RLBreedTraits.get(subType, "milkScale")
     local mean = mature * RLBodyCondition.getConfig(animal).lactationMeanFactor
     if mean <= 0 then return 0, mePerKg end
     return realKg * RLFeed.getConfig(animal).realDaysPerPeriod / mean, mePerKg
+end
+
+
+--- A subtype's game milk curve at a mature age (game liters, as its output gives them): the tank
+--- milk curve (output.milk), else the milk sold in cans or pallets (output.pallets of a lactation
+--- fill type: goat milk, Hof Bergmann's cattle cans). One reader for both shapes.
+--- @return number
+function RLFeed.getMatureMilk(subType)
+    local output = subType ~= nil and subType.output or nil
+    if output == nil then return 0 end
+    local milk = output.milk
+    if milk ~= nil and milk.get ~= nil and (Animal == nil or Animal.isSemenFillType == nil or not Animal.isSemenFillType(milk.fillType)) then
+        return milk:get(60) or 0
+    end
+    local pallets = output.pallets
+    if pallets ~= nil and Animal ~= nil and Animal.isLactationPalletFillType ~= nil and Animal.isLactationPalletFillType(pallets.fillType) then
+        local curve = pallets.curve or pallets
+        return curve.get ~= nil and (curve:get(60) or 0) or 0
+    end
+    return 0
 end
 
 
@@ -1566,8 +1592,9 @@ function RLFeed.linkDams(animals, stepDays)
             local perDay = coverage and (dam.youngDemandKgDM or 0) or math.max(dam.milkKgPerDay or 0, 0) * damMilk.dm
             dam.nursing = { dam = dam, kg = perDay * share * stepDays, me = damMilk.me, cp = damMilk.cp,
                 lys = damMilk.sidLys or 0, coverage = coverage,
-                -- A paired dam's whole demand this step: her young may get up to this if she pays it.
-                fullKg = coverage and perDay * stepDays or nil }
+                -- Her young's whole demand this step: what she actually pays goes to them first, up to
+                -- this - more than the pool planned on when she pays more than her last step's share.
+                fullKg = (dam.youngDemandKgDM or 0) * stepDays }
         end
         a.damPool = dam.nursing
     end
@@ -1660,7 +1687,8 @@ function RLFeed.runStep(placeable, window, stepDays)
                 if r < 1 then fill.kg, fill.liters, fill.me, fill.cpKg = fill.kg * r, fill.liters * r, fill.me * r, fill.cpKg * r end
             end
         end
-        if a.damMilk ~= nil then RLFeed.settleDamMilk(a, hour, config.damMilk, observed) end
+        -- Each dam's own milk (a goat's in a sheep pen is goat milk), never the pen's section.
+        if a.damMilk ~= nil then RLFeed.settleDamMilk(a, hour, RLFeed.getConfig(a.damPool.dam.animal).damMilk, observed) end
         RLFeedRationPlanner.sumAnimal(a)
         local animal = a.animal
         -- A calf's milk this step: what it planned to drink and what it got (trough and dam).
@@ -1696,7 +1724,7 @@ function RLFeed.runStep(placeable, window, stepDays)
             -- What her budget paid this step, as real kg DM her calves may drink.
             local liters = hour.animals[animal].milkPaidLiters - paidBefore
             a.nursing.paidLiters = liters
-            a.nursing.paidKg = liters * RLFeed.getMilkRealPerGameLiter(animal) * config.damMilk.dm
+            a.nursing.paidKg = liters * RLFeed.getMilkRealPerGameLiter(animal) * RLFeed.getConfig(animal).damMilk.dm
         end
         if observed ~= nil then
             table.insert(observed.animals, { animal = animal, feed = feed, result = feed.result, weightBefore = before.weight,
@@ -1806,10 +1834,10 @@ function RLFeed.settleDamMilk(a, hour, damMilk, observed)
     if pool.factor == nil then
         local planned = pool.plannedKg or 0
         local paid = pool.paidKg or 0
-        -- A paired dam paid for her young's whole demand as far as she could: they get what she paid,
-        -- each its own demand x her paid share - more than they planned on when she paid more than
-        -- her last step's share, never more than their demand.
-        local most = pool.coverage and pool.fullKg ~= nil and planned > 0 and math.max(pool.fullKg / planned, 1) or 1
+        -- Her young drink first: what she paid goes to them, each its own demand x one share - more
+        -- than they planned on when she paid more than her last step's share, never more than their
+        -- demand. A dairy dam's store takes only what is left.
+        local most = pool.fullKg ~= nil and planned > 0 and math.max(pool.fullKg / planned, 1) or 1
         pool.factor = planned > 0 and math.clamp(paid / planned, 0, most) or 0
         local allocated = planned * pool.factor
         local dam = pool.dam.animal
@@ -1907,7 +1935,7 @@ function RLFeed.countUnnursed(placeable)
     local count = 0
     local dams = getPenDams(placeable)
     for _, animal in ipairs(placeable:getClusters() or {}) do
-        if not animal.isDead and (animal.numAnimals or 1) > 0 and RLFeed.getNursingMilkMax(animal) > 0
+        if not animal.isDead and (animal.numAnimals or 1) > 0 and RLFeed.getYoungMilkByAge(animal) > 0
             and (animal.motherId == nil or dams[animal.motherId] == nil) and not RLFeed.isEarlyWeaned(animal) then
             count = count + 1
         end
@@ -1989,7 +2017,7 @@ function RLFeed.endFeeding(placeable)
         record.milkShort = RLFeed.isMilkShort(record.milkPlanKg, record.milkDrunkKg)
         animal.rlFeedIntake = record
         -- A suckler breed's milk left after her calves is not collected (breedTraits milkCollect).
-        local collect = record.milkLiters > 0 and (getNursing(animal) ~= nil and 0 or RLBreedTraits.getMilkCollect(animal:getSubType())) or 1
+        local collect = record.milkLiters > 0 and (pairsYoung(animal) and 0 or RLBreedTraits.getMilkCollect(animal:getSubType())) or 1
         record.milkLiters = record.milkLiters * collect
         -- The store deposits liters per hour x the hour's time adjustment.
         animal.rlMilkPaid = { tick = tick, litersPerHour = timeAdjustment > 0 and record.milkLiters / timeAdjustment or 0, deposited = false }
@@ -2007,7 +2035,7 @@ function RLFeed.endFeeding(placeable)
     hour.calfMilk = hour.steps > 0 and isRearingPen(placeable) and RLFeed.getPenCalfMilkAlert(placeable, hour) or nil
     -- Nursing rules (sheep): young still on milk with no dam here (moved, sold, or its dam moved
     -- away) get no milk at all - the player is told, never stopped (S5 D4).
-    if hour.steps > 0 and getNursing(placeable) ~= nil then hour.unnursed = RLFeed.countUnnursed(placeable) end
+    if hour.steps > 0 and not isRearingPen(placeable) then hour.unnursed = RLFeed.countUnnursed(placeable) end
 
     hour.tick = tick
     hour.limits = {}
