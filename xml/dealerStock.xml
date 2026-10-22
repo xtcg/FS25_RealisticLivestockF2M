@@ -89,7 +89,7 @@
     The ages, shares and ratios are first game values for review, not validated farm data.
 
     To change this without editing the mod, copy it to
-    modSettings/FS25_RealisticLivestockRM/dealerStock.xml; that copy then replaces this file
+    modSettings/FS25_RealisticLivestockF2M/dealerStock.xml; that copy then replaces this file
     entirely. In multiplayer the server's file applies.
 -->
 <dealerStock version="2" maxAttempts="8" femaleShare="0.5">

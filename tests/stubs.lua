@@ -1,6 +1,8 @@
 -- Minimal stand-ins for the GIANTS engine globals the tested scripts touch at load and run time.
 -- Each test file gets a fresh Lua state with these loaded, then overrides what it needs.
 
+g_currentModName = "FS25_RealisticLivestockRM"
+
 math.clamp = function(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 math.pow = math.pow or function(a, b) return a ^ b end
 

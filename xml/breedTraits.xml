@@ -71,7 +71,7 @@
     without woolShearing uses these same presets.
 
     To change these without editing the mod, copy this file to
-    modSettings/FS25_RealisticLivestockRM/breedTraits.xml; that copy then replaces this file
+    modSettings/FS25_RealisticLivestockF2M/breedTraits.xml; that copy then replaces this file
     entirely. In multiplayer the server's file applies.
 -->
 <breedTraits growthNutritionFactor="1.10" bodyWeightExponent="0.35" minBodyRatio="0.5" maxBodyRatio="1.5"

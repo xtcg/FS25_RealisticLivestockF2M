@@ -106,7 +106,7 @@
     minReserve it reaches). Goats and every other type read the root.
 
     To change these without editing the mod, copy this file to
-    modSettings/FS25_RealisticLivestockRM/bodyCondition.xml; that copy then replaces this file
+    modSettings/FS25_RealisticLivestockF2M/bodyCondition.xml; that copy then replaces this file
     entirely. An invalid file switches the feature off and logs why.
 -->
 <bodyCondition enabled="true" calfLegacyUntilAgeMonth="6" fixedFeedPrice="false"

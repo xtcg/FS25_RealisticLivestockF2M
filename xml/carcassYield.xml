@@ -77,7 +77,7 @@
     target weight of the subtypes the facility takes as the same fill type.
 
     To change these without editing the mod, copy this file to
-    modSettings/FS25_RealisticLivestockRM/carcassYield.xml; that copy then replaces this file
+    modSettings/FS25_RealisticLivestockF2M/carcassYield.xml; that copy then replaces this file
     entirely. In multiplayer the server's file applies.
 -->
 <carcassYield qualitySwing="0.20" slaughterShare="0.85" cullShare="0.70" maxSlaughterMargin="0.25" cullFloorFactor="0.82"

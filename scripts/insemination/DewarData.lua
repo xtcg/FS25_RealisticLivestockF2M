@@ -15,7 +15,8 @@ local Log = RmLogging.getLogger("RLRM")
 
 DewarData = {}
 
-DewarData.SPEC_TABLE_NAME = "spec_FS25_RealisticLivestockRM.dewarData"
+local saveNamespace = "." .. g_currentModName .. ".dewarData"
+DewarData.SPEC_TABLE_NAME = "spec_" .. g_currentModName .. ".dewarData"
 DewarData.CAPACITY = 1000
 --- Price of one straw from an average sire (breeding index 1) at conception rate 1 and dealer
 --- price factor 1, before RLSemenCollection.getStrawPrice applies those. Set so the AI dealer's
@@ -90,7 +91,10 @@ function DewarData:onLoad(savegame)
 
     -- Load from savegame if available
     if savegame ~= nil and savegame.xmlFile ~= nil then
-        local key = savegame.key .. ".FS25_RealisticLivestockRM.dewarData"
+        local key = savegame.key .. saveNamespace
+        if not savegame.xmlFile:hasProperty(key) then
+            key = savegame.key .. ".FS25_RealisticLivestockRM.dewarData"
+        end
         if savegame.xmlFile:hasProperty(key) then
             DewarData.loadDewarFromSavegame(self, savegame.xmlFile, key)
         end

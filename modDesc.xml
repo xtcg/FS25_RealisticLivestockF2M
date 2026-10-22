@@ -102,7 +102,7 @@ Documentation:
 
 1.4.0.1-dev.4 (xtcg fork, Hof Bergmann):
 - Fixed the Hof Bergmann public slaughterhouse refusing every animal, and passed the delivering farm to it in multiplayer.
-- Butcher and slaughterhouse deliveries now scale with the animal: its frame (its own target weight x a slaughter maturity for its breed and sex), how finished it is, its breed's carcass factor and its meat gene. Settings in xml/carcassYield.xml; a copy in modSettings/FS25_RealisticLivestockRM/ replaces it.
+- Butcher and slaughterhouse deliveries now scale with the animal: its frame (its own target weight x a slaughter maturity for its breed and sex), how finished it is, its breed's carcass factor and its meat gene. Settings in xml/carcassYield.xml; a copy in modSettings/FS25_RealisticLivestockF2M/ replaces it.
 - New breed target weights for cattle, pigs, sheep and goats; animals in a save move to them.
 - Breeds differ in feed, growth and how well they use grass, hay and silage (xml/breedTraits.xml). Growth needs better feed for full speed: silage no longer grows as fast as TMR. Daily food follows body condition.
 - Meat animals reach slaughter weight at realistic ages on full feed: bulls 17 (Holstein) to 25 months (Highland), pigs 5.5 to 6.5, sheep 5 to 5.5. Gilts grow almost as fast as boars. Food curves keep each breed's feed per kg gained in order, and cows eat for their frame.

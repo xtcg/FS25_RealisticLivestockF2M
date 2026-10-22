@@ -84,7 +84,7 @@
 - 本 Mod 不包含 Hof Bergmann 地图本体，地图需通过原作者的[官方渠道](https://www.lsfarming-mods.com/)单独获取。
 - 本项目基于 Realistic Livestock 的开源版本继续开发，并保留原项目的核心动物管理系统。
 - 采用 GPL-3.0 开源许可证。原项目及相关作者的贡献均保留署名；许可证见 [LICENSE](LICENSE)，对应源码公开于本仓库。
-- 0.2.0.0 安装包使用 `FS25_RealisticLivestockRM.zip`，保留已验证的精液罐／手持工具命名空间。项目名称仍为 Farm to Market。升级前请备份存档，并移除旧 `FS25_RealisticLivestockF2M.zip`，不要同时加载两个名称的包。
+- 0.2.0.0 安装包使用 `FS25_RealisticLivestockF2M.zip`，运行时命名空间跟随包名，现有 F2M 精液罐／手持工具保持原命名空间。升级前请备份存档，并移除旧 `FS25_RealisticLivestockRM.zip`，不要同时加载两个包。
 - 本介绍主要涵盖畜牧生产与经济调整。更广泛的作物、农产品价格与投入品经济调整由独立项目 [FS25_EconomyTuner](https://github.com/xtcg/FS25_EconomyTuner)（原 FS25_SellPrices）负责。尚未发布的改动和验证状态以 [CHANGELOG.md](CHANGELOG.md) 为准。
 
 ## 相关独立 Mod（可选）
@@ -96,7 +96,7 @@
 
 ## 安装
 
-将 `FS25_RealisticLivestockRM.zip` 放入 FS25 的 mods 文件夹，**无需解压**，然后在游戏中启用。更新前请备份存档并移除旧 `FS25_RealisticLivestockF2M.zip`，不要同时加载两个包。
+将 `FS25_RealisticLivestockF2M.zip` 放入 FS25 的 mods 文件夹，**无需解压**，然后在游戏中启用。更新前请备份存档并移除旧 `FS25_RealisticLivestockRM.zip`，不要同时加载两个包。
 
 原有动物管理功能、兼容性及旧版迁移说明见[上游 README](docs/UPSTREAM_README.md) 和[用户指南](https://xtcg.github.io/FS25_RealisticLivestockF2M/)。
 

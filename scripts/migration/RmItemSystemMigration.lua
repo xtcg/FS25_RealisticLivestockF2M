@@ -22,7 +22,7 @@ local Log = RmLogging.getLogger("RLRM")
 RmItemSystemMigration = {}
 
 local OLD_MOD_NAME = "FS25_RealisticLivestock"
-local NEW_MOD_NAME = "FS25_RealisticLivestockRM"
+local NEW_MOD_NAME = g_currentModName
 local OLD_MOD_DIR = "$moddir$" .. OLD_MOD_NAME .. "/"
 local NEW_MOD_DIR = "$moddir$" .. NEW_MOD_NAME .. "/"
 

@@ -1,7 +1,8 @@
 HandToolAIStraw = {}
 
 HandToolAIStraw.numHeldStraws = 0
-local specName = "spec_FS25_RealisticLivestockRM.aiStraw"
+local specName = "spec_" .. g_currentModName .. ".aiStraw"
+local saveNamespace = "." .. g_currentModName .. ".aiStraw"
 
 
 function HandToolAIStraw.registerFunctions(handTool)
@@ -61,7 +62,10 @@ function HandToolAIStraw:onPostLoad(savegame)
 	local xmlFile, key = savegame.xmlFile, savegame.key
 
 	-- Try new namespace first, fall back to old namespace (migration support)
-	local namespace = ".FS25_RealisticLivestockRM.aiStraw"
+	local namespace = saveNamespace
+	if not xmlFile:hasProperty(key .. namespace) then
+		namespace = ".FS25_RealisticLivestockRM.aiStraw"
+	end
 	if not xmlFile:hasProperty(key .. namespace) then
 		namespace = ".FS25_RealisticLivestock.aiStraw"  -- Legacy fallback
 	end

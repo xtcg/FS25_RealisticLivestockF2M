@@ -236,7 +236,7 @@
     the coverage, and health the coverage too (reason WATER, kept apart from feed shortfall in the
     records). Water amounts themselves (animals.xml input water) are not changed here.
 
-    Copy this file to modSettings/FS25_RealisticLivestockRM/feedProfiles.xml to change it; that
+    Copy this file to modSettings/FS25_RealisticLivestockF2M/feedProfiles.xml to change it; that
     copy replaces this file. A file that fails a check keeps the mode off and logs why; a single
     feed that fails is left uneaten and listed.
 -->

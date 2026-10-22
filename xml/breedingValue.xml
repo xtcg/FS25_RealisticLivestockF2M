@@ -30,7 +30,7 @@
     Every value here is a game-economy candidate, not fitted to market data. Each is looked up by
     subType name, then breed within the animal type, then animal type, then this root element.
     To change them without editing the mod, copy this file to
-    modSettings/FS25_RealisticLivestockRM/breedingValue.xml (it then replaces this file).
+    modSettings/FS25_RealisticLivestockF2M/breedingValue.xml (it then replaces this file).
 
     enabled              1 prices cattle so, 0 keeps the old curve price with the fixed bonuses.
     alphaNormal          Share of standard production value paid, and of a shortfall taken off.

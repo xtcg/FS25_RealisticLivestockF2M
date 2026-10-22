@@ -104,7 +104,7 @@
     points assume.
 
     To change these without editing the mod, copy this file to
-    modSettings/FS25_RealisticLivestockRM/weightProfiles.xml; that copy then replaces this file
+    modSettings/FS25_RealisticLivestockF2M/weightProfiles.xml; that copy then replaces this file
     entirely. An invalid file switches the model off and logs why.
 -->
 <weightProfiles enabled="true"
