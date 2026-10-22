@@ -142,7 +142,10 @@ function Animal.new(config)
         end
 
 
-        if self.animalTypeIndex == AnimalType.COW or self.animalTypeIndex == AnimalType.SHEEP or self.animalTypeIndex == AnimalType.CHICKEN then
+        -- Only an animal that has the gene draws it (RLRearingPolicy: beef cattle have no milk gene).
+        local hasProductivity = self.animalTypeIndex == AnimalType.COW or self.animalTypeIndex == AnimalType.SHEEP or self.animalTypeIndex == AnimalType.CHICKEN
+        if hasProductivity and RLRearingPolicy ~= nil and subType ~= nil then hasProductivity = RLRearingPolicy.hasTrait(subType, "productivity") end
+        if hasProductivity then
             local productivityChance = math.random()
 
             if productivityChance < 0.05 then
@@ -187,6 +190,11 @@ function Animal.new(config)
         else
             self.genetics.metabolism = math.random(90, 110) / 100
         end
+    elseif RLRearingPolicy ~= nil and subType ~= nil then
+        -- Given genes (a load, a birth, a stream, a dealer): a gene the animal does not have is
+        -- dropped, the others kept as they are.
+        local _, removed = RLRearingPolicy.normalizeGenetics(subType, genetics)
+        if removed then RLRearingPolicy.noteMigrated("animal", cfg.uniqueId) end
     end
 
 
@@ -467,6 +475,7 @@ function Animal:getBirthday()
 end
 
 function Animal:setGenetics(genetics)
+    if RLRearingPolicy ~= nil and genetics ~= nil then RLRearingPolicy.normalizeGenetics(self:getSubType(), genetics) end
     self.genetics = genetics
 end
 
@@ -2014,6 +2023,10 @@ function Animal:updateOutput(temp)
         local parityFactor = cattleMilk and self:getParityFactor() or 1
         -- A breed whose milk curve is not on this mod's scale (a pack's own animals.xml) is scaled to it (breedTraits milkScale).
         local milkScale = cattleMilk and RLBreedTraits.get(subType, "milkScale") or 1
+        -- Beef cattle give no milk output at all (RLRearingPolicy): no curve, no milk gene, nothing for a
+        -- store. What a beef cow's calves drink is the nutrition she pays for them (RLFeed nursing),
+        -- never this curve.
+        if cattleMilk and RLRearingPolicy ~= nil and RLRearingPolicy.isBeef(subType) then milkScale = 0 end
 
         if output.curve ~= nil then
             litersPerDay = output.curve:get(curveAge)

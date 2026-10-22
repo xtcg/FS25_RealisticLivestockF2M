@@ -189,7 +189,7 @@ local function refreshMilk(animal, lastBirth, time)
     local milk = curve ~= nil and curve.get ~= nil and curve:get(RLMilkParity.getCurveAge(animal.age)) or 0
     milk = milk * RLMilkParity.getFactor(RLMilkParity.getParity(animal.birthCount)) * RLBreedTraits.get(sub, "milkScale")
     RLBodyCondition.applyMilk(animal, animal.isLactating
-        and milk * RLLactation.getYieldFactor(animal.monthsSinceLastBirth) * animal.genetics.productivity or 0, milk, 1)
+        and milk * RLLactation.getYieldFactor(animal.monthsSinceLastBirth) * (animal.genetics.productivity or 0) or 0, milk, 1)
 end
 
 local function cloneReplayAnimal(original)
@@ -234,7 +234,11 @@ local function replay(seed, history, options, previous, targetAge, sourceBoundar
     end
     local genes = seed.genetics
     for _, key in ipairs({ "metabolism", "quality", "productivity", "fertility", "health" }) do
-        if genes == nil or not finite(genes[key]) or genes[key] < 0.25 or genes[key] > 1.75 then return reject("GENETICS") end
+        -- A beef seed has no milk gene (RLRearingPolicy): required only where the subtype has it.
+        local required = key ~= "productivity" or RLRearingPolicy == nil or RLRearingPolicy.hasTrait(sub, key)
+        if genes == nil then return reject("GENETICS") end
+        if not required and genes[key] ~= nil then return reject("GENETICS") end
+        if required and (not finite(genes[key]) or genes[key] < 0.25 or genes[key] > 1.75) then return reject("GENETICS") end
     end
     if seed.geneticsScreened ~= true then return reject("GENETICS_NOT_SCREENED") end
     for _, disease in pairs(seed.diseases or {}) do

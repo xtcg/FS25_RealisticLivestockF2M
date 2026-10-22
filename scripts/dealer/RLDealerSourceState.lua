@@ -82,8 +82,14 @@ function S.validate(r)
         or type(a.isPregnant) ~= "boolean" or not finite(a.reproduction) or a.reproduction < 0 or a.reproduction >= 100 then
         return false, "SOURCE_STATE"
     end
+    -- The genes its breed has (the dealer is cattle-only; RLRearingPolicy: beef cattle have no milk
+    -- gene, and must not have one).
+    local use = RLRearingPolicy ~= nil and RLRearingPolicy.getUseNamed("COW", a.breed, a.subType) or nil
     for _, key in ipairs({ "metabolism", "quality", "productivity", "fertility", "health" }) do
-        if type(a.genetics) ~= "table" or not finite(a.genetics[key]) or a.genetics[key] < 0.25 or a.genetics[key] > 1.75 then
+        local required = RLRearingPolicy == nil or RLRearingPolicy.hasTraitNamed("COW", use, key)
+        if type(a.genetics) ~= "table" then return false, "SOURCE_GENETICS" end
+        if not required and a.genetics[key] ~= nil then return false, "SOURCE_GENETICS" end
+        if required and (not finite(a.genetics[key]) or a.genetics[key] < 0.25 or a.genetics[key] > 1.75) then
             return false, "SOURCE_GENETICS"
         end
     end

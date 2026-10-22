@@ -103,10 +103,12 @@ for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end
 end
 
--- breedTraits milkCollect: a suckler (beef) breed's milk is her calf's, not the store's.
-check("suckler: a Cow Breeds pack beef cow (milkCollect 0) puts nothing in the tank or the cans; her budget still sees her milk",
+-- Beef cattle (breedTraits productionUse BEEF, RLRearingPolicy) give no milk output at all: nothing in the tank or the
+-- cans, and no curve milk for the budget either - her calves are fed on the nutrition she pays for them (RLFeed nursing).
+check("suckler: a Cow Breeds pack beef cow puts nothing in the tank or the cans, and her budget sees no curve milk",
     perDay(60, 5, nil, nil, nil, "COW_CHAROLAIS_PACK") == 0 and perDay(60, 5, nil, "pallets", nil, "COW_CHAROLAIS_PACK") == 0
-    and lastCurve ~= nil and lastCurve > 0)
+    and (lastCurve == nil or lastCurve == 0))
+check("dairy: a Cow Breeds pack dairy cow still gives milk", perDay(60, 5, nil, nil, nil, "COW_JERSEY_PACK") > 0)
 
 -- breedTraits sucklingMonths: a suckler cow is dried off when her calf is weaned at 7 months.
 loadAnimalSection("function Animal:advanceRecoveryPeriod", "\nfunction Animal:onPeriodChanged")

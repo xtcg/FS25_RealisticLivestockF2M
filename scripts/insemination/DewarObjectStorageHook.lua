@@ -169,6 +169,8 @@ function DewarObjectStorageHook.readStateFromXML(xmlFile, baseKey)
         for _, gene in ipairs(DewarObjectStorageHook.GENETICS_FIELDS) do
             animal.genetics[gene] = xmlFile:getValue(animalBase .. ".genetics#" .. gene)
         end
+        -- A beef sire's straw has no milk gene (RLRearingPolicy).
+        if RLRearingPolicy ~= nil then RLRearingPolicy.normalizeByIndex(animal.subTypeIndex, animal.genetics) end
         state.animal = animal
     end
 

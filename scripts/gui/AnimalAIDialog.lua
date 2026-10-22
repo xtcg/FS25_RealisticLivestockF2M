@@ -293,6 +293,9 @@ function AnimalAIDialog:onClickSortButton(button)
 
         end
 
+		-- A gene a straw's sire does not have (a beef or pig sire's milk gene) sorts after every value.
+		if aTarget == nil or bTarget == nil then return aTarget ~= nil and bTarget == nil end
+
 		if sorter then return aTarget > bTarget end
 
 		return aTarget < bTarget

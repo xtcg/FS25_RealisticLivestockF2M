@@ -131,6 +131,8 @@ end
 
 -- The game's milk rule (births, the monthly tick, yield, the forecast and the dealer).
 loadMod("scripts/animal/RLLactation.lua")
+-- What each subtype is kept for and which genes it has (reads RLBreedTraits when a test loads it).
+loadMod("scripts/animal/RLRearingPolicy.lua")
 -- Shared butcher age window, sourced by main.lua before move modules.
 loadMod("scripts/utils/RLEppAge.lua")
 

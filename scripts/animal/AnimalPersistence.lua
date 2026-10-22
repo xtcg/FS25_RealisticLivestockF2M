@@ -399,6 +399,19 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
 
 
 
+    -- The beef milk gene of an old save (RLRearingPolicy): the sire snapshot by its breed, a pending
+    -- straw by its sire's subtype; the animal's own genes and its fetuses' in Animal.new.
+    if RLRearingPolicy ~= nil then
+        local animalSubType = subTypeIndex ~= nil and g_currentMission.animalSystem:getSubTypeByIndex(subTypeIndex) or nil
+        local typeName = animalSubType ~= nil and RLBreedTraits.getTypeName(animalSubType) or nil
+        if impregnatedBy ~= nil and select(2, RLRearingPolicy.normalizeNamed(typeName, impregnatedBy.breed, impregnatedBy)) then
+            RLRearingPolicy.noteMigrated("sire snapshot", key)
+        end
+        if insemination ~= nil and select(2, RLRearingPolicy.normalizeByIndex(insemination.subTypeIndex, insemination.genetics)) then
+            RLRearingPolicy.noteMigrated("pending straw", key)
+        end
+    end
+
     local animal = Animal.new({
         age = age, health = health, monthsSinceLastBirth = monthsSinceLastBirth, birthCount = birthCount,
         gender = gender, subTypeIndex = subTypeIndex, reproduction = reproduction,

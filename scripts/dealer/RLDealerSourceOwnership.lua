@@ -16,7 +16,8 @@ local function fail(reason, raw) return nil, { reason = reason, quarantine = raw
 local function genes(g)
     if type(g) ~= "table" then return false end
     for _, key in ipairs({ "metabolism", "quality", "productivity", "fertility", "health" }) do
-        if not finite(g[key]) or g[key] < 0 then return false end
+        -- productivity is absent for an animal without a milk gene (beef cattle: RLRearingPolicy).
+        if (key ~= "productivity" or g[key] ~= nil) and (not finite(g[key]) or g[key] < 0) then return false end
     end
     return g.metabolism > 0
 end

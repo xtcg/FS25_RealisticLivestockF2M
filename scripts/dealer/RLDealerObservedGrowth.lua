@@ -18,7 +18,7 @@ local fields={"age","subType","subTypeIndex","animalTypeIndex","breed","gender",
     "isLactating","farmId","uniqueId","birthday","isDead","deathEnabled","mother","father"}
 local function genes(g)
     if type(g)~="table" then return false end
-    for _,k in ipairs({"metabolism","quality","productivity","fertility","health"}) do if not finite(g[k]) or g[k]<0 then return false end end
+    for _,k in ipairs({"metabolism","quality","productivity","fertility","health"}) do if (k~="productivity" or g[k]~=nil) and (not finite(g[k]) or g[k]<0) then return false end end
     return g.metabolism>0
 end
 local function identity(a)
