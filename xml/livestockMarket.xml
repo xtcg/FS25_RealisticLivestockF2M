@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Candidate configuration from the integration design; not economically calibrated.
+     No live templates are published until condition packages and capabilities pass U50/U51. -->
+<livestockMarket schemaVersion="1" mode="legacy">
+  <defaults minSpreadRate="0.04" maxHoldingMonths="12"/>
+  <animalType name="COW"/>
+  <animalType name="SHEEP"/>
+  <animalType name="PIG"/>
+  <curves>
+    <curve id="sireLiquidity" axis="breedingScore" interpolation="linear">
+      <point x="1.00" value="0.03"/><point x="1.30" value="0.07"/>
+      <point x="1.50" value="0.10"/><point x="1.75" value="0.06"/>
+    </curve>
+    <curve id="flatSeason" axis="calendarMonth" interpolation="linear">
+      <point x="1" value="1"/><point x="2" value="1"/><point x="3" value="1"/>
+      <point x="4" value="1"/><point x="5" value="1"/><point x="6" value="1"/>
+      <point x="7" value="1"/><point x="8" value="1"/><point x="9" value="1"/>
+      <point x="10" value="1"/><point x="11" value="1"/><point x="12" value="1"/>
+    </curve>
+    <curve id="sheepBreedingSeason" axis="calendarMonth" interpolation="linear">
+      <point x="1" value="0.4"/><point x="2" value="0.4"/><point x="3" value="0.4"/>
+      <point x="4" value="0.4"/><point x="5" value="0.4"/><point x="6" value="0.4"/>
+      <point x="7" value="2"/><point x="8" value="2"/><point x="9" value="2"/>
+      <point x="10" value="1.2"/><point x="11" value="0.4"/><point x="12" value="0.4"/>
+    </curve>
+    <curve id="cattleSpringFemaleSeason" axis="calendarMonth" interpolation="linear">
+      <point x="1" value="1.5"/><point x="2" value="1.5"/><point x="3" value="1.5"/>
+      <point x="4" value="1.5"/><point x="5" value="0.7"/><point x="6" value="0.7"/>
+      <point x="7" value="0.7"/><point x="8" value="0.7"/><point x="9" value="0.7"/>
+      <point x="10" value="0.7"/><point x="11" value="0.7"/><point x="12" value="0.7"/>
+    </curve>
+  </curves>
+  <profiles>
+    <!-- Design section 9 structural example only: legacy mode does not price from it. -->
+    <profile id="breedingMale" holdingMonths="3" liquidityCurve="sireLiquidity"
+      seasonCurve="flatSeason" costModel="fixedMonthlyCurve" resaleModel="productionRetail"
+      fallbackModel="commodityWholesale" profitModel="fixedPlusRate"
+      monthlyCost="65" tradeCost="95" fixedProfit="130"/>
+  </profiles>
+  <rules>
+    <rule id="cattleSire" priority="100" animalType="COW" purpose="BREEDING_MALE" profile="breedingMale"/>
+  </rules>
+  <templates/>
+  <brokerBalance revision="1" priceBasis="CURRENT_MARKET" quotaScope="MARKET"
+    rounding="HALF_UP_MIN_ONE"
+    capacityScale="1" extraOrders="2" extraRequireSpecific="true" maxTotalOrders="7"
+    maxPurposeGroupsPerSpecies="2" preferDistinctExtraSpecies="true"
+    growerAnyWeight="70" growerSpecificWeight="30" previousMonthRepeatFactor="0.25"
+    eliteConditionalChance="0.08" maxEliteOrders="1" quotaCarryOver="false"
+    publishedOrderInformDealerBid="false">
+    <species key="COW" baseMin="1" baseMax="2" secondSlotChance="0.50" maxOrders="3"
+      groupWeights="50 25 25" monthlyHeadCap="8" perBreedHeadCap="4" growerHeads="4"
+      finishedHeads="4" replacementHeads="2" sireHeads="1" eliteSireHeads="1"/>
+    <species key="SHEEP" baseMin="1" baseMax="2" secondSlotChance="0.50" maxOrders="3"
+      groupWeights="50 25 25" monthlyHeadCap="24" perBreedHeadCap="12" growerHeads="12"
+      finishedHeads="12" replacementHeads="6" sireHeads="2" eliteSireHeads="1"/>
+    <species key="PIG" baseMin="1" baseMax="1" secondSlotChance="0" maxOrders="2"
+      groupWeights="45 40 15" monthlyHeadCap="32" perBreedHeadCap="16" growerHeads="16"
+      finishedHeads="16" replacementHeads="6" sireHeads="1" eliteSireHeads="1"/>
+  </brokerBalance>
+</livestockMarket>

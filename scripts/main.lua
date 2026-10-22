@@ -483,6 +483,23 @@ source(modDirectory .. "scripts/events/RLDiseaseOverrideSetEvent.lua")
 -- SECTION 20f: Core (lifecycle, settings, i18n)
 source(modDirectory .. "scripts/core/FSCareerMissionInfo.lua")
 -- T02 ledger save hooks; after RLRM's own careerSavegame append, so the ledger is written last.
+-- Market G0: load pure protocols and read-only configuration; channels retain
+-- their independent capability gates and legacy remains the effective price.
+source(modDirectory .. "scripts/market/RLMarketData.lua")
+source(modDirectory .. "scripts/market/RLMarketSchema.lua")
+source(modDirectory .. "scripts/market/RLMarketMoney.lua")
+source(modDirectory .. "scripts/market/RLMarketCurve.lua")
+source(modDirectory .. "scripts/market/RLMarketConfig.lua")
+source(modDirectory .. "scripts/market/RLMarketSpecies.lua")
+source(modDirectory .. "scripts/market/RLMarketSnapshot.lua")
+source(modDirectory .. "scripts/market/RLAnimalValueProvider.lua")
+source(modDirectory .. "scripts/market/RLLegacyPriceAdapter.lua")
+source(modDirectory .. "scripts/market/RLMarketMath.lua")
+source(modDirectory .. "scripts/market/RLDealerPricePolicy.lua")
+source(modDirectory .. "scripts/market/RLMarketPriceService.lua")
+source(modDirectory .. "scripts/market/RLMarketRuntime.lua")
+RLMarketRuntime.install()
+
 RLTradeCheckpoint.install()
 RLDealerCheckpoint.install()
 RLAnimalIdentityCheckpoint.install()
