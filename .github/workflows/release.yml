@@ -42,7 +42,7 @@ jobs:
                   notes="docs/releases/$GITHUB_REF_NAME.md"
                   if [ -f "$notes" ]; then
                       gh release create "$GITHUB_REF_NAME" FS25_RealisticLivestockF2M.zip SHA256SUMS \
-                          --title "$GITHUB_REF_NAME — Farm to Market" --notes-file "$notes" $prerelease
+                          --title "$GITHUB_REF_NAME" --notes-file "$notes" $prerelease
                   else
                       gh release create "$GITHUB_REF_NAME" FS25_RealisticLivestockF2M.zip SHA256SUMS \
                           --title "$GITHUB_REF_NAME" --generate-notes $prerelease
