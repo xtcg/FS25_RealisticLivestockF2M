@@ -77,8 +77,12 @@ function M.new(options)
         if not items(fees, result.fees, "totalFees") or not items(bonuses, result.bonuses, "totalBonuses") then
             return nil, "INVALID_LINE_ITEM"
         end
-        result.netToPlayer = direction == "IN" and (body + result.totalBonuses - result.totalFees)
-            or -(body + result.totalFees - result.totalBonuses)
+        -- Ordered fee application is part of the money policy. Appending a
+        -- transport line preserves the entire pre-transport arithmetic prefix,
+        -- rather than independently rounding/reassociating two final amounts.
+        local net = direction=="IN" and body+result.totalBonuses or body-result.totalBonuses
+        for _,item in ipairs(result.fees) do net=direction=="IN" and net-item.amount or net+item.amount end
+        result.netToPlayer=direction=="IN" and net or -net
         if not M.finite(result.netToPlayer) then return nil, "MONEY_OVERFLOW" end
         if direction == "OUT" and result.netToPlayer > 0 then return nil, "BUY_CANNOT_CREDIT_PLAYER" end
         return result
