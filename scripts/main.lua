@@ -404,6 +404,7 @@ source(modDirectory .. "scripts/handTools/specializations/HandToolHorseBrush.lua
 source(modDirectory .. "scripts/handTools/HandTool.lua")
 source(modDirectory .. "scripts/handTools/HandToolSystem.lua")
 source(modDirectory .. "scripts/handTools/RLHandTools.lua")
+source(modDirectory .. "scripts/gui/RLStrawBackpackIcon.lua")
 
 -- SECTION 16: Insemination - Dewar (DewarData specialization and rlDewar vehicle type registered in Lua)
 source(modDirectory .. "scripts/insemination/DewarMigration.lua")
