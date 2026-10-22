@@ -155,3 +155,7 @@ C.reset(true,w.runtime);C.onMissionStarted({missionInfo=w.info},{identityRepairs
 check("dealer checkpoint: repaired live identities quarantine existing stock before accepting old ownership receipts", C.state==C.RECOVERY_REQUIRED and C.reason=="IDENTITY_REPAIRS_AFTER_CHECKPOINT" and w.accepted==0 and C.quarantine.data.generation==1)
 w=fixture();C.reset(true,w.runtime);C.onMissionStarted({missionInfo=w.info},{identityRepairs=4})
 check("dealer checkpoint: identity repair on an empty new save keeps stock unarmed", C.state==C.UNARMED and w.accepted==0 and not C.armed)
+w=fixture();w:arm();w:pass();w:complete()
+C.reset(true,w.runtime);C.onMissionStarted({missionInfo=w.info},{identityConflicts=1})
+check("dealer checkpoint: historical duplicate IDs close stock admission without renumbering",C.state==C.RECOVERY_REQUIRED
+    and C.reason=="HISTORICAL_IDENTITY_CONFLICTS" and w.accepted==0)

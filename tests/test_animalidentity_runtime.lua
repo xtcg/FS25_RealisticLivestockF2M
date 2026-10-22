@@ -5,6 +5,8 @@ loadMod("scripts/animal/RLTradePersistence.lua")
 loadMod("scripts/animal/RLAnimalIdentity.lua")
 loadMod("scripts/animal/RLAnimalIdentityPersistence.lua")
 loadMod("scripts/animal/RLAnimalIdentityRuntime.lua")
+-- This unit fixture omits engine storage; checkpoint tests exercise the real barrier.
+RLAnimalIdentityRuntime.journalBarrier = function() return true end
 loadMod("scripts/animal/RLAnimalIdentityWorld.lua")
 local I, R, W, P, U, T = RLAnimalIdentity, RLAnimalIdentityRuntime, RLAnimalIdentityWorld, RLAnimalIdentityPersistence, RLAnimalUtil, RLTradePersistence
 
@@ -218,9 +220,9 @@ do
     assert(P.writeJournal(jx, { lineage = "Ltest-2", generation = 4, sequence = 3, keys = { "41 310001 2", "41 310002 2" } }))
     check("journal round trips", #P.readJournal(jx).data.keys == 2)
     local bad = xml()
-    assert(P.writeJournal(bad, { lineage = "Ltest-2", generation = 4, sequence = 3, keys = { "not a key" } }))
-    check("journal with a malformed key is refused whole", select(2, P.readJournal(bad)) == "BAD_JOURNAL_KEY:1")
-    check("journal over the limit is not written", select(2, P.writeJournal(xml(), { lineage = "Ltest-2", generation = 1, keys = (function() local k = {}; for i = 1, P.MAX_JOURNAL_KEYS + 1 do k[i] = "1 1 1" end; return k end)() })) == "BAD_JOURNAL")
+    check("journal with a malformed key is refused before writing", select(2, P.writeJournal(bad,
+        { lineage = "Ltest-2", generation = 4, sequence = 3, keys = { "not a key" } })) == "BAD_JOURNAL_KEY:1")
+    check("journal over the limit is not written", select(2, P.writeJournal(xml(), { lineage = "Ltest-2", generation = 1, sequence = 1, keys = (function() local k = {}; for i = 1, P.MAX_JOURNAL_KEYS + 1 do k[i] = "1 1 1" end; return k end)() })) == "BAD_JOURNAL")
 end
 
 -- ---- PR #58 review P2-2: re-activation reconciles domains the ledger already held -------------------
@@ -269,4 +271,75 @@ do
     assert(R.activate({ records = {}, counters = { { country = 3, farmId = "9", type = "T1", nextRaw = sf.ids[1] + 1 } } }, {}))
     local s3 = W.nextSystemRaw("sale-animal", sys, 3, sf, 1, "sale", function() error("legacy must not run") end)
     check("R8 a sale-farm domain is reconciled with its counter too", s1 == 1 and s2 == 2 and s3 == 3)
+end
+
+-- A new authoritative activation is not a duplicate repair tool. It preserves
+-- both animals and all their IDs and refuses even an explicit weak-history option.
+do
+    ready(R.SHADOW)
+    local a = {farmId="333333",uniqueId=U.generateUniqueId(333333,1),country=2,type="COW"}
+    local b = {farmId=a.farmId,uniqueId=a.uniqueId,country=a.country,type="SHEEP"}
+    local id = b.uniqueId
+    local scan = {records={a,b},counters={}}
+    local activated, why, _, report = R.activate(scan, {accept=true})
+    check("duplicate activation quarantines instead of silently changing IDs", activated == nil
+        and why == "DUPLICATE_IDENTITIES" and R.mode == R.SHADOW and R.ledger == nil
+        and b.uniqueId == id and next(report.duplicates) ~= nil)
+    assert(R.activate({records={},counters={}},{}))
+    R.setMode(R.SHADOW)
+    local before = RLTradePersistence.canonical(I.export(R.ledger))
+    local reconciled, reason = R.reconcile(scan)
+    check("duplicate recovery reconciliation preserves the ledger and animal IDs", reconciled == nil
+        and reason == "DUPLICATE_IDENTITIES" and RLTradePersistence.canonical(I.export(R.ledger)) == before
+        and b.uniqueId == id)
+end
+
+-- Review P2: even a correct digest must not turn sparse/trailing journal fields
+-- into permission to forget an already exposed key during ipairs-based recovery.
+do
+    local function document()
+        local x={values={}}
+        function x:setString(k,v) self.values[k]=v end
+        function x:getString(k) return self.values[k] end
+        function x:iterate(prefix,fn)
+            local i=0
+            while self.values[prefix.."("..i..")#v"] do fn(i,prefix.."("..i..")");i=i+1 end
+        end
+        return x
+    end
+    local function forge(data)
+        local x=document()
+        local canonical=T.canonical(data)
+        local encoded=T.encodeText(canonical)
+        x:setString(P.JOURNAL_ROOT.."#schema","1")
+        x:setString(P.JOURNAL_ROOT.."#lineage",data.lineage)
+        x:setString(P.JOURNAL_ROOT.."#generation",tostring(data.generation))
+        x:setString(P.JOURNAL_ROOT.."#digest",T.checksum(canonical))
+        x:setString(P.JOURNAL_ROOT..".data#length",tostring(#encoded))
+        local i=0
+        for first=1,#encoded,T.CHUNK do x:setString(P.JOURNAL_ROOT..".data.chunk("..i..")#v",encoded:sub(first,first+T.CHUNK-1));i=i+1 end
+        return x
+    end
+    for _,case in ipairs({
+        {name="sparse",keys={[1]="41 310001 2",[3]="41 310002 2"}},
+        {name="named trailing key",keys={[1]="41 310001 2",later="41 310002 2"}},
+        {name="duplicate key",keys={"41 310001 2","41 310001 2"}},
+        {name="invalid complete key",keys={"41 310001 2","bad key"}},
+        {name="noncanonical country",keys={"41 310001 02"}},
+        {name="sequence fractional",keys={"41 310001 2"},sequence=0.5},
+        {name="sequence out of range",keys={"41 310001 2"},sequence=2^52},
+        {name="generation out of range",keys={"41 310001 2"},generation=2^52},
+    }) do
+        local data={lineage="Lstrict-1",generation=case.generation or 1,sequence=case.sequence or 1,keys=case.keys}
+        check("journal strict writer rejects "..case.name,P.writeJournal(document(),data)==nil)
+        check("journal strict reader rejects correctly digested "..case.name,P.readJournal(forge(data))==nil)
+    end
+    local over={}
+    for i=1,P.MAX_JOURNAL_KEYS+1 do over[i]="41 "..i.." 2" end
+    local data={lineage="Lstrict-1",generation=1,sequence=1,keys=over}
+    check("journal strict writer counts all keys against limit",P.writeJournal(document(),data)==nil)
+    check("journal strict reader counts all keys against limit",P.readJournal(forge(data))==nil)
+    for _,invalid in ipairs({math.huge,-math.huge,0/0}) do
+        check("journal strict writer rejects nonfinite sequence",P.writeJournal(document(),{lineage="Lstrict-1",generation=1,sequence=invalid,keys={}})==nil)
+    end
 end

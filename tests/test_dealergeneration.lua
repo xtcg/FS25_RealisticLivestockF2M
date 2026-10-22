@@ -13,6 +13,8 @@ local f = assert(io.open(REPO .. "scripts/utils/RLAnimalUtil.lua", "r")); local 
 assert(load((src:gsub("::number", "")), "RLAnimalUtil"))()
 loadMod("scripts/animal/RLAnimalIdentity.lua")
 loadMod("scripts/animal/RLAnimalIdentityRuntime.lua")
+-- This unit fixture omits engine storage; checkpoint tests exercise the real barrier.
+RLAnimalIdentityRuntime.journalBarrier = function() return true end
 loadMod("scripts/animal/RLAnimalIdentityWorld.lua")
 local I, R, G = RLAnimalIdentity, RLAnimalIdentityRuntime, RLDealerGeneration
 
