@@ -75,6 +75,8 @@ source(modDirectory .. "scripts/animal/RLGrowth.lua")
 -- planner, then the game side, which wraps AnimalFoodSystem after RLCalfRearing's wrapper.
 source(modDirectory .. "scripts/feed/RLFeedUnits.lua")
 source(modDirectory .. "scripts/feed/RLFeedProfiles.lua")
+-- A young animal's own demand on its dam, her cost and how what she paid is shared (pure)
+source(modDirectory .. "scripts/nutrition/RLYoungDemandMath.lua")
 source(modDirectory .. "scripts/feed/RLFeedMath.lua")
 source(modDirectory .. "scripts/feed/RLFeedRationPlanner.lua")
 source(modDirectory .. "scripts/feed/RLFeed.lua")
