@@ -191,10 +191,10 @@
         <text name="rl_ui_buySelected" text="购买选中"/>
         <text name="rl_ui_sellSelected" text="出售选中"/>
         <text name="rl_ui_moveSelected" text="移动选中"/>
-        <text name="rl_ui_buyConfirmation" text="确定要以 %s 的价格购买 %s 头动物吗？" tag="format"/>
-        <text name="rl_ui_sellConfirmation" text="确定要以 %s 的价格出售 %s 头动物吗？" tag="format"/>
-        <text name="rl_ui_buyBulkResult" text="以 %s 的价格购买了 %s 头动物" tag="format"/>
-        <text name="rl_ui_sellBulkResult" text="以 %s 的价格出售了 %s 头动物" tag="format"/>
+        <text name="rl_ui_buyConfirmation" text="确定要购买 %s 头动物，价格为 %s 吗？" tag="format"/>
+        <text name="rl_ui_sellConfirmation" text="确定要出售 %s 头动物，价格为 %s 吗？" tag="format"/>
+        <text name="rl_ui_buyBulkResult" text="购买了 %s 头动物，价格为 %s" tag="format"/>
+        <text name="rl_ui_sellBulkResult" text="出售了 %s 头动物，价格为 %s" tag="format"/>
         <text name="rl_ui_moveBulkResult" text="移动了 %s 头动物" tag="format"/>
         <text name="rl_ui_moveSingle" text="转移"/>
         <text name="rl_ui_moveSelectDestination" text="选择目的地"/>
