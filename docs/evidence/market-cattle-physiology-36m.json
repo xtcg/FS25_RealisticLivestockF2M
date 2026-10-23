@@ -1,0 +1,3113 @@
+{
+  "schemaVersion": 1,
+  "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+  "admissionReady": false,
+  "commit": "734578279c97de068f465ab249dfa85874b73b1f",
+  "sourceSha256": {
+    "tests/marketreachability.py": "424d613f5ec273cf62a7974f6e9f7f5d42b6d749c5feb578ba6f863950d758ff",
+    "tests/stubs.lua": "e66e9adae66049554b54cb2d8e029edb1d692d2533483ef87f2fd1440b995794",
+    "scripts/animal/RLLactation.lua": "bbad42c065263776bc83a5209f6f273d568f38ad7c39ca0e875de92ac45b5521",
+    "scripts/utils/RLEppAge.lua": "084bf0ff2f8acf142652d7e7de38c4fad3507a52709623bc75542640160611e7",
+    "scripts/animal/RLSpecies.lua": "fbc16f80831046c789d082ae6fbb066245e7e2590736d1f926c44737ea0b61e8",
+    "scripts/animal/RLWeightMath.lua": "e59020ea876b35a801128f3724c14fa38d8ef85f1a1b83fd47349d4bded2a318",
+    "scripts/animal/RLMilkParity.lua": "204997dd993359f7a9e2cfbac1ed902c494695cd0eda3d9834fd823c70fa0050",
+    "scripts/nutrition/RLNutritionMath.lua": "b3a17dac7131e5ba8c0d7794fbc4c8b56e9e8659c58576c3fcd7325287b6aa97",
+    "scripts/nutrition/RLBodyConditionConfig.lua": "9483a3ac96ae8dd55523e96f73f9183b594b063f038555f883ed0b3781da1a77",
+    "scripts/nutrition/RLBodyCondition.lua": "31352e554692564a284d6f25f0a3c75b8b02c218b2b7564607b4dddd5011fbe2",
+    "scripts/animal/RLMeatMath.lua": "418cdde2710f9284e79d1b0868080c3883d9f45a3a52e6950052178cb8eeaae9",
+    "scripts/animal/RLFacilityRules.lua": "53d7740536e093e56399429340e737c413fa3d218504b8c27d2e3efc1d80de49",
+    "scripts/utils/RLPenLog.lua": "72a702d24eedd986fe5da0a61196ffeb2ef90298b837e8c8b6597e4d098d4201",
+    "scripts/bridge/RLPenConstruction.lua": "bca116149666ada82801cadba76002780bc2ac5695a6fb5d5d090a045e799980",
+    "scripts/nutrition/RLCalfRearing.lua": "17ab9c2197895dea2cb18019777b1d91d9fd6aea07bcd3416df2979aadfbe11c",
+    "scripts/animal/RLGrowthCurve.lua": "56d530c4d2541d3c85d6bd1ca4a5947d3cd53d50daeb09b39bb48cf1b843a866",
+    "scripts/animal/RLGrowthMath.lua": "a578d792b2f4ff2827d765d1f9618a646405c5d36a4ec16cddc9d7e4b8c489fc",
+    "scripts/animal/RLWeightProfiles.lua": "2127640e82cb761896cd5ff326ee72240ac6f424a9ab1b20eefd9ab19dc953d7",
+    "scripts/animal/RLGrowth.lua": "8bdb2a44704c6a45dafecdf1f503a89c453a9d299d19c11fbeb578edfaac0e7f",
+    "scripts/feed/RLFeedUnits.lua": "3089487d8bcaa2367eec7f9ba89bc3ed622ece3c67fc410983faae19bcdb50ac",
+    "scripts/feed/RLFeedProfiles.lua": "aa3c680beb11f121d137b16d9c395dc40b24d676768a3a7ff82fe8558278883f",
+    "scripts/feed/RLFeedMath.lua": "ac269d6b7e635f7bd585c9c4e2e064cf38feef3492519fcaf292b9ea461a5744",
+    "scripts/feed/RLFeedRationPlanner.lua": "9c21d5da8bc1b3f90bb264426aeec15dd6106171ea398dae6dfd85d367467b8c",
+    "scripts/feed/RLFeed.lua": "bbcb88ef5455419e61d3fd2a652aa47c4ab10a840942874f175feff0259dc5a2",
+    "scripts/feed/RLFeedInfoService.lua": "a0fa3249a292d48af70b4184bdc9b3417d5a59f58c7e627ab1a7c053b958bd00",
+    "scripts/animal/RLPedigree.lua": "0e34a95eeede4bec352cbe4c82127f4ec6dc9e1e83386ceeb0eb710b540fd15e",
+    "tests/marketreachability.lua": "48e135e60313a2d4b031378967f8939d253f5e4176a7a67bcd4126c87392ef58",
+    "tests/feedsim.lua": "4eb7ba57c3036c4bd17096549892580fa8de840efd7535b4ef184bef8395ef7a",
+    "tests/growthsim.lua": "53affb002f6d3dccdf25dd2c6c6474b855259e425210c498d9973bcaa9c58445",
+    "tests/economics.lua": "0fa0ab5f09493b525757d2acd33aef384b366939238408678b95c07daa284980",
+    "scripts/animal/RLBreedTraits.lua": "afbd52f51d2f50f7c757ca71967ed96bbbe949c2f8c57f0a8b92b522fcb7edef",
+    "scripts/animals/shop/events/AnimalMoveEvent.lua": "2f5b578e35d4b8e336e8004debd5c6154f96f38bf17a1580c2607d8808ef5add",
+    "scripts/animal/RealisticLivestock_Animal.lua": "061cf35db55228fbc549862b06be8af6caf733c8100e84690521733a0e45c87e",
+    "xml/animals.xml": "adac9ffa30c5b1dc8b21f354d49c485253d12bcf0180cbcba7f03d0eee95bbed",
+    "xml/breedTraits.xml": "c89d62bfe10b1bc410085b3cd24d346f56c5dc20833d69e182af12adc7ef2b7f",
+    "xml/carcassYield.xml": "d5d44d8390448db5983c88515e1ef8cbdccd456c86f63166f874b4a20aba2d0a",
+    "scripts/animal/AnimalHealth.lua": "8b69db3e8ea0c26780616008c15f5689f32b994b2e3092a0dfbbcfcc1e85403d",
+    "scripts/core/RLConstants.lua": "8b454fd82f41b8f786ac95e64a4e8cbf5d1c17eaa7982889ca58c964ccd338ad",
+    "scripts/animal/RLAnimalIdentity.lua": "c512d62848115d202cb41dd600e6368a83da7196d9a40496a81dc7f92ab73c61",
+    "scripts/dealer/RLDealerStockPolicy.lua": "70a936b36e4c0b0c288065f23e5ed3ffb790c2be22fba4096d13e3ab6f06d67b",
+    "scripts/market/RLMarketData.lua": "c062e5c16fa3671c56130cf989243c656ff55ae9c50eb980d39a4843b8108110",
+    "scripts/market/RLMarketSchema.lua": "f27cbb959552e0894e0debf7e5ae1918fbf5be64acb5cbf83f3a78145b00c237",
+    "scripts/market/RLMarketSpecies.lua": "d3dddb0058aeae0d60d3d56fb338bff98f3a9b8753b18e7b25a21274196af4c4",
+    "scripts/market/RLMarketSnapshot.lua": "b6d1769ef50da440207551a27b4266e36c2bf3f51fea5bd4efff6167396abd55",
+    "scripts/market/RLBrokerConditionPackage.lua": "2c072e6865f380d40fc3a9f738f85aa42d29c0a3f66218375d7ca0a472a1008c",
+    "scripts/market/RLBrokerEligibility.lua": "68e79dc22d370664dd8ea3692b7d7a3bb54bc1302da9c42af94c3f2ca83879c2",
+    "xml/dealerStock.xml": "36a94923a7284737755b7ee95f44b239abea116dcb2267c6bdda321463b0d731",
+    "xml/weightProfiles.xml": "655264f395b2362d3dd00110a17714ed8fa9c626e0166da3e76cc3760e60c107",
+    "xml/bodyCondition.xml": "823199177ed31aa78b8290bc8657c6bca242b2b20b156d6e49baf4eb8b1d1dbe",
+    "xml/feedProfiles.xml": "91cbe03f106841c80bb61ac0f7223d1fc3c8425cca601aee8853e741c92ee714",
+    "xml/calfRearing.xml": "6b24d85c9916776fd5c3d095e6b1950cf8364d57d6155d552e93fbcc9dcbd33d"
+  },
+  "scenarios": [
+    {
+      "admissionReady": false,
+      "schemaVersion": 1,
+      "consumedFeedLiters": {
+        "FORAGE": 11971.342112686716
+      },
+      "productionClass": "DAIRY",
+      "packages": [
+        {
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "packageId": "cattleWeaned",
+          "status": "NOT_ADMITTED",
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds15:COW:SWISS_BROWNs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "measuredWindows": [
+            {
+              "firstStep": 96,
+              "toWeightKg": 348.4832628756816,
+              "toFinishScore": 65.0,
+              "fromWeightKg": 151.47389250106602,
+              "fromAgeMonths": 4,
+              "lastStep": 240,
+              "toAgeMonths": 10
+            }
+          ]
+        },
+        {
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "packageId": "cattleStore",
+          "status": "NOT_ADMITTED",
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds15:COW:SWISS_BROWNs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "measuredWindows": []
+        },
+        {
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "packageId": "cattleFinished",
+          "status": "NOT_ADMITTED",
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds15:COW:SWISS_BROWNs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "measuredWindows": [
+            {
+              "firstStep": 433,
+              "toWeightKg": 677.4998912323384,
+              "toFinishScore": 79.9953,
+              "fromFinishScore": 69.5638,
+              "fromWeightKg": 590.0477110539603,
+              "fromAgeMonths": 18.041666666666664,
+              "lastStep": 497,
+              "toAgeMonths": 20.708333333333293
+            }
+          ]
+        }
+      ],
+      "breedId": "COW:SWISS_BROWN",
+      "assumptions": {
+        "sandboxAdministration": true,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "noDiseaseChallenge": true,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "healthThresholdFactor": 0.45,
+        "healthDecreaseHour": 25,
+        "healthIncreaseHour": 10,
+        "automaticWater": true,
+        "neutralBirthFactor": 1
+      },
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "mode": "REAL",
+      "months": 36,
+      "daysPerPeriod": 1,
+      "castrated": false,
+      "sampleIntervalGameHours": 1,
+      "subTypeName": "BULL_SWISS_BROWN",
+      "gene": 1
+    },
+    {
+      "assumptions": {
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "noDiseaseChallenge": true,
+        "healthThresholdFactor": 0.45,
+        "automaticWater": true,
+        "neutralBirthFactor": 1,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "healthDecreaseHour": 25,
+        "healthIncreaseHour": 10,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "sandboxAdministration": true
+      },
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "packages": [
+        {
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds15:COW:SWISS_BROWNs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "packageId": "cattleWeaned",
+          "status": "NOT_ADMITTED",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "measuredWindows": [
+            {
+              "toAgeMonths": 10,
+              "toWeightKg": 316.87203876578576,
+              "firstStep": 96,
+              "fromWeightKg": 138.32030026387102,
+              "lastStep": 240,
+              "fromAgeMonths": 4,
+              "toFinishScore": 65.0
+            }
+          ],
+          "completeWindows": []
+        },
+        {
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds15:COW:SWISS_BROWNs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "packageId": "cattleStore",
+          "status": "NOT_ADMITTED",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "measuredWindows": [],
+          "completeWindows": []
+        },
+        {
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds15:COW:SWISS_BROWNs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "packageId": "cattleFinished",
+          "status": "NOT_ADMITTED",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "measuredWindows": [
+            {
+              "toAgeMonths": 21.041666666666664,
+              "lastStep": 505,
+              "toWeightKg": 627.5269305872888,
+              "firstStep": 475,
+              "fromWeightKg": 589.505228267986,
+              "fromFinishScore": 74.6352,
+              "fromAgeMonths": 19.79166666666662,
+              "toFinishScore": 79.95
+            }
+          ],
+          "completeWindows": []
+        }
+      ],
+      "schemaVersion": 1,
+      "sampleIntervalGameHours": 1,
+      "consumedFeedLiters": {
+        "FORAGE": 11380.413245704713
+      },
+      "months": 36,
+      "admissionReady": false,
+      "daysPerPeriod": 1,
+      "productionClass": "DAIRY",
+      "subTypeName": "BULL_SWISS_BROWN",
+      "breedId": "COW:SWISS_BROWN",
+      "castrated": true,
+      "mode": "REAL",
+      "gene": 1
+    },
+    {
+      "packages": [
+        {
+          "measuredWindows": [
+            {
+              "toAgeMonths": 10,
+              "firstStep": 96,
+              "toWeightKg": 348.48326287566874,
+              "lastStep": 240,
+              "fromAgeMonths": 4,
+              "fromWeightKg": 151.47389250106082,
+              "toFinishScore": 65.0
+            }
+          ],
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "status": "NOT_ADMITTED",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds15:COW:SWISS_BROWNs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "packageId": "cattleWeaned",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "completeWindows": []
+        },
+        {
+          "measuredWindows": [],
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "status": "NOT_ADMITTED",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds15:COW:SWISS_BROWNs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "packageId": "cattleStore",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "completeWindows": []
+        },
+        {
+          "measuredWindows": [
+            {
+              "toAgeMonths": 21.875000000000025,
+              "firstStep": 433,
+              "fromAgeMonths": 18.041666666666668,
+              "toWeightKg": 712.1248889500173,
+              "lastStep": 525,
+              "fromFinishScore": 69.4723,
+              "fromWeightKg": 589.9407393817104,
+              "toFinishScore": 79.9162
+            }
+          ],
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "status": "NOT_ADMITTED",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds15:COW:SWISS_BROWNs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "packageId": "cattleFinished",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "completeWindows": []
+        }
+      ],
+      "consumedFeedLiters": {
+        "FORAGE": 12870.359497102723
+      },
+      "subTypeName": "BULL_SWISS_BROWN",
+      "admissionReady": false,
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "castrated": false,
+      "sampleIntervalGameHours": 1,
+      "schemaVersion": 1,
+      "months": 36,
+      "daysPerPeriod": 1,
+      "assumptions": {
+        "neutralBirthFactor": 1,
+        "noDiseaseChallenge": true,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "healthIncreaseHour": 10,
+        "healthDecreaseHour": 25,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "healthThresholdFactor": 0.45,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "automaticWater": true,
+        "sandboxAdministration": true
+      },
+      "gene": 1,
+      "mode": "LEGACY",
+      "breedId": "COW:SWISS_BROWN",
+      "productionClass": "DAIRY"
+    },
+    {
+      "months": 36,
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "assumptions": {
+        "healthThresholdFactor": 0.45,
+        "automaticWater": true,
+        "healthDecreaseHour": 25,
+        "noDiseaseChallenge": true,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "sandboxAdministration": true,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "neutralBirthFactor": 1,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "healthIncreaseHour": 10
+      },
+      "schemaVersion": 1,
+      "castrated": true,
+      "consumedFeedLiters": {
+        "FORAGE": 12737.306075955403
+      },
+      "productionClass": "DAIRY",
+      "sampleIntervalGameHours": 1,
+      "subTypeName": "BULL_SWISS_BROWN",
+      "mode": "LEGACY",
+      "gene": 1,
+      "daysPerPeriod": 1,
+      "packages": [
+        {
+          "status": "NOT_ADMITTED",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds15:COW:SWISS_BROWNs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "completeWindows": [],
+          "packageId": "cattleWeaned",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "measuredWindows": [
+            {
+              "fromAgeMonths": 4,
+              "firstStep": 96,
+              "toWeightKg": 316.8720387657978,
+              "lastStep": 240,
+              "fromWeightKg": 138.32030026389697,
+              "toAgeMonths": 10,
+              "toFinishScore": 65.0
+            }
+          ],
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ]
+        },
+        {
+          "status": "NOT_ADMITTED",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds15:COW:SWISS_BROWNs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "completeWindows": [],
+          "packageId": "cattleStore",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "measuredWindows": [],
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ]
+        },
+        {
+          "status": "NOT_ADMITTED",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds15:COW:SWISS_BROWNs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "completeWindows": [],
+          "packageId": "cattleFinished",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "measuredWindows": [
+            {
+              "fromFinishScore": 73.9043,
+              "fromAgeMonths": 19.833333333333357,
+              "firstStep": 476,
+              "toWeightKg": 648.4962460633578,
+              "lastStep": 525,
+              "fromWeightKg": 589.7191344125997,
+              "toAgeMonths": 21.875000000000025,
+              "toFinishScore": 79.9928
+            }
+          ],
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ]
+        }
+      ],
+      "admissionReady": false,
+      "breedId": "COW:SWISS_BROWN"
+    },
+    {
+      "breedId": "COW:HOLSTEIN",
+      "schemaVersion": 1,
+      "packages": [
+        {
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HOLSTEINs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "measuredWindows": [
+            {
+              "fromWeightKg": 170.51819714232974,
+              "lastStep": 240,
+              "firstStep": 96,
+              "fromAgeMonths": 4,
+              "toAgeMonths": 10,
+              "toWeightKg": 377.51836621637756,
+              "toFinishScore": 65.0
+            }
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "packageId": "cattleWeaned",
+          "status": "NOT_ADMITTED"
+        },
+        {
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HOLSTEINs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "measuredWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "packageId": "cattleStore",
+          "status": "NOT_ADMITTED"
+        },
+        {
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HOLSTEINs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "measuredWindows": [
+            {
+              "fromWeightKg": 616.886608184917,
+              "lastStep": 444,
+              "firstStep": 390,
+              "fromAgeMonths": 16.249999999999986,
+              "toWeightKg": 707.7470331886313,
+              "toAgeMonths": 18.49999999999997,
+              "fromFinishScore": 66.102,
+              "toFinishScore": 79.8039
+            }
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "packageId": "cattleFinished",
+          "status": "NOT_ADMITTED"
+        }
+      ],
+      "gene": 1,
+      "assumptions": {
+        "neutralBirthFactor": 1,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "healthThresholdFactor": 0.45,
+        "sandboxAdministration": true,
+        "automaticWater": true,
+        "healthDecreaseHour": 25,
+        "healthIncreaseHour": 10,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "noDiseaseChallenge": true
+      },
+      "admissionReady": false,
+      "castrated": false,
+      "consumedFeedLiters": {
+        "FORAGE": 13118.27116904991
+      },
+      "sampleIntervalGameHours": 1,
+      "daysPerPeriod": 1,
+      "subTypeName": "BULL_HOLSTEIN",
+      "months": 36,
+      "mode": "REAL",
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "productionClass": "DAIRY"
+    },
+    {
+      "sampleIntervalGameHours": 1,
+      "productionClass": "DAIRY",
+      "gene": 1,
+      "admissionReady": false,
+      "consumedFeedLiters": {
+        "FORAGE": 12566.433186617895
+      },
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "packages": [
+        {
+          "packageId": "cattleWeaned",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HOLSTEINs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "measuredWindows": [
+            {
+              "firstStep": 96,
+              "toAgeMonths": 10,
+              "fromAgeMonths": 4,
+              "toFinishScore": 65.0,
+              "toWeightKg": 349.6694445219532,
+              "lastStep": 240,
+              "fromWeightKg": 156.16700674046257
+            }
+          ],
+          "status": "NOT_ADMITTED",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "completeWindows": []
+        },
+        {
+          "packageId": "cattleStore",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HOLSTEINs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "measuredWindows": [],
+          "status": "NOT_ADMITTED",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "completeWindows": []
+        },
+        {
+          "packageId": "cattleFinished",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HOLSTEINs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "measuredWindows": [
+            {
+              "firstStep": 422,
+              "toAgeMonths": 18.708333333333293,
+              "fromAgeMonths": 17.5833333333333,
+              "toFinishScore": 79.9194,
+              "fromWeightKg": 616.7434210002801,
+              "toWeightKg": 663.1150929017358,
+              "lastStep": 449,
+              "fromFinishScore": 72.3726
+            }
+          ],
+          "status": "NOT_ADMITTED",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "completeWindows": []
+        }
+      ],
+      "mode": "REAL",
+      "daysPerPeriod": 1,
+      "castrated": true,
+      "months": 36,
+      "schemaVersion": 1,
+      "breedId": "COW:HOLSTEIN",
+      "subTypeName": "BULL_HOLSTEIN",
+      "assumptions": {
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "noDiseaseChallenge": true,
+        "neutralBirthFactor": 1,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "healthThresholdFactor": 0.45,
+        "healthDecreaseHour": 25,
+        "sandboxAdministration": true,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "healthIncreaseHour": 10,
+        "automaticWater": true
+      }
+    },
+    {
+      "months": 36,
+      "castrated": false,
+      "schemaVersion": 1,
+      "gene": 1,
+      "mode": "LEGACY",
+      "consumedFeedLiters": {
+        "FORAGE": 17892.362511499192
+      },
+      "daysPerPeriod": 1,
+      "admissionReady": false,
+      "sampleIntervalGameHours": 1,
+      "assumptions": {
+        "healthThresholdFactor": 0.45,
+        "automaticWater": true,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "sandboxAdministration": true,
+        "neutralBirthFactor": 1,
+        "noDiseaseChallenge": true,
+        "healthIncreaseHour": 10,
+        "healthDecreaseHour": 25,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN"
+      },
+      "packages": [
+        {
+          "status": "NOT_ADMITTED",
+          "measuredWindows": [
+            {
+              "toWeightKg": 381.78415647031767,
+              "fromWeightKg": 171.47801706066807,
+              "toFinishScore": 65.0,
+              "firstStep": 96,
+              "lastStep": 240,
+              "fromAgeMonths": 4,
+              "toAgeMonths": 10
+            }
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HOLSTEINs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "packageId": "cattleWeaned",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "completeWindows": [],
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ]
+        },
+        {
+          "status": "NOT_ADMITTED",
+          "measuredWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HOLSTEINs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "packageId": "cattleStore",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "completeWindows": [],
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ]
+        },
+        {
+          "status": "NOT_ADMITTED",
+          "measuredWindows": [
+            {
+              "toFinishScore": 79.87740000000001,
+              "toWeightKg": 709.5277526630172,
+              "fromWeightKg": 616.658919353777,
+              "fromFinishScore": 69.371,
+              "firstStep": 382,
+              "lastStep": 440,
+              "fromAgeMonths": 15.916666666666654,
+              "toAgeMonths": 18.333333333333343
+            }
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HOLSTEINs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "packageId": "cattleFinished",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "completeWindows": [],
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ]
+        }
+      ],
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "subTypeName": "BULL_HOLSTEIN",
+      "productionClass": "DAIRY",
+      "breedId": "COW:HOLSTEIN"
+    },
+    {
+      "schemaVersion": 1,
+      "sampleIntervalGameHours": 1,
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "admissionReady": false,
+      "mode": "LEGACY",
+      "consumedFeedLiters": {
+        "FORAGE": 17466.932107952707
+      },
+      "breedId": "COW:HOLSTEIN",
+      "castrated": true,
+      "gene": 1,
+      "assumptions": {
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "noDiseaseChallenge": true,
+        "sandboxAdministration": true,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "healthIncreaseHour": 10,
+        "neutralBirthFactor": 1,
+        "healthDecreaseHour": 25,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "automaticWater": true,
+        "healthThresholdFactor": 0.45
+      },
+      "daysPerPeriod": 1,
+      "months": 36,
+      "productionClass": "DAIRY",
+      "packages": [
+        {
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "status": "NOT_ADMITTED",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HOLSTEINs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "completeWindows": [],
+          "packageId": "cattleWeaned",
+          "measuredWindows": [
+            {
+              "lastStep": 240,
+              "toWeightKg": 349.66944452200016,
+              "toFinishScore": 65.0,
+              "toAgeMonths": 10,
+              "fromAgeMonths": 4,
+              "firstStep": 96,
+              "fromWeightKg": 156.16700674052754
+            }
+          ]
+        },
+        {
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "status": "NOT_ADMITTED",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HOLSTEINs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "completeWindows": [],
+          "packageId": "cattleStore",
+          "measuredWindows": []
+        },
+        {
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "status": "NOT_ADMITTED",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HOLSTEINs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "completeWindows": [],
+          "packageId": "cattleFinished",
+          "measuredWindows": [
+            {
+              "lastStep": 445,
+              "toFinishScore": 79.94040000000001,
+              "toWeightKg": 658.0978740679091,
+              "fromFinishScore": 74.5415,
+              "toAgeMonths": 18.541666666666682,
+              "fromAgeMonths": 17.541666666666682,
+              "firstStep": 421,
+              "fromWeightKg": 617.8940382143597
+            }
+          ]
+        }
+      ],
+      "subTypeName": "BULL_HOLSTEIN"
+    },
+    {
+      "admissionReady": false,
+      "castrated": false,
+      "packages": [
+        {
+          "packageId": "cattleWeaned",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds9:COW:ANGUSs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "measuredWindows": [
+            {
+              "fromWeightKg": 142.77731212877842,
+              "toFinishScore": 65.0,
+              "toWeightKg": 352.54775239263523,
+              "fromAgeMonths": 4,
+              "firstStep": 96,
+              "toAgeMonths": 10,
+              "lastStep": 240
+            }
+          ],
+          "status": "NOT_ADMITTED",
+          "completeWindows": []
+        },
+        {
+          "packageId": "cattleStore",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds9:COW:ANGUSs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "measuredWindows": [],
+          "status": "NOT_ADMITTED",
+          "completeWindows": []
+        },
+        {
+          "packageId": "cattleFinished",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds9:COW:ANGUSs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "measuredWindows": [
+            {
+              "fromWeightKg": 570.3321561265063,
+              "toFinishScore": 79.8619,
+              "fromFinishScore": 69.5022,
+              "toWeightKg": 654.7370606292728,
+              "fromAgeMonths": 16.29166666666665,
+              "firstStep": 391,
+              "toAgeMonths": 18.541666666666636,
+              "lastStep": 445
+            }
+          ],
+          "status": "NOT_ADMITTED",
+          "completeWindows": []
+        }
+      ],
+      "schemaVersion": 1,
+      "subTypeName": "BULL_ANGUS",
+      "consumedFeedLiters": {
+        "FORAGE": 12220.643210833206
+      },
+      "productionClass": "BEEF",
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "assumptions": {
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "noDiseaseChallenge": true,
+        "sandboxAdministration": true,
+        "automaticWater": true,
+        "neutralBirthFactor": 1,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "healthDecreaseHour": 25,
+        "healthThresholdFactor": 0.45,
+        "healthIncreaseHour": 10
+      },
+      "breedId": "COW:ANGUS",
+      "gene": 1,
+      "months": 36,
+      "daysPerPeriod": 1,
+      "sampleIntervalGameHours": 1,
+      "mode": "REAL"
+    },
+    {
+      "schemaVersion": 1,
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "breedId": "COW:ANGUS",
+      "packages": [
+        {
+          "status": "NOT_ADMITTED",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "measuredWindows": [
+            {
+              "lastStep": 240,
+              "toFinishScore": 65.0,
+              "fromWeightKg": 129.04356550771254,
+              "fromAgeMonths": 4,
+              "firstStep": 96,
+              "toAgeMonths": 10,
+              "toWeightKg": 318.4990374042118
+            }
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "completeWindows": [],
+          "packageId": "cattleWeaned",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds9:COW:ANGUSs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1"
+        },
+        {
+          "status": "NOT_ADMITTED",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "measuredWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "completeWindows": [],
+          "packageId": "cattleStore",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds9:COW:ANGUSs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1"
+        },
+        {
+          "status": "NOT_ADMITTED",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "measuredWindows": [
+            {
+              "lastStep": 454,
+              "toFinishScore": 79.861,
+              "fromFinishScore": 74.6469,
+              "fromWeightKg": 570.627339836075,
+              "fromAgeMonths": 17.916666666666615,
+              "firstStep": 430,
+              "toAgeMonths": 18.916666666666615,
+              "toWeightKg": 606.7205938782907
+            }
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "completeWindows": [],
+          "packageId": "cattleFinished",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds9:COW:ANGUSs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1"
+        }
+      ],
+      "admissionReady": false,
+      "consumedFeedLiters": {
+        "FORAGE": 11629.413909425102
+      },
+      "mode": "REAL",
+      "months": 36,
+      "assumptions": {
+        "automaticWater": true,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "neutralBirthFactor": 1,
+        "healthThresholdFactor": 0.45,
+        "healthDecreaseHour": 25,
+        "noDiseaseChallenge": true,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "healthIncreaseHour": 10,
+        "sandboxAdministration": true
+      },
+      "daysPerPeriod": 1,
+      "sampleIntervalGameHours": 1,
+      "gene": 1,
+      "castrated": true,
+      "productionClass": "BEEF",
+      "subTypeName": "BULL_ANGUS"
+    },
+    {
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "schemaVersion": 1,
+      "castrated": false,
+      "productionClass": "BEEF",
+      "breedId": "COW:ANGUS",
+      "packages": [
+        {
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "measuredWindows": [
+            {
+              "lastStep": 240,
+              "toAgeMonths": 10,
+              "toFinishScore": 65.0,
+              "fromWeightKg": 142.7773121287956,
+              "fromAgeMonths": 4,
+              "toWeightKg": 352.647156236311,
+              "firstStep": 96
+            }
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds9:COW:ANGUSs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "packageId": "cattleWeaned",
+          "completeWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "status": "NOT_ADMITTED"
+        },
+        {
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "measuredWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds9:COW:ANGUSs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "packageId": "cattleStore",
+          "completeWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "status": "NOT_ADMITTED"
+        },
+        {
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "measuredWindows": [
+            {
+              "lastStep": 476,
+              "toFinishScore": 79.9806,
+              "toAgeMonths": 19.833333333333357,
+              "fromFinishScore": 69.3984,
+              "fromWeightKg": 570.3120869938608,
+              "fromAgeMonths": 16.291666666666675,
+              "toWeightKg": 692.255146217361,
+              "firstStep": 391
+            }
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds9:COW:ANGUSs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "packageId": "cattleFinished",
+          "completeWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "status": "NOT_ADMITTED"
+        }
+      ],
+      "consumedFeedLiters": {
+        "FORAGE": 14542.861839406942
+      },
+      "admissionReady": false,
+      "daysPerPeriod": 1,
+      "mode": "LEGACY",
+      "subTypeName": "BULL_ANGUS",
+      "assumptions": {
+        "neutralBirthFactor": 1,
+        "healthThresholdFactor": 0.45,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "noDiseaseChallenge": true,
+        "sandboxAdministration": true,
+        "healthDecreaseHour": 25,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "healthIncreaseHour": 10,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "automaticWater": true
+      },
+      "months": 36,
+      "gene": 1,
+      "sampleIntervalGameHours": 1
+    },
+    {
+      "admissionReady": false,
+      "sampleIntervalGameHours": 1,
+      "gene": 1,
+      "productionClass": "BEEF",
+      "packages": [
+        {
+          "measuredWindows": [
+            {
+              "firstStep": 96,
+              "toAgeMonths": 10,
+              "fromAgeMonths": 4,
+              "toFinishScore": 65.0,
+              "lastStep": 240,
+              "toWeightKg": 318.4990374041847,
+              "fromWeightKg": 129.04356550770356
+            }
+          ],
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds9:COW:ANGUSs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "status": "NOT_ADMITTED",
+          "packageId": "cattleWeaned"
+        },
+        {
+          "measuredWindows": [],
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds9:COW:ANGUSs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "status": "NOT_ADMITTED",
+          "packageId": "cattleStore"
+        },
+        {
+          "measuredWindows": [
+            {
+              "firstStep": 431,
+              "toAgeMonths": 19.75000000000002,
+              "fromAgeMonths": 17.95833333333336,
+              "fromFinishScore": 73.8061,
+              "toFinishScore": 79.882,
+              "lastStep": 474,
+              "toWeightKg": 631.0628855175661,
+              "fromWeightKg": 570.9507431545998
+            }
+          ],
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds9:COW:ANGUSs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "status": "NOT_ADMITTED",
+          "packageId": "cattleFinished"
+        }
+      ],
+      "schemaVersion": 1,
+      "consumedFeedLiters": {
+        "FORAGE": 14454.256584311677
+      },
+      "assumptions": {
+        "sandboxAdministration": true,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "neutralBirthFactor": 1,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "noDiseaseChallenge": true,
+        "healthIncreaseHour": 10,
+        "healthDecreaseHour": 25,
+        "automaticWater": true,
+        "healthThresholdFactor": 0.45,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN"
+      },
+      "daysPerPeriod": 1,
+      "months": 36,
+      "subTypeName": "BULL_ANGUS",
+      "castrated": true,
+      "breedId": "COW:ANGUS",
+      "mode": "LEGACY",
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY"
+    },
+    {
+      "daysPerPeriod": 1,
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "consumedFeedLiters": {
+        "FORAGE": 13129.445268905783
+      },
+      "assumptions": {
+        "automaticWater": true,
+        "healthThresholdFactor": 0.45,
+        "noDiseaseChallenge": true,
+        "sandboxAdministration": true,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "healthDecreaseHour": 25,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "neutralBirthFactor": 1,
+        "healthIncreaseHour": 10
+      },
+      "packages": [
+        {
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:LIMOUSINs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "packageId": "cattleWeaned",
+          "completeWindows": [],
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "status": "NOT_ADMITTED",
+          "measuredWindows": [
+            {
+              "firstStep": 96,
+              "lastStep": 240,
+              "toFinishScore": 65.0,
+              "fromWeightKg": 153.11258200163107,
+              "toAgeMonths": 10,
+              "toWeightKg": 371.5099466343939,
+              "fromAgeMonths": 4
+            }
+          ]
+        },
+        {
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:LIMOUSINs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "packageId": "cattleStore",
+          "completeWindows": [],
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "status": "NOT_ADMITTED",
+          "measuredWindows": []
+        },
+        {
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:LIMOUSINs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "packageId": "cattleFinished",
+          "completeWindows": [],
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "status": "NOT_ADMITTED",
+          "measuredWindows": [
+            {
+              "firstStep": 417,
+              "fromFinishScore": 65.7508,
+              "lastStep": 476,
+              "toFinishScore": 79.9372,
+              "fromWeightKg": 666.9345123140803,
+              "toAgeMonths": 19.833333333333286,
+              "toWeightKg": 766.5885291874206,
+              "fromAgeMonths": 17.37499999999998
+            }
+          ]
+        }
+      ],
+      "admissionReady": false,
+      "subTypeName": "BULL_LIMOUSIN",
+      "schemaVersion": 1,
+      "sampleIntervalGameHours": 1,
+      "months": 36,
+      "productionClass": "BEEF",
+      "mode": "REAL",
+      "castrated": false,
+      "gene": 1,
+      "breedId": "COW:LIMOUSIN"
+    },
+    {
+      "productionClass": "BEEF",
+      "months": 36,
+      "breedId": "COW:LIMOUSIN",
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "mode": "REAL",
+      "admissionReady": false,
+      "sampleIntervalGameHours": 1,
+      "daysPerPeriod": 1,
+      "assumptions": {
+        "sandboxAdministration": true,
+        "healthThresholdFactor": 0.45,
+        "automaticWater": true,
+        "healthIncreaseHour": 10,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "noDiseaseChallenge": true,
+        "neutralBirthFactor": 1,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "healthDecreaseHour": 25,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation"
+      },
+      "consumedFeedLiters": {
+        "FORAGE": 12542.731450299876
+      },
+      "packages": [
+        {
+          "packageId": "cattleWeaned",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:LIMOUSINs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "completeWindows": [],
+          "status": "NOT_ADMITTED",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "measuredWindows": [
+            {
+              "firstStep": 96,
+              "toFinishScore": 65.0,
+              "fromWeightKg": 138.98280329799852,
+              "toWeightKg": 338.13559322064293,
+              "lastStep": 240,
+              "fromAgeMonths": 4,
+              "toAgeMonths": 10
+            }
+          ]
+        },
+        {
+          "packageId": "cattleStore",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:LIMOUSINs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "completeWindows": [],
+          "status": "NOT_ADMITTED",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "measuredWindows": []
+        },
+        {
+          "packageId": "cattleFinished",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:LIMOUSINs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "completeWindows": [],
+          "status": "NOT_ADMITTED",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "measuredWindows": [
+            {
+              "firstStep": 449,
+              "toFinishScore": 79.83070000000001,
+              "fromWeightKg": 666.9235671563117,
+              "fromFinishScore": 69.689,
+              "toWeightKg": 728.641205036307,
+              "lastStep": 485,
+              "fromAgeMonths": 18.708333333333293,
+              "toAgeMonths": 20.20833333333332
+            }
+          ]
+        }
+      ],
+      "subTypeName": "BULL_LIMOUSIN",
+      "schemaVersion": 1,
+      "gene": 1,
+      "castrated": true
+    },
+    {
+      "schemaVersion": 1,
+      "assumptions": {
+        "healthThresholdFactor": 0.45,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "automaticWater": true,
+        "neutralBirthFactor": 1,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "healthDecreaseHour": 25,
+        "sandboxAdministration": true,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "healthIncreaseHour": 10,
+        "noDiseaseChallenge": true
+      },
+      "packages": [
+        {
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:LIMOUSINs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "measuredWindows": [
+            {
+              "fromWeightKg": 153.17454085423793,
+              "fromAgeMonths": 4,
+              "toAgeMonths": 10,
+              "lastStep": 240,
+              "toFinishScore": 65.0,
+              "firstStep": 96,
+              "toWeightKg": 374.4569993726322
+            }
+          ],
+          "status": "NOT_ADMITTED",
+          "packageId": "cattleWeaned",
+          "completeWindows": []
+        },
+        {
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:LIMOUSINs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "measuredWindows": [],
+          "status": "NOT_ADMITTED",
+          "packageId": "cattleStore",
+          "completeWindows": []
+        },
+        {
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:LIMOUSINs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "measuredWindows": [
+            {
+              "fromWeightKg": 668.2940030875723,
+              "fromAgeMonths": 16.875000000000025,
+              "toAgeMonths": 19.625000000000018,
+              "toFinishScore": 79.91069999999999,
+              "lastStep": 471,
+              "toWeightKg": 772.3166609340439,
+              "firstStep": 405,
+              "fromFinishScore": 69.4703
+            }
+          ],
+          "status": "NOT_ADMITTED",
+          "packageId": "cattleFinished",
+          "completeWindows": []
+        }
+      ],
+      "daysPerPeriod": 1,
+      "breedId": "COW:LIMOUSIN",
+      "sampleIntervalGameHours": 1,
+      "admissionReady": false,
+      "consumedFeedLiters": {
+        "FORAGE": 16811.05943347937
+      },
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "months": 36,
+      "gene": 1,
+      "mode": "LEGACY",
+      "castrated": false,
+      "productionClass": "BEEF",
+      "subTypeName": "BULL_LIMOUSIN"
+    },
+    {
+      "packages": [
+        {
+          "packageId": "cattleWeaned",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:LIMOUSINs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "status": "NOT_ADMITTED",
+          "measuredWindows": [
+            {
+              "lastStep": 240,
+              "toAgeMonths": 10,
+              "fromWeightKg": 138.98280329808088,
+              "toWeightKg": 338.1355932207108,
+              "toFinishScore": 65.0,
+              "firstStep": 96,
+              "fromAgeMonths": 4
+            }
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "completeWindows": []
+        },
+        {
+          "packageId": "cattleStore",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:LIMOUSINs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "status": "NOT_ADMITTED",
+          "measuredWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "completeWindows": []
+        },
+        {
+          "packageId": "cattleFinished",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:LIMOUSINs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "status": "NOT_ADMITTED",
+          "measuredWindows": [
+            {
+              "lastStep": 473,
+              "toAgeMonths": 19.708333333333353,
+              "fromWeightKg": 667.2068987168983,
+              "toWeightKg": 714.2134875437007,
+              "toFinishScore": 79.8858,
+              "fromFinishScore": 74.3306,
+              "firstStep": 445,
+              "fromAgeMonths": 18.541666666666682
+            }
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "completeWindows": []
+        }
+      ],
+      "consumedFeedLiters": {
+        "FORAGE": 16806.671345153645
+      },
+      "breedId": "COW:LIMOUSIN",
+      "admissionReady": false,
+      "mode": "LEGACY",
+      "assumptions": {
+        "healthThresholdFactor": 0.45,
+        "neutralBirthFactor": 1,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "healthDecreaseHour": 25,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "noDiseaseChallenge": true,
+        "automaticWater": true,
+        "healthIncreaseHour": 10,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "sandboxAdministration": true
+      },
+      "sampleIntervalGameHours": 1,
+      "daysPerPeriod": 1,
+      "gene": 1,
+      "months": 36,
+      "subTypeName": "BULL_LIMOUSIN",
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "castrated": true,
+      "schemaVersion": 1,
+      "productionClass": "BEEF"
+    },
+    {
+      "breedId": "COW:HEREFORD",
+      "packages": [
+        {
+          "packageId": "cattleWeaned",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "completeWindows": [],
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "status": "NOT_ADMITTED",
+          "measuredWindows": [
+            {
+              "fromAgeMonths": 4,
+              "firstStep": 96,
+              "toFinishScore": 65.0,
+              "toWeightKg": 336.59257234098453,
+              "toAgeMonths": 10,
+              "lastStep": 240,
+              "fromWeightKg": 140.8840065021754
+            }
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HEREFORDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1"
+        },
+        {
+          "packageId": "cattleStore",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "completeWindows": [],
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "status": "NOT_ADMITTED",
+          "measuredWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HEREFORDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1"
+        },
+        {
+          "packageId": "cattleFinished",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "completeWindows": [],
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "status": "NOT_ADMITTED",
+          "measuredWindows": [
+            {
+              "fromAgeMonths": 15.958333333333279,
+              "firstStep": 383,
+              "toFinishScore": 79.8647,
+              "fromFinishScore": 69.4954,
+              "toWeightKg": 622.0462553404952,
+              "toAgeMonths": 18,
+              "lastStep": 432,
+              "fromWeightKg": 541.7692221263113
+            }
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HEREFORDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1"
+        }
+      ],
+      "mode": "REAL",
+      "consumedFeedLiters": {
+        "FORAGE": 11848.488920300413
+      },
+      "sampleIntervalGameHours": 1,
+      "assumptions": {
+        "neutralBirthFactor": 1,
+        "noDiseaseChallenge": true,
+        "automaticWater": true,
+        "sandboxAdministration": true,
+        "healthDecreaseHour": 25,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "healthThresholdFactor": 0.45,
+        "healthIncreaseHour": 10,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE"
+      },
+      "gene": 1,
+      "subTypeName": "BULL_HEREFORD",
+      "months": 36,
+      "admissionReady": false,
+      "castrated": false,
+      "schemaVersion": 1,
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "productionClass": "BEEF",
+      "daysPerPeriod": 1
+    },
+    {
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "productionClass": "BEEF",
+      "breedId": "COW:HEREFORD",
+      "mode": "REAL",
+      "packages": [
+        {
+          "completeWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "measuredWindows": [
+            {
+              "fromWeightKg": 127.81063876078912,
+              "toFinishScore": 65.0,
+              "toAgeMonths": 10,
+              "toWeightKg": 305.27676862706824,
+              "fromAgeMonths": 4,
+              "lastStep": 240,
+              "firstStep": 96
+            }
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HEREFORDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "packageId": "cattleWeaned",
+          "status": "NOT_ADMITTED"
+        },
+        {
+          "completeWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "measuredWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HEREFORDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "packageId": "cattleStore",
+          "status": "NOT_ADMITTED"
+        },
+        {
+          "completeWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "measuredWindows": [
+            {
+              "fromWeightKg": 542.6676645502398,
+              "toFinishScore": 79.7775,
+              "fromFinishScore": 74.72930000000001,
+              "toAgeMonths": 18.458333333333307,
+              "toWeightKg": 575.8657118727659,
+              "fromAgeMonths": 17.5833333333333,
+              "lastStep": 443,
+              "firstStep": 422
+            }
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HEREFORDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "packageId": "cattleFinished",
+          "status": "NOT_ADMITTED"
+        }
+      ],
+      "consumedFeedLiters": {
+        "FORAGE": 11285.799376494275
+      },
+      "schemaVersion": 1,
+      "admissionReady": false,
+      "assumptions": {
+        "sandboxAdministration": true,
+        "automaticWater": true,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "healthThresholdFactor": 0.45,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "healthIncreaseHour": 10,
+        "healthDecreaseHour": 25,
+        "neutralBirthFactor": 1,
+        "noDiseaseChallenge": true
+      },
+      "subTypeName": "BULL_HEREFORD",
+      "castrated": true,
+      "daysPerPeriod": 1,
+      "gene": 1,
+      "months": 36,
+      "sampleIntervalGameHours": 1
+    },
+    {
+      "mode": "LEGACY",
+      "admissionReady": false,
+      "consumedFeedLiters": {
+        "FORAGE": 13446.002361831885
+      },
+      "packages": [
+        {
+          "measuredWindows": [
+            {
+              "toAgeMonths": 10,
+              "fromWeightKg": 140.88400650212108,
+              "toFinishScore": 65.0,
+              "firstStep": 96,
+              "toWeightKg": 336.5925723409188,
+              "lastStep": 240,
+              "fromAgeMonths": 4
+            }
+          ],
+          "status": "NOT_ADMITTED",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HEREFORDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "completeWindows": [],
+          "packageId": "cattleWeaned"
+        },
+        {
+          "measuredWindows": [],
+          "status": "NOT_ADMITTED",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HEREFORDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "completeWindows": [],
+          "packageId": "cattleStore"
+        },
+        {
+          "measuredWindows": [
+            {
+              "toAgeMonths": 19.250000000000007,
+              "fromWeightKg": 541.6353224402822,
+              "toFinishScore": 79.9055,
+              "fromFinishScore": 69.3707,
+              "firstStep": 383,
+              "toWeightKg": 658.670593035593,
+              "lastStep": 462,
+              "fromAgeMonths": 15.95833333333332
+            }
+          ],
+          "status": "NOT_ADMITTED",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HEREFORDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "completeWindows": [],
+          "packageId": "cattleFinished"
+        }
+      ],
+      "productionClass": "BEEF",
+      "sampleIntervalGameHours": 1,
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "schemaVersion": 1,
+      "gene": 1,
+      "daysPerPeriod": 1,
+      "subTypeName": "BULL_HEREFORD",
+      "assumptions": {
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "neutralBirthFactor": 1,
+        "healthThresholdFactor": 0.45,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "noDiseaseChallenge": true,
+        "automaticWater": true,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "sandboxAdministration": true,
+        "healthDecreaseHour": 25,
+        "healthIncreaseHour": 10
+      },
+      "castrated": false,
+      "breedId": "COW:HEREFORD",
+      "months": 36
+    },
+    {
+      "subTypeName": "BULL_HEREFORD",
+      "months": 36,
+      "consumedFeedLiters": {
+        "FORAGE": 13408.826401104325
+      },
+      "assumptions": {
+        "healthThresholdFactor": 0.45,
+        "automaticWater": true,
+        "neutralBirthFactor": 1,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "sandboxAdministration": true,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "healthDecreaseHour": 25,
+        "noDiseaseChallenge": true,
+        "healthIncreaseHour": 10
+      },
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "productionClass": "BEEF",
+      "mode": "LEGACY",
+      "castrated": true,
+      "daysPerPeriod": 1,
+      "schemaVersion": 1,
+      "breedId": "COW:HEREFORD",
+      "admissionReady": false,
+      "sampleIntervalGameHours": 1,
+      "packages": [
+        {
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "packageId": "cattleWeaned",
+          "measuredWindows": [
+            {
+              "toFinishScore": 65.0,
+              "lastStep": 240,
+              "firstStep": 96,
+              "toWeightKg": 305.27676862708574,
+              "toAgeMonths": 10,
+              "fromAgeMonths": 4,
+              "fromWeightKg": 127.81063876080948
+            }
+          ],
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HEREFORDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "status": "NOT_ADMITTED",
+          "completeWindows": []
+        },
+        {
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "packageId": "cattleStore",
+          "measuredWindows": [],
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HEREFORDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "status": "NOT_ADMITTED",
+          "completeWindows": []
+        },
+        {
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "packageId": "cattleFinished",
+          "measuredWindows": [
+            {
+              "toFinishScore": 79.9244,
+              "fromFinishScore": 73.6638,
+              "lastStep": 464,
+              "firstStep": 422,
+              "toWeightKg": 602.7635247036332,
+              "toAgeMonths": 19.333333333333343,
+              "fromAgeMonths": 17.58333333333335,
+              "fromWeightKg": 541.5333697203032
+            }
+          ],
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HEREFORDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "status": "NOT_ADMITTED",
+          "completeWindows": []
+        }
+      ],
+      "gene": 1
+    },
+    {
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "consumedFeedLiters": {
+        "FORAGE": 9943.7502173577
+      },
+      "daysPerPeriod": 1,
+      "mode": "REAL",
+      "subTypeName": "BULL_HIGHLAND_CATTLE",
+      "packages": [
+        {
+          "packageId": "cattleWeaned",
+          "measuredWindows": [
+            {
+              "toFinishScore": 65.0,
+              "lastStep": 240,
+              "toAgeMonths": 10,
+              "toWeightKg": 240.01046311583747,
+              "firstStep": 96,
+              "fromWeightKg": 104.33336454330633,
+              "fromAgeMonths": 4
+            }
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HIGHLANDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "status": "NOT_ADMITTED",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "completeWindows": []
+        },
+        {
+          "packageId": "cattleStore",
+          "measuredWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HIGHLANDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "status": "NOT_ADMITTED",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "completeWindows": []
+        },
+        {
+          "packageId": "cattleFinished",
+          "measuredWindows": [
+            {
+              "toFinishScore": 79.7654,
+              "fromWeightKg": 456.54091264589624,
+              "lastStep": 478,
+              "toAgeMonths": 19.916666666666615,
+              "toWeightKg": 522.9546730532221,
+              "firstStep": 429,
+              "fromFinishScore": 69.5589,
+              "fromAgeMonths": 17.87499999999995
+            }
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HIGHLANDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "status": "NOT_ADMITTED",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "completeWindows": []
+        }
+      ],
+      "assumptions": {
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "noDiseaseChallenge": true,
+        "sandboxAdministration": true,
+        "healthThresholdFactor": 0.45,
+        "healthIncreaseHour": 10,
+        "neutralBirthFactor": 1,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "automaticWater": true,
+        "healthDecreaseHour": 25,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN"
+      },
+      "productionClass": "BEEF",
+      "months": 36,
+      "castrated": false,
+      "schemaVersion": 1,
+      "admissionReady": false,
+      "gene": 1,
+      "sampleIntervalGameHours": 1,
+      "breedId": "COW:HIGHLAND"
+    },
+    {
+      "packages": [
+        {
+          "completeWindows": [],
+          "packageId": "cattleWeaned",
+          "status": "NOT_ADMITTED",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HIGHLANDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "measuredWindows": [
+            {
+              "toAgeMonths": 10,
+              "toFinishScore": 65.0,
+              "lastStep": 240,
+              "firstStep": 96,
+              "fromWeightKg": 96.58336306500098,
+              "toWeightKg": 215.16248489312002,
+              "fromAgeMonths": 4
+            }
+          ],
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ]
+        },
+        {
+          "completeWindows": [],
+          "packageId": "cattleStore",
+          "status": "NOT_ADMITTED",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HIGHLANDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "measuredWindows": [],
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ]
+        },
+        {
+          "completeWindows": [],
+          "packageId": "cattleFinished",
+          "status": "NOT_ADMITTED",
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HIGHLANDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "measuredWindows": [
+            {
+              "toAgeMonths": 20.624999999999964,
+              "toFinishScore": 79.9731,
+              "fromAgeMonths": 19.66666666666663,
+              "lastStep": 495,
+              "firstStep": 472,
+              "fromWeightKg": 456.092886089548,
+              "toWeightKg": 485.7120114019571,
+              "fromFinishScore": 74.62169999999999
+            }
+          ],
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ]
+        }
+      ],
+      "consumedFeedLiters": {
+        "FORAGE": 9335.852958713109
+      },
+      "assumptions": {
+        "healthDecreaseHour": 25,
+        "sandboxAdministration": true,
+        "noDiseaseChallenge": true,
+        "healthThresholdFactor": 0.45,
+        "automaticWater": true,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "healthIncreaseHour": 10,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "neutralBirthFactor": 1
+      },
+      "daysPerPeriod": 1,
+      "breedId": "COW:HIGHLAND",
+      "months": 36,
+      "subTypeName": "BULL_HIGHLAND_CATTLE",
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "admissionReady": false,
+      "sampleIntervalGameHours": 1,
+      "productionClass": "BEEF",
+      "schemaVersion": 1,
+      "castrated": true,
+      "mode": "REAL",
+      "gene": 1
+    },
+    {
+      "castrated": false,
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "gene": 1,
+      "months": 36,
+      "consumedFeedLiters": {
+        "FORAGE": 10173.001559277307
+      },
+      "daysPerPeriod": 1,
+      "breedId": "COW:HIGHLAND",
+      "mode": "LEGACY",
+      "sampleIntervalGameHours": 1,
+      "assumptions": {
+        "neutralBirthFactor": 1,
+        "automaticWater": true,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "healthIncreaseHour": 10,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "sandboxAdministration": true,
+        "noDiseaseChallenge": true,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "healthThresholdFactor": 0.45,
+        "healthDecreaseHour": 25
+      },
+      "packages": [
+        {
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HIGHLANDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "measuredWindows": [
+            {
+              "lastStep": 240,
+              "toFinishScore": 65.0,
+              "toWeightKg": 240.01046311582687,
+              "toAgeMonths": 10,
+              "fromAgeMonths": 4,
+              "fromWeightKg": 104.33336454330562,
+              "firstStep": 96
+            }
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "status": "NOT_ADMITTED",
+          "completeWindows": [],
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "packageId": "cattleWeaned"
+        },
+        {
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HIGHLANDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "measuredWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "status": "NOT_ADMITTED",
+          "completeWindows": [],
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "packageId": "cattleStore"
+        },
+        {
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HIGHLANDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "measuredWindows": [
+            {
+              "toFinishScore": 79.99440000000001,
+              "lastStep": 507,
+              "fromFinishScore": 69.4386,
+              "toWeightKg": 554.2790726766129,
+              "toAgeMonths": 21.125000000000004,
+              "fromAgeMonths": 17.875000000000025,
+              "fromWeightKg": 456.43207731633606,
+              "firstStep": 429
+            }
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "status": "NOT_ADMITTED",
+          "completeWindows": [],
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "packageId": "cattleFinished"
+        }
+      ],
+      "productionClass": "BEEF",
+      "schemaVersion": 1,
+      "admissionReady": false,
+      "subTypeName": "BULL_HIGHLAND_CATTLE"
+    },
+    {
+      "months": 36,
+      "subTypeName": "BULL_HIGHLAND_CATTLE",
+      "breedId": "COW:HIGHLAND",
+      "packages": [
+        {
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HIGHLANDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "status": "NOT_ADMITTED",
+          "packageId": "cattleWeaned",
+          "completeWindows": [],
+          "measuredWindows": [
+            {
+              "toWeightKg": 215.16248489311496,
+              "lastStep": 240,
+              "toAgeMonths": 10,
+              "firstStep": 96,
+              "toFinishScore": 65.0,
+              "fromAgeMonths": 4,
+              "fromWeightKg": 96.58336306500092
+            }
+          ],
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ]
+        },
+        {
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HIGHLANDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "status": "NOT_ADMITTED",
+          "packageId": "cattleStore",
+          "completeWindows": [],
+          "measuredWindows": [],
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ]
+        },
+        {
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds12:COW:HIGHLANDs24:allowedProductionClassest1:n1:1s4:BEEFs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "status": "NOT_ADMITTED",
+          "packageId": "cattleFinished",
+          "completeWindows": [],
+          "measuredWindows": [
+            {
+              "toWeightKg": 505.7206089781156,
+              "lastStep": 514,
+              "toAgeMonths": 21.41666666666668,
+              "firstStep": 473,
+              "fromFinishScore": 73.7937,
+              "fromAgeMonths": 19.708333333333353,
+              "toFinishScore": 79.9916,
+              "fromWeightKg": 456.42928781626017
+            }
+          ],
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ]
+        }
+      ],
+      "gene": 1,
+      "assumptions": {
+        "sandboxAdministration": true,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "automaticWater": true,
+        "healthDecreaseHour": 25,
+        "neutralBirthFactor": 1,
+        "noDiseaseChallenge": true,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "healthThresholdFactor": 0.45,
+        "healthIncreaseHour": 10
+      },
+      "sampleIntervalGameHours": 1,
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "castrated": true,
+      "productionClass": "BEEF",
+      "admissionReady": false,
+      "consumedFeedLiters": {
+        "FORAGE": 10012.222544341226
+      },
+      "mode": "LEGACY",
+      "daysPerPeriod": 1,
+      "schemaVersion": 1
+    },
+    {
+      "admissionReady": false,
+      "schemaVersion": 1,
+      "productionClass": "DAIRY",
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "breedId": "COW:WATER_BUFFALO",
+      "subTypeName": "BULL_WATERBUFFALO",
+      "castrated": false,
+      "gene": 1,
+      "sampleIntervalGameHours": 1,
+      "consumedFeedLiters": {
+        "FORAGE": 8409.299138796403
+      },
+      "daysPerPeriod": 1,
+      "mode": "REAL",
+      "assumptions": {
+        "automaticWater": true,
+        "healthThresholdFactor": 0.45,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "healthIncreaseHour": 10,
+        "noDiseaseChallenge": true,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "healthDecreaseHour": 25,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "sandboxAdministration": true,
+        "neutralBirthFactor": 1
+      },
+      "months": 36,
+      "packages": [
+        {
+          "status": "NOT_ADMITTED",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "packageId": "cattleWeaned",
+          "measuredWindows": [
+            {
+              "firstStep": 96,
+              "fromWeightKg": 105.37688066284046,
+              "toWeightKg": 224.47382614139187,
+              "toFinishScore": 65.0,
+              "fromAgeMonths": 4,
+              "toAgeMonths": 10,
+              "lastStep": 240
+            }
+          ],
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds17:COW:WATER_BUFFALOs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ]
+        },
+        {
+          "status": "NOT_ADMITTED",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "packageId": "cattleStore",
+          "measuredWindows": [],
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds17:COW:WATER_BUFFALOs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ]
+        },
+        {
+          "status": "NOT_ADMITTED",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "packageId": "cattleFinished",
+          "measuredWindows": [
+            {
+              "fromFinishScore": 69.4997,
+              "firstStep": 516,
+              "fromWeightKg": 427.6466014693229,
+              "toWeightKg": 491.14732898979554,
+              "toFinishScore": 79.8999,
+              "fromAgeMonths": 21.49999999999997,
+              "toAgeMonths": 25.37499999999998,
+              "lastStep": 609
+            }
+          ],
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds17:COW:WATER_BUFFALOs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ]
+        }
+      ]
+    },
+    {
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "packages": [
+        {
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds17:COW:WATER_BUFFALOs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "status": "NOT_ADMITTED",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "measuredWindows": [
+            {
+              "toWeightKg": 206.60481417137572,
+              "toFinishScore": 65.0,
+              "toAgeMonths": 10,
+              "lastStep": 240,
+              "fromWeightKg": 96.73011087402166,
+              "firstStep": 96,
+              "fromAgeMonths": 4
+            }
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "completeWindows": [],
+          "packageId": "cattleWeaned"
+        },
+        {
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds17:COW:WATER_BUFFALOs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "status": "NOT_ADMITTED",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "measuredWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "completeWindows": [],
+          "packageId": "cattleStore"
+        },
+        {
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds17:COW:WATER_BUFFALOs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "status": "NOT_ADMITTED",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "measuredWindows": [
+            {
+              "toWeightKg": 455.37322454681566,
+              "fromFinishScore": 74.6922,
+              "toFinishScore": 79.9419,
+              "toAgeMonths": 25.20833333333332,
+              "lastStep": 605,
+              "fromWeightKg": 428.1271757109335,
+              "firstStep": 567,
+              "fromAgeMonths": 23.624999999999964
+            }
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "completeWindows": [],
+          "packageId": "cattleFinished"
+        }
+      ],
+      "consumedFeedLiters": {
+        "FORAGE": 7941.704628358362
+      },
+      "assumptions": {
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "healthThresholdFactor": 0.45,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "healthDecreaseHour": 25,
+        "automaticWater": true,
+        "healthIncreaseHour": 10,
+        "sandboxAdministration": true,
+        "neutralBirthFactor": 1,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "noDiseaseChallenge": true
+      },
+      "daysPerPeriod": 1,
+      "productionClass": "DAIRY",
+      "sampleIntervalGameHours": 1,
+      "castrated": true,
+      "months": 36,
+      "admissionReady": false,
+      "gene": 1,
+      "breedId": "COW:WATER_BUFFALO",
+      "schemaVersion": 1,
+      "mode": "REAL",
+      "subTypeName": "BULL_WATERBUFFALO"
+    },
+    {
+      "mode": "LEGACY",
+      "daysPerPeriod": 1,
+      "subTypeName": "BULL_WATERBUFFALO",
+      "months": 36,
+      "packages": [
+        {
+          "packageId": "cattleWeaned",
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "status": "NOT_ADMITTED",
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds17:COW:WATER_BUFFALOs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "measuredWindows": [
+            {
+              "fromAgeMonths": 4,
+              "lastStep": 240,
+              "toAgeMonths": 10,
+              "toWeightKg": 224.47382614136413,
+              "firstStep": 96,
+              "toFinishScore": 65.0,
+              "fromWeightKg": 105.37688066279802
+            }
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ]
+        },
+        {
+          "packageId": "cattleStore",
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "status": "NOT_ADMITTED",
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds17:COW:WATER_BUFFALOs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "measuredWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ]
+        },
+        {
+          "packageId": "cattleFinished",
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "status": "NOT_ADMITTED",
+          "completeWindows": [],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds17:COW:WATER_BUFFALOs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "measuredWindows": [
+            {
+              "fromFinishScore": 69.4263,
+              "fromAgeMonths": 21.500000000000014,
+              "lastStep": 635,
+              "toAgeMonths": 26.458333333333346,
+              "toWeightKg": 504.78685037852534,
+              "firstStep": 516,
+              "toFinishScore": 79.9581,
+              "fromWeightKg": 427.5844046917697
+            }
+          ],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ]
+        }
+      ],
+      "schemaVersion": 1,
+      "consumedFeedLiters": {
+        "FORAGE": 11401.199168030716
+      },
+      "assumptions": {
+        "healthIncreaseHour": 10,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "healthDecreaseHour": 25,
+        "automaticWater": true,
+        "noDiseaseChallenge": true,
+        "neutralBirthFactor": 1,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "sandboxAdministration": true,
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "healthThresholdFactor": 0.45
+      },
+      "sampleIntervalGameHours": 1,
+      "castrated": false,
+      "productionClass": "DAIRY",
+      "gene": 1,
+      "admissionReady": false,
+      "breedId": "COW:WATER_BUFFALO",
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY"
+    },
+    {
+      "consumedFeedLiters": {
+        "FORAGE": 11278.89570511197
+      },
+      "packages": [
+        {
+          "status": "NOT_ADMITTED",
+          "packageId": "cattleWeaned",
+          "completeWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:ageReferenceKg",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg"
+          ],
+          "observedFailureCodes": [
+            "condition:5:f.weaned",
+            "condition:9:s.ageMonths"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:7t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:8t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:9t4:s2:ops5:ranges3:maxn2:10s3:minn1:4s5:fields11:s.ageMonthsn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn4:0.75s5:fields10:s.weightKgs9:references16:f.ageReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds17:COW:WATER_BUFFALOs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids12:cattleWeaneds4:kinds12:cattleWeaneds4:tiers8:standards9:candidateb1",
+          "measuredWindows": [
+            {
+              "lastStep": 240,
+              "firstStep": 96,
+              "toFinishScore": 65.0,
+              "toAgeMonths": 10,
+              "toWeightKg": 206.60481417135327,
+              "fromWeightKg": 96.73011087401488,
+              "fromAgeMonths": 4
+            }
+          ]
+        },
+        {
+          "status": "NOT_ADMITTED",
+          "packageId": "cattleStore",
+          "completeWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:developmentReady",
+            "fact:finished",
+            "fact:minimumPurchaseKg",
+            "finishScore"
+          ],
+          "observedFailureCodes": [
+            "condition:10:s.ageMonths",
+            "condition:11:s.production.finishScore",
+            "condition:12:s.weightKg",
+            "condition:5:f.weaned"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst12:n1:1t3:s2:ops2:eqs5:fields10:f.finisheds5:valueb0n1:2t3:s2:ops2:eqs5:fields18:f.developmentReadys5:valueb1n1:3t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:4t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:5t3:s2:ops2:eqs5:fields8:f.weaneds5:valueb1n1:6t3:s2:ops2:eqs5:fields8:s.genders5:values4:malen1:7t3:s2:ops5:ranges3:minn2:80s5:fields8:s.healthn1:8t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:9t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn2:10t4:s2:ops5:ranges3:maxn2:20s3:minn1:8s5:fields11:s.ageMonthsn2:11t5:s12:maxExclusiveb1s2:ops5:ranges3:maxn2:65s3:minn1:0s5:fields24:s.production.finishScoren2:12t5:s2:ops5:ratios3:maxn19:0.80000000000000004s3:minn19:0.55000000000000004s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgs10:speciesKeys3:COWs12:purposeGroups6:GROWERs13:schemaVersionn1:1s15:requiredBreedIds17:COW:WATER_BUFFALOs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids11:cattleStores4:kinds11:cattleStores4:tiers8:standards9:candidateb1",
+          "measuredWindows": []
+        },
+        {
+          "status": "NOT_ADMITTED",
+          "packageId": "cattleFinished",
+          "completeWindows": [],
+          "unknownCapabilities": [
+            "fact:actualMinimumAgeMonths",
+            "fact:minimumPurchaseKg",
+            "fact:slaughterBasisAvailable",
+            "fact:standardFinishKg",
+            "finishScore"
+          ],
+          "observedFailureCodes": [
+            "condition:7:s.ageMonths",
+            "condition:8:s.production.finishScore",
+            "condition:9:s.weightKg"
+          ],
+          "packageRevision": "market1:t11:s10:breedScopes8:SPECIFICs10:conditionst10:n1:1t3:s2:ops2:eqs5:fields23:s.reproductive.pregnants5:valueb0n1:2t3:s2:ops2:eqs5:fields24:s.reproductive.lactatings5:valueb0n1:3t3:s2:ops2:eqs5:fields25:f.slaughterBasisAvailables5:valueb1n1:4t3:s2:ops5:ranges3:minn2:85s5:fields8:s.healthn1:5t3:s2:ops7:atLeasts5:fields10:s.weightKgs9:references19:f.minimumPurchaseKgn1:6t3:s2:ops7:atLeasts5:fields11:s.ageMonthss9:references24:f.actualMinimumAgeMonthsn1:7t4:s2:ops5:ranges3:maxn2:30s3:minn2:14s5:fields11:s.ageMonthsn1:8t4:s2:ops5:ranges3:maxn2:80s3:minn2:65s5:fields24:s.production.finishScoren1:9t4:s2:ops5:ratios3:minn19:0.94999999999999996s5:fields10:s.weightKgs9:references33:s.production.slaughterReferenceKgn2:10t5:s2:ops5:ratios3:maxn3:1.2s3:minn19:0.84999999999999998s5:fields10:s.weightKgs9:references18:f.standardFinishKgs10:speciesKeys3:COWs12:purposeGroups8:FINISHEDs13:schemaVersionn1:1s15:requiredBreedIds17:COW:WATER_BUFFALOs24:allowedProductionClassest1:n1:1s5:DAIRYs2:ids14:cattleFinisheds4:kinds14:cattleFinisheds4:tiers8:standards9:candidateb1",
+          "measuredWindows": [
+            {
+              "lastStep": 621,
+              "toFinishScore": 79.9665,
+              "firstStep": 567,
+              "fromFinishScore": 74.0506,
+              "toAgeMonths": 25.875000000000025,
+              "toWeightKg": 464.1770095835232,
+              "fromWeightKg": 427.5883201807211,
+              "fromAgeMonths": 23.625000000000018
+            }
+          ]
+        }
+      ],
+      "assumptions": {
+        "neutralBirthFactor": 1,
+        "healthThresholdFactor": 0.45,
+        "foodGroups": "FEEDSIM_HOF_BERGMANN_1_5_ENGINE_STANDIN",
+        "ration": "FORAGE_PLUS_CALFMILK_AVAILABLE",
+        "automaticWater": true,
+        "sandboxAdministration": true,
+        "note": "FeedSim overrides health rates; this is not a real-game parameter validation",
+        "healthDecreaseHour": 25,
+        "healthIncreaseHour": 10,
+        "noDiseaseChallenge": true
+      },
+      "gene": 1,
+      "sampleIntervalGameHours": 1,
+      "admissionReady": false,
+      "breedId": "COW:WATER_BUFFALO",
+      "mode": "LEGACY",
+      "castrated": true,
+      "daysPerPeriod": 1,
+      "productionClass": "DAIRY",
+      "months": 36,
+      "subTypeName": "BULL_WATERBUFFALO",
+      "verificationType": "PHYSIOLOGY_MEASUREMENT_ONLY",
+      "schemaVersion": 1
+    }
+  ]
+}

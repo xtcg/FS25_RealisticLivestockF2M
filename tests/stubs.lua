@@ -49,6 +49,7 @@ end
 function near(a, b, eps) return a ~= nil and b ~= nil and math.abs(a - b) < (eps or 0.01) end
 
 function loadMod(path)
+    if recordMeasurementSource ~= nil then recordMeasurementSource(REPO .. path) end
     local chunk, err = loadfile(REPO .. path)
     assert(chunk, err)
     chunk()
@@ -57,6 +58,7 @@ end
 -- XMLFile over a real file on disk: elements and attributes only (comments and the
 -- declaration dropped), addressed with the engine's "root.child(i).grandchild(j)#attr" keys.
 function loadXMLFileFromDisk(path)
+    if recordMeasurementSource ~= nil then recordMeasurementSource(path) end
     local handle = io.open(path, "r")
     if handle == nil then return nil end
     local text = handle:read("*a"):gsub("<!%-%-.-%-%->", ""):gsub("<%?.-%?>", "")
@@ -116,6 +118,7 @@ end
 -- `first` up to (not including) the line containing `last`. The whole file uses GIANTS Lua's
 -- `continue`, which stock Lua cannot parse. Animal is created if missing.
 function loadAnimalSection(first, last)
+    if recordMeasurementSource ~= nil then recordMeasurementSource(REPO .. "scripts/animal/RealisticLivestock_Animal.lua") end
     local handle = assert(io.open(REPO .. "scripts/animal/RealisticLivestock_Animal.lua", "r"))
     local text = handle:read("*a")
     handle:close()
