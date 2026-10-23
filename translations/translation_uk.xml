@@ -876,6 +876,7 @@
         <text name="rl_settings_sortByGenetics_tooltip_2" text="Тварини сортуються за генетикою (найкращі спочатку)"/>
         <text name="rl_ui_buyAllRejected" text="Жодну з вибраних тварин не можна купити у цей загін."/>
         <text name="rl_ui_buyPartialConfirmation" text="Купити %d з %d вибраних тварин за %s?" tag="format"/>
+        <text name="rl_ui_buyPriceChanged" text="Ціна тим часом змінилася: %d тварин тепер коштують %s. Купити?" tag="format"/>
         <text name="rl_ui_buySkippedNotSupported" text="Пропущено %d тварин, які не підтримуються цим загоном" tag="format"/>
         <!-- Herdsman rule lifecycle -->
         <text name="rl_menu_herdsman_new_button" text="Нове завдання"/>

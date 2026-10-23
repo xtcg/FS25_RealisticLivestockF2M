@@ -878,6 +878,7 @@
         <text name="rl_menu_filter_chip_unnamed" text="(senza nome)"/>
         <text name="rl_ui_buyAllRejected" text="Nessuno degli animali selezionati può essere acquistato in questo allevamento."/>
         <text name="rl_ui_buyPartialConfirmation" text="Acquistare %d dei %d animali selezionati per %s?" tag="format"/>
+        <text name="rl_ui_buyPriceChanged" text="Nel frattempo il prezzo è cambiato: %d animali ora costano %s. Acquistare?" tag="format"/>
         <text name="rl_ui_buySkippedNotSupported" text="%d animale/i non supportati da questo allevamento" tag="format"/>
         <!-- Herdsman rule lifecycle -->
         <text name="rl_menu_herdsman_new_button" text="Nuova regola"/>

@@ -200,6 +200,7 @@
         <text name="rl_ui_moveSelected" text="Seçilenleri taşı"/>
         <text name="rl_ui_buyConfirmation" text="%s hayvanı %s karşılığında satın almak istediğinizden emin misiniz?" tag="format"/>
         <text name="rl_ui_buyPartialConfirmation" text="Seçilen %d hayvandan %d kadarını %s karşılığında satın almak istiyor musunuz?" tag="format"/>
+        <text name="rl_ui_buyPriceChanged" text="Fiyat bu arada değişti: %d hayvan şimdi %s. Satın alınsın mı?" tag="format"/>
         <text name="rl_ui_buySkippedNotSupported" text="%d hayvan bu tesis tarafından desteklenmiyor" tag="format"/>
         <text name="rl_ui_buyAllRejected" text="Seçilen hayvanların hiçbiri bu tesise satın alınamaz."/>
         <text name="rl_ui_sellConfirmation" text="%s hayvanı %s karşılığında satmak istediğinizden emin misiniz?" tag="format"/>

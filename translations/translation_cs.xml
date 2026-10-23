@@ -908,6 +908,7 @@
         <text name="rl_settings_sortByGenetics_tooltip_2" text="动物按遗传排序（最高在前）"/>
         <text name="rl_ui_buyAllRejected" text="所选动物都无法购买到该圈舍。"/>
         <text name="rl_ui_buyPartialConfirmation" text="购买 %d 头动物（共选择 %d 头），总价 %s？" tag="format"/>
+        <text name="rl_ui_buyPriceChanged" text="价格在此期间已变化：%d 头动物现价 %s。仍要购买吗？" tag="format"/>
         <text name="rl_ui_buySkippedNotSupported" text="%d 头动物不适合该圈舍" tag="format"/>
         <!-- Herdsman rule lifecycle -->
         <text name="rl_menu_herdsman_new_button" text="新建任务"/>
