@@ -703,7 +703,35 @@ function RLMenuBuyFrame:onBuyConfirmed(clickYes)
         return
     end
 
+    -- The confirmation may have stayed open over an hour (age, weight, month): price the animals again
+    -- now, and when the total moved (whole money) ask at the new amount before going on.
+    local price, fee = RLAnimalBuyService.computeBulkTotal(self.pendingBuyAnimals)
+    if not priceAvailable(price) or not priceAvailable(fee) then
+        self:clearPendingBuyState()
+        InfoDialog.show(g_i18n:getText("rl_ui_priceUnavailable"))
+        return
+    end
+    if self:getTrailerDealerContext() ~= nil then fee = 0 end
+    self.confirmedBuyTotal = (self.pendingBuyPrice or 0) + (self.pendingBuyFee or 0)
+    if self:hasBuyPriceMoved(price + fee) then
+        self.pendingBuyPrice, self.pendingBuyFee = price, fee
+        self:confirmMovedBuyPrice(#self.pendingBuyAnimals, price, fee, self.onBuyPriceReconfirmed)
+        return
+    end
+
     -- What the player agreed to pay: a repricing before dispatch that changes it asks again.
+    self:startBuyFlow(self.pendingBuyAnimals, self.pendingBuyPrice or 0, self.pendingBuyFee or 0)
+end
+
+
+--- YesNo callback for a confirmation whose quote moved while it was open: yes goes on to the
+--- destination at the new price (which becomes the confirmed one).
+function RLMenuBuyFrame:onBuyPriceReconfirmed(clickYes)
+    Log:debug("RLMenuBuyFrame:onBuyPriceReconfirmed: clickYes=%s", tostring(clickYes))
+    if not clickYes or self.pendingBuyAnimals == nil or #self.pendingBuyAnimals == 0 then
+        self:clearPendingBuyState()
+        return
+    end
     self.confirmedBuyTotal = (self.pendingBuyPrice or 0) + (self.pendingBuyFee or 0)
     self:startBuyFlow(self.pendingBuyAnimals, self.pendingBuyPrice or 0, self.pendingBuyFee or 0)
 end
@@ -720,13 +748,13 @@ function RLMenuBuyFrame:hasBuyPriceMoved(total)
 end
 
 
---- Ask again at the repriced total (YesNo; yes dispatches the pending buy as repriced).
-function RLMenuBuyFrame:confirmMovedBuyPrice(count, price, fee)
+--- Ask again at the repriced total (YesNo; yes dispatches the pending buy as repriced, or runs `callback`).
+function RLMenuBuyFrame:confirmMovedBuyPrice(count, price, fee, callback)
     Log:debug("RLMenuBuyFrame:confirmMovedBuyPrice: confirmed %.2f, now %.2f (%d animals)", self.confirmedBuyTotal or 0,
         (price or 0) + (fee or 0), count)
     self.confirmedBuyTotal = (price or 0) + (fee or 0)
     local text = string.format(g_i18n:getText("rl_ui_buyPriceChanged"), count, g_i18n:formatMoney((price or 0) + (fee or 0), 0, true, true))
-    YesNoDialog.show(self.onBuyPartialConfirmed, self, text, g_i18n:getText("ui_attention"))
+    YesNoDialog.show(callback or self.onBuyPartialConfirmed, self, text, g_i18n:getText("ui_attention"))
 end
 
 
