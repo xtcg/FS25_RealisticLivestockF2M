@@ -53,15 +53,58 @@ C.onMissionStarted = function() C.state = C.READY; C.generation = 3; C.lineage =
 local unsavedWal = { data = { lineage = "DLruntime", baseGeneration = 3, sequence = 2, purchase = P.export(P.new()) } }
 unsavedWal.data.purchase.recoveryRequired = true
 RLDealerJournal.load = function() return unsavedWal end
-local moved = {}
-copyFile = function(from, to) moved[#moved + 1] = "copy " .. from .. " " .. to end
-deleteFile = function(path) moved[#moved + 1] = "delete " .. path end
+local moved, archiveDisk, archiveFault = {}, {}, nil
+local function clone(v) if type(v) ~= "table" then return v end local o = {}; for k,x in pairs(v) do o[k]=clone(x) end; return o end
+unsavedWal.digest = RLTradePersistence.checksum(RLTradePersistence.canonical(unsavedWal.data))
+local source = "/save/rm_RlDealerPurchaseJournal.xml"
+local archive = "/save/rm_RlDealerPurchaseJournal.unsaved.xml"
+archiveDisk[source] = clone(unsavedWal)
+R.archiveStorage = {
+    exists = function(path) return archiveDisk[path] ~= nil end,
+    read = function(path)
+        if archiveFault == "READ_THROW" and path == archive then error("read fault") end
+        return clone(archiveDisk[path])
+    end,
+    copy = function(from, to)
+        moved[#moved + 1] = "copy " .. from .. " " .. to
+        if archiveFault == "COPY_FALSE" then return false end
+        if archiveFault == "COPY_THROW" then error("copy fault") end
+        archiveDisk[to] = clone(archiveDisk[from])
+        if archiveFault == "COPY_CORRUPT" then archiveDisk[to].data.sequence = 999 end
+        return true
+    end,
+    remove = function(path)
+        moved[#moved + 1] = "delete " .. path
+        if archiveFault == "DELETE_FALSE" then return false end
+        if archiveFault == "DELETE_THROW" then error("delete fault") end
+        archiveDisk[path] = nil
+        return true
+    end,
+}
 R.onMissionStarted({ missionInfo = { savegameDirectory = "/save" } })
-check("dealer runtime: an unsaved session's WAL is set aside on load, the dealer stays dormant with its saved stock",
+check("dealer runtime: unsaved WAL is exactly archived before deletion, saved stock stays dormant",
     R.state == "DORMANT" and R.reason == "WAL_UNSAVED_DISCARDED" and C.state == C.READY and not R.store.recoveryRequired
-    and moved[1] == "copy /save/rm_RlDealerPurchaseJournal.xml /save/rm_RlDealerPurchaseJournal.unsaved.xml"
-    and moved[2] == "delete /save/rm_RlDealerPurchaseJournal.xml")
-copyFile, deleteFile = nil, nil
+    and moved[1] == "copy " .. source .. " " .. archive and moved[2] == "delete " .. source
+    and archiveDisk[source] == nil and RLTradePersistence.canonical(archiveDisk[archive]) == RLTradePersistence.canonical(unsavedWal))
+for _, fault in ipairs({ "COPY_FALSE", "COPY_THROW", "COPY_CORRUPT", "READ_THROW", "DELETE_FALSE", "DELETE_THROW" }) do
+    R.reset(true); archiveDisk, moved, archiveFault = {[source]=clone(unsavedWal)}, {}, fault
+    R.store = assert(V.new("archive-failure", 10))
+    local path = R.archiveWal(source, unsavedWal)
+    check("dealer archive " .. fault .. " preserves source and recovery evidence", path == nil
+        and R.state == "RECOVERY_REQUIRED" and C.state == C.RECOVERY_REQUIRED and R.store.recoveryRequired
+        and archiveDisk[source] ~= nil and R.evidence.expected.digest == unsavedWal.digest)
+end
+archiveFault = nil
+for _, location in ipairs({source, archive}) do
+    R.reset(true); archiveDisk, moved = {[source]=clone(unsavedWal)}, {}
+    if location == archive then archiveDisk[archive] = clone(unsavedWal) end
+    archiveDisk[location].data.sequence = 100
+    local path = R.archiveWal(source, unsavedWal)
+    check("dealer archive refuses changed evidence at " .. location, path == nil and R.state == "RECOVERY_REQUIRED"
+        and archiveDisk[source] ~= nil and #moved == 0)
+end
+R.archiveStorage = nil
+
 RLDealerJournal.load, C.onMissionStarted, fileExists = oldLoad, oldMissionStarted, oldExists
 
 -- T4: the gate and the enable switch

@@ -1046,9 +1046,15 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
 
         if not sourceBirth then
+            -- Capacity overflow remains an explicit legacy disposal policy,
+            -- separate from an optional live Dealer quotation. Lack of a market
+            -- BID must not fail a birth after IDs and parent links were written.
+            local overflowPrice
+            if type(child.getLegacySellPrice)=="function" then overflowPrice=child:getLegacySellPrice()
+            else overflowPrice=child:getSellPrice() end
             table.insert(sellPrices, {
                 ["index"] = i,
-                ["sellPrice"] = child:getSellPrice(),
+                ["sellPrice"] = overflowPrice,
             })
         end
 

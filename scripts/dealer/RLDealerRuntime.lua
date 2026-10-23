@@ -102,17 +102,51 @@ function R.compareJournal(document, generation, lineage)
 end
 --- Move an unsaved session's WAL aside (rm_RlDealerPurchaseJournal.unsaved.xml) so the next purchase
 --- starts a fresh one; the next save replaces the folder and drops it (savegameBackup keeps it).
-function R.archiveWal(walPath)
+function R.archiveWal(walPath, expected)
     local archived = walPath:gsub("%.xml$", ".unsaved.xml")
-    if copyFile ~= nil and deleteFile ~= nil then
-        copyFile(walPath, archived, true)
-        deleteFile(walPath)
+    local io = R.archiveStorage or {
+        exists = function(path) return fileExists(path) end,
+        read = function(path)
+            local xml = XMLFile.loadIfExists("rlDealerArchiveRead", path)
+            if xml == nil then return nil end
+            local ok, data, digest = pcall(RLDealerJournal.readDocument, xml)
+            xml:delete()
+            if not ok or data == nil then return nil end
+            return { data = data, digest = digest }
+        end,
+        copy = function(from, to) return copyFile(from, to, true) end,
+        remove = function(path) return deleteFile(path) end,
+    }
+    local function same(document)
+        return type(document) == "table" and type(document.data) == "table"
+            and not RLTradePersistence.check(document.data, RLDealerPersistence.LIMITS)
+            and document.digest == expected.digest
+            and RLTradePersistence.canonical(document.data) == RLTradePersistence.canonical(expected.data)
+    end
+    local function archive()
+        if type(expected) ~= "table" or type(expected.data) ~= "table" then return nil, "WAL_ARCHIVE_EXPECTED_MISSING" end
+        if not same(io.read(walPath)) then return nil, "WAL_ARCHIVE_SOURCE_CHANGED" end
+        -- Never overwrite a previous, different unsaved session's evidence.
+        if io.exists(archived) then
+            if not same(io.read(archived)) then return nil, "WAL_ARCHIVE_CONFLICT" end
+        else
+            if io.copy(walPath, archived) == false then return nil, "WAL_ARCHIVE_COPY_FAILED" end
+            if not same(io.read(archived)) then return nil, "WAL_ARCHIVE_READBACK_FAILED" end
+        end
+        -- The source may only be removed once the exact evidence is verified elsewhere.
+        if not same(io.read(walPath)) then return nil, "WAL_ARCHIVE_SOURCE_CHANGED" end
+        if io.remove(walPath) == false or io.exists(walPath) then return nil, "WAL_ARCHIVE_DELETE_FAILED" end
+        if not same(io.read(archived)) then return nil, "WAL_ARCHIVE_FINAL_READBACK_FAILED" end
+        return archived
+    end
+    local ok, path, why = pcall(archive)
+    if not ok then path, why = nil, "WAL_ARCHIVE_UNCERTAIN" end
+    if path == nil then
+        close(why, { source = walPath, archive = archived, expected = copy(expected) })
+        return nil, why
     end
     R.reason = "WAL_UNSAVED_DISCARDED"
-    if RmLogging ~= nil then
-        RmLogging.getLogger("RLRM"):info("RLDealerRuntime: a purchase journal from a session left without saving was set aside (%s)", archived)
-    end
-    return archived
+    return path
 end
 function R.onMissionStarted(mission, evidence)
     if not R.server then return end
@@ -130,7 +164,10 @@ function R.onMissionStarted(mission, evidence)
         local matched
         matched, why = R.compareJournal(journal, checkpoint.generation, checkpoint.lineage)
         if not matched then close(why, R.evidence or journal); return end
-        if why == "WAL_UNSAVED_DISCARDED" then R.archiveWal(walPath) end
+        if why == "WAL_UNSAVED_DISCARDED" then
+            local archived = R.archiveWal(walPath, journal)
+            if not archived then return end
+        end
     end
     R.state = "DORMANT"
     if R.reason ~= "WAL_UNSAVED_DISCARDED" then

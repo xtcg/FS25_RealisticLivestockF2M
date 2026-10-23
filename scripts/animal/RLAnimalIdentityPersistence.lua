@@ -18,6 +18,7 @@ P.FILENAME = "rm_RlAnimalIdentityLedger.xml"
 P.ROOT = "rlAnimalIdentity"
 P.JOURNAL_FILENAME = "rm_RlAnimalIdentityJournal.xml"
 P.JOURNAL_ROOT = "rlAnimalIdentityJournal"
+P.JOURNAL_PENDING_FILENAME = "rm_RlAnimalIdentityJournal.pending.xml"
 P.LIMITS = { maxNodes = 1500000, maxString = 16 * 1024 * 1024, maxDepth = 12 }
 P.MAX_JOURNAL_KEYS = 20000
 
@@ -85,9 +86,44 @@ function P.readLedger(xml)
 end
 
 
+local function counter(value)
+    return type(value) == "number" and value == value and value >= 0 and value < 2 ^ 52 and value % 1 == 0
+end
+
+local function journalData(data)
+    if type(data) ~= "table" or getmetatable(data) ~= nil then return nil, "BAD_JOURNAL" end
+    local allowed = {lineage=true,generation=true,sequence=true,keys=true}
+    for key in pairs(data) do if not allowed[key] then return nil, "BAD_JOURNAL_FIELD" end end
+    if type(data.lineage) ~= "string" or not data.lineage:match("^L[%w%-]+$") then return nil, "BAD_LINEAGE" end
+    if not counter(data.generation) then return nil, "BAD_GENERATION" end
+    if not counter(data.sequence) then return nil, "BAD_JOURNAL_SEQUENCE" end
+    local keys = data.keys
+    if type(keys) ~= "table" or getmetatable(keys) ~= nil then return nil, "BAD_JOURNAL" end
+    local count, maxIndex, seen = 0, 0, {}
+    for index in pairs(keys) do
+        if not counter(index) or index < 1 or index > P.MAX_JOURNAL_KEYS then return nil, "BAD_JOURNAL" end
+        count, maxIndex = count + 1, math.max(maxIndex, index)
+        if count > P.MAX_JOURNAL_KEYS then return nil, "BAD_JOURNAL" end
+    end
+    if count ~= maxIndex then return nil, "BAD_JOURNAL" end
+    for index = 1, count do
+        local key = keys[index]
+        if type(key) ~= "string" or #key > 256 then return nil, "BAD_JOURNAL_KEY:" .. index end
+        local farmId, uniqueId, country = RLAnimalIdentity.parseKey(key)
+        if farmId == nil or not farmId:match("^%d+$") or not uniqueId:match("^%d+$")
+            or not counter(country) or country < 1 or RLAnimalIdentity.keyString(farmId, uniqueId, country) ~= key then
+            return nil, "BAD_JOURNAL_KEY:" .. index
+        end
+        if seen[key] then return nil, "DUPLICATE_JOURNAL_KEY:" .. index end
+        seen[key] = true
+    end
+    return true
+end
+
 --- data = { lineage, generation = baseGeneration, sequence, keys = { "farm uniqueId country", ... } }
 function P.writeJournal(xml, data)
-    if type(data) ~= "table" or type(data.keys) ~= "table" or #data.keys > P.MAX_JOURNAL_KEYS then return nil, "BAD_JOURNAL" end
+    local valid, why = journalData(data)
+    if not valid then return nil, why end
     return write(xml, P.JOURNAL_ROOT, { lineage = data.lineage, generation = data.generation }, data)
 end
 
@@ -95,10 +131,8 @@ end
 function P.readJournal(xml)
     local doc, why = read(xml, P.JOURNAL_ROOT)
     if doc == nil then return nil, why end
-    local keys = doc.data.keys
-    if type(keys) ~= "table" or #keys > P.MAX_JOURNAL_KEYS then return nil, "BAD_JOURNAL" end
-    for i, key in ipairs(keys) do
-        if type(key) ~= "string" or RLAnimalIdentity.parseKey(key) == nil then return nil, "BAD_JOURNAL_KEY:" .. i end
-    end
+    local valid
+    valid, why = journalData(doc.data)
+    if not valid then return nil, why end
     return doc
 end

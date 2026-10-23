@@ -507,6 +507,12 @@ function C.onMissionStarted(mission, notes)
         generation = doc ~= nil and doc.meta.generation or nil, lineage = C.lineage, markers = copy(evidence.markers),
         cancelled = cancelled, unfinished = kept, identityRepairs = notes ~= nil and notes.identityRepairs or 0,
         resources = C.rebind(RLContractTrade.store, mission), ledgerError = evidence.ledger.error }
+    if notes ~= nil and type(notes.identityConflicts)=="number" and notes.identityConflicts>0 then
+        C.state,C.reason=C.RECOVERY_REQUIRED,"HISTORICAL_IDENTITY_CONFLICTS"
+        RLContractTrade.store.recoveryRequired=true
+        C.load.state,C.load.reason=C.RECOVERY_REQUIRED,C.reason
+        C.load.identityConflicts=notes.identityConflicts
+    end
     local level = C.state == C.READY and "info" or "error"
     Log[level](Log, "RLTradeCheckpoint: %s (%s); %d unfinished record(s) held, %d never-started cancelled",
         C.state, tostring(C.reason), kept, cancelled)

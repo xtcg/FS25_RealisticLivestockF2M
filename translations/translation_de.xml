@@ -1111,5 +1111,6 @@
         <text name="rl_meadow_witherWarning" text="%s: Das Weidegras stirbt in etwa %d Tagen für den Winter ab - Heu oder Silage in den Trog geben"/>
         <text name="rl_wool_shorn" text="%s: %d Schafe geschoren, %d l Wolle warten auf Paletten"/>
         <text name="rl_menu_settings_tab_manual" text="Player guide"/>
+        <text name="rl_ui_priceUnavailable" text="Preis nicht verfügbar. Aktualisieren und erneut versuchen."/>
     </texts>
 </l10n>

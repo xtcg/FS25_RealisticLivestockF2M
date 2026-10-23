@@ -6,6 +6,8 @@ loadMod("scripts/animal/RLTradePersistence.lua")
 loadMod("scripts/animal/RLAnimalIdentity.lua")
 loadMod("scripts/animal/RLAnimalIdentityPersistence.lua")
 loadMod("scripts/animal/RLAnimalIdentityRuntime.lua")
+-- This unit fixture omits engine storage; checkpoint tests exercise the real barrier.
+RLAnimalIdentityRuntime.journalBarrier = function() return true end
 loadMod("scripts/animal/RLAnimalIdentityWorld.lua")
 local I, R, W, U = RLAnimalIdentity, RLAnimalIdentityRuntime, RLAnimalIdentityWorld, RLAnimalUtil
 AnimalType = { COW = 1, PIG = 2, SHEEP = 3, HORSE = 4, CHICKEN = 5 }
@@ -27,7 +29,7 @@ RealisticLivestock_FarmStats = {}
 compile(slice("scripts/farms/RealisticLivestock_FarmStats.lua", "function RealisticLivestock_FarmStats:getNextAnimalId", "FarmStats.getNextAnimalId ="), "getNext")()
 farm.stats.getNextAnimalId = RealisticLivestock_FarmStats.getNextAnimalId
 g_farmManager = { farmIdToFarm = { [1] = farm } }
-local sys = { countries = { [2] = { index = 2, farms = { { id = 9, ids = { [1] = 0 } } } } } }
+local sys = { animals = {}, aiAnimals = {}, countries = { [2] = { index = 2, farms = { { id = 9, ids = { [1] = 0 } } } } } }
 function sys:getSubTypeByIndex() return { typeIndex = AnimalType.COW } end
 function sys:getTypeByIndex() return { name = "COW" } end
 AnimalSystem = {}

@@ -183,6 +183,7 @@ local function calf(name, age, extra)
         farmId = 1, uniqueId = "a" .. idCounter, birthday = { country = 1 }, health = 100, weight = 45, price = 1000 }
     function a:getIdentifiers() return self.farmId .. "-" .. self.uniqueId end
     function a:setRecentlyBoughtByAI() end
+    function a:getTranportationFee()return 50 end
     for k, v in pairs(extra or {}) do a[k] = v end
     return a
 end
@@ -298,9 +299,9 @@ check("C02 move screen: refused as PEN_NOT_BUILT, not as a breed or age rule",
 
 -- C02 / C05.1 real buy event --------------------------------------------------------------------------
 
-local function runBuy(target, animals)
+local function runBuy(target, animals,price,fee)
     local sent = {}
-    local event = AnimalBuyEvent.new(target, animals, -1000 * #animals, -50)
+    local event = AnimalBuyEvent.new(target, animals, price or -1000 * #animals, fee or -50)
     event:run(makeConnection("player", false, sent))
     return sent[1] ~= nil and sent[1].errorCode or nil
 end
@@ -332,6 +333,40 @@ check("C02 the base screens and RLRM's menu get a text for code 8",
     and RLAnimalBuyService.getErrorText(8) == "rl_ui_penNotBuilt")
 local filtered = RLAnimalBuyService.filterBuyableAnimals(setup1, { calf("COW_HOLSTEIN", 0) }, 1, AnimalBuyEvent.validate)
 check("C02 RLRM buy menu filter: rejected with code 8", #filtered.valid == 0 and filtered.firstErrorCode == 8)
+
+local oldBuyPrice=RLAnimalBuyService.computeBuyPrice
+for _,value in ipairs({"nil","throw","negative","nan","inf"})do
+    RLAnimalBuyService.computeBuyPrice=function()
+        if value=="nil"then return nil elseif value=="throw"then error("quote unavailable")
+        elseif value=="negative"then return -1 elseif value=="nan"then return 0/0 else return math.huge end
+    end
+    local prior=snapshot()
+    local refused=runBuy(done2,{heifer})
+    check("market buy authority: unavailable "..value.." quote cannot spend client money or move stock",refused~=nil and refused~=AnimalBuyEvent.BUY_SUCCESS and same(prior,snapshot()))
+end
+RLAnimalBuyService.computeBuyPrice=oldBuyPrice
+for _,case in ipairs({{"cheap body",-1,-50},{"positive body",1000,-50},{"free delivery",-1000,0},
+    {"positive delivery",-1000,50},{"same total wrong split",-1050,0},{"nan body",0/0,-50},{"nan delivery",-1000,0/0}})do
+    local prior=snapshot();local refused=runBuy(done2,{heifer},case[2],case[3])
+    check("market buy authority: forged "..case[1].." rejected before assets",refused==AnimalBuyEvent.BUY_ERROR_PRICE_UNAVAILABLE and same(prior,snapshot()))
+end
+local wire=string.unpack("f",string.pack("f",-1000.12345))
+check("market buy authority: real float32 roundtrip allowed without changing server amount",AnimalBuyEvent.matchesWirePrice(wire,-1000.12345))
+check("market buy authority: component change above float32 precision refused",not AnimalBuyEvent.matchesWirePrice(-1000.11345,-1000.12345))
+-- The price the player confirmed is charged while within QUOTE_TOLERANCE (2 %) of the server's quote (2026-10-24:
+-- a quote that moved a unit or two while a dialog was open is not worth a refusal or a second question).
+check("market buy authority: a confirmed price 1 % off the server quote is accepted",AnimalBuyEvent.acceptsConfirmedPrice(-1010,-1000))
+check("market buy authority: 3 % off, or the wrong sign, is refused",not AnimalBuyEvent.acceptsConfirmedPrice(-1030,-1000)
+    and not AnimalBuyEvent.acceptsConfirmedPrice(10,0) and not AnimalBuyEvent.acceptsConfirmedPrice(0/0,-1000))
+do
+    MONEY[1]=100000
+    local prior=snapshot()
+    local code=runBuy(done2,{calf("COW_HOLSTEIN",0)},-1012.5,-50)
+    check("market buy authority: an hour-old confirmed price is charged as confirmed (1012.5 + 50, not the server's 1050)",
+        code==AnimalBuyEvent.BUY_SUCCESS and MONEY[1]==prior.money-1062.5 and #done2.animals==prior.done+1)
+    -- Leave the pen and the wallet as the later cases expect them.
+    table.remove(done2.animals);MONEY[1]=prior.money
+end
 
 -- C05.2: normal construction finishes, the pen opens at once.
 local a1 = calf("COW_ANGUS", 1)

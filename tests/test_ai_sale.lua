@@ -28,7 +28,13 @@ loadMod("scripts/animals/shop/events/AIAnimalSellEvent.lua")
 loadMod("scripts/animals/shop/events/AIAnimalBuyEvent.lua")
 loadMod("scripts/herdsman/RLHerdsmanRuleService.lua")
 loadMod("scripts/filters/RLFilterEvaluator.lua")
+local getLogger=RmLogging.getLogger
+RmLogging.LOG_LEVEL={DEBUG=1}
+RmLogging.getLogger=function(...)
+    local logger=getLogger(...);logger.level=0;return logger
+end
 loadMod("scripts/herdsman/RLHerdsmanPlanner.lua")
+RmLogging.getLogger=getLogger
 loadMod("scripts/herdsman/RLHerdsmanExecutor.lua")
 loadMod("scripts/herdsman/RLHerdsmanMessages.lua")
 
@@ -549,3 +555,25 @@ local markPlan = RLHerdsmanPlanner.planActions(
       animalSystem = { getAnimalTransportFee = function() return 40 end }, farmBalanceByFarmId = { [1] = 0 }, buyMarkup = 1 })
 check("planner: marked sell carries no sale snapshot", markPlan[1].mark == true and markPlan[1].sellerFarmId == nil
     and markPlan[1].identities == nil and markPlan[1].amountGained == nil)
+
+local marketAnimal=makeAnimal(1000,40)
+local pricing={sellPrice=function(a)return a.price,{mode="market"}end,buyPrice=function()return 1500 end}
+local marketCtx={husbandries={pen1={animalTypeIndex=1,animals={marketAnimal},freeSlots=2}},filtersById={f={}},
+    animalSystem={getAnimalTransportFee=function()return 40 end},farmBalanceByFarmId={[1]=10000},buyMarkup=1.7,pricing=pricing}
+local sellRules={{id="r1",farmId=1,operation="sell",enabled=true,filterId="f",targetHusbandries={"pen1"},params={maxAnimals=1}}}
+local marketPlan=RLHerdsmanPlanner.planActions(sellRules,marketCtx)
+check("market planner: admitted BID subtracts transport instead of legacy fee credit",marketPlan[1].amountGained==960)
+local savedEnginePrice=RLMarketEnginePrice
+RLMarketEnginePrice={salePrice=pricing.sellPrice}
+pen=makePen({marketAnimal})
+local marketQuote=assert(AIAnimalSellEvent.quoteSale(pen,ids({marketAnimal}),1))
+check("market AI sale: authoritative receipt uses same net as planner",marketQuote.credits[1]==960 and marketQuote.total==960)
+RLMarketEnginePrice=savedEnginePrice
+marketCtx.dealerAnimalsByType={[1]={marketAnimal}}
+local buyRules={{id="r2",farmId=1,operation="buy",enabled=true,filterId="f",targetHusbandries={"pen1"},params={maxAnimals=1,budget={type="fixed",fixed=10000}}}}
+marketPlan=RLHerdsmanPlanner.planActions(buyRules,marketCtx)
+check("market planner: buy is independent ASK plus fee, never BID multiplied by markup",marketPlan[1].amountSpent==1540)
+pricing.buyPrice=function()return nil end
+check("market planner: unavailable ASK leaves animal and budget unclaimed",#RLHerdsmanPlanner.planActions(buyRules,marketCtx)==0)
+pricing.sellPrice=function()return nil end
+check("market planner: unavailable BID leaves animal out of sale shortlist",#RLHerdsmanPlanner.planActions(sellRules,marketCtx)==0)

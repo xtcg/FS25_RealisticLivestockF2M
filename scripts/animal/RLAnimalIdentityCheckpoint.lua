@@ -17,7 +17,7 @@
     used it gets no file, no markers.
 
     Unsaved keys. rm_RlAnimalIdentityJournal.xml lists the keys handed out since the last COMMITTED save
-    (flushed when dirty, on the hour). The engine replaces the save folder on every save, so a journal
+    (written and exactly read back before keys are exposed). The engine replaces the save folder on every save, so a journal
     left in the folder always belongs to a session that was not saved: on load, a journal of the loaded
     generation burns its keys; an older one is ignored; a newer or damaged one is RECOVERY_REQUIRED.
 
@@ -90,12 +90,20 @@ function C.reset(isServer)
     C.state = C.server and C.LOADING or C.DISABLED
     C.reason = C.server and "WAITING_FOR_MISSION" or "CLIENT"
     C.armed, C.lineage, C.generation, C.committed = false, nil, 0, 0
-    C.pass, C.last, C.recovery = nil, nil, nil
+    C.pass, C.last, C.recovery, C.missionInfo = nil, nil, nil, nil
+    C.journalUncertainty, C.journalEvidence, C.journalWriteInProgress, C.memoryJournalWitness = nil, nil, nil, nil
+    C.journalVerified = false
 end
 
 
 local function recover(reason)
     C.state, C.reason, C.recovery = C.RECOVERY_REQUIRED, reason, C.recovery or reason
+    if tostring(reason):find("JOURNAL", 1, true) then
+        C.journalUncertainty = true
+        -- A previously ON lineage may not number through native counters around
+        -- uncertain identity evidence. Fresh OFF/SHADOW worlds retain legacy births.
+        if R.mode == R.ON then R.allocationBlocked = reason end
+    end
     -- Arm even without a ledger: every later save writes a stub that carries this recovery.
     if not C.armed and type(R.lineage) == "string" then C.lineage, C.armed = R.lineage, true end
     R.setLoaded(R.ledger, "RECOVERY_REQUIRED", reason)
@@ -108,6 +116,7 @@ end
 -- -------------------------------------------------------------------------------------------
 
 function C.onSaveBegin(missionInfo)
+    if C.journalWriteInProgress then recover("JOURNAL_SAVE_REENTRY"); return end
     if C.pass ~= nil then
         C.last = { generation = C.pass.generation, status = "ABORTED", reason = "NEXT_SAVE_STARTED" }
         C.pass = nil
@@ -268,7 +277,8 @@ function C.onSaveComplete(errorCode, directory)
         -- The keys the committed save absorbed leave the journal; later ones stay.
         local keys, kept = R.journalKeys(), {}
         for i = (last.journalCount or 0) + 1, #keys do kept[#kept + 1] = keys[i] end
-        R.journal, R.journalDirty = kept, #kept > 0
+        R.journal, R.journalDirty, R.journalSeen = kept, #kept > 0, {}
+        for _, key in ipairs(kept) do R.journalSeen[key] = true end
         logf("info", "RLAnimalIdentityCheckpoint: generation %d committed (%s)", last.generation, last.marker)
     else
         logf("error", "RLAnimalIdentityCheckpoint: generation %d not committed: %s (engine %s)", last.generation, tostring(last.reason), last.engine)
@@ -280,27 +290,87 @@ end
 -- Unsaved-key journal
 -- -------------------------------------------------------------------------------------------
 
---- Write the journal when it changed. Cheap enough to call every hour. Returns true when written.
+--- Synchronous application-visible barrier; no fsync/power-loss atomicity is claimed.
+--- Dirty evidence is retained on every uncertain write/read. No allocation may follow it.
 function C.flushJournal(missionInfo)
-    if not C.armed or R.ledger == nil or not R.journalDirty or C.state ~= C.READY then return false end
-    local directory = missionInfo ~= nil and missionInfo.savegameDirectory or nil
-    if directory == nil then return false end
-    local keys = R.journalKeys()
-    if #keys > P.MAX_JOURNAL_KEYS then
-        logf("error", "RLAnimalIdentityCheckpoint: %d unsaved keys exceed the journal limit - save the game", #keys)
-        return false
+    -- Only the outer caller owns this guard. Reject before sampling keys; a
+    -- recursive flush must never clear the outer barrier or publish another ID.
+    if C.journalWriteInProgress then return nil, "IDENTITY_JOURNAL_IN_PROGRESS" end
+    C.journalWriteInProgress = true
+    local function flush()
+        if not C.armed or R.ledger == nil or C.state ~= C.READY then return nil, "JOURNAL_NOT_READY" end
+        if not R.journalDirty then return false end
+        local directory = missionInfo ~= nil and missionInfo.savegameDirectory or nil
+        if directory == nil then return nil, "JOURNAL_NO_DIRECTORY" end
+        local keys = R.journalKeys()
+        if #keys > P.MAX_JOURNAL_KEYS then return nil, "JOURNAL_KEY_LIMIT" end
+        local data = { lineage = C.lineage, generation = C.committed, sequence = R.ledger.writerSequence, keys = clone(keys) }
+        local canonical = RLTradePersistence.canonical(data)
+        local s = storage()
+        local function writeOne(path)
+            local xml = s.create(path, P.JOURNAL_ROOT)
+            if xml == nil then return nil, "JOURNAL_CREATE_FAILED" end
+            local written, digest = P.writeJournal(xml, data)
+            written = written and xml:save() == true
+            xml:delete()
+            if not written then return nil, "JOURNAL_WRITE_UNCERTAIN" end
+            local check = s.load(path)
+            if check == nil then return nil, "JOURNAL_READBACK_UNCERTAIN" end
+            local doc = P.readJournal(check)
+            check:delete()
+            if doc == nil or doc.meta.digest ~= digest or RLTradePersistence.canonical(doc.data) ~= canonical then
+                return nil, "JOURNAL_READBACK_UNCERTAIN"
+            end
+            return true
+        end
+        -- Keep the previous verified main while staging the complete next journal.
+        -- Once staging verifies, it protects all prior and new keys while main is replaced.
+        -- Both files remain: startup must verify them, never ignore an uncertain sidecar.
+        local staged, why = writeOne(directory .. "/" .. P.JOURNAL_PENDING_FILENAME)
+        if not staged then return nil, why end
+        local written
+        written, why = writeOne(directory .. "/" .. P.JOURNAL_FILENAME)
+        if not written then return nil, why end
+        if C.state ~= C.READY then return nil, "JOURNAL_AUTHORITY_CHANGED" end
+        R.journalDirty = false
+        return true
     end
-    local s = storage()
-    local xml = s.create(directory .. "/" .. P.JOURNAL_FILENAME, P.JOURNAL_ROOT)
-    if xml == nil then return false end
-    local data = { lineage = C.lineage, generation = C.committed, sequence = R.ledger.writerSequence, keys = clone(keys) }
-    local written = P.writeJournal(xml, data)
-    written = written and xml:save() == true
-    xml:delete()
-    if written then R.journalDirty = false end
-    return written
+    local ok, written, why = pcall(flush)
+    C.journalWriteInProgress = nil
+    if not ok then return nil, "JOURNAL_WRITE_READ_UNCERTAIN" end
+    return written, why
 end
 
+--- Called by the runtime after reservation and before any identity becomes visible.
+function C.allocationGate()
+    if C.state ~= C.READY or not C.journalVerified then return nil, "JOURNAL_VERIFICATION_REQUIRED" end
+    if C.journalWriteInProgress then return nil, "IDENTITY_JOURNAL_IN_PROGRESS" end
+    if C.committed < 1 then return nil, "INITIAL_SAVE_REQUIRED" end
+    if C.pass ~= nil or (C.last ~= nil and C.last.status == "WRITTEN") then return nil, "IDENTITY_SAVE_IN_PROGRESS" end
+    if C.last ~= nil and C.last.status ~= "COMMITTED" then return nil, "IDENTITY_SAVE_UNVERIFIED" end
+    return true
+end
+
+function C.failAllocation(reason)
+    -- Only a fully inspected baseline can prove the in-memory journal contains
+    -- every earlier unsaved key. An interrupted startup is never that witness.
+    C.memoryJournalWitness = C.journalVerified == true
+    R.allocationBlocked = reason
+    recover(reason)
+end
+
+function C.persistAllocation()
+    local allowed, blocked = C.allocationGate()
+    if not allowed then return nil, blocked end
+    local info = C.missionInfo or (g_currentMission and g_currentMission.missionInfo)
+    local ok, why = C.flushJournal(info)
+    if ok == false and not R.journalDirty then return true end
+    if ok ~= true then
+        C.failAllocation(why or "JOURNAL_BARRIER_FAILED")
+        return nil, R.allocationBlocked
+    end
+    return true
+end
 
 -- -------------------------------------------------------------------------------------------
 -- Load
@@ -310,6 +380,7 @@ end
 function C.onMissionStarted(mission)
     if not C.server or C.state ~= C.LOADING then return end
     local info = mission.missionInfo
+    C.missionInfo = info
     local directory = info ~= nil and info.savegameDirectory or nil
     if directory == nil then
         C.state, C.reason = C.DISABLED, "NO_DIRECTORY"
@@ -331,6 +402,13 @@ function C.onMissionStarted(mission)
     R.lineage = nil
 
     if not file.present then
+        local s = storage()
+        if s.exists(directory .. "/" .. P.JOURNAL_FILENAME) or s.exists(directory .. "/" .. P.JOURNAL_PENDING_FILENAME) then
+            R.lineage = "L" .. stamp() .. "-" .. base36(math.random(0, 36 ^ 4 - 1), 4)
+            R.allocationBlocked = "JOURNAL_WITHOUT_LEDGER"
+            recover("JOURNAL_WITHOUT_LEDGER")
+            return
+        end
         if anyMarker then
             C.lineage, C.armed = nil, false
             C.state, C.reason = C.LOADING, "LEDGER_MISSING"
@@ -341,6 +419,7 @@ function C.onMissionStarted(mission)
         C.lineage = "L" .. stamp() .. "-" .. base36(math.random(0, 36 ^ 4 - 1), 4)
         R.lineage = C.lineage
         C.state, C.reason, C.armed = C.READY, "NO_LEDGER_YET", false
+        C.journalVerified = true
         R.setLoaded(nil, "READY", "NO_LEDGER_YET")
         logf("info", "RLAnimalIdentityCheckpoint: no ledger in this save (shadow mode); rlIdentityActivate starts it")
         return
@@ -360,40 +439,75 @@ function C.onMissionStarted(mission)
     C.lineage, C.generation, C.committed, C.armed = doc.meta.lineage, doc.meta.generation, doc.meta.generation, true
     R.lineage = C.lineage
     R.setLoaded(doc.ledger, "READY", "LOADED_VERIFIED")
-    if #wrong > 0 then recover("MARKER_MISMATCH:" .. table.concat(wrong, ";")) return end
-    if doc.data.recovery ~= nil then recover("RECOVERY_CARRIED:" .. tostring(doc.data.recovery)) return end
+    -- Collect and burn verified journal keys even if another checkpoint error
+    -- takes precedence. A marker/recovery error must never hide unsaved identities.
+    local checkpointFailure
+    if #wrong > 0 then checkpointFailure = "MARKER_MISMATCH:" .. table.concat(wrong, ";") end
+    if doc.data.recovery ~= nil then checkpointFailure = checkpointFailure or ("RECOVERY_CARRIED:" .. tostring(doc.data.recovery)) end
 
-    -- The unsaved session's keys.
-    local s = storage()
-    local jpath = directory .. "/" .. P.JOURNAL_FILENAME
-    if s.exists(jpath) then
-        local ok, xml = pcall(s.load, jpath)
-        local journal, why
-        if ok and xml ~= nil then
-            local readOk
-            readOk, journal, why = pcall(P.readJournal, xml)
-            xml:delete()
-            if not readOk then journal, why = nil, "READ_THREW:" .. tostring(journal) end
-        else
-            why = "PARSE_FAILED"
-        end
-        if journal == nil then recover("JOURNAL_UNREADABLE:" .. tostring(why)) return end
-        if journal.meta.lineage ~= C.lineage then recover("JOURNAL_OTHER_LINEAGE") return end
-        if journal.meta.generation > C.committed then recover("JOURNAL_FUTURE_GENERATION") return end
-        if journal.meta.generation == C.committed then
-            local keys = {}
-            for i, key in ipairs(journal.data.keys) do
-                local farmId, uniqueId, country = I.parseKey(key)
-                keys[i] = { farmId = farmId, uniqueId = uniqueId, country = country }
-            end
-            local burned = I.burnUnsaved(R.ledger, keys)
-            if burned == nil then recover("JOURNAL_BAD_KEYS") return end
-            logf("info", "RLAnimalIdentityCheckpoint: %d key(s) of an unsaved session burned (%d new)", #keys, burned)
-            R.journal, R.journalDirty = {}, false
-            for _, key in ipairs(journal.data.keys) do R.journal[#R.journal + 1] = key end
-            R.journalDirty = #R.journal > 0
+    if scan ~= nil and doc.data.mode == R.ON then
+        local report = R.report(scan)
+        if next(report.duplicates) ~= nil then
+            R.activationQuarantine = report
+            checkpointFailure = checkpointFailure or "LIVE_DUPLICATE_IDENTITIES"
         end
     end
+    -- Verify every journal slot. Any damaged/residual/mismatched sidecar is recovery
+    -- evidence, not permission to pick the most convenient version and resume.
+    local s = storage()
+    local journals, failures = {}, {}
+    for _, filename in ipairs({P.JOURNAL_FILENAME, P.JOURNAL_PENDING_FILENAME}) do
+        local path = directory .. "/" .. filename
+        if s.exists(path) then
+            local ok, xml = pcall(s.load, path)
+            local journal, why
+            if ok and xml ~= nil then
+                local readOk
+                readOk, journal, why = pcall(P.readJournal, xml)
+                xml:delete()
+                if not readOk then journal, why = nil, "READ_THREW:" .. tostring(journal) end
+            else why = "PARSE_FAILED" end
+            if journal == nil then failures[#failures + 1] = "JOURNAL_UNREADABLE:" .. tostring(why)
+            else
+                journals[filename] = journal
+                if journal.meta.lineage ~= C.lineage then failures[#failures + 1] = "JOURNAL_OTHER_LINEAGE"
+                elseif journal.meta.generation > C.committed then failures[#failures + 1] = "JOURNAL_FUTURE_GENERATION"
+                elseif journal.meta.generation < C.committed then
+                    -- Older evidence may be ignored only when the complete saved ledger
+                    -- proves its keys were absorbed; generation alone is not that proof.
+                    local absorbed = journal.data.sequence <= R.ledger.writerSequence
+                    for _, key in ipairs(journal.data.keys) do
+                        if R.ledger.keys[key] == nil then absorbed = false end
+                    end
+                    if not absorbed then failures[#failures + 1] = "JOURNAL_OLDER_UNALIGNED" end
+                elseif journal.meta.generation == C.committed then
+                    local keys = {}
+                    for i, key in ipairs(journal.data.keys) do
+                        local farmId, uniqueId, country = I.parseKey(key)
+                        keys[i] = {farmId = farmId, uniqueId = uniqueId, country = country}
+                    end
+                    if I.burnUnsaved(R.ledger, keys) == nil then failures[#failures + 1] = "JOURNAL_BAD_KEYS" end
+                    R.journalSeen = R.journalSeen or {}
+                    for _, key in ipairs(journal.data.keys) do
+                        if not R.journalSeen[key] then R.journal[#R.journal + 1] = key; R.journalSeen[key] = true end
+                        R.issued[key] = true
+                    end
+                    R.journalDirty = #R.journal > 0
+                end
+            end
+        end
+    end
+    local main, pending = journals[P.JOURNAL_FILENAME], journals[P.JOURNAL_PENDING_FILENAME]
+    if pending ~= nil and (main == nil or RLTradePersistence.canonical(main.data) ~= RLTradePersistence.canonical(pending.data)) then
+        failures[#failures + 1] = "JOURNAL_PENDING_UNCONFIRMED"
+    end
+    if #failures > 0 then
+        C.journalEvidence = { journals = journals, failures = failures, checkpointFailure = checkpointFailure }
+        recover(failures[1])
+        return
+    end
+    C.journalVerified = true
+    if checkpointFailure ~= nil then recover(checkpointFailure); return end
     C.state, C.reason = C.READY, "LOADED_VERIFIED"
     logf("info", "RLAnimalIdentityCheckpoint: ledger generation %d loaded (%s), mode %s", doc.meta.generation, C.lineage, tostring(R.mode))
 end
@@ -413,16 +527,27 @@ end
 --- reconciliation leaves recovery, the ledger and the old counters exactly as they were.
 function C.recoveryClear(scan)
     if C.state ~= C.RECOVERY_REQUIRED then return nil, "NOT_IN_RECOVERY" end
+    if not C.journalVerified then return nil, "JOURNAL_VERIFICATION_REQUIRED" end
+    if C.journalUncertainty and not C.memoryJournalWitness then return nil, "JOURNAL_RECOVERY_EVIDENCE_REQUIRED" end
     if R.ledger ~= nil then
         local ok, why = R.reconcile(scan)
         if not ok then return nil, why end
     end
-    C.recovery = nil
+    if R.allocationBlocked then
+        C.state = C.READY
+        local persisted, why = C.flushJournal(C.missionInfo or (g_currentMission and g_currentMission.missionInfo))
+        if persisted ~= true and not (persisted == false and not R.journalDirty) then
+            recover(why or "JOURNAL_RECOVERY_WRITE_FAILED")
+            return nil, why
+        end
+    end
+    C.recovery, C.journalUncertainty, C.journalEvidence, C.memoryJournalWitness = nil, nil, nil, nil
     C.state, C.reason = C.READY, "RECOVERY_CLEARED"
     if R.ledger ~= nil then
         if C.lineage == nil then C.lineage = R.lineage end
         C.armed = true
     end
+    R.allocationBlocked = nil
     R.setLoaded(R.ledger, "READY", "RECOVERY_CLEARED")
     return true
 end

@@ -1121,5 +1121,6 @@
         <text name="rl_meadow_witherWarning" text="%s：牧场鲜草约%d天后入冬枯退，请在食槽补充干草或青贮"/>
         <text name="rl_wool_shorn" text="%s：已为%d只羊剪毛，共%d升羊毛等待装托盘"/>
         <text name="rl_menu_settings_tab_manual" text="玩家指南"/>
+        <text name="rl_ui_priceUnavailable" text="当前无法报价。请刷新后重试。"/>
     </texts>
 </l10n>

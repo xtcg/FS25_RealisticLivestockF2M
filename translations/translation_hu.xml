@@ -1121,5 +1121,6 @@
         <text name="rl_meadow_witherWarning" text="%s: the pasture grass dies back for winter in about %d days - put hay or silage in the trough"/>
         <text name="rl_wool_shorn" text="%s: %d sheep shorn, %d l of wool waiting for pallets"/>
         <text name="rl_menu_settings_tab_manual" text="Player guide"/>
+        <text name="rl_ui_priceUnavailable" text="Az ár nem érhető el. Frissítsen, majd próbálja újra."/>
     </texts>
 </l10n>

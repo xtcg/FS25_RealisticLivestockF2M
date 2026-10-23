@@ -60,6 +60,7 @@ local function world()
         self.info.xmlFile:save()
         C.onSaveComplete(self.fail or 0, "/save")
         self.disk["/save/" .. P.JOURNAL_FILENAME] = nil      -- the engine replaces the folder
+        self.disk["/save/" .. P.JOURNAL_PENDING_FILENAME] = nil
     end
     function w:load()
         R.reset(true); C.reset(true)
@@ -79,11 +80,12 @@ local function alloc(farm, n)
     for _ = 1, n or 1 do last = W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto") end
     return last
 end
-local function activate(farm)
+local function activate(farm, fixture)
     R.setMode(R.SHADOW)
     local scan = { records = {}, counters = farm and { { country = 2, farmId = tostring(farm.stats.statistics.farmId), type = "cowId", nextRaw = farm.stats.statistics.cowId + 1 } } or {} }
     assert(R.activate(scan, { accept = true }))
     assert(C.arm())
+    if fixture then fixture:save() end
 end
 
 -- 1 fresh save: nothing written
@@ -98,7 +100,8 @@ check("fresh save: a save writes no ledger, no markers", w.disk["/save/" .. P.FI
 local farm = herdFarm(123456, 4)
 activate(farm)
 check("activate arms the checkpoint with the lineage", C.armed and C.lineage == R.lineage and R.authoritative())
-alloc(farm, 3)
+local heldRaw, heldWhy = W.nextStatsRaw("t", farm, AnimalType.COW, 2, "auto")
+check("initial authoritative allocation requires the first complete save", heldRaw == nil and heldWhy == "INITIAL_SAVE_REQUIRED" and farm.stats.statistics.cowId == 4)
 w:save()
 check("save pass: WRITTEN then COMMITTED, generation 1, journal trimmed to nothing", C.last.status == "COMMITTED" and C.last.generation == 1 and C.committed == 1
     and #R.journalKeys() == 0 and w.disk["/save/" .. P.FILENAME] ~= nil)
@@ -119,7 +122,7 @@ for _ in pairs(R.ledger.keys) do keysAfter = keysAfter + 1 end
 check("reload: READY, ledger and mode restored, lineage and generation continue", C.state == C.READY and R.mode == R.ON and R.authoritative() and keysAfter == keysBefore
     and C.lineage == lineage and C.generation == 1 and C.committed == 1)
 local farm2 = herdFarm(123456, 4)
-check("reload: the next key continues above the saved ones", alloc(farm2) == 8)
+check("reload: the next key continues above the saved ones", alloc(farm2) == 5)
 w:save()
 check("second save is generation 2", C.last.generation == 2 and C.last.status == "COMMITTED")
 
@@ -152,7 +155,7 @@ w:load()
 local g = herdFarm(123456, 4)
 local k1 = alloc(g, 2)
 check("two keys handed out are in the journal", #R.journalKeys() == 2)
-check("journal flush writes the file once and only when dirty", C.flushJournal(w.info) == true and w.disk["/save/" .. P.JOURNAL_FILENAME] ~= nil and C.flushJournal(w.info) == false)
+check("reservation synchronously wrote the journal; a clean hourly flush does nothing", w.disk["/save/" .. P.JOURNAL_FILENAME] ~= nil and C.flushJournal(w.info) == false)
 local shownKey = R.journalKeys()[1]
 w:load()   -- no save: the session is gone
 check("same-generation journal: its keys are burned, the animals are not restored", C.state == C.READY and R.ledger.keys[shownKey] ~= nil
@@ -170,9 +173,12 @@ end
 w:save()
 w:load()
 local gen = C.committed
-withJournal(gen - 1)
+withJournal(gen - 1, nil, {shownKey})
 w:load()
-check("an older journal is ignored", C.state == C.READY)
+check("an older journal is ignored only when its keys are in the saved ledger", C.state == C.READY)
+withJournal(gen - 1, nil, {"999999 10001 2"})
+w:load()
+check("an older journal with unabsorbed identity evidence is quarantined", C.state == C.RECOVERY_REQUIRED and C.reason == "JOURNAL_OLDER_UNALIGNED")
 withJournal(gen + 1)
 w:load()
 check("a journal of a newer generation is RECOVERY_REQUIRED", C.state == C.RECOVERY_REQUIRED and C.reason == "JOURNAL_FUTURE_GENERATION")
@@ -189,9 +195,10 @@ w:load()
 local h = herdFarm(123456, 4)
 alloc(h)
 w:save(false)
-alloc(h)
+local during, duringWhy = W.nextStatsRaw("t", h, AnimalType.COW, 2, "auto")
+check("new identity exposure is fenced until save completion", during == nil and duringWhy == "IDENTITY_SAVE_IN_PROGRESS")
 w.info.xmlFile:save(); C.onSaveComplete(0, "/save")
-check("a commit removes only the keys its save absorbed", C.last.status == "COMMITTED" and #R.journalKeys() == 1)
+check("a commit removes the keys its save absorbed", C.last.status == "COMMITTED" and #R.journalKeys() == 0)
 
 -- 8 faults
 w:load()
@@ -269,8 +276,9 @@ do
     R.reset(true); R.lineage = "Ltest-r3"; R.setLoaded(nil, "READY", "T")
     local refused = select(2, R.activate({ records = {}, counters = {}, uncoveredHerds = { "*/555555" } }, {}))
     check("R3 an uncovered herd (counters used, no animal) needs the acceptance too", refused == "UNPROVEN_DOMAINS")
-    check("R3 with the acceptance a later key in it is served", R.activate({ records = {}, counters = {}, uncoveredHerds = { "*/555555" } }, { accept = true })
-        and W.nextStatsRaw("t", (function() local f = herdFarm(555555, 30); return f end)(), AnimalType.COW, 2, "auto") == 31)
+    assert(R.activate({ records = {}, counters = {}, uncoveredHerds = { "*/555555" } }, { accept = true }))
+    assert(C.arm()); wa:save()
+    check("R3 with the acceptance a later key in it is served", W.nextStatsRaw("t", (function() local f = herdFarm(555555, 30); return f end)(), AnimalType.COW, 2, "auto") == 31)
 end
 
 -- PR #58 review P1: rlIdentityRecoveryClear must not resume a stale allocator
@@ -278,7 +286,7 @@ do
     local wp = world()
     wp:load()
     local farmP = herdFarm(246810, 0)
-    activate(farmP)
+    activate(farmP, wp)
     local first = alloc(farmP)                      -- ON: raw 1
     wp:save()
     wp.skip.farms = true
@@ -317,4 +325,216 @@ do
     local after = W.nextStatsRaw("t", farmP, AnimalType.COW, 2, "auto")
     -- raws 10002..19999 alias 2..9999, all used by the counter: the ledger refuses rather than reissue one
     check("R9 past the alias boundary no key of a used raw is handed out again", C.state == C.READY and (after == nil or after >= 20000))
+end
+
+-- P2 synchronous reservation barrier: preserve the last visible key before replacing
+-- either journal slot; never release an ID or mirror a counter on uncertain storage.
+for _, fault in ipairs({ "PENDING_CREATE", "PENDING_SAVE", "PENDING_CORRUPT", "PENDING_READ",
+    "MAIN_CREATE", "MAIN_SAVE", "MAIN_CORRUPT", "MAIN_READ" }) do
+    local wb = world(); wb:load()
+    local fb = herdFarm(864200, 0)
+    activate(fb, wb)
+    local first = assert(alloc(fb))
+    local priorKey = I.keyString("864200", U.generateUniqueId(864200, first), 2)
+    local priorMain = clone(wb.disk["/save/" .. P.JOURNAL_FILENAME])
+    local oldCreate, oldLoad = C.storage.create, C.storage.load
+    local pending = fault:sub(1, 7) == "PENDING"
+    local target = "/save/" .. (pending and P.JOURNAL_PENDING_FILENAME or P.JOURNAL_FILENAME)
+    C.storage.create = function(path, root)
+        if path == target and fault:find("CREATE", 1, true) then return nil end
+        local x = oldCreate(path, root)
+        if path == target then
+            local save = x.save
+            function x:save()
+                if fault:find("SAVE", 1, true) then return false end
+                if fault:find("CORRUPT", 1, true) then self.values[P.JOURNAL_ROOT .. "#digest"] = "bad" end
+                return save(self)
+            end
+        end
+        return x
+    end
+    C.storage.load = function(path)
+        if path == target and fault:find("READ", 1, true) then error("read fault") end
+        return oldLoad(path)
+    end
+    local refused, why = W.nextStatsRaw("fault", fb, AnimalType.COW, 2, "auto")
+    local counter = fb.stats.statistics.cowId
+    local second, secondWhy = W.nextStatsRaw("retry", fb, AnimalType.COW, 2, "auto")
+    check("sync barrier " .. fault .. " refuses before exposure and never falls back to a native counter",
+        refused == nil and type(why) == "string" and second == nil and secondWhy == R.allocationBlocked
+        and counter == first and fb.stats.statistics.cowId == first and C.state == C.RECOVERY_REQUIRED
+        and R.state == "RECOVERY_REQUIRED" and #R.journalKeys() == 2)
+    if pending then
+        check("sync barrier " .. fault .. " preserves the previous main journal byte data",
+            RLTradePersistence.canonical(wb.disk["/save/" .. P.JOURNAL_FILENAME]) == RLTradePersistence.canonical(priorMain))
+    else
+        local staged = assert(P.readJournal(wb.document("staged", wb.disk["/save/" .. P.JOURNAL_PENDING_FILENAME])))
+        check("sync barrier " .. fault .. " retains the verified complete staging journal",
+            #staged.data.keys == 2 and staged.data.keys[1] == priorKey)
+    end
+    C.storage.create, C.storage.load = oldCreate, oldLoad
+    wb:load()
+    check("sync barrier " .. fault .. " reload retains the previously exposed identity",
+        R.ledger.keys[priorKey] ~= nil and R.ledger.keys[priorKey].state == I.BURNED)
+    if C.state == C.RECOVERY_REQUIRED then
+        check("sync barrier " .. fault .. " startup ambiguity cannot be cleared by a live-only scan",
+            C.recoveryClear({records={}, counters={}}) == nil and C.state == C.RECOVERY_REQUIRED)
+    end
+end
+
+-- A storage callback must not allocate recursively between capturing and verifying
+-- the complete journal. The denied nested request must not consume an extra key.
+do
+    local wb = world(); wb:load()
+    local fb = herdFarm(864201, 0)
+    activate(fb, wb)
+    local oldCreate = C.storage.create
+    local nested, nestedWhy, calls
+    C.storage.create = function(path, root)
+        calls = (calls or 0) + 1
+        nested, nestedWhy = W.nextStatsRaw("nested", fb, AnimalType.COW, 2, "auto")
+        return oldCreate(path, root)
+    end
+    local first = alloc(fb)
+    C.storage.create = oldCreate
+    local saved = assert(P.readJournal(wb.document("journal", wb.disk["/save/" .. P.JOURNAL_FILENAME])))
+    check("sync barrier rejects callback allocation before reservation", first == 1 and calls == 2 and nested == nil
+        and nestedWhy == "IDENTITY_JOURNAL_IN_PROGRESS" and fb.stats.statistics.cowId == 1 and #saved.data.keys == 1)
+end
+
+-- Whole litters and dealer batches are durable while still RESERVED: no fetus or
+-- adult can appear first and only acquire durable key evidence at consume time.
+do
+    local wb = world(); wb:load()
+    local fb = herdFarm(864202, 0)
+    activate(fb, wb)
+    local ctx = W.statsContext("batch", fb, AnimalType.COW, 2, "birth")
+    assert(R.beginBirth(ctx, "dam|due", 3))
+    local saved = assert(P.readJournal(wb.document("journal", wb.disk["/save/" .. P.JOURNAL_FILENAME])))
+    check("sync barrier persists a complete litter before any child is numbered", #saved.data.keys == 3
+        and R.currentLitter() ~= nil and fb.stats.statistics.cowId == 0)
+    R.endBirth()
+    local result = assert(R.reserveFor(ctx, "dealer-batch", {{role="adult",type="COW"},{role="fetus",type="COW"}}))
+    local stored = assert(P.readJournal(wb.document("journal", wb.disk["/save/" .. P.JOURNAL_FILENAME])))
+    check("sync barrier persists dealer adult and fetus while still RESERVED", #stored.data.keys == 5
+        and R.ledger.keys[result.keys[1].key].state == I.RESERVED and R.ledger.keys[result.keys[2].key].state == I.RESERVED)
+end
+
+-- Orphan staging evidence is not a pristine save: no startup auto-initialization.
+do
+    local wo = world(); wo:load()
+    local x = wo.document("/save/" .. P.JOURNAL_PENDING_FILENAME)
+    assert(P.writeJournal(x, {lineage=C.lineage,generation=0,sequence=1,keys={"864202 10001 2"}})); x:save()
+    wo:load()
+    check("startup isolates orphan pending identity evidence", C.state == C.RECOVERY_REQUIRED
+        and C.reason == "JOURNAL_WITHOUT_LEDGER" and not R.authoritative())
+end
+
+-- A live session can clear a failed journal barrier only by durably preserving
+-- its complete memory witness. A scan alone, or a still broken writer, is insufficient.
+do
+    local wb = world(); wb:load()
+    local fb = herdFarm(864203, 0)
+    activate(fb, wb)
+    assert(alloc(fb) == 1)
+    local create = C.storage.create
+    C.storage.create = function() return nil end
+    assert(W.nextStatsRaw("failure", fb, AnimalType.COW, 2, "auto") == nil)
+    local scan = {records={},counters={},herdNext={["864203"]=2}}
+    local denied = C.recoveryClear(scan)
+    check("recovery clear cannot bypass a still failing identity journal", denied == nil
+        and C.state == C.RECOVERY_REQUIRED and R.allocationBlocked ~= nil)
+    C.storage.create = create
+    local cleared = C.recoveryClear(scan)
+    local doc = assert(P.readJournal(wb.document("main", wb.disk["/save/" .. P.JOURNAL_FILENAME])))
+    check("recovery clear requires exact persistence of all reserved keys before ON resumes", cleared == true
+        and #doc.data.keys == 2 and R.allocationBlocked == nil and R.authoritative() and alloc(fb) == 3)
+end
+
+-- Independent review P1: hourly flush -> storage callback -> nested flush -> raw.
+-- The nested flush used to clear the outer busy flag; raw 2 was then published,
+-- and the outer stale key set silently overwrote both slots with only raw 1.
+do
+    local wb = world(); wb:load()
+    local fb = herdFarm(864204, 0)
+    activate(fb, wb)
+    assert(alloc(fb) == 1)
+    R.journalDirty = true -- also models the journal imported/burned at load
+    local oldCreate = C.storage.create
+    local nestedFlush, nestedWhy, nestedRaw, rawWhy, callbackCount
+    C.storage.create = function(path, root)
+        callbackCount = (callbackCount or 0) + 1
+        nestedFlush, nestedWhy = C.flushJournal(wb.info)
+        nestedRaw, rawWhy = W.nextStatsRaw("flush-callback", fb, AnimalType.COW, 2, "auto")
+        return oldCreate(path, root)
+    end
+    local flushed = C.flushJournal(wb.info)
+    C.storage.create = oldCreate
+    local main = assert(P.readJournal(wb.document("main", wb.disk["/save/" .. P.JOURNAL_FILENAME])))
+    local staged = assert(P.readJournal(wb.document("pending", wb.disk["/save/" .. P.JOURNAL_PENDING_FILENAME])))
+    check("review P1 recursive flush cannot release the outer allocation fence", flushed == true and callbackCount == 2
+        and nestedFlush == nil and nestedWhy == "IDENTITY_JOURNAL_IN_PROGRESS"
+        and nestedRaw == nil and rawWhy == "IDENTITY_JOURNAL_IN_PROGRESS"
+        and fb.stats.statistics.cowId == 1 and #R.journalKeys() == 1 and #main.data.keys == 1
+        and RLTradePersistence.canonical(main.data) == RLTradePersistence.canonical(staged.data)
+        and C.state == C.READY and not R.journalDirty and not C.journalWriteInProgress)
+    check("review P1 guard releases only after the owning flush returns", alloc(fb) == 2)
+end
+
+-- Independent review P1: a bad primary marker used to return before journal
+-- verification. A live-only recoveryClear then erased the unsaved raw 1 evidence.
+do
+    local wb = world(); wb:load()
+    local fb = herdFarm(864205, 0)
+    activate(fb, wb) -- complete generation 1, no allocated keys yet
+    assert(alloc(fb) == 1)
+    local shown = I.keyString("864205", U.generateUniqueId(864205, 1), 2)
+    wb.disk["/save/farms.xml"]["farms#" .. C.MARKER] = "stale:0"
+    wb:load()
+    check("review P1 primary marker mismatch cannot hide valid unsaved journal keys", C.state == C.RECOVERY_REQUIRED
+        and C.reason:find("MARKER_MISMATCH",1,true)~=nil and C.journalVerified
+        and R.ledger.keys[shown]~=nil and R.ledger.keys[shown].state==I.BURNED)
+    assert(C.recoveryClear({records={},counters={},herdNext={["864205"]=1}}))
+    local resetCounter = herdFarm(864205,0)
+    check("review P1 recovery clear never reissues an identity hidden behind a bad marker", alloc(resetCounter)==2)
+    -- Corruption of the journal cannot be hidden by a primary error either.
+    wb.disk["/save/"..P.JOURNAL_FILENAME] = {broken="x"}
+    wb:load()
+    check("review P1 corrupted journal stays isolated even alongside stale markers", C.state==C.RECOVERY_REQUIRED
+        and not C.journalVerified and C.recoveryClear({records={},counters={}})==nil)
+end
+
+-- Startup inspection may throw outside a codec pcall (for example an engine XML
+-- handle's delete). Neither an early READY runtime nor a first failed allocation
+-- is evidence that every old journal slot was read.
+do
+    local wb = world(); wb:load()
+    local fb = herdFarm(864206, 0)
+    activate(fb, wb); assert(alloc(fb)==1)
+    local oldLoad = C.storage.load
+    C.storage.load = function(path)
+        local x=oldLoad(path)
+        if path=="/save/"..P.JOURNAL_FILENAME then
+            function x:delete() error("startup delete fault") end
+        end
+        return x
+    end
+    R.reset(true); C.reset(true)
+    local loaded = pcall(C.onMissionStarted,{missionInfo=wb.info})
+    -- Mirrors the existing guarded game callback's classification of an exception.
+    if not loaded then
+        C.state,C.reason=C.RECOVERY_REQUIRED,"CHECK_THREW"
+        R.setLoaded(R.ledger,"RECOVERY_REQUIRED","CHECK_THREW")
+    end
+    local before = #R.journalKeys()
+    local resetCounter = herdFarm(864206,0)
+    local raw, rawReason = W.nextStatsRaw("incomplete-startup",resetCounter,AnimalType.COW,2,"auto")
+    local held = R.beginBirth(W.statsContext("birth",resetCounter,AnimalType.COW,2,"birth"),"unknown-pregnancy",1)
+    local allowed = C.allocationGate()
+    local resumed = C.recoveryClear({records={},counters={},herdNext={["864206"]=1}})
+    check("review incomplete startup cannot acquire allocation permission or a recovery witness", not loaded
+        and allowed==nil and not C.journalVerified and not C.memoryJournalWitness
+        and resumed==nil and raw==nil and rawReason=="JOURNAL_VERIFICATION_REQUIRED" and held==false
+        and resetCounter.stats.statistics.cowId==0 and #R.journalKeys()==before and C.state==C.RECOVERY_REQUIRED)
+    C.storage.load=oldLoad
 end

@@ -77,7 +77,9 @@ RLHerdsmanPlanner = {}
 local LOG_PREFIX = "[planActions]"
 
 --- Buy applies the ACTIVE dealer-quality markup on the sell price before adding transport, with the
---- markup injected as `ctx.buyMarkup` rather than compiled in. Sell applies NO markup - which is not
+--- markup injected as `ctx.buyMarkup` rather than compiled in. This is the legacy
+--- fallback; the day tick injects independent ASK/BID through ctx.pricing in market mode.
+--- Legacy Sell applies NO markup - which is not
 --- "the raw price" either, because the transport fee is still ADDED here, where the player sell path
 --- subtracts it.
 local SELL_MARKUP = 1.0
@@ -354,6 +356,7 @@ function RLHerdsmanPlanner.planActions(rules, ctx)
     local dealerByType = type(ctx.dealerAnimalsByType) == "table" and ctx.dealerAnimalsByType or {}
     local filtersById = type(ctx.filtersById) == "table" and ctx.filtersById or {}
     local animalSystem = ctx.animalSystem
+    local pricing = type(ctx.pricing)=="table" and ctx.pricing or {}
     local animalNameSystem = ctx.animalNameSystem
     local farmBalanceByFarmId = type(ctx.farmBalanceByFarmId) == "table" and ctx.farmBalanceByFarmId or {}
     local dewarsByFarmId = type(ctx.dewarsByFarmId) == "table" and ctx.dewarsByFarmId or {}
@@ -540,9 +543,22 @@ function RLHerdsmanPlanner.planActions(rules, ctx)
     ---@param animal table
     ---@param markup number
     ---@return number price
-    local function priceOf(animal, markup)
-        return animal:getSellPrice() * markup
-            + animalSystem:getAnimalTransportFee(animal.subTypeIndex, animal.age)
+    local function priceOf(animal, markup, side)
+        local ok,price,detail=pcall(function()
+            if side=="ASK" and type(pricing.buyPrice)=="function" then return pricing.buyPrice(animal,markup) end
+            if side=="BID" and type(pricing.sellPrice)=="function" then return pricing.sellPrice(animal) end
+            return animal:getSellPrice()*markup
+        end)
+        local feeOk,fee=pcall(animalSystem.getAnimalTransportFee,animalSystem,animal.subTypeIndex,animal.age)
+        if not ok or not feeOk or type(price)~="number" or price~=price or price<0 or price==math.huge
+            or type(fee)~="number" or fee~=fee or fee<0 or fee==math.huge then return nil end
+        if side=="BID" and type(detail)=="table" and detail.mode=="market" then
+            if price-fee<=0 then return nil end
+            return price-fee
+        end
+        local total=price+fee
+        if total==math.huge then return nil end
+        return total
     end
 
     --- Walk a candidate pool, returning the ordered animals that carry a resolvable identity, are
@@ -743,7 +759,8 @@ function RLHerdsmanPlanner.planActions(rules, ctx)
                                     warnNotPriceable(a)
                                 elseif a:getCanBeSold() then
                                     if RLDiseaseSaleGate.check(a) then
-                                        shortlist[#shortlist + 1] = { animal = a, price = priceOf(a, SELL_MARKUP), key = animalKey(a) }
+                                        local p=priceOf(a,SELL_MARKUP,"BID")
+                                        if p~=nil then shortlist[#shortlist + 1] = { animal = a, price = p, key = animalKey(a) } end
                                     else
                                         Log:debug("%s rule=%s op=sell husbandry=%s: excluded sick animal uniqueId=%s farmId=%s",
                                             LOG_PREFIX, tostring(rule.id), tostring(uid), tostring(a.uniqueId), tostring(a.farmId))
@@ -951,8 +968,8 @@ function RLHerdsmanPlanner.planActions(rules, ctx)
                                             if not isPriceableAnimal(a, false) then
                                                 warnNotPriceable(a)
                                             else
-                                                local p = priceOf(a, buyMarkup)
-                                                if p <= budget then
+                                                local p = priceOf(a, buyMarkup,"ASK")
+                                                if p~=nil and p <= budget then
                                                     shortlist[#shortlist + 1] = { animal = a, price = p, key = animalKey(a) }
                                                 end
                                             end
@@ -997,11 +1014,11 @@ function RLHerdsmanPlanner.planActions(rules, ctx)
                                         if Log.level >= RmLogging.LOG_LEVEL.DEBUG then
                                             for _, item in ipairs(selectedItems) do
                                                 local a = item.animal
-                                                local sell = a:getSellPrice()
-                                                Log:debug("%s rule=%s op=buy husbandry=%s bought uniqueId=%s farmId=%s subType=%s age=%s sellPrice=%.4f markup=%.3f fee=%.2f total=%.4f",
+                                                local fee=animalSystem:getAnimalTransportFee(a.subTypeIndex,a.age)
+                                                Log:debug("%s rule=%s op=buy husbandry=%s bought uniqueId=%s farmId=%s subType=%s age=%s ask=%.4f fee=%.2f total=%.4f",
                                                     LOG_PREFIX, tostring(rule.id), tostring(uid), tostring(a.uniqueId),
                                                     tostring(a.farmId), tostring(a.subTypeIndex), tostring(a.age),
-                                                    sell, buyMarkup, item.price - sell * buyMarkup, item.price)
+                                                    item.price-fee,fee,item.price)
                                             end
                                         end
                                         if n > 0 then

@@ -153,6 +153,9 @@ function C.onMissionStarted(mission,evidence)
     local doc,why,q=C.verifyDisk(directory,nil,C.runtime.resolver,C.runtime.ownershipContext)
     if not doc then close("LOAD:" .. tostring(why),q or {raw=storage().read(path)});return end
     C.lineage,C.generation=doc.data.lineage,doc.data.generation
+    if type(evidence)=="table" and type(evidence.identityConflicts)=="number" and evidence.identityConflicts>0 then
+        close("HISTORICAL_IDENTITY_CONFLICTS",doc);return
+    end
     if type(evidence)=="table" and type(evidence.identityRepairs)=="number" and evidence.identityRepairs>0 then
         close("IDENTITY_REPAIRS_AFTER_CHECKPOINT",doc);return
     end

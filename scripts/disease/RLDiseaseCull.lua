@@ -55,7 +55,11 @@ function RLDiseaseCull.salvageFor(animal)
         return 0
     end
 
-    local salvage = animal:getSellPrice() * RLDiseaseCull.SALVAGE_SHARE
+    -- Forced destruction compensation retains its existing policy basis. It
+    -- is not a legal live sale and must not require a tradable market BID.
+    local price
+    if type(animal.getLegacySellPrice)=="function" then price=animal:getLegacySellPrice() else price=animal:getSellPrice() end
+    local salvage = price * RLDiseaseCull.SALVAGE_SHARE
     Log:trace("RLDiseaseCull.salvageFor: %s (uniqueId=%s)", tostring(salvage), tostring(animal.uniqueId))
     return salvage
 end
