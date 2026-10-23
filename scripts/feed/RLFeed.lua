@@ -1906,7 +1906,9 @@ end
 --- @return number
 function RLFeed.countUnnursed(placeable)
     local count = 0
-    local dams = getPenDams(placeable)
+    -- Paired afresh: the hour's steps moved every young animal's age on since the hour's pairing, and an
+    -- age read now against dams paired then miscounts (a clock that went back to a younger age at once).
+    local dams = getPenDams(placeable, true)
     for _, animal in ipairs(placeable:getClusters() or {}) do
         if not animal.isDead and (animal.numAnimals or 1) > 0 and RLFeed.getYoungMilkByAge(animal) > 0
             and (animal.motherId == nil or dams[animal.motherId] == nil) and not RLFeed.isEarlyWeaned(animal) then
