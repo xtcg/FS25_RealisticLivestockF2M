@@ -999,10 +999,6 @@
         <text name="rl_pedigree_info" text="Inzucht der Nachkommen %s"/>
         <text name="rl_pedigree_none" text="Kein gemeinsamer Vorfahre gefunden"/>
         <text name="rl_ai_chance" text="Chargenqualität %s | Erwartete Trächtigkeit für dieses Tier %s (Fruchtbarkeit %s x Empfängnis %s x Charge %s)"/>
-        <text name="rl_settings_nutritionMode_label" text="Ernährungsmodell"/>
-        <text name="rl_settings_nutritionMode_tooltip" text="Rinder: Alt behält die alten Futterregeln. Real-äquivalent rechnet Aufnahme und Ration in echter Trockenmasse und Energie Der Standardverbrauch beträgt 1/8 des realen Äquivalentvolumens, nicht des alten Verbrauchs."/>
-        <text name="rl_settings_nutritionMode_texts_1" text="Alt"/>
-        <text name="rl_settings_nutritionMode_texts_2" text="Real-äquivalent (futtersparend)"/>
         <text name="rl_feed_grainGroup" text="Getreide (Zufutter)"/>
 
         <!-- Feed UI: Chinese and English; English fallback for other languages. -->
@@ -1025,15 +1021,15 @@
         <text name="rl_feed_feedShareFormat" text="%s (%.0f%% DM)"/>
         <text name="rl_feed_feedPlanFormat" text="%s · plan %.0f L/%s"/>
         <text name="rl_feed_reason_OK" text="Real-equivalent"/>
-        <text name="rl_feed_reason_MODE_OFF" text="Legacy mode"/>
         <text name="rl_feed_reason_CONFIG_INVALID" text="Invalid feed data"/>
         <text name="rl_feed_reason_MODEL_OFF" text="Weight model off"/>
         <text name="rl_feed_reason_NOT_CATTLE" text="Cattle only"/>
         <text name="rl_feed_reason_MILKCOW_LEGACY" text="Milk cows: legacy"/>
         <text name="rl_feed_reason_NO_TROUGH" text="No supported trough"/>
         <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="Unsupported animal"/>
-        <text name="rl_feed_reason_SUCKLING_CALF" text="Saugkalb: Mutter/Kälberbox"/>
-        <text name="rl_feed_reason_PIG_BREEDING_LEGACY" text="Sau/Ferkel: alte Regeln"/>
+        <text name="rl_feed_reason_NO_NURSING_RULES" text="Keine Säugeregeln"/>
+        <text name="rl_feed_penHeld" text="Wachstum"/>
+        <text name="rl_feed_heldText" text="Pausiert"/>
         <text name="rl_feed_reason_UNKNOWN" text="Status unavailable"/>
         <text name="rl_feed_limit_NONE" text="No limit"/>
         <text name="rl_feed_limit_FIBRE" text="Fibre limit"/>

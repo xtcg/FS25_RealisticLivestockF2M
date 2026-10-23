@@ -248,6 +248,24 @@ function RLBreedTraits.loadConfig(fileName, root, parse)
 end
 
 
+--- Read a config like loadConfig, and when a copy in the mod's modSettings folder replaced the
+--- mod's own file, the mod's own file too: the unified nutrition model's configs migrate an older
+--- copy section by section from it (a section or rule the copy lacks is taken from the mod's file,
+--- logged; the copy's own values are kept). The second value is nil without a copy.
+--- @return table config
+--- @return table|nil builtin
+function RLBreedTraits.loadConfigPair(fileName, root, parse)
+    local config = RLBreedTraits.loadConfig(fileName, root, parse)
+    local path = modDirectory .. "xml/" .. fileName
+    if modSettingsDirectory == nil or not fileExists(modSettingsDirectory .. fileName) then return config, nil end
+    local xmlFile = XMLFile.loadIfExists(root, path)
+    if xmlFile == nil then return config, nil end
+    local builtin = parse(xmlFile)
+    xmlFile:delete()
+    return config, builtin
+end
+
+
 -- =============================================================================
 -- Breed traits
 -- =============================================================================

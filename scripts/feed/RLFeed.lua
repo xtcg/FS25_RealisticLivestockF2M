@@ -43,10 +43,6 @@ RLFeed = {}
 
 local Log = RmLogging.getLogger("RLRM")
 
-RLFeed.MODE_LEGACY = 1
-RLFeed.MODE_REAL = 2
---- The setting's value (RLSettings nutritionMode).
-RLFeed.mode = RLFeed.MODE_LEGACY
 
 RLFeed.TARGETS = { "AUTO", "FINISH", "GROW", "MAINTAIN" }
 --- Grains cattle troughs take, in the order AUTO takes them (the capped ones last: grain grist, a
@@ -105,6 +101,8 @@ end
 
 
 local observerErrors = 0
+--- Reasons a covered animal was held for (RLFeed.holdUnsettled), each logged once a session.
+local heldWarned = {}
 
 function RLFeed.notify(kind, data)
     for _, fn in ipairs(observers) do
@@ -121,22 +119,12 @@ end
 -- Mode
 -- =============================================================================
 
---- RLSettings callback.
-function RLFeed.onSettingChanged(name, value)
-    if name ~= "nutritionMode" then return end
-    local mode = value == RLFeed.MODE_REAL and RLFeed.MODE_REAL or RLFeed.MODE_LEGACY
-    if mode ~= RLFeed.mode then
-        Log:info("RLFeed: nutrition model %s", mode == RLFeed.MODE_REAL and "real-equivalent" or "legacy")
-    end
-    RLFeed.mode = mode
-end
-
-
---- Whether the mode can run at all, and why not.
+--- Whether the unified nutrition model can run at all, and why not. It is the only model for the
+--- cattle, sheep, goats and pigs it covers (the old selectable Legacy mode is retired: RLSettings
+--- migrateRetiredNutritionMode); only a config that cannot be read keeps it from running.
 --- @return boolean
---- @return string reason "OK", "MODE_OFF", "CONFIG_INVALID", "MODEL_OFF"
+--- @return string reason "OK", "CONFIG_INVALID", "MODEL_OFF"
 function RLFeed.canRun()
-    if RLFeed.mode ~= RLFeed.MODE_REAL then return false, "MODE_OFF" end
     if not RLFeedProfiles.isValid() then return false, "CONFIG_INVALID" end
     if RLGrowth == nil or not RLGrowth.isEnabled() then return false, "MODEL_OFF" end
     return true, "OK"
@@ -393,13 +381,12 @@ end
 ---     ewe or a sow: they give no saleable milk.
 ---   A ewe nursing: her lambs on milk by their age are in her pen (RLFeed.isNursingDam): the milk
 ---     her budget pays for them (nursing rules, sheep); none when they are away or weaned.
----   A sow nursing: a litter of hers under the pen gate's weaning age (feedProfiles monogastric
----     youngLegacyUntilMonth) is in her pen. Shown only: no sow milk is modelled yet (the pen keeps
----     the old feeding rules, RLFeed.stepFallback), so no milk is made or paid for it.
+---   A sow nursing: her piglets on milk by their age are in her pen (the nursing rules, as a
+---     ewe's): her budget pays their demand; no saleable milk.
 --- Reads only; nothing here makes milk.
 --- @param animal table
 --- @return boolean nursing
---- @return string|nil kind "MILK" (isLactating), "NURSING" (a ewe's lambs drink her milk), "SUCKLING" (a sow's litter, not modelled)
+--- @return string|nil kind "MILK" (isLactating), "NURSING" (a ewe's lambs, a sow's piglets drink her milk)
 function RLFeed.getNursingState(animal)
     if animal == nil or animal.isDead then return false, nil end
     -- A beef cow nurses while a calf of hers on milk is with her: she gives no saleable milk.
@@ -413,16 +400,6 @@ function RLFeed.getNursingState(animal)
     if config.nursing ~= nil then
         if RLFeed.isNursingDam(animal) then return true, "NURSING" end
         return false, nil
-    end
-    local mono = config.monogastric
-    local owner = getOwner(animal)
-    if mono == nil or owner == nil or owner.getClusters == nil or animal.getIdentifiers == nil then return false, nil end
-    local id = animal:getIdentifiers()
-    for _, young in ipairs(owner:getClusters() or {}) do
-        if young ~= animal and not young.isDead and (young.numAnimals or 1) > 0 and young.motherId ~= nil and young.motherId == id
-            and getFeedAge(young) < mono.youngLegacyUntilMonth then
-            return true, "SUCKLING"
-        end
     end
     return false, nil
 end
@@ -467,8 +444,8 @@ end
 --- dam there that can nurse it (sold, dead, in another pen, dry), and at least calfMilk
 --- earlyWeaningMonth old (3: a calf takes to solid feed from about 2-3 months, so an orphan is
 --- weaned early rather than kept on milk). It then lives on solid feed as any weaned animal. A
---- younger one without its dam still needs milk: its pen keeps the old rules (SUCKLING_CALF) until
---- it is in a calf rearing pen, back with its dam, or old enough.
+--- younger one without its dam still needs milk: none is made for it (no other dam's, never the old
+--- rules); it lives on what it eats until it is in a calf rearing pen, back with its dam, or old enough.
 --- @param animal table
 --- @return boolean
 function RLFeed.isEarlyWeaned(animal)
@@ -558,8 +535,8 @@ end
 --- Whether a pen runs the mode, and why (not).
 --- @param placeable table
 --- @return boolean active
---- @return string reason "OK", "MODE_OFF", "CONFIG_INVALID", "MODEL_OFF", "NOT_CATTLE", "MILKCOW_LEGACY",
----         "NO_TROUGH", "UNCOVERED_ANIMAL", "SUCKLING_CALF" (getPenState also "ERROR": the plan failed)
+--- @return string reason "OK", "CONFIG_INVALID", "MODEL_OFF", "NOT_CATTLE", "MILKCOW_LEGACY", "NO_TROUGH",
+---         "UNCOVERED_ANIMAL", "NO_NURSING_RULES" (getPenState also "ERROR": the plan failed)
 function RLFeed.evaluatePen(placeable)
     local ok, reason = RLFeed.canRun()
     if not ok then return false, reason end
@@ -596,30 +573,22 @@ function RLFeed.evaluatePen(placeable)
 end
 
 
---- A monogastric pen (pigs): it runs the mode when it has a trough and every animal in it is covered
---- and growing - none younger than youngLegacyUntilMonth (continuous months: not weaned), none
---- pregnant, no female that has given birth. Otherwise the whole pen keeps the old rules
---- (PIG_BREEDING_LEGACY): the sow's milk, pregnancy and body condition are a later batch. Its covered
---- pigs' weight still follows their curves (RLFeed.stepFallback, from AnimalHealth.updateHealth).
+--- A monogastric pen (pigs): it runs the model when it has a trough and every animal in it is
+--- covered. Pregnant and nursing sows and their litters run it as any pig: a sow pays her piglets'
+--- demand (RLFeed.linkDams), her pregnancy is in her budget, piglets drink and take creep feed by
+--- age. A section without nursing rules (a third-party config; an older copy of the mod's file
+--- takes the mod's: RLFeedProfiles.migrateCopy) cannot feed a litter: NO_NURSING_RULES.
 --- @return boolean active
 --- @return string reason
 function RLFeed.evaluateMonogastricPen(placeable, section)
     if placeable.spec_husbandryFood == nil then return false, "NO_TROUGH" end
-    -- Pregnant and nursing sows and their litters run the mode: a sow pays her piglets' demand
-    -- (RLFeed.linkDams), her pregnancy is in her budget, piglets drink and take creep feed by age.
-    if section.nursing == nil then
-        local young = section.monogastric.youngLegacyUntilMonth
-        for _, animal in ipairs(placeable:getClusters() or {}) do
-            if not animal.isDead and (animal.numAnimals or 1) > 0 and RLGrowth.covers(animal)
-                and (animal.isPregnant or (animal.gender == "female" and animal.isParent) or RLGrowth.getContinuousAge(animal) < young) then
-                -- A config without pig nursing rules (an old feedProfiles copy) cannot feed them.
-                return false, "PIG_BREEDING_LEGACY"
-            end
-        end
-    end
     for _, animal in ipairs(placeable:getClusters() or {}) do
         if not animal.isDead and (animal.numAnimals or 1) > 0 then
             if not RLGrowth.covers(animal) then return false, "UNCOVERED_ANIMAL" end
+            if section.nursing == nil and (animal.isPregnant or (animal.gender == "female" and animal.isParent)
+                or RLFeed.getYoungMilkByAge(animal) > 0) then
+                return false, "NO_NURSING_RULES"
+            end
         end
     end
     return true, "OK"
@@ -1294,12 +1263,9 @@ function RLFeed.acceptsFill(placeable, fillTypeIndex)
     -- The engine still checks the supported fill type and the trough's actual capacity.
     local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
     if spec ~= nil and spec.rlRestoringFood then return true end
-    if RLFeed.mode == RLFeed.MODE_REAL then
-        local species = getAddedFills(placeable)[fillTypeIndex]
-        if type(species) == "string" then return RLFeed.isSpeciesFeedOpen(placeable, species) end
-        return true
-    end
-    return not getAddedFills(placeable)[fillTypeIndex]
+    local species = getAddedFills(placeable)[fillTypeIndex]
+    if type(species) == "string" then return RLFeed.isSpeciesFeedOpen(placeable, species) end
+    return true
 end
 
 
@@ -2135,7 +2101,7 @@ function RLFeed.onPenDayChanged(placeable)
     spec.rlFeedDay = nil
     local pen = spec.rlFeedPen
     if day == nil or day.hours == 0 then
-        if pen ~= nil and not pen.active and pen.reason ~= "MODE_OFF" and pen.reason ~= "NOT_CATTLE" and RLFeed.mode == RLFeed.MODE_REAL then
+        if pen ~= nil and not pen.active and pen.reason ~= "NOT_CATTLE" then
             RLPenLog.emit("FEED_DAY", { pen = RLPenLog.pen(placeable), active = false, reason = pen.reason })
         end
         return
@@ -2190,44 +2156,43 @@ function RLFeed.runsFor(animal, tick)
 end
 
 
---- A covered pig in a pen that does not run the mode this hour (PIG_BREEDING_LEGACY: a sow, a
---- pregnant female or an unweaned piglet in it; or no trough, an uncovered animal, a failed plan):
---- its weight still follows its own curve on the weight model's budget - the old weight rule
---- (Animal:updateWeight, a fixed gain off whole months) put piglets about three times above it. What
---- it eats is not known here, so the hour pays the pig's own needs (maintenance, pregnancy, its
---- curve's growth, its reserve back to the reference) x the pen's food factor, the old rules' measure
---- of the feeding (water included). An approximation: no sow milk, colostrum or litter budget (a later
---- batch), no ration or lysine; its health stays the old rules'. The same state and budget as the
---- mode's steps, so a piglet taken over at 28 days goes on from the weight it has; an older, heavier
---- one keeps its weight and grows on from there.
+--- A covered animal of the unified nutrition model (cattle, sheep, goats, pigs: RLRearingPolicy
+--- names its use) in a pen that did not run the model this hour - no trough, an animal the model
+--- does not cover beside it, a failed plan, a config that cannot be read. There is no other
+--- nutrition model for it any more (the old feeding rules and the pig fallback are retired): the
+--- hour is not settled. Its weight, reserve and health stay as they are, its model clock moves on
+--- (RLGrowth.markLegacyHour) and the hour is marked, so no pen steps it again this hour; the pen's
+--- reason is kept with it and shown (RLFeedInfoService). Never a made-up gain on the food factor.
 --- @param animal table
---- @param foodFactor number The pen's food factor this hour
---- @return boolean handled
-function RLFeed.stepFallback(animal, foodFactor)
-    if animal == nil or animal.isDead or not RLGrowth.covers(animal) then return false end
-    local config = RLFeed.getConfig(animal)
-    if config.monogastric == nil then return false end
+--- @return boolean held Whether the animal is one the model covers (its hour then needs nothing else)
+function RLFeed.holdUnsettled(animal)
+    if animal == nil or animal.isDead then return false end
+    if RLRearingPolicy == nil or RLRearingPolicy.getAnimalUse(animal) == nil then return false end
+    local refused = nil
+    if not RLGrowth.covers(animal) then
+        -- A sheep, goat or pig with a curve whose species sections cannot be read is refused by the
+        -- model (CONFIG_INVALID), never given the old rules instead; anything else outside it (not
+        -- an individual animal, a breed with no curve) keeps its own type's rules.
+        if animal.isIndividual ~= true or animal.genetics == nil or animal.getSubType == nil or not RLGrowth.isEnabled() then return false end
+        local subType = animal:getSubType()
+        if RLGrowth.getBinding(subType) == nil or not RLGrowth.needsRealNutrition(subType) then return false end
+        refused = "CONFIG_INVALID"
+    end
     local tick = RLBodyCondition.getTickId()
-    if tick == nil then return false end
-    local state = RLGrowth.ensureState(animal)
-    if state.lastTick == tick or animal.rlFeedStepTick == tick then return true end
-    local hourDays = RLFeed.getHourDays()
-    local dtMonths = hourDays / config.realDaysPerPeriod
-    if not (dtMonths > 0) then return false end
-    RLGrowth.resync(animal, state)
-    local input, cfg = buildEnergyInput(animal, dtMonths)
-    local body = RLBodyCondition.getConfig(animal)
-    input.reserveCeiling = math.min(RLBodyCondition.getReserveCeiling(animal) or body.referenceReserve, body.referenceReserve)
-    local demands = RLGrowthMath.getStepDemands(input, cfg)
-    local deposit = math.min(demands.depositHeadroomKg, demands.depositRatePerMonthKg) * cfg.depositNUPerKg
-    local perMonth = demands.maintenance + demands.pregnancy + demands.growthStep / dtMonths + deposit
-    local share = math.clamp(foodFactor or 0, 0, 1)
-    local feed = { tick = tick, kg = 0, me = perMonth * share * dtMonths, cp = 0, byFill = {}, plannedKg = 0,
-        plannedMe = perMonth * dtMonths, class = "GROWING", target = "GROW", proteinFactor = 1, dtDays = hourDays, water = 1,
-        fallback = true }
-    local result = RLGrowth.stepFeed(animal, feed, dtMonths, tick)
-    if result == nil then return true end
-    animal.rlFeedFallback = { tick = tick, share = share, coverage = result.coverage, growthFraction = result.growthFraction }
+    if tick == nil then return true end
+    if animal.rlFeedStepTick == tick or animal.rlLegacyHourTick == tick then return true end
+    RLGrowth.markLegacyHour(animal)
+    animal.rlLegacyHourTick = tick
+    local owner = getOwner(animal)
+    local spec = owner ~= nil and owner.spec_husbandryFood or nil
+    local pen = spec ~= nil and spec.rlFeedPen or nil
+    local reason = refused or (pen ~= nil and pen.tick == tick and pen.reason) or (owner == nil and "NO_PEN" or "NOT_EVALUATED")
+    animal.rlFeedHold = { tick = tick, reason = reason }
+    if heldWarned[reason] == nil then
+        heldWarned[reason] = true
+        Log:warning("RLFeed: covered animals in a pen that cannot run the nutrition model (%s) are held this hour: no growth, no health change",
+            tostring(reason))
+    end
     return true
 end
 

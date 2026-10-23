@@ -159,7 +159,6 @@ local okSh, shv, shErr = pcall(RLFeedInfoService.previewRation, sheepPen, RLFeed
 check("preview: a species whose curves are off (sheep) gives UNCOVERED_ANIMAL, no error", okSh and shv == nil and shErr == "UNCOVERED_ANIMAL")
 local _, offWhy = RLFeed.evaluatePen(PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 9, 3) }, { PIGFOOD = 100 }))
 check("off: with the PIG curves off a pig pen keeps the old rules (UNCOVERED_ANIMAL)", offWhy == "UNCOVERED_ANIMAL")
-FeedSim.setMode(false)
 local okMode, mv, modeErr = pcall(RLFeedInfoService.previewRation, PigSim.makePen({ PigSim.grown("PIG_LANDRACE", 14, 3) }, { PIGFOOD = 100 }),
     RLFeed.getRation(PigSim.makePen({}, {})))
-check("preview: mode off, curves off: a reason, no error", okMode and mv == nil and modeErr ~= nil)
+check("preview: curves off: a reason, no error", okMode and mv == nil and modeErr ~= nil)

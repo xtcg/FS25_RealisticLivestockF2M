@@ -1097,10 +1097,10 @@ do
     legacy.isIndividual = nil
     calls = 0
     routed(legacy)
-    check(string.format("routing: a covered calf takes the v2 step (+%.2f kg) and never the old weight rule; an uncovered one the old rule",
-        gain), gain > 0 and v2Calls == 0 and calls == 1)
+    check(string.format("routing: a covered calf outside a pen running the unified model is held (%+.2f kg), never the old weight rule; an uncovered one the old rule",
+        gain), gain == 0 and v2Calls == 0 and calls == 1)
 
-    -- No game hour to count a step in: the old rule this hour, run to the old target.
+    -- No game hour to count a step in: a covered animal is held too (no old rule, no target).
     local strong = GrowthSim.makeAnimal("BULL_ANGUS", { age = 3, genetics = { metabolism = 1.5, quality = 1, productivity = 1, fertility = 1, health = 1 } })
     local usedTarget
     local sub = strong:getSubType()
@@ -1110,8 +1110,7 @@ do
     GrowthSim.env.currentMonotonicDay = nil
     AnimalHealth.updateHealth(strong, 1)
     GrowthSim.env.currentMonotonicDay = day
-    check(string.format("routing: with no game hour a covered animal takes the old rule to its old target (%.0f kg, not the size gene's %.0f)",
-        usedTarget or -1, strong.targetWeight), near(usedTarget or 0, 1000 * 1.2, 1e-9) and strong.targetWeight < 1100)
+    check("routing: with no game hour a covered animal is held - the old rule never runs", usedTarget == nil)
 end
 
 

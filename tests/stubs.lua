@@ -169,8 +169,8 @@ loadMod("scripts/animal/RLGrowthMath.lua")
 loadMod("scripts/animal/RLWeightProfiles.lua")
 loadMod("scripts/animal/RLGrowth.lua")
 
--- Real-equivalent nutrition (RLFeed). The mode is the legacy one unless a test switches it on
--- (RLFeed.mode), so every other test sees the old rules; tests/test_feed.lua covers it.
+-- Unified nutrition (RLFeed): the only model of the covered cattle, sheep, goats and pigs; a
+-- covered animal outside a pen that runs it is held (RLFeed.holdUnsettled). tests/test_feed.lua.
 loadMod("scripts/feed/RLFeedUnits.lua")
 loadMod("scripts/feed/RLFeedProfiles.lua")
 loadMod("scripts/feed/RLFeedMath.lua")

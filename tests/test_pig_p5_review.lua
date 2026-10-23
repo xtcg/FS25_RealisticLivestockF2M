@@ -128,5 +128,4 @@ for _, days in ipairs({ 1, 3, 7 }) do
 end
 GrowthSim.setDaysPerPeriod(1)
 
-FeedSim.setMode(false)
 PigSim.enable(false)

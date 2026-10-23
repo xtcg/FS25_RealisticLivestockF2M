@@ -138,11 +138,10 @@ RLFeedProfiles.NURSING_CURVES = { "milkMax", "solidMax", "solidEnergy" }
 -- W^c)) by sex (female, castrate, male; Eqs. 8-10 to 8-12); physicalKgDMPerKg x W^physicalExponent:
 -- the most DM it can eat (Eq. 8-16, g as fed x 0.90 DM). lysine: SID lysine (g per MJ ME) a ration
 -- needs for full growth, by weight (kg) and sex; lysineMaintenance the level growth falls to nothing
--- at. youngLegacyUntilMonth: a pen with a young animal under this age (continuous months: not weaned),
--- a pregnant female or one that has given birth keeps the old rules (PIG_BREEDING_LEGACY: the sow's
--- milk, pregnancy and body condition are a later batch).
+-- at. lactatingLysPerMe: a nursing sow's ration need. (youngLegacyUntilMonth, the retired breeding
+-- pen gate, is no longer read; an older copy may still carry it.)
 RLFeedProfiles.MONOGASTRIC = { maintenanceExponent = 0.75, physicalKgDMPerKg = 0.0999, physicalExponent = 0.803,
-    lysineMaintenance = 0.05, youngLegacyUntilMonth = 0, lactatingLysPerMe = 0 }
+    lysineMaintenance = 0.05, lactatingLysPerMe = 0 }
 RLFeedProfiles.MONO_SEXES = { "female", "castrate", "male" }
 
 --- Numeric fields of a feed profile and the range each must be in.
@@ -774,10 +773,51 @@ function RLFeedProfiles.computeHash(config)
 end
 
 
+--- Migrate a copy of the file (the mod's modSettings folder) to what the unified nutrition model
+--- needs, from the mod's own file: a copy that cannot be read at all gives way to the mod's file;
+--- a species section the copy lacks or that fails its checks (an older copy: no GOAT) is the mod's;
+--- a section without nursing rules the mod's has (an older copy's PIG) takes the mod's rules. The
+--- copy's other values are kept. Each step is logged once; the list is kept for reports.
+--- @param config table The copy's config
+--- @param builtin table|nil The mod's own file's
+--- @return table config
+function RLFeedProfiles.migrateCopy(config, builtin)
+    if builtin == nil then return config end
+    local notes = {}
+    if config.valid ~= true and builtin.valid == true then
+        Log:error("RLFeedProfiles: the modSettings copy is invalid (%s) - the mod's own feedProfiles.xml is used",
+            tostring(config.invalidReason))
+        builtin.migrated = { "COPY_INVALID" }
+        return builtin
+    end
+    config.species = config.species or {}
+    local names = {}
+    for name in pairs(builtin.species or {}) do names[#names + 1] = name end
+    table.sort(names)
+    for _, name in ipairs(names) do
+        local own, section = config.species[name], builtin.species[name]
+        if section.valid == true and (own == nil or own.valid ~= true) then
+            config.species[name] = section
+            notes[#notes + 1] = name .. (own == nil and ":SECTION_ADDED" or ":SECTION_REPLACED")
+        elseif own ~= nil and own.nursing == nil and section.nursing ~= nil then
+            own.nursing = section.nursing
+            own.hash = RLFeedProfiles.computeHash(own)
+            notes[#notes + 1] = name .. ":NURSING_ADDED"
+        end
+    end
+    for _, note in ipairs(notes) do
+        Log:info("RLFeedProfiles: modSettings copy migrated (%s) from the mod's own file", note)
+    end
+    config.migrated = notes
+    return config
+end
+
+
 --- The config, loaded on the first call.
 function RLFeedProfiles.getConfig()
     if RLFeedProfiles.config == nil then
-        RLFeedProfiles.config = RLBreedTraits.loadConfig(RLFeedProfiles.CONFIG_FILE, "feedProfiles", RLFeedProfiles.parse)
+        local config, builtin = RLBreedTraits.loadConfigPair(RLFeedProfiles.CONFIG_FILE, "feedProfiles", RLFeedProfiles.parse)
+        RLFeedProfiles.config = RLFeedProfiles.migrateCopy(config, builtin)
         local config = RLFeedProfiles.config
         Log:info("RLFeedProfiles: version %s, scale %.3f, %s model days a month, hash %s, %s", tostring(config.version),
             config.resourceScale, tostring(config.realDaysPerPeriod), config.hash, config.valid and "valid" or ("INVALID: " .. tostring(config.invalidReason)))

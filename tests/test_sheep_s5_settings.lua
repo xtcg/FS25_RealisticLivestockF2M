@@ -111,11 +111,8 @@ check("lactation: reserve mobilization uses sheep period", near(G.getMilkMobiliz
 local report = W.describe(eweSub)
 check("report: effective settings are copied for review", report.settings.castratedSpeed == 0.81 and report.settings ~= s)
 check("report: goats show their type's (SHEEP) settings", W.describe(goatSub).settings.castratedSpeed == report.settings.castratedSpeed)
--- Sheep curves run only under the real-equivalent nutrition model (weightProfiles nutrition="REAL").
-check("coverage: an enabled sheep type is not covered under the old nutrition model",
-    RLFeed.mode == RLFeed.MODE_LEGACY and not G.coversSubType(ramSub))
-RLFeed.onSettingChanged("nutritionMode", RLFeed.MODE_REAL)
-check("coverage: under the real-equivalent model it is, with its feed and body sections valid",
+-- Sheep curves run on the unified nutrition model (weightProfiles nutrition="REAL"), the only one.
+check("coverage: an enabled sheep type is covered with its feed and body sections valid (no mode setting)",
     G.coversSubType(ramSub) and G.speciesNutritionReady("SHEEP") and G.speciesNutritionReady("GOAT") and G.coversSubType(goatSub))
 local live = GrowthSim.makeAnimal("RAM_LANDRACE")
 live.isCastrated = true
@@ -130,7 +127,6 @@ s.underweightRatio = 0
 RLFeed.applyUnderweight(live, 0.1)
 s.underweightRatio, RLFeed.addHealth = 0.3, oldHealth
 check("health: a valid zero underweight ratio disables the check without NaN", healthCalls == 0)
-RLFeed.onSettingChanged("nutritionMode", RLFeed.MODE_LEGACY)
 W.config = config
 G.resetCaches()
 check("S5 completion: production switch defaults ON", W.getConfig().types.SHEEP.enabled)

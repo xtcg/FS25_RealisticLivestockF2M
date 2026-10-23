@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <!--
-    Feed profiles and the real-equivalent nutrition mode (scripts/feed).
+    Feed profiles and the unified nutrition model (scripts/feed).
 
-    On by default for new saves in 0.2.0.0: the mode is chosen per savegame in the RL settings (Nutrition model: Legacy /
-    Real-equivalent). It runs only for cattle (animal type COW) under the weight model v2
-    (weightProfiles.xml), with the body condition on and this file valid. In a pen it runs only
-    when every animal in it is covered and no calf there is still on milk outside a calf rearing
-    pen; any other pen keeps the old rules as a whole, and its info says why.
+    The only nutrition model of the cattle, sheep, goats and pigs it covers (the selectable Legacy
+    mode was retired in the unified nursing batch E; a saved choice is read once and dropped). It
+    runs on the weight model v2 curves (weightProfiles.xml) and the body condition budget, with this
+    file valid; a copy in modSettings that lacks a section or rule of this file takes it from here.
+    A pen that cannot run it (no trough, an animal it does not cover, a failed plan) holds its
+    covered animals for the hour - no growth, no health change - and its info says why. Other
+    types (Hof Bergmann's MILKCOW, horses, poultry) keep their own rules.
 
     Real nutrition, game resources. An animal's intake and needs are worked out in real units -
     kg of dry matter (DM) a real day, ME in MJ - and only the feed taken from the trough is scaled:
@@ -146,9 +148,9 @@
     earlyWeaningMonth: a calf of an age for milk outside a calf rearing pen with no dam there that
     can nurse it (sold, dead, in another pen, dry) is weaned early from this age (continuous
     months; 3 - calves take to solid feed from about 2-3 months, and early weaning at 60-90 days
-    is a real practice): it eats as any weaned animal. A younger one still needs milk: its pen
-    stays on the old rules (SUCKLING_CALF) until it is in a calf rearing pen, back with its dam,
-    or old enough.
+    is a real practice): it eats as any weaned animal. A younger one still needs milk: none is
+    made for it (no other dam's milk, never the old rules) until it is in a calf rearing pen, back
+    with its dam, or old enough; its growth shows the gap and the pen warns.
     Scale its DM allowance by breed/sex mean birth weight relative to a Holstein of the
     same sex to sizeExponent (0.75: feeding guides give a Jersey about three quarters of a
     Holstein's milk, more than her weight share) and by calfRearing milkMax, once. Total
@@ -164,7 +166,7 @@
     bridge to real kg) goes to her calves up to their allowance - twins share it - and only the
     rest to the pen's milk store; milk in the trough makes up what she did not give, within the
     same allowance. Her milk is never valued twice and never made up from nothing: a calf without
-    its lactating dam in the pen keeps the pen on the old rules (SUCKLING_CALF).
+    its dam in the pen gets no dam milk (the pen still runs the model and warns).
 
     feed: one per fill type.
     role         COMPLETE (a mixed ration, counted once as it is), FORAGE, CONCENTRATE or MILK.
@@ -627,7 +629,7 @@
           share of what it can physically eat taken as creep feed (little before 3 weeks). pregnancyFactor 0.04 a
           fetus x maintenance at term (PROXY: about +50% for a litter of 12, NRC 2012 late gestation). lactatingLysPerMe
           0.62 g SID lysine a MJ ME for a nursing sow (NRC 2012 lactation diets, 0.84-0.91% at 3.3 Mcal ME a kg).
-          Without these rules (an older copy of this file) such a pen keeps the old rules (PIG_BREEDING_LEGACY).
+          An older copy of this file without these rules takes them from the mod's own file on load (logged).
         - Feeds: INRA-CIRAD-AFZ tables (feedtables.com) and Feedipedia, read 2026-10-16, pig ME and SID lysine on DM;
           density the engine's massPerLiter (Hof Bergmann 1.5b1). A pig eats every feed in its trough it may, mixed as
           stocked (a mixed trough), each at most its maxShare; PIGLETFOOD only up to 25 kg.
@@ -638,7 +640,7 @@
             pregnancyFactor="0.04"/>
         <physiology growthReferenceKg="60" calfGrowthCost="0"/>
         <monogastric maintenanceExponent="0.60" physicalKgDMPerKg="0.0999" physicalExponent="0.803" lysineMaintenance="0.05"
-            youngLegacyUntilMonth="0.9333" lactatingLysPerMe="0.62">
+            lactatingLysPerMe="0.62">
             <energy sex="female" a="45.886" b="-3.803" c="0.9072"/>
             <energy sex="castrate" a="43.710" b="-4.283" c="1.0843"/>
             <energy sex="male" a="44.509" b="-3.803" c="0.9072"/>

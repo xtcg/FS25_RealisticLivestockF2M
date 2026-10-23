@@ -134,4 +134,3 @@ do
 end
 
 SheepSim.enable(false)
-FeedSim.setMode(false)

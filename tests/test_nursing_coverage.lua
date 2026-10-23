@@ -209,4 +209,3 @@ do
         worstCalf < 0.05 and worstCow < 0.25)
 end
 
-FeedSim.setMode(false)

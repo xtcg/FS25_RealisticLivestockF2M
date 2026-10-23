@@ -153,12 +153,11 @@ end
 -- Access, apply
 -- =============================================================================
 
---- Whether the player may change this pen's ration now, and why not: MODE_OFF, the reason the pen
---- keeps the old rules (RLFeed.evaluatePen; a client's is the server's), NO_PERMISSION.
+--- Whether the player may change this pen's ration now, and why not: the reason the pen cannot
+--- run the model this hour (RLFeed.evaluatePen; a client's is the server's), NO_PERMISSION.
 --- @return boolean editable
 --- @return string reason
 function RLFeedRationModel:getAccess()
-    if RLFeed.mode ~= RLFeed.MODE_REAL then return false, "MODE_OFF" end
     local state = RLFeedInfoService.getPenState(self.placeable)
     if not state.active then return false, state.reason or "UNKNOWN" end
     if RLPermissionHelper ~= nil and RLPermissionHelper.hasLocalPermission ~= nil

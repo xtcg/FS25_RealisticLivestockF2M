@@ -73,10 +73,6 @@ g_server = { broadcastEvent = function(_, event) broadcasts[#broadcasts + 1] = e
 RLPermissionHelper = { authorizeConnection = function() return true, nil, "tester" end }
 pen.getOwnerFarmId = function() return 1 end
 local logged = #LOG
-FeedSim.setMode(false)
-RLFeedRationEvent.new(pen, { target = "MAINTAIN", grain = "AUTO", share = nil, substitute = true }):run(makeConnection(5, false))
-check("UI-RATION-01: with the mode off the server drops a client's ration", RLFeed.getRation(pen).target == "AUTO" and #broadcasts == 0)
-FeedSim.setMode(true)
 local horses = FeedSim.makePen({}, {})
 horses.getOwnerFarmId = function() return 1 end
 horses.getAnimalTypeIndex = function() return 99 end

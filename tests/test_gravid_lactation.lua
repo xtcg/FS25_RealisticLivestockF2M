@@ -36,7 +36,6 @@ end
 -- Calving: one drop, no tissue ---------------------------------------------------------------
 
 do
-    FeedSim.setMode(false)
     GrowthSim.setDaysPerPeriod(1)
     local cow = GrowthSim.makeAnimal("COW_HOLSTEIN", { age = 48, isParent = true, isLactating = false })
     cow.weight = cow.targetWeight

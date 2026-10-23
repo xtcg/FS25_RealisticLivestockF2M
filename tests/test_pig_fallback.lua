@@ -132,12 +132,7 @@ do
         q ~= nil and q < 0.95 and math.abs(q1 - q) < 1e-6 and math.abs(q2 - q) < 1e-6 and curveGap(youngS[1]) < -0.03)
 end
 
--- Sheep and cattle never take the old pig bridge.
-do
-    local ewe = GrowthSim.makeAnimal("SHEEP_LANDRACE", { age = 24 })
-    local cow = GrowthSim.makeAnimal("COW_ANGUS", { age = 24 })
-    check("scope: sheep and cattle are not stepped by the pig fallback", RLFeed.stepFallback(ewe, 1) == false and RLFeed.stepFallback(cow, 1) == false)
-end
+-- The old pig bridge is retired (batch E): no food-factor step remains for any species.
+check("retired: no pig fallback step (RLFeed.stepFallback) remains", RLFeed.stepFallback == nil)
 
 PigSim.enable(false)
-FeedSim.setMode(false)

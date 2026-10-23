@@ -53,10 +53,10 @@ for _, sub in ipairs(Economics.subTypes) do
 end
 
 
---- Switch the mode on or off (the RL setting).
-function FeedSim.setMode(real)
-    RLFeed.onSettingChanged("nutritionMode", real and RLFeed.MODE_REAL or RLFeed.MODE_LEGACY)
-end
+--- The unified nutrition model is the only one (the Legacy setting is retired, batch E). Kept as a
+--- no-op for the cross-tree A/B probes (tests/species_ab.lua, feed_ab.lua), which call it on both
+--- trees: on this one "legacy" rows run the same model as "real" ones - that is the change measured.
+function FeedSim.setMode(_) end
 
 
 --- A cattle pen with a trough. stock: name -> liters.

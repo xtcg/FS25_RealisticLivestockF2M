@@ -53,4 +53,3 @@ check("a ram or a maiden ewe is never nursing", RLFeed.getNursingState(SheepSim.
 
 SheepSim.enable(false)
 PigSim.enable(false)
-FeedSim.setMode(false)

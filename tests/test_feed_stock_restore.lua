@@ -72,16 +72,13 @@ local function restore(pen, rows, fail)
 end
 local FILL = FeedSim.FILL
 SheepSim.enable(true)
-FeedSim.setMode(false) -- Fresh game startup, before the save's settings callback.
 local pen = penFor({ SheepSim.ewe("SHEEP_LANDRACE", "S1") })
 restore(pen, { { "DRYGRASS_WINDROW", 1000 }, { "SILAGE", 400 }, { "BARLEY", 300 }, { "PEA", 100 } })
-check("stock restore: startup legacy mode preserves saved sheep hay/silage/barley/peas",
-    pen:level("DRYGRASS_WINDROW") == 1000 and pen:level("SILAGE") == 400 and pen:level("BARLEY") == 300 and pen:level("PEA") == 100)
-check("stock restore: runtime legacy unloading still rejects new silage/grain",
-    pen:getFreeFoodCapacity(FILL.SILAGE) == 0 and pen:getFreeFoodCapacity(FILL.BARLEY) == 0 and pen.spec_husbandryFood.rlRestoringFood == nil)
-FeedSim.setMode(true)
+check("stock restore: startup preserves saved sheep hay/silage/barley/peas",
+    pen:level("DRYGRASS_WINDROW") == 1000 and pen:level("SILAGE") == 400 and pen:level("BARLEY") == 300 and pen:level("PEA") == 100
+    and pen.spec_husbandryFood.rlRestoringFood == nil)
 GrowthSim.advanceHour()
-check("stock restore: once real mode is loaded the sheep pen accepts new silage/grain",
+check("stock restore: the sheep pen accepts new silage/grain (the unified model is the only one)",
     pen:getFreeFoodCapacity(FILL.SILAGE) > 0 and pen:getFreeFoodCapacity(FILL.BARLEY) > 0)
 local feeding = penFor({ SheepSim.ewe("SHEEP_LANDRACE", "S2") })
 restore(feeding, { { "SILAGE", 400 } })
