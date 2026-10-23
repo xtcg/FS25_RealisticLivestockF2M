@@ -52,3 +52,25 @@ local filtered=RLAnimalBuyService.filterBuyableAnimals({getNumOfFreeAnimalSlots=
     validations=validations+1;return nil
 end)
 check("market buy UI: unavailable trailer item is rejected before numeric validation",#filtered.valid==1 and filtered.valid[1]==b and #filtered.rejected==1 and filtered.firstErrorCode==9 and validations==1)
+
+-- The destination step sends the price the player confirmed when every animal fits (2026-10-24: a quote that
+-- moved a unit while a dialog was open is charged as confirmed, AnimalBuyEvent.QUOTE_TOLERANCE); a partial
+-- buy prices the valid subset and shows it in its confirmation.
+do
+    local sent, asked = nil, 0
+    YesNoDialog={show=function()asked=asked+1 end}
+    InfoDialog={show=function()end}
+    g_currentMission.animalSystem={getSubTypeByIndex=function()return {typeIndex=1}end}
+    local rejected={}
+    RLAnimalMoveService={buildMoveValidationResult=function(animals)return {valid=animals,rejected=rejected}end}
+    RLAnimalBuyService.computeBulkTotal=function(list)return 1065.3,90,1155.3,#list end
+    RLAnimalBuyService.buildPartialConfirmationText=function()return "partial" end
+    local f=setmetatable({dispatchPendingBuy=function(self)sent={self.pendingBuyPrice,self.pendingBuyFee}end},{__index=RLMenuBuyFrame})
+    f.pendingBuyAnimals={a};f.pendingBuyPrice=1062.1;f.pendingBuyFee=90
+    f:onBuyDestinationSelected({placeable={},name="pen"})
+    check("confirmed price: all fit, the confirmed 1062.1 + 90 is sent, no second question",sent~=nil and sent[1]==1062.1 and sent[2]==90 and asked==0)
+    rejected={{animal=b,reason="FULL"}}
+    f.pendingBuyAnimals={a,b};f.pendingBuyPrice=2000;f.pendingBuyFee=180
+    f:onBuyDestinationSelected({placeable={},name="pen"})
+    check("confirmed price: some rejected, the valid subset is priced now and confirmed",asked==1 and f.pendingBuyPrice==1065.3)
+end

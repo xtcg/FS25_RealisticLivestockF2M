@@ -353,6 +353,20 @@ end
 local wire=string.unpack("f",string.pack("f",-1000.12345))
 check("market buy authority: real float32 roundtrip allowed without changing server amount",AnimalBuyEvent.matchesWirePrice(wire,-1000.12345))
 check("market buy authority: component change above float32 precision refused",not AnimalBuyEvent.matchesWirePrice(-1000.11345,-1000.12345))
+-- The price the player confirmed is charged while within QUOTE_TOLERANCE (2 %) of the server's quote (2026-10-24:
+-- a quote that moved a unit or two while a dialog was open is not worth a refusal or a second question).
+check("market buy authority: a confirmed price 1 % off the server quote is accepted",AnimalBuyEvent.acceptsConfirmedPrice(-1010,-1000))
+check("market buy authority: 3 % off, or the wrong sign, is refused",not AnimalBuyEvent.acceptsConfirmedPrice(-1030,-1000)
+    and not AnimalBuyEvent.acceptsConfirmedPrice(10,0) and not AnimalBuyEvent.acceptsConfirmedPrice(0/0,-1000))
+do
+    MONEY[1]=100000
+    local prior=snapshot()
+    local code=runBuy(done2,{calf("COW_HOLSTEIN",0)},-1012.5,-50)
+    check("market buy authority: an hour-old confirmed price is charged as confirmed (1012.5 + 50, not the server's 1050)",
+        code==AnimalBuyEvent.BUY_SUCCESS and MONEY[1]==prior.money-1062.5 and #done2.animals==prior.done+1)
+    -- Leave the pen and the wallet as the later cases expect them.
+    table.remove(done2.animals);MONEY[1]=prior.money
+end
 
 -- C05.2: normal construction finishes, the pen opens at once.
 local a1 = calf("COW_ANGUS", 1)

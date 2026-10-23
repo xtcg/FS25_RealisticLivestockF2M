@@ -12,6 +12,17 @@ function AnimalBuyEvent.matchesWirePrice(sent,expected)
     return math.abs(sent-expected)<=math.max(2^-149,math.abs(expected)*2^-23)
 end
 
+-- The price the player confirmed is the one charged while it is within QUOTE_TOLERANCE of the server's
+-- quote now: a quote moves a little while a dialog is open (an hour: age, weight), and a player never
+-- minds those few units. A wider gap (a month change, a forged amount) is refused as price-unavailable.
+AnimalBuyEvent.QUOTE_TOLERANCE = 0.02
+function AnimalBuyEvent.acceptsConfirmedPrice(sent,expected)
+    if AnimalBuyEvent.matchesWirePrice(sent,expected) then return true end
+    local function finite(v)return type(v)=="number" and v==v and math.abs(v)<math.huge end
+    if not finite(sent) or not finite(expected) or sent>0 or expected>0 then return false end
+    return math.abs(sent-expected)<=math.abs(expected)*AnimalBuyEvent.QUOTE_TOLERANCE
+end
+
 
 function AnimalBuyEvent.new(object, animals, buyPrice, transportPrice)
 
@@ -140,7 +151,7 @@ function AnimalBuyEvent:run(connection)
 		else
 			local clientBuyPrice = self.buyPrice or 0
 			if not AnimalBuyEvent.matchesWirePrice(clientBuyPrice,serverBuyPrice) then
-				Log:debug("AnimalBuyEvent:run: client body price %s differs from exact server quote %s; refresh required",
+				Log:debug("AnimalBuyEvent:run: client body price %s differs from the server quote %s (charged as confirmed within QUOTE_TOLERANCE)",
 					tostring(clientBuyPrice),tostring(serverBuyPrice))
 			else
 				Log:trace("AnimalBuyEvent:run: server price recompute agrees with the client (%.2f)", serverBuyPrice)
@@ -180,11 +191,13 @@ function AnimalBuyEvent:run(connection)
 			connection:sendEvent(AnimalBuyEvent.newServerToClient(AnimalBuyEvent.BUY_ERROR_PRICE_UNAVAILABLE))
 			return
 		end
-		if not AnimalBuyEvent.matchesWirePrice(dispatchedBuyPrice,serverBuyPrice)
-			or not AnimalBuyEvent.matchesWirePrice(dispatchedTransportPrice,serverTransportPrice) then
+		if not AnimalBuyEvent.acceptsConfirmedPrice(dispatchedBuyPrice,serverBuyPrice)
+			or not AnimalBuyEvent.acceptsConfirmedPrice(dispatchedTransportPrice,serverTransportPrice) then
 			connection:sendEvent(AnimalBuyEvent.newServerToClient(AnimalBuyEvent.BUY_ERROR_PRICE_UNAVAILABLE))
 			return
 		end
+		-- Charged as the player confirmed it (within QUOTE_TOLERANCE of the server's quote).
+		self.buyPrice,self.transportPrice = dispatchedBuyPrice,dispatchedTransportPrice
 
 		phaseReset()
 		for _, animal in pairs(self.animals) do

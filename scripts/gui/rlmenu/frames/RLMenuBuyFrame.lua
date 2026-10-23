@@ -838,8 +838,10 @@ function RLMenuBuyFrame:startTrailerBuyFlow(animals, _price)
             rejectedCount, totalCount, tostring(result.firstErrorCode))
     end
 
-    -- Reprice for the VALID subset only; a trailer buy carries no transport fee.
-    local validPrice = RLAnimalBuyService.computeBulkTotal(result.valid)
+    -- A trailer buy carries no transport fee. All animals fit: the confirmed price is sent; some
+    -- rejected: the valid subset is priced now.
+    local validPrice = self.pendingBuyPrice
+    if rejectedCount > 0 then validPrice = RLAnimalBuyService.computeBulkTotal(result.valid) end
     if not priceAvailable(validPrice) then self:clearPendingBuyState();InfoDialog.show(g_i18n:getText("rl_ui_priceUnavailable"));return end
     local validFee   = 0
 
@@ -901,8 +903,11 @@ function RLMenuBuyFrame:onBuyDestinationSelected(entry)
         return
     end
 
-    -- Reprice for the VALID subset only.
-    local validPrice, validFee = RLAnimalBuyService.computeBulkTotal(result.valid)
+    -- All animals fit: the price the player confirmed is the one sent (the server charges it while it is
+    -- within AnimalBuyEvent.QUOTE_TOLERANCE of its quote). Some rejected: the valid subset is priced now
+    -- and shown in the partial confirmation.
+    local validPrice, validFee = self.pendingBuyPrice, self.pendingBuyFee
+    if rejectedCount > 0 then validPrice, validFee = RLAnimalBuyService.computeBulkTotal(result.valid) end
     if not priceAvailable(validPrice) or not priceAvailable(validFee) then self:clearPendingBuyState();InfoDialog.show(g_i18n:getText("rl_ui_priceUnavailable"));return end
 
     self.pendingBuyDestination = entry.placeable
