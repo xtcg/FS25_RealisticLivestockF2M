@@ -201,7 +201,9 @@ local function new(options)
                     need(n==#animals,"SPARSE_NATIVE_ANIMAL_LIST");table.sort(animals);entry.animals=animals
                 end
             end
-            cache[role][raw]=entry
+            -- C pairs read/inspect immediately. Retaining old serialized native
+            -- files here would grow with every save and authorize stale reads.
+            cache[role]={[raw]=entry}
             return raw
         end)
     end
@@ -276,7 +278,7 @@ local function new(options)
         local raw=assert(native.read(paths[role]))
         local envelope=assert(RLBrokerPersistence.decode(raw,validateWrapper))
         need(same(envelope.payload,wrapper),"PARTICIPANT_CHANGED_DURING_READ")
-        cache[role][raw]=cp(wrapper)
+        cache[role]={[raw]=cp(wrapper)}
         return raw
     end
     local function animalsManifest()
@@ -290,7 +292,7 @@ local function new(options)
         end
         local manifest={schemaVersion=1,kind="NATIVE_ANIMALS_DERIVED_MANIFEST",files=files,marker=common}
         local raw=RLTradePersistence.canonical(manifest)
-        local marker=cp(common);marker.role="animals";cache.animals[raw]=marker
+        local marker=cp(common);marker.role="animals";cache.animals={[raw]=marker}
         return raw
     end
     local function guarded(fn,...)

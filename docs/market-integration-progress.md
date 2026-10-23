@@ -114,3 +114,18 @@ Broker纯价格遵守奖金先限价、成品S差额、当前货币来源支出�
 随后新增 `RLBrokerNativeStorage`：使用实际 FS25 `XMLFile.create/loadIfExists/save/getAsString/delete` API 形状，完整验证 serializer 返回的全部树结构，允许声明、缩进及属性换序等格式差异，再规范化为专用 codec 的完整逻辑串，继续用双槽精确回读。不会以 `io.open` 读取游戏文件。68 项定向覆盖三道 barrier、假成功写盘、重复/未知字段、旧证据、混代及清理/重入故障；这是内存 native API 夹具，不冒充真实游戏持久化证据。引擎 XML parser 在返回树之前已丢弃的原始词法信息无法恢复，适配不声称原始字节验证或物理 fsync。
 
 已复查的纯定义和 native 工厂加入 main 装载顺序；启动测试读取实际 main 列表逐个加载，验证 provider/订单/付款服务没有自动启动，未替换 `Animal.getSellPrice`，三种准入 gate 仍关闭。市场运行时仍保持 legacy，实际 store、同步保存 hooks、真实价格绑定和 UI/网络尚未装配。
+
+## 既有价格入口与原生共同保存适配
+
+| implementationSHA | 实现 | 验证与未完成边界 |
+|---|---|---|
+| `6ad94a2f` | `RLMarketSaveAdapter` 为共同 checkpoint 提供真实 XMLFile 读写、native marker、career proof、四类实际 payload validator 和双槽跨代档案 | 定向59项。动物角色是每次从 placeables/vehicles 全文派生的 manifest，不虚构 animals.xml。当前动物键读取器仍需注入真实 inspector，缺失明确 unsupported；没有安装实际 save hooks |
+| `b9297ff1` | `Animal:getSellPrice` 与单只/批量购买经统一模式路由；旧公式独立为 `getLegacySellPrice`；自动管理员经 day-tick 注入独立 ASK/BID；购买 UI 与服务端金额复核 | Engine31、BuyUI10、Construction79、Legacy41、AI115、live sale154、Birth40、DealerQuote23、装载50项定向通过并独立review。生产 bind 仍强制独立 Runtime 门控；目前没有准入 scope 或真实经济参数装配 |
+
+购买事件服务端分别重算本体和实际运输腿（拖车为0），拒绝不可报价、非有限/负数、错误符号、伪造分量及相同总额下换费用分配；仅允许 float32 wire 表示误差，实际收支保留服务器 double。报价失效使用4bit协议中新增code9，17种语言各有一个 priceUnavailable 文本；选择中任一只不可报价时整份购物车不返回部分总额，不弹确认框，不当作免费动物。普通库存来源规范化、旧wire重放幂等和实际购入凭证仍未全部贯通，U36不能据此整项验收。
+
+Review追加并关闭了错误难度/参考载荷的缓存报价可被接纳、监控面板对nil价格做除法、出生已写身份亲缘后因nil报价排序失败的反例。Quote scope绑定完整referenceInputs及难度、参考版本、日历/绝对时间；已准入 scope 中报价失败不切回另一价格，未准入 scope 明确保留legacy，shadow错误不改变现金。强制病畜淘汰与出生满栏处置保留明确的旧补偿/处置依据，不反调可拒绝的live BID；这两条出口仍须纳入跨渠道经济扫描，未声称已校准或迁移为普通Dealer交易。
+
+已吸收的身份分配日志不要求删除：适配实际读取原身份owner XML、原career身份marker及四个原生参与文件，验证其独立身份代次、共同sharedSaveId、全文与完整导出ledger一致；旧日志只有sequence与所有key已被该保存账本吸收且main/pending完整一致，才可加入共同证明。同代/未来代、缺键、序列超前、异谱系或未知残留仍拒绝。不会用市场generation代替独立身份generation，也不会凭live scan清除日志。
+
+冻结代码 `b9297ff1` 的完整回归返回 **6488/6488、exit 0**，日志 `/private/tmp/rlrm-market-phase4-tests.log`；运行期间源代码/测试未改动，仅提交相同代码。实机、地图GUI、双客户端及断电持久性仍未验证。此结果不自动覆盖其后缓存/默认native inspector等新增改动。

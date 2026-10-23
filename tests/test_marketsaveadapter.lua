@@ -237,3 +237,24 @@ for _,kind in ipairs({'RECOVERY_STUB','FUTURE_OWNER_SCHEMA'})do
     local bad=fixture();bad.changeOwner=function(data)if kind=='RECOVERY_STUB'then data.recovery='LEDGER_NOT_EXPORTED'else data.schema=2 end end
     check('save adapter: original identity '..kind..' cannot masquerade as complete evidence',not pcall(bad.start) and not bad.checkpoint.status().allowNewTransactions)
 end
+w=fixture();w.start()
+local oldNative=assert(w.adapter.storage.read('test-save/placeables.xml'))
+w.files['test-save/placeables.xml'].nodes['placeables.animal(0)'].pregnancy='fresh real read'
+local newNative=assert(w.adapter.storage.read('test-save/placeables.xml'))
+check('save adapter: latest native read revokes inspection of prior raw XML',oldNative~=newNative and w.adapter.storage.inspectParticipant('placeables',oldNative,w.adapter.contracts.participants.placeables)==nil and w.adapter.storage.inspectParticipant('placeables',newNative,w.adapter.contracts.participants.placeables)~=nil)
+w=fixture();w.start();local oldCareer=assert(w.adapter.storage.read('test-save/careerSavegame.xml'));proof=assert(w.checkpoint.finish(w.scope.sharedSaveId))
+local newCareer=assert(w.adapter.storage.read('test-save/careerSavegame.xml'))
+check('save adapter: new career read revokes both old proof and old body access',oldCareer~=newCareer and w.adapter.storage.inspectCareer(oldCareer)==nil and w.adapter.storage.careerBody(oldCareer)==nil and w.adapter.storage.inspectCareer(newCareer)~=nil and w.adapter.storage.careerBody(newCareer)~=nil)
+w=fixture();local previousRaw;local previousOther={}
+for generation=1,3 do
+    w.scope.generation=generation;w.scope.checkpointId='cache-checkpoint:'..generation;w.scope.sharedSaveId='cache-save:'..generation
+    w.start();local currentRaw=assert(w.adapter.storage.read('test-save/placeables.xml'));local previousRefused=previousRaw==nil or w.adapter.storage.inspectParticipant('placeables',previousRaw,w.adapter.contracts.participants.placeables)==nil
+    local currentOther={}
+    for _,role in ipairs({'animals','identity','acquisition','broker','months'})do
+        currentOther[role]=assert(w.adapter.storage.read(w.adapter.contracts.participants[role].path))
+        if previousOther[role]then previousRefused=previousRefused and w.adapter.storage.inspectParticipant(role,previousOther[role],w.adapter.contracts.participants[role])==nil end
+    end
+    local saved=assert(w.checkpoint.finish(w.scope.sharedSaveId));local reread=assert(w.checkpoint.load())
+    check('save adapter: single-slot caches preserve finish/load/body across generation '..generation,previousRefused and saved.generation==generation and D.fingerprint(saved)==D.fingerprint(reread))
+    previousRaw=currentRaw;previousOther=currentOther;assert(w.adapter.endScope(w.scope.sharedSaveId))
+end
