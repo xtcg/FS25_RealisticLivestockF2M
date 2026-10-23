@@ -33,7 +33,7 @@ local function keys(t, allowed)
     for k in pairs(t) do if not allowed[k] then return false end end
     return true
 end
-function K.validate(data, sources, months)
+function K.validate(data, sources, months, legacyMilk)
     if type(data) ~= "table" or RLTradePersistence.check(data, RLDealerPersistence.LIMITS)
         or not keys(data, {version=true, owners=true, bindings=true, observedChildren=true, retiredSources=true})
         or data.version ~= K.VERSION or type(data.owners) ~= "table" or type(data.bindings) ~= "table"
@@ -44,7 +44,7 @@ function K.validate(data, sources, months)
     local animals, seen, bound = {}, {}, {}
     local recovery = false
     for sourceId, record in pairs(sources) do
-        local ok = RLDealerSourceState.validate(record)
+        local ok = RLDealerSourceState.validate(record, legacyMilk)
         if not id(sourceId) or not ok or record.cursorMonths > months then return nil, "OWNED_STOCK_SOURCE" end
         if record.cursorMonths < months then recovery=true end
     end
@@ -59,7 +59,7 @@ function K.validate(data, sources, months)
     end
     for ownerId, owner in pairs(data.owners) do
         if not id(ownerId) or type(owner) ~= "table" or owner.sourceId ~= ownerId then return nil, "OWNED_STOCK_OWNER_ID" end
-        local ok, why = RLDealerSourceOwnership.validate(owner)
+        local ok, why = RLDealerSourceOwnership.validate(owner, legacyMilk)
         if not ok then return nil, "OWNED_STOCK_OWNER:" .. tostring(why) end
         animals[ownerId], bound[ownerId] = {}, {}
         for _, animal in ipairs(owner.animals) do
@@ -100,7 +100,7 @@ function K.validate(data, sources, months)
         end
         local animal=animals[retired.ownerId] and animals[retired.ownerId][retired.animalId]
         local record=retired.record
-        local valid=RLDealerSourceState.validate(record)
+        local valid=RLDealerSourceState.validate(record, legacyMilk)
         if not valid or record.cursorMonths>months or record.animal.isDead~=true or animal==nil
             or animal.identity.isDead~=true or not equal(record,animal.sourceRecord)
             or not samePhysiology(record,animal) or bound[retired.ownerId][retired.animalId] then
@@ -124,7 +124,7 @@ function K.validate(data, sources, months)
         if animals[ownerId] == nil or type(records) ~= "table" then return nil, "OWNED_STOCK_CHILD_OWNER" end
         for animalId, record in pairs(records) do
             local animal = animals[ownerId][animalId]
-            local ok, why = RLDealerObservedGrowth.validate(record)
+            local ok, why = RLDealerObservedGrowth.validate(record, legacyMilk)
             if not ok then return nil, "OWNED_STOCK_CHILD:" .. tostring(why) end
             if record.cursorMonths < months then recovery=true end
             if animal == nil or animal.sourceRecord ~= nil or bound[ownerId][animalId]

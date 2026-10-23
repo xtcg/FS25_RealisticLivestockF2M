@@ -135,4 +135,21 @@ end
 -- The old pig bridge is retired (batch E): no food-factor step remains for any species.
 check("retired: no pig fallback step (RLFeed.stepFallback) remains", RLFeed.stepFallback == nil)
 
+-- A sow's zero forecast must not discard her recovered payment (including milk lysine).
+do
+    local pen,sow,young=breedingPen("LANDRACE",2)
+    run(pen,1,STOCK)
+    sow.rlFeedLastMilk.share=0
+    local first
+    local function observe(kind,data) if kind=="STEP" and first==nil then first=data end end
+    RLFeed.addObserver(observe);run(pen,1,STOCK);RLFeed.removeObserver(observe)
+    local kg,lys=0,0
+    for _,e in ipairs(first.animals) do
+        if e.animal~=sow and e.feed.damMilk then kg=kg+e.feed.damMilk.kg;lys=lys+e.feed.damMilk.lysKg end
+    end
+    check("sow zero recovery: milk and lysine reach the litter in the first recovered step",
+        #first.dams==1 and kg>0 and math.abs(kg-first.dams[1].allocatedKg)<1e-9
+        and math.abs(lys-kg*RLFeed.getConfig(sow).damMilk.sidLys)<1e-9)
+end
+
 PigSim.enable(false)

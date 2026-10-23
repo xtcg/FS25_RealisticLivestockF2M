@@ -133,4 +133,20 @@ do
         lambMilk > 0 and k.rlFeedIntake.damMilkKg > 0 and RLFeedProfiles.getConfig().species.SHEEP.damMilk.me ~= RLFeedProfiles.getConfig().species.GOAT.damMilk.me)
 end
 
+-- Both nutrition-coverage ewes and dairy goats recover in the first step after zero.
+for _, species in ipairs({"SHEEP", "GOAT"}) do
+    local d = species == "GOAT" and doe("ZERO",1.2) or SheepSim.ewe("SHEEP_LANDRACE","ZERO",{monthsSinceLastBirth=0})
+    local k = species == "GOAT" and kid("ZERO","ZERO-K") or SheepSim.lamb("SHEEP_LANDRACE","ZERO","ZERO-K")
+    local pen = SheepSim.makePen({k,d},STOCK)
+    hour(pen,STOCK)
+    d.rlFeedLastMilk.share=0
+    local first
+    local function observe(kind,data) if kind=="STEP" and first==nil then first=data end end
+    RLFeed.addObserver(observe);hour(pen,STOCK);RLFeed.removeObserver(observe)
+    local got=0
+    for _,e in ipairs(first.animals) do if e.animal==k then got=e.feed.damMilk and e.feed.damMilk.kg or 0 end end
+    check(species.." zero recovery: paid milk reaches the young in the same step",
+        #first.dams==1 and first.dams[1].paidKg>0 and got>0 and near(got,first.dams[1].allocatedKg))
+end
+
 SheepSim.enable(false)

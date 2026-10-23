@@ -544,7 +544,7 @@ function RLFeedRationPlanner.plan(request)
             share(group.milkTaken, group.milkTotal, a.troughMilkKg, group.milk, 1)
             -- Its dam's milk is no trough feed: kept apart (RLFeed settles it against what she paid).
             a.damMilk = nil
-            if a.damMilkKg > 0 then
+            if a.damPool ~= nil and a.milkPlanKg > 0 then
                 a.damMilk = { kg = a.damMilkKg, me = a.damMilkKg * a.damPool.me, cpKg = a.damMilkKg * a.damPool.cp,
                     lysKg = a.damMilkKg * (a.damPool.lys or 0) }
             end
@@ -741,7 +741,7 @@ function RLFeedRationPlanner.planMonogastric(request)
         if meal < 1 - 1e-12 and a.monoKg > 0 then a.intakeLimit = "FEED_SHORT" end
         a.byFill = {}
         a.damMilk = nil
-        if a.damMilkKg > 0 then
+        if a.damPool ~= nil and a.milkPlanKg > 0 then
             -- Its sow's milk is no trough feed: kept apart (RLFeed settles it against what she paid).
             local pool = a.damPool
             a.damMilk = { kg = a.damMilkKg, me = a.damMilkKg * pool.me, cpKg = a.damMilkKg * pool.cp, lysKg = a.damMilkKg * (pool.lys or 0) }

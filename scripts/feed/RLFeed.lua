@@ -1797,44 +1797,41 @@ end
 --- @param observed table|nil The STEP event being built
 function RLFeed.settleDamMilk(a, hour, damMilk, observed)
     local pool = a.damPool
-    if pool.factor == nil then
-        local planned = pool.plannedKg or 0
-        local paid = pool.paidKg or 0
-        -- Her young drink first: what she paid goes to them, each its own demand x one share - more
-        -- than they planned on when she paid more than her last step's share, never more than their
-        -- demand. A dairy dam's store takes only what is left.
-        local most = pool.fullKg ~= nil and planned > 0 and math.max(pool.fullKg / planned, 1) or 1
-        -- A young animal that already topped up from the trough's milk for the share it expected her
-        -- not to give has no room for more of hers: nobody drinks above its own demand.
+    if pool.settled ~= true then
+        -- Settle from each young's whole demand, not its predicted milk. A zero prediction
+        -- must still recover this step; trough milk already drunk leaves less room.
+        local demand, q = 0, 1
         for _, young in ipairs(pool.calves or {}) do
-            if (young.damMilkKg or 0) > 0 then
-                local room = math.max((young.milkPlanKg or 0) - (young.troughMilkKg or 0), 0)
-                most = math.min(most, math.max(room / young.damMilkKg, 1))
+            local need = math.max(young.milkPlanKg or 0, 0)
+            demand = demand + need
+            if need > 0 then
+                q = math.min(q, math.max(need - (young.troughMilkKg or 0), 0) / need)
             end
         end
-        pool.factor = planned > 0 and math.clamp(paid / planned, 0, most) or 0
-        local allocated = planned * pool.factor
+        q = demand > 0 and math.min(q, math.max(pool.paidKg or 0, 0) / demand) or 0
+        local allocated = demand * q
+        for _, young in ipairs(pool.calves or {}) do
+            young.settledDamMilkKg = math.max(young.milkPlanKg or 0, 0) * q
+        end
         local dam = pool.dam.animal
         local record = hour.animals[dam]
         local perLiter = RLFeed.getMilkRealPerGameLiter(dam) * damMilk.dm
         local liters = (record ~= nil and perLiter > 0) and allocated / perLiter or 0
         if record ~= nil then
-            -- Never more than she paid this step (rounding): her store takes the rest.
             liters = math.min(liters, pool.paidLiters or 0)
             record.milkLiters = math.max(record.milkLiters - liters, 0)
             record.milkToCalves = (record.milkToCalves or 0) + liters
         end
-        pool.allocatedKg = allocated
+        pool.allocatedKg, pool.settled = allocated, true
         if observed ~= nil then
-            table.insert(observed.dams, { animal = dam, plannedKg = planned, paidKg = paid, paidLiters = pool.paidLiters or 0,
+            table.insert(observed.dams, { animal = dam, plannedKg = pool.plannedKg or 0,
+                paidKg = pool.paidKg or 0, paidLiters = pool.paidLiters or 0,
                 allocatedKg = allocated, allocatedLiters = liters, calves = #pool.calves })
         end
     end
-    local f = pool.factor
-    if f ~= 1 then
-        local milk = a.damMilk
-        milk.kg, milk.me, milk.cpKg, milk.lysKg = milk.kg * f, milk.me * f, milk.cpKg * f, (milk.lysKg or 0) * f
-    end
+    local kg = a.settledDamMilkKg or 0
+    a.damMilk.kg, a.damMilk.me = kg, kg * pool.me
+    a.damMilk.cpKg, a.damMilk.lysKg = kg * pool.cp, kg * (pool.lys or 0)
 end
 
 

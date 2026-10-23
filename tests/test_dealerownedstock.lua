@@ -171,3 +171,101 @@ bad=copy(encoded);bad.owners["OWNER-A"].animals[1].physiology.health=99
 check("owned stock: historical record cannot overwrite divergent real source health",not K.validate(bad,sources,100))
 bad=copy(encoded);bad.owners["OWNER-A"].animals[1].physiology.rlHealthCarry=0.5
 check("owned stock: actual source health carry must match its stored physiology",not K.validate(bad,sources,100))
+
+-- Exercise authenticated version-1 migration across every mirrored mutable record,
+-- including real-born calves whose birth journals must remain immutable.
+do
+    local D,S,G=RLDealerPersistence,RLDealerSourceState,RLDealerObservedGrowth
+    local beefSeed=DealerReplaySim.seed("ANGUS","female",1)
+    local beefIndex=Economics.find(beefSeed.subType.name)
+    local beefRecord=assert(S.capture(assert(RLDealerReplay.run(beefSeed,
+        DealerReplaySim.history(beefSeed,1),{daysPerMonth=1})),100))
+    local function make(id)
+        local a=Animal.new({age=-1,weight=35,health=100,gender="female",subTypeIndex=beefIndex,
+            genetics=copy(beefSeed.genetics),uniqueId=id,farmId="BEEF-HERD"})
+        a.birthday={day=2,month=10,year=2026,country=4,lastAgeMonth=10}
+        return a
+    end
+    local dam=make("BEEF-DAM")
+    for k,v in pairs(beefRecord.animal) do if k~="subTypeIndex" then dam[k]=copy(v) end end
+    local beefOwner=assert(B.createOwner("BEEF-OWNER",10,{dam}))
+    local calf=make("BEEF-CALF")
+    calf.age,calf.birthCount,calf.isParent,calf.isLactating,calf.isPregnant,calf.reproduction=0,0,false,false,false,0
+    assert(RLGrowth.initBirth(calf,35))
+    local birth=copy(event)
+    birth.sourceId,birth.eventId="BEEF-CHILD-OWNER","BEEF-BIRTH"
+    birth.selected={{uniqueId=calf.uniqueId,farmId=calf.farmId,subType=calf.subType,genetics=copy(calf.genetics)}}
+    birth.draws={{uniqueId=calf.uniqueId,farmId=calf.farmId,subType=calf.subType,weightKg=35,meanWeightKg=35,z=0}}
+    birth.result={eventId=birth.eventId,evidence=birth.evidence,newborns={{uniqueId=calf.uniqueId,
+        farmId=calf.farmId,subType=calf.subType,birthWeightKg=35,alive=true}}}
+    local calfOwner=assert(B.createOwner(birth.sourceId,10,{calf}))
+    calfOwner.birthJournal[birth.eventId],calfOwner.observedBirths[1]=birth,copy(birth)
+    local calfRecord=assert(G.capture(calf,100,birth))
+    local beefSources={beef=beefRecord}
+    local inventory=assert(K.export({[beefOwner.rlDealerSourceId]=beefOwner,[birth.sourceId]=calfOwner},
+        {beef={ownerId=beefOwner.rlDealerSourceId,animalId=dam.uniqueId}},
+        {[beefOwner.rlDealerSourceId]={[dam.uniqueId]=beefRecord}},
+        {[birth.sourceId]={[calf.uniqueId]=calfRecord}},beefSources,100))
+    local raw=assert(D.capture(meta,clock,listings,beefSources,RLDealerPurchase.export(RLDealerPurchase.new()),markers,inventory))
+    raw.version=1
+    raw.sources.beef.animal.genetics.productivity=1.75
+    local adult=raw.sourceOwnership.owners[beefOwner.rlDealerSourceId].animals[1]
+    adult.physiology.genetics.productivity=1.75
+    adult.sourceRecord.animal.genetics.productivity=1.75
+    local ownedChild=raw.sourceOwnership.owners[birth.sourceId]
+    ownedChild.animals[1].physiology.genetics.productivity=0.25
+    ownedChild.birthJournal[birth.eventId].selected[1].genetics.productivity=0.25
+    ownedChild.observedBirths[1].selected[1].genetics.productivity=0.25
+    local observed=raw.sourceOwnership.observedChildren[birth.sourceId][calf.uniqueId]
+    observed.animal.genetics.productivity=0.25
+    observed.birthEvent.selected[1].genetics.productivity=0.25
+    local function document(data)
+        local canonical=T.canonical(data);local encoded=T.encodeText(canonical)
+        local x={values={}}
+        function x:getString(k) return self.values[k] end
+        function x:iterate(prefix,fn)
+            local i=0
+            while self.values[prefix.."("..i..")#v"] do fn(i,prefix.."("..i..")");i=i+1 end
+        end
+        x.values[D.ROOT.."#schema"]="1";x.values[D.ROOT.."#lineage"]=data.lineage
+        x.values[D.ROOT.."#generation"]=tostring(data.generation);x.values[D.ROOT.."#checkpointId"]=data.checkpointId
+        x.values[D.ROOT.."#digest"]=T.checksum(canonical);x.values[D.ROOT..".data#length"]=tostring(#encoded)
+        local i=0
+        for start=1,#encoded,T.CHUNK do x.values[D.ROOT..".data.chunk("..i..")#v"]=encoded:sub(start,start+T.CHUNK-1);i=i+1 end
+        return x,assert(D.commitMarker(data,T.checksum(canonical)))
+    end
+    local x,commit=document(raw)
+    local before=T.canonical(raw)
+    local random=math.random;math.random=function() error("owned migration RNG") end
+    local loaded,reason=D.readDocument(x,markers,resolver,commit,{isServer=true})
+    math.random=random
+    check("owned migration: authenticated old candidate and real calf restore together",loaded~=nil)
+    assert(loaded,reason)
+    local normalized=loaded.restored
+    check("owned migration: source and real owner both drop obsolete milk genes",
+        normalized.sources.beef.animal.genetics.productivity==nil
+        and normalized.ownedStock.sourceOwners[beefOwner.rlDealerSourceId].byId[dam.uniqueId].genetics.productivity==nil
+        and normalized.ownedStock.sourceOwners[birth.sourceId].byId[calf.uniqueId].genetics.productivity==nil)
+    check("owned migration: birth evidence, identities and exact weights remain intact",
+        normalized.ownedStock.sourceOwners[birth.sourceId].birthJournal[birth.eventId].selected[1].genetics.productivity==0.25
+        and normalized.ownedStock.sourceOwners[birth.sourceId].byId[calf.uniqueId].weight==35
+        and T.canonical(raw)==before and T.canonical(loaded.data)==before)
+    local migratedStore=assert(RLDealerStockService.fromVerifiedDocument({state="VERIFIED",sourceResolution="RESOLVED",restored=normalized}))
+    local rewritten=assert(RLDealerStockService.buildSnapshot(migratedStore,meta,markers))
+    check("owned migration: next checkpoint uses version 2 and stays saveable",
+        rewritten.version==2 and D.validateSnapshot(rewritten,markers,resolver,{isServer=true})~=nil)
+    local divergent=copy(raw)
+    divergent.sourceOwnership.owners[beefOwner.rlDealerSourceId].animals[1].physiology.genetics.productivity=0.25
+    local dx,dc=document(divergent)
+    check("owned migration: divergent raw mirror cannot be concealed by dropping the old trait",
+        D.readDocument(dx,markers,resolver,dc,{isServer=true})==nil)
+    local walData={version=1,lineage=meta.lineage,epoch="legacy",sequence=1,baseGeneration=1,
+        purchase=copy(raw.purchase),recovery={version=1,clockMonths=100,sources=copy(raw.sources),sourceOwnership=copy(raw.sourceOwnership)}}
+    local walStorage={load=function() return copy(walData),T.checksum(T.canonical(walData)) end}
+    local oldWal=assert(J.load("/save",walStorage))
+    RLDealerRuntime.store=migratedStore
+    local matched,matchReason=RLDealerRuntime.compareJournal(oldWal,2,meta.lineage)
+    check("owned migration: old WAL compares against migrated checkpoint without false reconciliation",
+        matched==true and matchReason==nil and not migratedStore.recoveryRequired
+        and oldWal.data.recovery.sources.beef.animal.genetics.productivity==1.75)
+end

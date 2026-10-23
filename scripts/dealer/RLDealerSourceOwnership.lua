@@ -94,7 +94,7 @@ local function pendingBirth(data, animalId)
         if event.damId == animalId and event.stage ~= "COMMITTED" then return event end
     end
 end
-local function validateAnimal(a, seen, data)
+local function validateAnimal(a, seen, data, legacyMilk)
     if type(a) ~= "table" or not id(a.subType) or type(a.identity) ~= "table" or type(a.physiology) ~= "table"
         or not id(a.identity.uniqueId) or not id(a.identity.farmId) or seen[a.identity.uniqueId]
         or type(a.unborn) ~= "boolean" or not dense(a.diseases) then return false, "SOURCE_OWNER_ANIMAL" end
@@ -115,7 +115,7 @@ local function validateAnimal(a, seen, data)
     if not calendar(identity.birthday, true) then return false, "SOURCE_OWNER_BIRTHDAY" end
     if type(p.isPregnant) ~= "boolean" or p.isPregnant ~= (a.pregnancy ~= nil) then return false, "SOURCE_OWNER_PREGNANCY" end
     if a.sourceRecord ~= nil then
-        local ok, reason = RLDealerSourceState.validate(a.sourceRecord)
+        local ok, reason = RLDealerSourceState.validate(a.sourceRecord, legacyMilk)
         if not ok then return false, reason end
         local record = a.sourceRecord.animal
         if record.subType ~= a.subType or not equal(record.genetics, p.genetics) or record.rlGrowth.birthWeightKg ~= g.birthWeightKg
@@ -129,7 +129,10 @@ local function validateAnimal(a, seen, data)
         if event == nil or draw.weightKg ~= g.birthWeightKg or draw.subType ~= a.subType then return false, "SOURCE_OWNER_BIRTH_EVIDENCE" end
         local selected
         for _, child in ipairs(event.selected or {}) do if child.uniqueId == identity.uniqueId then selected = child end end
-        if selected == nil or not equal(selected.genetics, p.genetics) or selected.farmId ~= identity.farmId then return false, "SOURCE_OWNER_PROVENANCE" end
+        local birthGenes = selected ~= nil and copy(selected.genetics) or nil
+        -- Birth evidence is immutable; compare its effective genes after the rearing migration.
+        if not legacyMilk and RLRearingPolicy ~= nil then RLRearingPolicy.normalizeNamed("COW", p.breed, birthGenes) end
+        if selected == nil or not equal(birthGenes, p.genetics) or selected.farmId ~= identity.farmId then return false, "SOURCE_OWNER_PROVENANCE" end
     end
     if a.pregnancy ~= nil then
         if not finite(a.pregnancy.duration) or a.pregnancy.duration <= 0 or not calendar(a.pregnancy.expected, false)
@@ -137,12 +140,12 @@ local function validateAnimal(a, seen, data)
             or data.sireContexts[identity.uniqueId] == nil then return false, "SOURCE_OWNER_PREGNANCY" end
         for _, child in ipairs(a.pregnancy.fetuses) do
             if child.unborn ~= true or child.identity.farmId ~= identity.farmId then return false, "SOURCE_OWNER_UNBORN" end
-            local ok, reason = validateAnimal(child, seen, data); if not ok then return false, reason end
+            local ok, reason = validateAnimal(child, seen, data, legacyMilk); if not ok then return false, reason end
         end
     end
     return true
 end
-function O.validate(data)
+function O.validate(data, legacyMilk)
     if type(data) ~= "table" or RLTradePersistence.check(data) ~= nil or data.version ~= O.VERSION
         or not id(data.sourceId) or not finite(data.capacity) or data.capacity < 1 or data.capacity % 1 ~= 0
         or not dense(data.animals) or #data.animals > data.capacity or type(data.sireContexts) ~= "table"
@@ -165,7 +168,7 @@ function O.validate(data)
     end
     local seen = {}
     for _, animal in ipairs(data.animals) do
-        local ok, reason = validateAnimal(animal, seen, data); if not ok then return false, reason end
+        local ok, reason = validateAnimal(animal, seen, data, legacyMilk); if not ok then return false, reason end
     end
     return true
 end

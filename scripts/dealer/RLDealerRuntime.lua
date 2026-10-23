@@ -74,7 +74,13 @@ function R.compareJournal(document, generation, lineage)
         if not ownership then return nil, failure end
         currentRecovery = {version=1,clockMonths=R.store.farm.clock.months,sources=copy(R.store.farm.sources),sourceOwnership=ownership}
         if R.store.money then currentRecovery.money=RLDealerMoneyAdapter.export(R.store.money) end
-        recoveryMatches = wal.recovery ~= nil and RLTradePersistence.canonical(wal.recovery)==RLTradePersistence.canonical(currentRecovery)
+        local recovery = wal.recovery
+        if recovery ~= nil and wal.version == 1 then
+            -- Compare the same effective state on both sides, retaining raw WAL evidence.
+            recovery = RLDealerPersistence.migrateRearingSnapshot(recovery)
+            recovery.version = 1
+        end
+        recoveryMatches = recovery ~= nil and RLTradePersistence.canonical(recovery)==RLTradePersistence.canonical(currentRecovery)
     end
     if RLTradePersistence.canonical(wal.purchase) == RLTradePersistence.canonical(current) and recoveryMatches then return true end
     -- A WAL on the generation of the last verified checkpoint was written after that save, and no

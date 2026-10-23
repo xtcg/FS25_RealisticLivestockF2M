@@ -49,7 +49,7 @@ local function selection(record)
     return active ~= nil and record.fetalSelections[active] or nil, active
 end
 
-function S.validate(r)
+function S.validate(r, legacyMilk)
     if type(r) ~= "table" or not portable(r, {}, 0) then return false, "SOURCE_DATA" end
     if r.version ~= S.VERSION or r.replayVersion ~= RLDealerReplay.VERSION then return false, "SOURCE_VERSION" end
     if not finite(r.cursorMonths) or r.cursorMonths < 0 or not finite(r.birthOriginMonths)
@@ -88,7 +88,13 @@ function S.validate(r)
     for _, key in ipairs({ "metabolism", "quality", "productivity", "fertility", "health" }) do
         local required = RLRearingPolicy == nil or RLRearingPolicy.hasTraitNamed("COW", use, key)
         if type(a.genetics) ~= "table" then return false, "SOURCE_GENETICS" end
-        if not required and a.genetics[key] ~= nil then return false, "SOURCE_GENETICS" end
+        if not required and a.genetics[key] ~= nil then
+            -- Read-only compatibility check for authenticated pre-rearing checkpoints.
+            -- Normal validation remains strict; migration happens on a detached copy.
+            if not legacyMilk or not finite(a.genetics[key]) or a.genetics[key] < 0.25 or a.genetics[key] > 1.75 then
+                return false, "SOURCE_GENETICS"
+            end
+        end
         if required and (not finite(a.genetics[key]) or a.genetics[key] < 0.25 or a.genetics[key] > 1.75) then
             return false, "SOURCE_GENETICS"
         end
