@@ -95,6 +95,15 @@ function SheepSim.lamb(name, motherId, id, fields, birthFactor)
 end
 
 --- A grown animal of a subtype at an age, its weight its curve's (continuous age kept on it).
+--- An animal the weight model does not cover (a vanilla cluster): a pen holding one keeps the old rules
+--- (UNCOVERED_ANIMAL). A goat no longer does that (it has its own GOAT sections since 2026-10-22).
+function SheepSim.uncovered()
+    local animal = GrowthSim.makeAnimal("SHEEP_LANDRACE", { age = 24 })
+    animal.isIndividual = false
+    return animal
+end
+
+
 function SheepSim.grown(name, id, age, fields)
     local f = { age = math.floor(age) }
     for k, v in pairs(fields or {}) do f[k] = v end

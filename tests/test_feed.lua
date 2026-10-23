@@ -179,14 +179,12 @@ end
 FeedSim.setMode(true)
 
 do
-    FeedSim.setMode(false)
     local animal = GrowthSim.makeAnimal("BULL_ANGUS", { age = 10 })
     local pen = FeedSim.makePen({ animal }, { FORAGE = 5000 })
     FeedSim.hour(pen)
-    local legacy = pen.spec_husbandryFood.rlFeedPen
-    check("mode: explicitly disabled - a pen keeps the old rules (MODE_OFF), its grain is never eaten",
-        legacy.active == false and legacy.reason == "MODE_OFF")
-    FeedSim.setMode(true)
+    local first = pen.spec_husbandryFood.rlFeedPen
+    check("mode: the unified model runs with no setting at all (the Legacy choice is retired)",
+        RLFeed.mode == nil and RLFeed.onSettingChanged == nil and first.active == true and first.reason == "OK")
     pen:add("MAIZE", 1000)
     FeedSim.hour(pen)
     check("mode: on - a covered cattle pen runs it (OK) and its animal has an hour of real DM and ME",
@@ -196,9 +194,9 @@ do
     local calf = GrowthSim.newborn("BULL_ANGUS")
     local mixed = FeedSim.makePen({ cow, calf }, { FORAGE = 5000 })
     FeedSim.hour(mixed)
-    check("mode: a calf on milk outside a rearing pen keeps the whole pen on the old rules (SUCKLING_CALF), no mixed rules",
-        mixed.spec_husbandryFood.rlFeedPen.active == false and mixed.spec_husbandryFood.rlFeedPen.reason == "SUCKLING_CALF"
-        and cow.rlFeedIntake == nil)
+    check("mode: a calf on milk without its dam: the whole pen still runs the mode (no old-rules fallback); it drinks no other cow's milk",
+        mixed.spec_husbandryFood.rlFeedPen.active == true and cow.rlFeedIntake ~= nil
+        and calf.rlFeedIntake ~= nil and calf.rlFeedIntake.damMilkKg == 0)
 
     local cluster = GrowthSim.makeAnimal("BULL_ANGUS", { age = 10 })
     cluster.isIndividual = false
@@ -693,9 +691,11 @@ do
     local state = I.getFinishForecast(bull, I.getAnimalInfo(bull))
     check("panel: a bull that hardly gains is shown stalled (feed more), never an endless month count", state == "STALLED")
 
-    -- The old rules: the grain group's row says it is not eaten, and goes while it holds nothing.
-    FeedSim.setMode(false)
-    local legacyPen = FeedSim.makePen({ (GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })) }, { FORAGE = 100 })
+    -- A pen that cannot run the model (an animal it does not cover: a vanilla cluster): the grain
+    -- group's row says it is not eaten, and goes while it holds nothing.
+    local outsider = GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })
+    outsider.isIndividual = false
+    local legacyPen = FeedSim.makePen({ outsider }, { FORAGE = 100 })
     FeedSim.hour(legacyPen)
     local base = {}
     for _, group in ipairs(FeedSim.cowFood.groups) do table.insert(base, { title = group.title, value = group.rlGrain and 0 or 1 }) end
@@ -703,10 +703,11 @@ do
     local stocked = {}
     for _, group in ipairs(FeedSim.cowFood.groups) do table.insert(stocked, { title = group.title, value = group.rlGrain and 300 or 1 }) end
     local adjustedStocked = I.adjustFoodInfos(legacyPen, stocked)
-    check("panel: under the old rules an empty grain row is left out, a stocked one is marked as not eaten",
+    local penRows = I.getPenInfoRows(legacyPen)
+    check("panel: a pen out of the model: an empty grain row is left out, a stocked one is marked as not eaten; its info says why and that it is held",
         #adjusted == #FeedSim.cowFood.groups - 1 and adjustedStocked[#adjustedStocked].title:find("rl_feed_grainNotEaten", 1, true) ~= nil
-        and adjustedStocked[#adjustedStocked].disabled == true and #I.getPenInfoRows(legacyPen) == 0)
-    FeedSim.setMode(true)
+        and adjustedStocked[#adjustedStocked].disabled == true and penRows[1] ~= nil and penRows[1].titleKey == "rl_feed_penMode"
+        and penRows[2] ~= nil and penRows[2].titleKey == "rl_feed_penHeld" and penRows[2].warning == true)
 
     -- The menu clones food rows beyond its five slots.
     local function element(children)
@@ -756,7 +757,7 @@ do
         RLFeedMath.getProteinNeed("LACTATING", 48, protein, 0, 8) < 0.12 and within(RLFeedMath.getProteinNeed("LACTATING", 48, protein, 0, 30), 0.16, 1e-9)
         and within(RLFeedMath.getProteinNeed("LACTATING", 48, protein, 0, 45), 0.16, 1e-9))
 
-    -- Calf rearing off: a calf on milk still keeps its normal pen on the old rules.
+    -- Calf rearing off: a pen with a calf on milk still runs the mode.
     local rearing = RLCalfRearing.config
     RLCalfRearing.config = table.clone(RLCalfRearing.getConfig())
     RLCalfRearing.config.enabled = false
@@ -765,8 +766,7 @@ do
     local pen = FeedSim.makePen({ cow, newborn }, { FORAGE = 5000 })
     local active, reason = RLFeed.evaluatePen(pen)
     RLCalfRearing.config = rearing
-    check("calves: with calf rearing switched off, a suckling calf still keeps its pen on the old rules (SUCKLING_CALF)",
-        active == false and reason == "SUCKLING_CALF")
+    check("calves: with calf rearing switched off, a pen with a suckling calf runs the mode", active == true and reason == "OK")
 
     -- A planned fill with nothing removed was not eaten.
     local steer = GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })
@@ -793,13 +793,10 @@ do
         ok and failing.spec_husbandryFood.rlFeedPen.active == false and failing.spec_husbandryFood.rlFeedPen.reason == "ERROR"
         and failing.spec_husbandryFood.rlFeedWindow == nil and logged and not RLFeed.runsFor(failing.animals[1]))
 
-    -- Under the old rules the trough takes no new grain; in the mode it does.
-    FeedSim.setMode(false)
-    local legacyPen = FeedSim.makePen({}, {})
-    local refusesGrain = not RLFeed.acceptsFill(legacyPen, FILL.MAIZE) and RLFeed.acceptsFill(legacyPen, FILL.FORAGE)
-    FeedSim.setMode(true)
-    check("grain: under the old rules a cattle trough takes no new grain (never eaten there); in the mode it does",
-        refusesGrain and RLFeed.acceptsFill(legacyPen, FILL.MAIZE))
+    -- A cattle trough takes grain: the unified model is the only one (no old rules to refuse it).
+    local grainPen = FeedSim.makePen({}, {})
+    check("grain: a cattle trough always takes grain and forage",
+        RLFeed.acceptsFill(grainPen, FILL.MAIZE) and RLFeed.acceptsFill(grainPen, FILL.FORAGE))
 
     -- A month counted under other feed data ends; the next hour starts a new one.
     local animal = GrowthSim.makeAnimal("BULL_ANGUS", { age = 14 })
@@ -816,9 +813,7 @@ do
 
     -- Feed rows only while the pen runs the mode, and only this hour's record.
     local shown = #RLFeedInfoService.getAnimalRows(animal) > 0
-    FeedSim.setMode(false)
-    local hiddenOff = #RLFeedInfoService.getAnimalRows(animal) == 0
-    FeedSim.setMode(true)
+    local hiddenOff = true
     animal.rlFeedIntake.tick = animal.rlFeedIntake.tick - 5
     local hiddenStale = #RLFeedInfoService.getAnimalRows(animal) == 0
     check("panel: an animal's feed rows show only while its pen runs the mode, from a record of this hour", shown and hiddenOff and hiddenStale)
@@ -937,4 +932,3 @@ do
         within(shared, step.removed.DRYGRASS_WINDROW, 1e-9) and step.animals[1].result ~= nil and step.scale == config.resourceScale)
 end
 
-FeedSim.setMode(false)

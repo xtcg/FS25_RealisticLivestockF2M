@@ -77,10 +77,11 @@ check("feed: milk ends at weaning (3 months), solids reach full value there",
 
 local saved = F.getConfig
 F.getConfig = function() return feed end
-check("feed: an ewe, a sheep pen and the type name read the section; cattle, goats and unknown types the root",
+-- Goats read a GOAT section of their own (unified nursing design, 2026-10-22), never the sheep's.
+check("feed: an ewe, a sheep pen and the type name read the section; goats the GOAT section; cattle and unknown types the root",
     F.getConfigFor(animal(eweSub)) == sheep and F.getConfigFor(pen(sheepType)) == sheep and F.getConfigFor("SHEEP") == sheep
-    and F.getConfigFor(animal(cowSub)) == feed and F.getConfigFor(pen(cowType)) == feed and F.getConfigFor(animal(goatSub)) == feed
-    and F.getConfigFor("CHICKEN") == feed and F.getConfigFor(nil) == feed
+    and F.getConfigFor(animal(cowSub)) == feed and F.getConfigFor(pen(cowType)) == feed and F.getConfigFor(animal(goatSub)) == feed.species.GOAT
+    and feed.species.GOAT ~= nil and feed.species.GOAT ~= sheep and F.getConfigFor("CHICKEN") == feed and F.getConfigFor(nil) == feed
     and F.getConfigFor("PIG") == feed.species.PIG and feed.species.PIG ~= nil)  -- pigs have a section of their own since pig P5
 check("feed: isValid without a subject is the root's; with a sheep subject also the section's",
     F.isValid() and F.isValid(animal(eweSub)) and F.isValid(animal(cowSub)))
@@ -119,8 +120,9 @@ check("body: a typical lamb at 3L keeps all its meat (yield 1 at reserve 0.45), 
     RLNutritionMath.interpolate(bodySheep.curves.yield, 45) == 1 and RLNutritionMath.interpolate(bodySheep.curves.yield, 70.5) == 0.955 and RLNutritionMath.interpolate(bodySheep.curves.yield, 60) == 0.97)
 local savedGet = B.get
 B.get = function() return body end
-check("body: getFor gives an ewe the section and cattle and goats the root",
-    B.getFor(animal(eweSub)) == bodySheep and B.getFor(animal(cowSub)) == body and B.getFor(animal(goatSub)) == body)
+check("body: getFor gives an ewe the section, a goat its GOAT section and cattle the root",
+    B.getFor(animal(eweSub)) == bodySheep and B.getFor(animal(cowSub)) == body and B.getFor(animal(goatSub)) == body.species.GOAT
+    and body.species.GOAT ~= nil and body.species.GOAT ~= bodySheep)
 B.get = savedGet
 
 -- Network: a client rebuilds the same sections from what the server sends.

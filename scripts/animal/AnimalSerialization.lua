@@ -82,7 +82,8 @@ function AnimalSerialization.writeStream(animal, streamId, connection)
 
             streamWriteString(streamId, impregnatedBy.uniqueId or "-1")
             streamWriteFloat32(streamId, impregnatedBy.metabolism or 1)
-            streamWriteFloat32(streamId, impregnatedBy.productivity or 1)
+            -- -1: no such gene (pigs, horses, beef cattle), read back as none.
+            streamWriteFloat32(streamId, impregnatedBy.productivity or -1)
             streamWriteFloat32(streamId, impregnatedBy.quality or 1)
             streamWriteFloat32(streamId, impregnatedBy.health or 1)
             streamWriteFloat32(streamId, impregnatedBy.fertility or 1)
@@ -256,7 +257,7 @@ function AnimalSerialization.readStream(animal, streamId, connection)
             animal.impregnatedBy = {
                 ["uniqueId"] = uniqueId,
                 ["metabolism"] = metabolism,
-                ["productivity"] = productivity,
+                ["productivity"] = (productivity ~= nil and productivity >= 0) and productivity or nil,
                 ["quality"] = quality,
                 ["health"] = health,
                 ["fertility"] = fertility,
@@ -292,7 +293,9 @@ function AnimalSerialization.readStream(animal, streamId, connection)
 
             local productivity = streamReadFloat32(streamId)
 
-            if productivity ~= nil then genetics.productivity = productivity end
+            -- 0 is the writer's "none" (no trait is ever 0); the child's subtype drops a gene it
+            -- does not have in Animal.new (RLRearingPolicy).
+            if productivity ~= nil and productivity > 0 then genetics.productivity = productivity end
 
             local child = Animal.new({
                 age = 0,
@@ -340,6 +343,8 @@ function AnimalSerialization.readStream(animal, streamId, connection)
         local quality = streamReadFloat32(streamId)
         animal.genetics[trait] = quality
     end
+    -- A gene the animal's subtype does not have (beef cattle: productivity) is never taken up.
+    if RLRearingPolicy ~= nil then RLRearingPolicy.normalizeByIndex(animal.subTypeIndex, animal.genetics) end
 
     animal.monitor = {
         ["active"] = streamReadBool(streamId),
@@ -410,6 +415,7 @@ function AnimalSerialization.readStream(animal, streamId, connection)
         insemination.genetics.productivity = streamReadFloat32(streamId)
 
         if insemination.genetics.productivity == 0 then insemination.genetics.productivity = nil end
+        if RLRearingPolicy ~= nil then RLRearingPolicy.normalizeByIndex(insemination.subTypeIndex, insemination.genetics) end
         RLSemenBatch.readStream(streamId, insemination)
 
         local animalSystem = g_currentMission.animalSystem
@@ -503,6 +509,8 @@ function AnimalSerialization.readStreamUnborn(animal, streamId, connection)
         local quality = streamReadFloat32(streamId)
         animal.genetics[trait] = quality
     end
+    -- A gene the animal's subtype does not have (beef cattle: productivity) is never taken up.
+    if RLRearingPolicy ~= nil then RLRearingPolicy.normalizeByIndex(animal.subTypeIndex, animal.genetics) end
 
     local numDiseases = streamReadUInt8(streamId)
     local diseases = {}

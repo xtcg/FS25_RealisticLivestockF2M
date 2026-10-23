@@ -25,9 +25,9 @@ check("settings: type name, subtype, binding and individual resolve the same tab
     G.getSettings("SHEEP") == entry.settings and G.getSettings(eweSub) == entry.settings
     and G.getSettings({ typeName = "SHEEP", profile = "SHEEP:LANDRACE", sex = "male" }) == entry.settings
     and G.getSettings(animal(eweSub)) == entry.settings)
-check("settings: cattle, proxy types, excluded goats and unknown types keep exact root table",
+check("settings: cattle, proxy types and unknown types keep exact root table; goats grow on the SHEEP type's settings",
     G.getSettings() == root and G.getSettings(cowSub) == root and G.getSettings("MILKCOW") == root
-    and G.getSettings(goatSub) == root and G.getSettings("CHICKEN") == root and G.getSettings(nil) == root
+    and G.getSettings(goatSub) == entry.settings and G.getSettings("CHICKEN") == root and G.getSettings(nil) == root
     and G.getSettings("PIG") ~= root)  -- pigs have a table of their own since pig P4
 
 -- Parse independent overrides from an actual shipped file through the engine XML interface.
@@ -110,13 +110,10 @@ check("lactation: reserve mobilization uses sheep period", near(G.getMilkMobiliz
         * math.max(1 - months / s.earlyMilkMobilizeMonths, 0), 1e-12))
 local report = W.describe(eweSub)
 check("report: effective settings are copied for review", report.settings.castratedSpeed == 0.81 and report.settings ~= s)
-check("report: excluded goats show cattle-compatible root settings", W.describe(goatSub).settings.castratedSpeed == root.castratedSpeed)
--- Sheep curves run only under the real-equivalent nutrition model (weightProfiles nutrition="REAL").
-check("coverage: an enabled sheep type is not covered under the old nutrition model",
-    RLFeed.mode == RLFeed.MODE_LEGACY and not G.coversSubType(ramSub))
-RLFeed.onSettingChanged("nutritionMode", RLFeed.MODE_REAL)
-check("coverage: under the real-equivalent model it is, with its feed and body sections valid",
-    G.coversSubType(ramSub) and G.speciesNutritionReady("SHEEP") and not G.coversSubType(goatSub))
+check("report: goats show their type's (SHEEP) settings", W.describe(goatSub).settings.castratedSpeed == report.settings.castratedSpeed)
+-- Sheep curves run on the unified nutrition model (weightProfiles nutrition="REAL"), the only one.
+check("coverage: an enabled sheep type is covered with its feed and body sections valid (no mode setting)",
+    G.coversSubType(ramSub) and G.speciesNutritionReady("SHEEP") and G.speciesNutritionReady("GOAT") and G.coversSubType(goatSub))
 local live = GrowthSim.makeAnimal("RAM_LANDRACE")
 live.isCastrated = true
 local result, input = G.advanceBudget(live, { intakeLiters = G.getReferenceIntake(live), milkShare = 1 }, 0.05, 1)
@@ -130,7 +127,6 @@ s.underweightRatio = 0
 RLFeed.applyUnderweight(live, 0.1)
 s.underweightRatio, RLFeed.addHealth = 0.3, oldHealth
 check("health: a valid zero underweight ratio disables the check without NaN", healthCalls == 0)
-RLFeed.onSettingChanged("nutritionMode", RLFeed.MODE_LEGACY)
 W.config = config
 G.resetCaches()
 check("S5 completion: production switch defaults ON", W.getConfig().types.SHEEP.enabled)

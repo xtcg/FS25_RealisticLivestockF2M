@@ -247,10 +247,69 @@ function RLWeightProfiles.parse(xmlFile)
 end
 
 
+--- Migrate a copy of the file (the mod's modSettings folder) to what the unified nutrition model
+--- needs, from the mod's own file. The growth curves are part of the one nutrition model of cattle,
+--- sheep, goats and pigs: a copy's enabled="false", or a type it switches off or leaves out, is no
+--- longer a way back to the old weight rules and is not honoured (the mod's entry is used); a
+--- profile of such a type the copy lacks (an older copy: GOAT) is the mod's, and an exclusion the
+--- mod's file no longer makes (excludeBreeds="GOAT") is dropped. The copy's curves and values are
+--- otherwise kept. Each step is logged.
+--- @param config table The copy's config
+--- @param builtin table|nil The mod's own file's
+--- @return table config
+function RLWeightProfiles.migrateCopy(config, builtin)
+    if builtin == nil or builtin.enabled ~= true then return config end
+    local notes = {}
+    if config.invalidReason ~= nil then
+        Log:error("RLWeightProfiles: the modSettings copy is invalid (%s) - the mod's own weightProfiles.xml is used",
+            tostring(config.invalidReason))
+        builtin.migrated = { "COPY_INVALID" }
+        return builtin
+    end
+    if config.enabled ~= true then
+        config.enabled = true
+        notes[#notes + 1] = "ENABLED_IGNORED"
+    end
+    local typeNames = {}
+    for typeName in pairs(builtin.types) do typeNames[#typeNames + 1] = typeName end
+    table.sort(typeNames)
+    for _, typeName in ipairs(typeNames) do
+        local own, entry = config.types[typeName], builtin.types[typeName]
+        if entry.enabled and (own == nil or not own.enabled) then
+            config.types[typeName] = entry
+            notes[#notes + 1] = typeName .. (own == nil and ":TYPE_ADDED" or ":TYPE_ENABLED")
+            own = entry
+        end
+        for breed in pairs(own.excludeBreeds or {}) do
+            if not RLWeightProfiles.isExcludedBreed(entry, breed) then
+                own.excludeBreeds[breed] = nil
+                notes[#notes + 1] = typeName .. ":" .. breed .. ":EXCLUSION_DROPPED"
+            end
+        end
+    end
+    local profileNames = {}
+    for name in pairs(builtin.profiles) do profileNames[#profileNames + 1] = name end
+    table.sort(profileNames)
+    for _, name in ipairs(profileNames) do
+        local profile = builtin.profiles[name]
+        if config.profiles[name] == nil and profile.typeName ~= RLWeightProfiles.COVERED_TYPE and profile.invalid == nil then
+            config.profiles[name] = profile
+            notes[#notes + 1] = name .. ":PROFILE_ADDED"
+        end
+    end
+    for _, note in ipairs(notes) do
+        Log:info("RLWeightProfiles: modSettings copy migrated (%s) from the mod's own file", note)
+    end
+    config.migrated = notes
+    return config
+end
+
+
 --- The config, loaded on the first call.
 function RLWeightProfiles.getConfig()
     if RLWeightProfiles.config == nil then
-        RLWeightProfiles.config = RLBreedTraits.loadConfig(RLWeightProfiles.CONFIG_FILE, "weightProfiles", RLWeightProfiles.parse)
+        local config, builtin = RLBreedTraits.loadConfigPair(RLWeightProfiles.CONFIG_FILE, "weightProfiles", RLWeightProfiles.parse)
+        RLWeightProfiles.config = RLWeightProfiles.migrateCopy(config, builtin)
     end
     return RLWeightProfiles.config
 end

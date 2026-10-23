@@ -34,15 +34,15 @@ function AnimalHealth.getHealthFactor(animal)
 end
 
 
---- Update animal health based on food factor relative to subType threshold (in a pen running
---- the real-equivalent nutrition mode, on the hour's budget instead: RLFeed).
+--- Update animal health based on food factor relative to subType threshold - for the types the
+--- unified nutrition model does not cover; covered cattle, sheep, goats and pigs take the hour's
+--- budget in their pen (RLFeed), or are held when it cannot run (RLFeed.holdUnsettled).
 --- Food above threshold increases health; below threshold decreases it.
 --- Better health genetics slow the loss.
---- Then weight: cattle under the weight model v2 take its step (RLGrowth.step: frame, reserve
---- and development, from birth, every hour) and never an old weight rule; other cattle under the
---- body condition rules take this hour's nutrition budget (RLBodyCondition.step), which moves
---- weight and reserve together; every other animal, and those cattle in an hour without a feed
---- ledger, take the old animal:updateWeight().
+--- Then weight: a type outside the unified model on the weight curves (MILKCOW) takes the curve's
+--- step on the food factor (RLGrowth.step); cattle outside the curves under the body condition
+--- rules take this hour's budget (RLBodyCondition.step); every other animal takes the old
+--- animal:updateWeight().
 --- @param animal table Animal instance
 --- @param foodFactor number Food factor (0.0-1.0)
 function AnimalHealth.updateHealth(animal, foodFactor)
@@ -51,22 +51,21 @@ function AnimalHealth.updateHealth(animal, foodFactor)
     if RLFeed ~= nil and RLFeed.runsFor(animal) then return end
     -- A sheep a pen in the mode settled this hour before it moved here: once an hour.
     if RLGrowth.isSettledThisHour(animal) then return end
+    -- A covered cattle, sheep, goat or pig in a pen that could not run the model this hour: the
+    -- unified model is its only one, so the hour is held (RLFeed.holdUnsettled) - never the old
+    -- food factor health and weight rules.
+    if RLFeed ~= nil and RLFeed.holdUnsettled(animal) then return end
 
     -- In a calf rearing pen each animal has its own factor from what it could eat at its age.
     foodFactor = RLCalfRearing.getFoodFactor(animal, foodFactor)
     AnimalHealth.updateHealthOnly(animal, foodFactor)
 
     if RLGrowth.covers(animal) then
-        -- No game hour to count the step in, or a sheep in a pen that does not run the nutrition
-        -- mode this hour (a goat in it): the old rule for this hour, to its old target (the next
-        -- step takes the weight it leaves as it is).
+        -- A type outside the unified model on the weight curves (Hof Bergmann's MILKCOW, a proxy):
+        -- its curve on the food factor; no game hour to count the step in: the old rule for this
+        -- hour, to its old target (the next step takes the weight it leaves as it is).
         if RLGrowth.step(animal, foodFactor) then
             animal:applyUnderweightPenalty()
-        elseif RLFeed ~= nil and RLFeed.stepFallback(animal, foodFactor) then
-            -- A pig in a pen out of the nutrition mode (a breeding pen): its curve on the budget at
-            -- the pen's food factor, never the old fixed gain (RLFeed.stepFallback).
-            animal:applyUnderweightPenalty()
-            RLGrowth.markLegacyHour(animal)
         else
             animal:updateWeight(foodFactor, RLGrowth.getLegacyTarget(animal:getSubType(), animal.genetics.metabolism))
             RLGrowth.markLegacyHour(animal)
@@ -75,7 +74,7 @@ function AnimalHealth.updateHealth(animal, foodFactor)
         animal:applyUnderweightPenalty()
     else
         animal:updateWeight(foodFactor)
-        -- A sheep out of the model this hour (the mode off, its config invalid): marked too.
+        -- An animal outside the model (not an individual, no curve): marked as any hour on the old rules.
         RLGrowth.markLegacyHour(animal)
     end
 end

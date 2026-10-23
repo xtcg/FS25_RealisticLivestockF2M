@@ -597,11 +597,11 @@ function RLMenuInfoFrame:updateButtonVisibility()
     self:setMenuButtonInfoDirty()
 end
 
---- The ration button: a cattle pen while the real-equivalent mode is on (the dialog itself says
---- when the pen keeps the old rules or the player may not change it).
+--- The ration button: a nutrition pen (the dialog itself says when the pen cannot run the model
+--- this hour or the player may not change it).
 ---@return boolean
 function RLMenuInfoFrame:canShowRation()
-    return RLFeed ~= nil and RLFeed.mode == RLFeed.MODE_REAL and InputAction.RL_FEED_RATION ~= nil
+    return RLFeed ~= nil and InputAction.RL_FEED_RATION ~= nil
         and RLFeedInfoService.isCattlePen(self.selectedHusbandry)
 end
 

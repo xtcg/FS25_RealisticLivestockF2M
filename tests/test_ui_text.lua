@@ -140,7 +140,10 @@ for _, lang in ipairs(LANGUAGES) do
     -- with its longest reason on one line.
     limit({ "rl_feed_intake", "rl_feed_ration", "rl_feed_finish" }, 16)
     limit({ "rl_feed_finishReady", "rl_feed_finishStalled" }, 20)
-    limit({ "rl_feed_penMode", "rl_feed_penRation", "rl_feed_penCoverage", "rl_feed_penFirstOut" }, 20)
+    limit({ "rl_feed_penMode", "rl_feed_penRation", "rl_feed_penCoverage", "rl_feed_penFirstOut", "rl_feed_penHeld" }, 20)
+    if texts.rl_feed_penHeld and texts.rl_feed_heldText and width(texts.rl_feed_penHeld) + width(texts.rl_feed_heldText) > 36 then
+        long[#long + 1] = "rl_feed_heldText=" .. texts.rl_feed_heldText
+    end
     for key in pairs(texts) do
         if key:find("^rl_feed_limit_") and texts[key] and width(texts[key]) > 13 then long[#long + 1] = key .. "=" .. texts[key] end
         if key:find("^rl_feed_reason_") and texts[key] and texts.rl_feed_penMode

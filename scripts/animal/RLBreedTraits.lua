@@ -23,6 +23,9 @@ RLBreedTraits.TRAITS = { "feed", "growth", "grass", "hay", "silage", "femaleGrow
     "birthHighWeightSD", "birthHighWeightPenalty", "milkScale", "milkCollect", "sucklingMonths",
     "woolScale", "waterScale", "strawScale", "manureScale", "priceScale" }
 
+--- String attributes on the same layers (RLRearingPolicy: productionUse).
+RLBreedTraits.STRING_TRAITS = { "productionUse" }
+
 --- Female growth relative to male, where the file sets none (the mod's original rule).
 RLBreedTraits.DEFAULT_FEMALE_GROWTH = 0.6
 
@@ -100,6 +103,49 @@ function RLBreedTraits.parseLayers(xmlFile, root, attributes)
         end
     end)
 
+    return layers
+end
+
+
+--- The same layers as parseLayers for string attributes (productionUse): values upper-cased.
+--- @param xmlFile table|nil
+--- @param root string Root element name
+--- @param attributes table List of string attribute names
+--- @return table layers {root, types, breeds[type][breed], subTypes}
+function RLBreedTraits.parseStringLayers(xmlFile, root, attributes)
+    local layers = { root = {}, types = {}, breeds = {}, subTypes = {} }
+    if xmlFile == nil then return layers end
+    local function read(key)
+        local values = {}
+        for _, attr in ipairs(attributes) do
+            local value = xmlFile:getString(key .. "#" .. attr)
+            if value ~= nil and value ~= "" then values[attr] = value:upper() end
+        end
+        return values
+    end
+    local function name(key)
+        local value = xmlFile:getString(key .. "#name")
+        return value ~= nil and value:upper() or nil
+    end
+    layers.root = read(root)
+    xmlFile:iterate(root .. ".animalType", function(_, typeKey)
+        local typeName = name(typeKey)
+        if typeName == nil then return end
+        layers.types[typeName] = read(typeKey)
+        layers.breeds[typeName] = layers.breeds[typeName] or {}
+        xmlFile:iterate(typeKey .. ".breed", function(_, breedKey)
+            local breed = name(breedKey)
+            if breed ~= nil then layers.breeds[typeName][breed] = read(breedKey) end
+        end)
+    end)
+    xmlFile:iterate(root .. ".subType", function(_, subTypeKey)
+        local subTypeName = name(subTypeKey)
+        if subTypeName ~= nil then
+            local merged = layers.subTypes[subTypeName] or {}
+            for attr, value in pairs(read(subTypeKey)) do merged[attr] = value end
+            layers.subTypes[subTypeName] = merged
+        end
+    end)
     return layers
 end
 
@@ -202,6 +248,24 @@ function RLBreedTraits.loadConfig(fileName, root, parse)
 end
 
 
+--- Read a config like loadConfig, and when a copy in the mod's modSettings folder replaced the
+--- mod's own file, the mod's own file too: the unified nutrition model's configs migrate an older
+--- copy section by section from it (a section or rule the copy lacks is taken from the mod's file,
+--- logged; the copy's own values are kept). The second value is nil without a copy.
+--- @return table config
+--- @return table|nil builtin
+function RLBreedTraits.loadConfigPair(fileName, root, parse)
+    local config = RLBreedTraits.loadConfig(fileName, root, parse)
+    local path = modDirectory .. "xml/" .. fileName
+    if modSettingsDirectory == nil or not fileExists(modSettingsDirectory .. fileName) then return config, nil end
+    local xmlFile = XMLFile.loadIfExists(root, path)
+    if xmlFile == nil then return config, nil end
+    local builtin = parse(xmlFile)
+    xmlFile:delete()
+    return config, builtin
+end
+
+
 -- =============================================================================
 -- Breed traits
 -- =============================================================================
@@ -230,6 +294,7 @@ function RLBreedTraits.parseConfig(xmlFile)
     end
 
     config.layers = RLBreedTraits.parseLayers(xmlFile, "breedTraits", RLBreedTraits.TRAITS)
+    config.stringLayers = RLBreedTraits.parseStringLayers(xmlFile, "breedTraits", RLBreedTraits.STRING_TRAITS)
 
     return config
 end
@@ -251,6 +316,22 @@ end
 --- @return number
 function RLBreedTraits.get(subType, trait)
     return RLBreedTraits.resolve(RLBreedTraits.getConfig().layers, subType, trait, 1)
+end
+
+
+--- A string breed trait (STRING_TRAITS) by names: subType, then breed within the type, then the
+--- type, then the root; nil when no layer sets it.
+--- @return string|nil
+function RLBreedTraits.getStringNamed(typeName, breed, subTypeName, attr)
+    local layers = RLBreedTraits.getConfig().stringLayers
+    if layers == nil then return nil end
+    return RLBreedTraits.resolveNamed(layers, typeName, breed, subTypeName, attr, nil)
+end
+
+
+--- A breed trait multiplier by names (for callers without a live subtype); `default` when unset.
+function RLBreedTraits.getNamed(typeName, breed, subTypeName, trait, default)
+    return RLBreedTraits.resolveNamed(RLBreedTraits.getConfig().layers, typeName, breed, subTypeName, trait, default)
 end
 
 

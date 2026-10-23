@@ -18,12 +18,14 @@
       getSubType(index) the subtype object
       getSaleAgeContext(subType) -> ctx for RLDealerStockPolicy
       pickSourceFarm(rng) -> { countryIndex, farm } or nil
-      drawGenetics(rng) -> genetics  (already reshaped to the quality preset)
+      drawGenetics(rng, subType) -> genetics  (already reshaped to the quality preset; only the genes the
+                                               subtype has: RLRearingPolicy)
       now = { day, month, year, daysPerMonth }
     }
 ]]
 
-RLDealerPlanner = { VERSION = 1 }
+-- 2: beef stock draws and inherits no milk gene (RLRearingPolicy), so its random stream differs from 1.
+RLDealerPlanner = { VERSION = 2 }
 local P = RLDealerPlanner
 
 local function copy(v)
@@ -74,7 +76,9 @@ local function selectFetuses(world, rng, dam, sire, childNum)
                 quality = inherit(g.quality, sire.genetics.quality),
                 health = inherit(g.health, sire.genetics.health),
                 fertility = 0,
-                productivity = g.productivity ~= nil and inherit(g.productivity, sire.genetics.productivity or 1) or nil,
+                -- Only a young of a subtype with the gene inherits it, from the parents that have it.
+                productivity = RLRearingPolicy ~= nil and RLRearingPolicy.inheritProductivity(sub, g.productivity, sire.genetics.productivity, inherit)
+                    or (RLRearingPolicy == nil and g.productivity ~= nil and inherit(g.productivity, sire.genetics.productivity or 1)) or nil,
             },
         }
         if rng.random() > 0.001 then child.genetics.fertility = inherit(g.fertility, sire.genetics.fertility) end
@@ -111,7 +115,7 @@ function P.plan(world, rng)
     local farm = world.pickSourceFarm(rng)
     if farm == nil then return nil, "NO_FARM" end
 
-    local genetics = world.drawGenetics(rng)
+    local genetics = world.drawGenetics(rng, subType)
     local name
     if rng.random() >= 0.85 and world.randomName ~= nil then name = world.randomName(subType.gender, rng) end
     local health = RLDealerStockPolicy.drawHealth(entry, rng.random)
@@ -148,7 +152,7 @@ function P.plan(world, rng)
             if candidate.gender == "male" and candidate.breed == subType.breed then sireSub = candidate break end
         end
         if sireSub == nil then return nil, "NO_SIRE" end
-        local sireGenetics = world.drawGenetics(rng)
+        local sireGenetics = world.drawGenetics(rng, world.getSubType ~= nil and world.getSubType(sireSub.index) or nil)
         local sire = { breed = subType.breed, subType = sireSub.name, subTypeIndex = sireSub.index, genetics = copy(sireGenetics) }
         local fetuses, why = RLDealerRng.with(rng, function()
             return selectFetuses(world, rng, { subTypeIndex = subTypeIndex, breed = subType.breed, genetics = genetics }, sire, childNum)

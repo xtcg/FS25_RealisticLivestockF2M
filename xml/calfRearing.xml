@@ -39,7 +39,7 @@
                must reach 1 after weaning). A design candidate, not a measured rumen curve.
 
     weaningMonth may be set per animalType, breed or subType below (same lookup as
-    breedTraits.xml). Copy this file to modSettings/FS25_RealisticLivestockRM/calfRearing.xml to
+    breedTraits.xml). Copy this file to modSettings/FS25_RealisticLivestockF2M/calfRearing.xml to
     change it without editing the mod; an invalid file switches the feature off and logs why.
 -->
 <calfRearing enabled="true" weaningMonth="3" milkFillTypes="CALFMILK">

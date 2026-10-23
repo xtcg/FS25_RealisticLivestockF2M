@@ -98,7 +98,7 @@ Raise with purpose. Finish with care. Sell with strategy.
 - Hof Bergmann is not included and must be downloaded separately through its [official distribution channels](https://www.lsfarming-mods.com/).
 - Built upon the open-source Realistic Livestock project and Ritter's maintained version.
 - Released under the GPL-3.0 license, with attribution retained for the original contributors. See [LICENSE](LICENSE); corresponding source is available in this repository.
-- Version 0.2.0.0 uses `FS25_RealisticLivestockRM.zip` to preserve the tested dewar and hand-tool runtime namespace. Remove the older `FS25_RealisticLivestockF2M.zip` before installing and never load both names. Back up existing saves before upgrading.
+- Version 0.2.0.0 uses `FS25_RealisticLivestockF2M.zip`. Runtime namespaces follow the package name; existing F2M dewar and hand-tool saves retain their namespace. Back up existing saves and remove `FS25_RealisticLivestockRM.zip` before upgrading; never load both packages.
 - This introduction focuses on livestock production and economics. Broader crop and agricultural price tuning is handled separately by [FS25_EconomyTuner](https://github.com/xtcg/FS25_EconomyTuner), formerly FS25_SellPrices. Unreleased changes and validation status remain in [CHANGELOG.md](CHANGELOG.md).
 
 ## Related Mods (Optional)
@@ -110,7 +110,7 @@ These are separate projects, not bundled with Farm to Market, and are not requir
 
 ## Installation
 
-Place `FS25_RealisticLivestockRM.zip` in your FS25 mods folder **without extracting it**, and enable it in the game. Back up your savegame before updating. Replace the existing RM archive and remove any older `FS25_RealisticLivestockF2M.zip`; do not load both names.
+Place `FS25_RealisticLivestockF2M.zip` in your FS25 mods folder **without extracting it**, and enable it in the game. Back up your savegame before updating. Remove the old `FS25_RealisticLivestockRM.zip`; do not load both packages.
 
 For inherited animal management features, compatibility details and original migration instructions, see the [upstream README](docs/UPSTREAM_README.md) and [user guide](https://xtcg.github.io/FS25_RealisticLivestockF2M/).
 

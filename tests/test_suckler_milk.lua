@@ -1,6 +1,6 @@
--- Suckler (beef) cows' milk (breedTraits milkCollect): a beef cow's milk is her calf's. In the
--- real-equivalent mode she makes what her calves at foot drink (none without one) plus milkCollect
--- of the rest, and is fed for that; whatever her calves leave is not collected. Under the old rules
+-- Suckler (beef) cows' milk: a beef cow's milk is her calf's. In the real-equivalent mode she makes
+-- exactly what her calves at foot need (their own demands, RLYoungDemandMath; none without one) and
+-- is fed for that; nothing is collected. Under the old rules
 -- her store gets milkCollect of her milk. Dairy breeds (milkCollect 1) are untouched.
 
 loadMod("tests/feedsim.lua")
@@ -67,9 +67,8 @@ do
     local cowD, calfD
     for _, a in ipairs(d) do if a.animal == cow then cowD = a elseif a.animal == c then calfD = a end end
     local drink = math.min(calfD.nursingMaxKgPerDay, calfD.appetite) / config.damMilk.dm
-    local potential = cowD.milkKgPerDay / (cowD.milkDemandFactor or 1)
-    check(string.format("dam: she plans the milk her calf drinks, at most her potential: %.2f kg a day (calf %.2f, potential %.2f)",
-        cowD.milkKgPerDay, drink, potential), cowD.milkDemandFactor ~= nil and near(cowD.milkKgPerDay, math.min(drink, potential), 1e-9))
+    check(string.format("dam: her milk is her calf's own demand, no dairy potential or gene caps it: %.2f kg a day (calf %.2f)",
+        cowD.milkKgPerDay, drink), cowD.milkDemandFactor == nil and near(cowD.milkKgPerDay, drink, 1e-9))
     check("dam: her calf's pool is her scaled milk",
         near(cowD.nursing.kg, cowD.milkKgPerDay * config.damMilk.dm * config.stepDays, 1e-9))
 
@@ -94,8 +93,8 @@ do
     local cowD, calfD
     for _, a in ipairs(d) do if a.animal == cow then cowD = a elseif a.animal == c then calfD = a end end
     local drink = math.min(calfD.nursingMaxKgPerDay, calfD.appetite) / config.damMilk.dm
-    check(string.format("dam: with a calf near weaning (drinks %.2f kg) her milk falls to it (factor %.3f)", drink, cowD.milkDemandFactor or 1),
-        cowD.milkDemandFactor ~= nil and cowD.milkDemandFactor < 1 and near(cowD.milkKgPerDay, drink, 1e-9))
+    check(string.format("dam: with an older calf (drinks %.2f kg) her milk is still exactly its demand", drink),
+        cowD.milkDemandFactor == nil and near(cowD.milkKgPerDay, drink, 1e-9))
 end
 
 do
@@ -106,8 +105,8 @@ do
     local d = RLFeed.describePen(pen, RLFeed.getRation(pen), config.stepDays)
     local cowD, herdD
     for _, a in ipairs(d) do if a.animal == cow then cowD = a elseif a.animal == herd then herdD = a end end
-    check("dam: a beef cow with no calf at foot makes no milk, needs none and eats for none",
-        cowD.milkDemandFactor == 0 and cowD.milkKgPerDay == 0 and cowD.needs.milk == 0 and cowD.appetite > 0
+    check("dam: a beef cow with no calf at foot makes no milk, needs none and eats for none (she is not nursing: DRY)",
+        cowD.class == "DRY" and (cowD.milkKgPerDay or 0) == 0 and cowD.needs.milk == 0 and cowD.appetite > 0
         and near(cowD.proteinNeed, config.protein.dry, 1e-12))
     check("dam: a dairy cow is untouched (no factor, her full milk)", herdD.milkDemandFactor == nil and herdD.milkKgPerDay > 0)
     stepPen(pen)

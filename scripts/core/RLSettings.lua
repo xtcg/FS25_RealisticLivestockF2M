@@ -268,10 +268,10 @@ end
 -- each row by its rlmenuSetting_<name> element id. setting.index is consumed by
 -- RLDebugUtils.dumpSettings, which prints state rows in index order (it skips
 -- ignore==true rows), so index must stay a faithful mirror of the XML order below.
--- Keep the two in step when adding or moving a row. Sections (1..22):
--- Mortality (1-2), Health & Disease (3-4), Husbandry & Economy (5-9),
--- Custom Animals (10-11), Message Log (12-13), Display Preferences (14-17),
--- Tools & Admin (18-21), Visual Animals (22, client-local, no admin gate).
+-- Keep the two in step when adding or moving a row. Sections (1..21):
+-- Mortality (1-2), Health & Disease (3-4), Husbandry & Economy (5-8),
+-- Custom Animals (9-10), Message Log (11-12), Display Preferences (13-16),
+-- Tools & Admin (17-20), Visual Animals (21, client-local, no admin gate).
 RLSettings.SETTINGS = {
 
 	["deathEnabled"] = {
@@ -346,19 +346,8 @@ RLSettings.SETTINGS = {
 		["callback"] = RealisticLivestock_PlaceableHusbandryFood.onSettingChanged
 	},
 
-	-- Real-equivalent nutrition (RLFeed, xml/feedProfiles.xml): cattle intake and ration in real
-	-- dry matter and ME, with the game's feed at the resource scale. Default on for new saves; saved choices are retained.
-	["nutritionMode"] = {
-		["index"] = 6,
-		["adminOnly"] = true,
-		["type"] = "MultiTextOption",
-		["default"] = 2,
-		["values"] = { 1, 2 },
-		["callback"] = RLFeed.onSettingChanged
-	},
-
 	["maxDealerAnimals"] = {
-		["index"] = 7,
+		["index"] = 6,
 		["adminOnly"] = true,
 		["type"] = "MultiTextOption",
 		["default"] = 4,
@@ -375,7 +364,7 @@ RLSettings.SETTINGS = {
 	-- and every reader depend on values[i] == i, which RLSettingsTests pins
 	-- against RLDealerQualityModel.DEFAULT_INDEX / PRESET_COUNT.
 	["dealerQuality"] = {
-		["index"] = 8,
+		["index"] = 7,
 		["adminOnly"] = true,
 		["type"] = "MultiTextOption",
 		["default"] = 2,
@@ -388,7 +377,7 @@ RLSettings.SETTINGS = {
 	-- and the resolver cannot drift. Option texts are runtime-built (getTexts):
 	-- only "Map default" is localized, country names render in English.
 	["mapCountry"] = {
-		["index"] = 9,
+		["index"] = 8,
 		["adminOnly"] = true,
 		["type"] = "MultiTextOption",
 		["default"] = 1,
@@ -406,7 +395,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["useCustomAnimals"] = {
-		["index"] = 10,
+		["index"] = 9,
 		["adminOnly"] = true,
 		["type"] = "BinaryOption",
 		["dynamicTooltip"] = true,
@@ -416,7 +405,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["animalsXML"] = {
-		["index"] = 11,
+		["index"] = 10,
 		["adminOnly"] = true,
 		["type"] = "Button",
 		["ignore"] = true,
@@ -428,7 +417,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["messageSummary"] = {
-		["index"] = 12,
+		["index"] = 11,
 		["adminOnly"] = true,
 		["type"] = "BinaryOption",
 		["dynamicTooltip"] = true,
@@ -439,7 +428,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["maxNumMessages"] = {
-		["index"] = 13,
+		["index"] = 12,
 		["adminOnly"] = true,
 		["type"] = "MultiTextOption",
 		["default"] = 5,
@@ -449,7 +438,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["geneticsDisplay"] = {
-		["index"] = 14,
+		["index"] = 13,
 		["adminOnly"] = true,
 		["type"] = "MultiTextOption",
 		["default"] = 1,
@@ -457,7 +446,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["geneticsPosition"] = {
-		["index"] = 15,
+		["index"] = 14,
 		["adminOnly"] = true,
 		["type"] = "BinaryOption",
 		["default"] = 1,
@@ -465,7 +454,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["sortByGenetics"] = {
-		["index"] = 16,
+		["index"] = 15,
 		["adminOnly"] = true,
 		["type"] = "BinaryOption",
 		["dynamicTooltip"] = true,
@@ -475,7 +464,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["tagColour"] = {
-		["index"] = 17,
+		["index"] = 16,
 		["adminOnly"] = true,
 		["type"] = "Button",
 		["ignore"] = true,
@@ -483,7 +472,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["exportCSV"] = {
-		["index"] = 18,
+		["index"] = 17,
 		["adminOnly"] = true,
 		["type"] = "Button",
 		["ignore"] = true,
@@ -491,7 +480,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["resetDealer"] = {
-		["index"] = 19,
+		["index"] = 18,
 		["type"] = "Button",
 		["ignore"] = true,
 		["adminOnly"] = true,
@@ -502,7 +491,7 @@ RLSettings.SETTINGS = {
 	-- dealer offers. Server-authoritative (the Confirm handler writes the override
 	-- registry and regenerates the dealer), hence the admin gate.
 	["dealerSale"] = {
-		["index"] = 20,
+		["index"] = 19,
 		["type"] = "Button",
 		["ignore"] = true,
 		["adminOnly"] = true,
@@ -510,7 +499,7 @@ RLSettings.SETTINGS = {
 	},
 
 	["resetAIAnimals"] = {
-		["index"] = 21,
+		["index"] = 20,
 		["type"] = "Button",
 		["ignore"] = true,
 		["adminOnly"] = true,
@@ -523,7 +512,7 @@ RLSettings.SETTINGS = {
 	-- and out of rm_RlSettings.xml. The dialog persists the value per peer to
 	-- modSettings/Settings.xml.
 	["maxVisualAnimals"] = {
-		["index"] = 22,
+		["index"] = 21,
 		["type"] = "Button",
 		["ignore"] = true,
 		["callback"] = RLSettings.onClickVisualAnimals
@@ -610,6 +599,32 @@ function RLSettings.readSettingStates(xmlFile, key)
 		if name == "useCustomAnimals" and setting.state == 2 then RLSettings.animalsXMLPath = xmlFile:getString(key .. ".useCustomAnimals#path") end
 
 	end
+
+	RLSettings.migrateRetiredNutritionMode(xmlFile, key)
+
+end
+
+
+--- The retired nutrition model choice (nutritionMode: 1 Legacy, 2 Real-equivalent). Covered
+--- cattle, sheep, goats and pigs run the unified nutrition model alone (RLFeed); a saved choice
+--- is read here once, logged, and never written again (the next save writes only the current
+--- settings). Nothing else is reset: weights, reserves, pregnancies, genes, stock and products
+--- stay as saved, and no past milk or growth is made up.
+--- @param xmlFile table Open settings document
+--- @param key string Its root element key
+--- @return number|nil value The saved value, nil when the save has none
+function RLSettings.migrateRetiredNutritionMode(xmlFile, key)
+
+	local value = xmlFile.getInt ~= nil and xmlFile:getInt(key .. ".nutritionMode#value") or nil
+
+	RLSettings.retiredNutritionMode = value
+
+	if value ~= nil then
+		Log:info("RLSettings: retired nutritionMode=%s (%s) migrated - every covered pen runs the unified nutrition model; the choice is not saved again",
+			tostring(value), value == 1 and "Legacy" or "Real-equivalent")
+	end
+
+	return value
 
 end
 

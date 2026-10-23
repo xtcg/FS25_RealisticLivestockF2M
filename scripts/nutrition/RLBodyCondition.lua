@@ -913,13 +913,21 @@ function RLBodyCondition.depositMilk(placeable, litersPerHour, contributions, su
 
     local timeAdjustment = g_currentMission.environment.timeAdjustment
     local deposits = RLFeed ~= nil and RLFeed.hasObservers() and {} or nil
+    -- The hour's collectable milk (paid after the young drank) and what the store actually took: a
+    -- full store or no pallet room leaves the rest unstored - never booked as stored (D03). The young
+    -- drank theirs before this (RLFeed), so a full store never takes it from them.
+    local record = { tick = tick, byFill = {} }
     for fillType, liters in pairs(paid) do
+        local collectable = liters * timeAdjustment
+        local added = 0
         if saved[fillType] ~= nil and liters > 0 and nonFeed > 0 then
             local requested = liters * nonFeed * timeAdjustment
-            local added = deposit(fillType, requested)
+            added = deposit(fillType, requested) or 0
             if deposits ~= nil then deposits[fillType] = { paid = liters * timeAdjustment, requested = requested, added = added } end
         end
+        record.byFill[fillType] = { collectable = collectable, deposited = added, unstored = math.max(collectable - added, 0) }
     end
+    placeable.rlMilkDeposit = record
     -- Observers (TestDiagnostics): what each store was paid, asked and took this hour.
     if deposits ~= nil then RLFeed.notify("MILK", { placeable = placeable, tick = tick, nonFeed = nonFeed, deposits = deposits }) end
 end

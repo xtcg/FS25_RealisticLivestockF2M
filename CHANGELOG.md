@@ -1,11 +1,18 @@
 # Changelog
 
-## 0.2.0.0 — 2026-10-22
+## v0.2.0.0 — 2026-10-22
 
-- Default new saves to Real-equivalent nutrition and enable sheep/pig v2 growth. Saved nutrition choices and user XML overrides remain authoritative; cattle growth, body condition and calf rearing stay on.
-- Promote the tested semen collection/batch/AI/economy changes, FS25 1.25 Animals page compatibility and bilingual player guide from dev, retaining the tested menu and translation compatibility fixes.
-- Keep the runtime archive name `FS25_RealisticLivestockRM.zip` for the existing dewar/hand-tool namespace; attach SHA256SUMS. Update the guide to the enabled defaults.
-- Dealer v2 and unfinished sow/litter nutrition remain gated. Pig feed-list and tool-description/illustration issues remain open; the unsuccessful r7 UI patch is excluded.
+### 中文
+
+- 新存档默认开启现实等效营养及猪、羊 v2 生长模型；保留已有存档的营养模式和用户 XML 覆盖设置。
+- 整合采精、精液批次、授精与经济功能、FS25 1.25 动物列表兼容和中英文玩家指南，保留菜单与翻译兼容修复。
+- 安装包统一为 `FS25_RealisticLivestockF2M.zip`，修复精液罐、授精工具和血统查询的运行时命名空间，并提供 `SHA256SUMS`。
+
+### English
+
+- Default new saves to Real-equivalent nutrition and enable sheep/pig v2 growth. Preserve saved nutrition choices and user XML overrides.
+- Integrate semen collection, batch, insemination and economy features, FS25 1.25 Animals page compatibility and the Chinese/English player guide, retaining menu and translation compatibility fixes.
+- Standardize the runtime archive as `FS25_RealisticLivestockF2M.zip`, fix dewar, insemination tool and pedigree runtime namespaces, and provide `SHA256SUMS`.
 
 ## 0.1.0.0 — 2026-10-18
 
@@ -18,6 +25,8 @@
 - T02 contract review fixes: recheck source ownership/queues across callbacks, verify the live target again before commit/compensation, refuse stale capacity, and certify production-cost receipts rather than refunding an interrupted money call from its balance alone. Added 46 regressions; transactions remain OFF by default and game validation is pending.
 
 ## Unreleased
+
+- Unified nursing (design 2026-10-22, batches A-D; not game-tested): beef cattle (cows, bulls, calves) have no milk yield gene - not drawn, inherited, shown, scored or valued; old values are dropped on load. Beef cows, ewes and sows pay their young's own demand (each young's maintenance and growth at its actual weight x its stage's milk share) in their energy budget; litters share one paid ratio; no milk gene, dairy curve, ewe milk table or litter cap limits it. Beef calves suckle to their breed's suckling months; sows and litters run the real-equivalent mode (sow milk ME and SID lysine, creep feed, weaning at 28 days without a jump). Dairy cows and goats: young drink first from what the dam actually paid, the rest is collected; collectable, deposited and unstored milk are kept apart. Goats get their own feed, body-condition and growth sections and share pens with sheep without leaving the mode. Unweaned or orphaned young no longer send a pen to the old rules (SUCKLING_CALF / PIG_BREEDING_LEGACY). Sow, suckler-curve and goat values are PROXY until calibrated; the Nutrition model setting and the old rules are not removed yet (batch E, after game testing).
 
 - Added Settings > Player guide with chapter navigation, scrolling, and Chinese/English handbooks. Chinese game languages show Chinese; every other game language shows English. Chinese DDS text atlases avoid missing native glyphs; English uses native text without extra atlases. The guide identifies its dev.8 code baseline and separates optional and disabled systems from default gameplay.
 

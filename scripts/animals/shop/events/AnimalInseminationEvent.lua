@@ -64,6 +64,7 @@ local function readSemen(streamId)
 	semen.genetics.productivity = streamReadFloat32(streamId)
 
 	if semen.genetics.productivity < 0 then semen.genetics.productivity = nil end
+	if RLRearingPolicy ~= nil then RLRearingPolicy.normalizeByIndex(semen.subTypeIndex, semen.genetics) end
 	RLSemenBatch.readStream(streamId, semen)
 
 	return semen

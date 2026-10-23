@@ -2,7 +2,7 @@
 -- source/target/money ownership. Every game participant must provide matching markers.
 RLDealerPersistence = {}
 local D = RLDealerPersistence
-D.VERSION, D.SCHEMA = 1, 1
+D.VERSION, D.SCHEMA = 2, 1
 D.FILENAME, D.ROOT = "rm_RlDealerStockCheckpoint.xml", "rlDealerStockCheckpoint"
 D.LIMITS = { maxNodes = 400000, maxString = 262144, maxDepth = 32 }
 D.MAX_ENCODED_BYTES = 32 * 1024 * 1024
@@ -23,7 +23,7 @@ local snapshotKeys = { version=true, scope=true, lineage=true, generation=true, 
     checkpointId=true, clock=true, listings=true, sources=true, purchase=true, participants=true, sourceOwnership=true }
 local markerKeys = { lineage=true, generation=true, checkpointId=true, digest=true }
 local function header(s)
-    return s.version == D.VERSION and s.scope == "DEALER_STOCK_ONLY" and str(s.lineage)
+    return (s.version == 1 or s.version == D.VERSION) and s.scope == "DEALER_STOCK_ONLY" and str(s.lineage)
         and s.lineage:match("^DL[%w%-]+$") ~= nil and integer(s.generation) and s.generation >= 1
         and integer(s.parentGeneration) and s.parentGeneration == s.generation - 1 and str(s.checkpointId)
         and s.checkpointId == s.lineage .. ":" .. tostring(s.generation)
@@ -57,7 +57,7 @@ function D.validateParticipants(snapshot, actual)
     for role in pairs(actual) do if snapshot.participants[role] == nil then return nil, "UNEXPECTED_PARTICIPANT:" .. tostring(role) end end
     return true
 end
-function D.validateSnapshot(s, actualParticipants, resolver, ownershipContext)
+function D.validateSnapshot(s, actualParticipants, resolver, ownershipContext, legacyMilk)
     local why = RLTradePersistence.check(s, D.LIMITS)
     if why then return nil, "BAD_SNAPSHOT:" .. why end
     if not exactKeys(s, snapshotKeys) or not header(s) then return nil, "BAD_SNAPSHOT_HEADER" end
@@ -70,7 +70,7 @@ function D.validateSnapshot(s, actualParticipants, resolver, ownershipContext)
     local restoredSources = {}
     for id, record in pairs(s.sources) do
         if not str(id) then return nil, "BAD_SOURCE_ID" end
-        local ok, reason = RLDealerSourceState.validate(record)
+        local ok, reason = RLDealerSourceState.validate(record, legacyMilk)
         if not ok then return nil, "SOURCE:" .. id .. ":" .. tostring(reason) end
         if record.cursorMonths > clock.months + 1e-8 then return nil, "SOURCE_FUTURE_CURSOR:" .. id end
         if resolver ~= nil then
@@ -110,7 +110,7 @@ function D.validateSnapshot(s, actualParticipants, resolver, ownershipContext)
     local owned, ownedResolution
     if s.sourceOwnership ~= nil then
         if RLDealerOwnedStock == nil then return nil, "OWNED_STOCK_CAPABILITY" end
-        owned, why = RLDealerOwnedStock.validate(s.sourceOwnership, s.sources, clock.months)
+        owned, why = RLDealerOwnedStock.validate(s.sourceOwnership, s.sources, clock.months, legacyMilk)
         if not owned then return nil, why end
         ownedResolution = "NOT_CHECKED"
         if resolver ~= nil and ownershipContext ~= nil then
@@ -180,6 +180,45 @@ function D.validateCommit(snapshot, documentDigest, careerMarker)
     if RLTradePersistence.canonical(expected) ~= RLTradePersistence.canonical(careerMarker) then return nil,"CAREER_COMMIT_MISMATCH" end
     return true
 end
+-- Only mutable animal state is migrated. Birth journals, draw evidence and history stay intact.
+-- Call after validating the original checkpoint and its external commit marker.
+function D.migrateRearingSnapshot(snapshot)
+    local current = copy(snapshot)
+    current.version = D.VERSION
+    local function genes(breed, subType, values)
+        if RLRearingPolicy ~= nil and type(values) == "table"
+            and RLRearingPolicy.getUseNamed("COW", breed, subType) == "BEEF" then
+            values.productivity = nil
+        end
+    end
+    local function record(r)
+        if r ~= nil and r.animal ~= nil then genes(r.animal.breed, r.animal.subType, r.animal.genetics) end
+    end
+    for _, r in pairs(current.sources or {}) do record(r) end
+    local owned = current.sourceOwnership
+    if owned ~= nil then
+        local function animal(a)
+            genes(a.physiology.breed, a.subType, a.physiology.genetics)
+            record(a.sourceRecord)
+            local identity = a.identity
+            if identity.impregnatedBy ~= nil then
+                genes(identity.impregnatedBy.breed, nil, identity.impregnatedBy)
+            end
+            if identity.insemination ~= nil and RLRearingPolicy ~= nil then
+                RLRearingPolicy.normalizeByIndex(identity.insemination.subTypeIndex, identity.insemination.genetics)
+            end
+            for _, child in ipairs(a.pregnancy ~= nil and a.pregnancy.fetuses or {}) do animal(child) end
+        end
+        for _, owner in pairs(owned.owners or {}) do
+            for _, a in ipairs(owner.animals or {}) do animal(a) end
+            for _, sire in pairs(owner.sireContexts or {}) do genes(sire.breed, sire.subType, sire.genetics) end
+        end
+        for _, records in pairs(owned.observedChildren or {}) do for _, r in pairs(records) do record(r) end end
+        for _, retired in pairs(owned.retiredSources or {}) do record(retired.record) end
+    end
+    return current
+end
+
 function D.readDocument(xml, actualParticipants, resolver, careerMarker, ownershipContext)
     local raw = { schema=xml:getString(D.ROOT .. "#schema"), lineage=xml:getString(D.ROOT .. "#lineage"),
         generation=xml:getString(D.ROOT .. "#generation"), checkpointId=xml:getString(D.ROOT .. "#checkpointId"),
@@ -201,12 +240,18 @@ function D.readDocument(xml, actualParticipants, resolver, careerMarker, ownersh
     if RLTradePersistence.checksum(text) ~= raw.digest then return quarantine("DIGEST_MISMATCH",raw) end
     local s,why=RLTradePersistence.parse(text,D.LIMITS)
     if not s then return quarantine("BAD_DATA:" .. tostring(why),raw) end
-    if s.version ~= D.VERSION then return quarantine("UNKNOWN_SNAPSHOT_VERSION",raw) end
+    if s.version ~= 1 and s.version ~= D.VERSION then return quarantine("UNKNOWN_SNAPSHOT_VERSION",raw) end
     if s.lineage ~= raw.lineage or s.generation ~= tonumber(raw.generation) or s.checkpointId ~= raw.checkpointId then return quarantine("HEADER_MISMATCH",raw) end
-    local restored; restored,why=D.validateSnapshot(s,actualParticipants,resolver,ownershipContext)
-    if not restored then return quarantine(why,raw) end
+    -- Authenticate and check all original mirror/provenance relationships before dropping anything.
+    -- Version 2 checkpoints must already satisfy the strict active-trait contract.
+    local legacy = s.version == 1
+    local checked; checked,why=D.validateSnapshot(s,actualParticipants,nil,nil,legacy)
+    if not checked then return quarantine(why,raw) end
     local committed; committed,why=D.validateCommit(s,raw.digest,careerMarker)
     if not committed then return quarantine(why,raw) end
+    local current = legacy and D.migrateRearingSnapshot(s) or s
+    local restored; restored,why=D.validateSnapshot(current,actualParticipants,resolver,ownershipContext)
+    if not restored then return quarantine(why,raw) end
     return { state="VERIFIED", data=s, restored=restored, digest=raw.digest,
         sourceResolution=resolver ~= nil and "RESOLVED" or "NOT_CHECKED" }
 end

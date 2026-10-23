@@ -57,6 +57,8 @@ function AnimalPregnancyEvent:readStream(streamId, connection)
     impregnatedBy.fertility = streamReadFloat32(streamId)
     impregnatedBy.quality = streamReadFloat32(streamId)
     impregnatedBy.productivity = streamReadFloat32(streamId)
+    -- -1: the sire has no such gene (a pig, a horse, beef cattle: RLRearingPolicy).
+    if impregnatedBy.productivity ~= nil and impregnatedBy.productivity < 0 then impregnatedBy.productivity = nil end
 
     self.pregnancy = pregnancy
     self.impregnatedBy = impregnatedBy
@@ -66,8 +68,8 @@ function AnimalPregnancyEvent:readStream(streamId, connection)
 end
 
 
---- Write a pregnancy event to the network stream. Productivity is coalesced to 1.0 on write,
---- matching the serializer: pigs and horses do not track it, so the field can be nil.
+--- Write a pregnancy event to the network stream. A sire without a productivity gene (pigs,
+--- horses, beef cattle) is written as -1 and read back as none, matching the serializer.
 --- @param streamId number Network stream identifier
 --- @param connection Connection|nil Network connection receiving this event
 function AnimalPregnancyEvent:writeStream(streamId, connection)
@@ -103,7 +105,7 @@ function AnimalPregnancyEvent:writeStream(streamId, connection)
     streamWriteFloat32(streamId, impregnatedBy.health)
     streamWriteFloat32(streamId, impregnatedBy.fertility)
     streamWriteFloat32(streamId, impregnatedBy.quality)
-    streamWriteFloat32(streamId, impregnatedBy.productivity or 1)
+    streamWriteFloat32(streamId, impregnatedBy.productivity or -1)
 
 end
 

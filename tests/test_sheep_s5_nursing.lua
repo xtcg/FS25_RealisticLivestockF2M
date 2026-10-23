@@ -50,9 +50,7 @@ do
     check("coverage: with the sheep curves off a sheep pen keeps the old rules (UNCOVERED_ANIMAL)",
         not off.spec_husbandryFood.rlFeedPen.active and off.spec_husbandryFood.rlFeedPen.reason == "UNCOVERED_ANIMAL")
     SheepSim.enable(true)
-    FeedSim.setMode(false)
-    check("coverage: under the old nutrition model sheep are not on the weight model v2", not RLGrowth.covers(ewe))
-    FeedSim.setMode(true)
+    check("coverage: sheep are on the weight model v2 with no mode setting", RLGrowth.covers(ewe))
 end
 
 
@@ -108,11 +106,15 @@ do
     check("pool: another ewe's lamb gets none of her milk (no fostering)", strangerMilk == 0)
     check("pool: the ewe's milk is never stored or sold (milk to the store 0)",
         ewe.rlFeedIntake.milkLiters == 0 and ewe.rlMilkPaid.litersPerHour == 0 and ewe.rlFeedIntake.milkPaidLiters > 0)
-    local planned = 0
+    local planned, demand = 0, 0
     for _, d in ipairs(steps[1].dams) do planned = d.plannedKg end
-    -- Twins at full feed: her row 3.00 kg a day x 19% DM over a 0.25-day step, at most.
-    check(string.format("pool: twins plan at most her row's milk (%.4f <= %.4f kg DM a step)", planned, 3.00 * 0.19 * 0.25),
-        planned > 0 and planned <= 3.00 * 0.19 * 0.25 + 1e-12)
+    for _, e in ipairs(steps[1].animals) do
+        if e.animal.motherId == "P1" then demand = demand + (e.feed.nursingDemandKg or 0) end
+    end
+    -- Unified nursing (2026-10-22): the twins plan their own demand - no ewe milk table caps it; she
+    -- pays for it (or the share she can).
+    check(string.format("pool: twins plan their own demand from her (%.4f of %.4f kg DM a step), no milk table cap", planned, demand),
+        planned > 0 and planned <= demand + 1e-12 and planned >= 0.5 * demand)
 end
 
 
@@ -177,9 +179,11 @@ end
 
 do
     local ewe = SheepSim.ewe("SHEEP_LANDRACE", "C1")
-    local lamb = SheepSim.grown("RAM_LANDRACE", "CL1", 1.5, { motherId = "C1" })
+    -- On hay at 2.5 months its dam's milk and the forage leave a gap creep feed fills (on grass a
+    -- younger lamb at a ewe paying its whole demand needs none).
+    local lamb = SheepSim.grown("RAM_LANDRACE", "CL1", 2.5, { motherId = "C1" })
     local pen = SheepSim.makePen({ ewe, lamb })
-    local steps = stepEvents(pen, 10, { GRASS_WINDROW = 3000, BARLEY = 3000 })
+    local steps = stepEvents(pen, 10, { DRYGRASS_WINDROW = 3000, BARLEY = 3000 })
     local worst = 0
     for _, data in ipairs(steps) do
         for _, e in ipairs(data.animals) do
@@ -204,29 +208,25 @@ do
     FeedSim.hour(pen)
     check("troughs: with sheep running the mode the pen takes silage and grain", RLFeed.acceptsFill(pen, silage) and RLFeed.acceptsFill(pen, barley)
         and RLFeed.acceptsFill(pen, grass))
-    local goat = SheepSim.identify((GrowthSim.makeAnimal("GOAT", { age = 24 })), "G1")
+    local goat = SheepSim.identify((SheepSim.uncovered()), "G1")
     local mixed = SheepSim.makePen({ SheepSim.ewe("SHEEP_LANDRACE", "T2"), goat })
     FeedSim.hour(mixed)
-    check("troughs: a pen with a goat (never in the mode) takes no silage or grain; its pen keeps the old rules",
+    check("troughs: a pen with an uncovered animal (never in the mode) takes no silage or grain; its pen keeps the old rules",
         not RLFeed.acceptsFill(mixed, silage) and not RLFeed.acceptsFill(mixed, barley) and RLFeed.acceptsFill(mixed, grass)
         and mixed.spec_husbandryFood.rlFeedPen.reason == "UNCOVERED_ANIMAL")
-    -- A sheep in that pen keeps the old weight rule: no budget on the old feeding (its ME
-    -- calibration needs the mode), so its development clock stands still. Its age clock runs on
-    -- model time (U43-AGE-01): six hours of a one-day month.
+    -- A sheep in that pen is held (RLFeed.holdUnsettled): no budget, no old weight rule, so its
+    -- development clock and weight stand still. Its age clock runs on model time (U43-AGE-01): six
+    -- hours of a one-day month.
     local mixedLamb = SheepSim.grown("RAM_LANDRACE", "T3", 2.0)
     local mixedPen = SheepSim.makePen({ mixedLamb, goat }, GRASS)
     local development, ageClock, weight = mixedLamb.rlGrowth.developmentMonths, mixedLamb.rlGrowth.ageMonths, mixedLamb.weight
     local lastTick = mixedLamb.rlGrowth.lastTick
     SheepSim.run(mixedPen, 6, GRASS)
-    check(string.format("mixed pen: a lamb with a goat takes the old weight rule (development %.4f -> %.4f, age clock %.4f -> %.4f, last step %s, weight %.2f -> %.2f)",
+    check(string.format("mixed pen: a lamb with an uncovered animal is held (development %.4f -> %.4f, age clock %.4f -> %.4f, last step %s, weight %.2f -> %.2f)",
         development, mixedLamb.rlGrowth.developmentMonths, ageClock, mixedLamb.rlGrowth.ageMonths, tostring(mixedLamb.rlGrowth.lastTick), weight, mixedLamb.weight),
         not mixedPen.spec_husbandryFood.rlFeedPen.active and mixedLamb.rlGrowth.developmentMonths == development
         and math.abs(mixedLamb.rlGrowth.ageMonths - (ageClock + 6 / 24)) < 1e-9 and mixedLamb.rlGrowth.lastTick == lastTick
-        and mixedLamb.weight > weight)
-    FeedSim.setMode(false)
-    GrowthSim.advanceHour()
-    check("troughs: under the old model the sheep pen takes neither", not RLFeed.acceptsFill(pen, silage) and not RLFeed.acceptsFill(pen, barley))
-    FeedSim.setMode(true)
+        and mixedLamb.weight == weight)
     GrowthSim.advanceHour()
     SheepSim.enable(false)
     pen.spec_husbandryFood.rlSpeciesFeedOpen = nil

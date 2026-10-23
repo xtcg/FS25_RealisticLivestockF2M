@@ -441,10 +441,13 @@ function AnimalFilterDialog:onOpen()
 
             end
 
-            if value < filter.min then filter.min = math.floor(value) end
-            if value > filter.max then filter.max = math.ceil(value) end
+            -- An animal without the gene (a beef animal's milk gene: RLRearingPolicy) adds nothing to its range.
+            if value ~= nil then
+                if value < filter.min then filter.min = math.floor(value) end
+                if value > filter.max then filter.max = math.ceil(value) end
 
-            filter.hasValues = true
+                filter.hasValues = true
+            end
 
         end
 
@@ -941,7 +944,9 @@ function AnimalFilterDialog.applyFilters(items, filters, isBuyMode)
 
                 end
 
-                if value < filter.min or value > filter.max then
+                -- A set range on a gene the animal does not have (beef cattle's milk gene) never matches it:
+                -- a missing gene is not read as 0, the lowest band or the average.
+                if value == nil or value < filter.min or value > filter.max then
                     meetsFilters = false
                     break
                 end

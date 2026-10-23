@@ -21,7 +21,8 @@ local modDirectory = g_currentModDirectory
 DewarMigration = {}
 
 local OLD_CLASS = "FS25_RealisticLivestock.Dewar"
-local NEW_CLASS = "FS25_RealisticLivestockRM.Dewar"
+local NEW_CLASS = g_currentModName .. ".Dewar"
+local RM_CLASS = "FS25_RealisticLivestockRM.Dewar"
 
 
 function DewarMigration.run()
@@ -58,7 +59,7 @@ function DewarMigration.run()
 
     xmlFile:iterate("items.item", function(_, key)
         local className = xmlFile:getString(key .. "#className")
-        if className == OLD_CLASS or className == NEW_CLASS then
+        if className == OLD_CLASS or className == NEW_CLASS or className == RM_CLASS then
             local entry = DewarMigration.readDewarEntry(xmlFile, key)
             if entry ~= nil then
                 table.insert(dewarEntries, entry)
@@ -153,6 +154,7 @@ function DewarMigration.readDewarEntry(xmlFile, key)
             ["quality"] = xmlFile:getFloat(animalKey .. ".genetics#quality"),
             ["productivity"] = xmlFile:getFloat(animalKey .. ".genetics#productivity")
         }
+        if RLRearingPolicy ~= nil then RLRearingPolicy.normalizeByIndex(animal.subTypeIndex, animal.genetics) end
 
         -- Validate subtype consistency
         local animalSystem = g_currentMission.animalSystem

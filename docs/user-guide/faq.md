@@ -131,7 +131,7 @@ The setting caps how many animals are **drawn in 3D** in each pen. It does not t
 
 Two things about it surprise people:
 
-- **It is per machine, not per savegame.** It lives in `modSettings/FS25_RealisticLivestockRM/Settings.xml`, is not saved with your farm, and is not synced in multiplayer - every player sets their own, and any player can change it.
+- **It is per machine, not per savegame.** It lives in `modSettings/FS25_RealisticLivestockF2M/Settings.xml`, is not saved with your farm, and is not synced in multiplayer - every player sets their own, and any player can change it.
 - **It survives a restart.** Whatever value was last applied is read back on every launch, so a low value stays low until you change it.
 
 To fix it: open the dialog, drag the slider or use the **Recommended** button (which picks a value based on your graphics settings), then press **Apply**. Moving the slider alone does nothing - the value is only stored when you press Apply.

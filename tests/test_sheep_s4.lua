@@ -69,7 +69,8 @@ check("off: the cattle breed lookup is unchanged (no cattle LANDRACE)", RLWeight
 check("off: a proxy type (MILKCOW) still reads the cattle breeds", RLWeightProfiles.resolveBreed("HOLSTEIN", "MILKCOW") == "HOLSTEIN"
     and RLWeightProfiles.resolveBreed("LANDRACE", "SHEEP") == "SHEEP:LANDRACE" and RLWeightProfiles.resolveBreed("LANDRACE", "PIG") == "PIG:LANDRACE")
 local _, goatOff = bindingOf(goat)
-check("off: a goat is NOT_COVERED (excludeBreeds), not a gap", goatOff == "NOT_COVERED")
+-- Goats have their own GOAT profile of the SHEEP type (unified nursing design, 2026-10-22): off with the type.
+check("off: a goat is off with the SHEEP type (TYPE_OFF), not a gap", goatOff == "TYPE_OFF")
 
 -- On (for review): sheep resolve to their own profiles, goats stay out, cattle bindings do not move.
 -- The switch is undone even when a check throws, so later checks see the type off.
@@ -82,7 +83,8 @@ end)
 check("on: SHEEP_LANDRACE -> SHEEP:LANDRACE female, RAM_TEXEL -> SHEEP:TEXEL male (EXACT)",
     eweOn ~= nil and eweOn.profile == "SHEEP:LANDRACE" and eweOn.sex == "female" and eweWhy == "EXACT"
     and ramOn ~= nil and ramOn.profile == "SHEEP:TEXEL" and ramOn.sex == "male")
-check("on: a goat has no sheep curve (NOT_COVERED, excluded)", okOn and goatOnBinding == nil and goatWhy == "NOT_COVERED")
+check("on: a goat grows on its own GOAT curve, never a sheep breed's (SHEEP:GOAT female, EXACT)", okOn and goatOnBinding ~= nil
+    and goatOnBinding.profile == "SHEEP:GOAT" and goatOnBinding.sex == "female" and goatWhy == "EXACT")
 local okSame, same = pcall(function()
     local all = true
     for _, s in ipairs(Economics.subTypes) do
@@ -149,7 +151,7 @@ check("report: a sheep with the type off is TYPE_OFF (EXACT profile), its curve 
     eweRecord.resolution == "TYPE_OFF" and eweRecord.profileResolution == "EXACT" and eweRecord.profile == "SHEEP:LANDRACE"
     and eweRecord.curve ~= nil and eweRecord.curve.active == false and near(eweRecord.curve.adultKg, 88, 0.01))
 local goatRecord = RLWeightProfiles.describe(goat)
-check("report: a goat is NOT_COVERED and no gap", goatRecord.resolution == "NOT_COVERED" and goatRecord.gap == false)
+check("report: a goat is off with its type, reported as a sheep is (" .. tostring(goatRecord.resolution) .. ")", goatRecord.gap == eweRecord.gap and goatRecord.resolution == "TYPE_OFF" and goatRecord.profile == "SHEEP:GOAT")
 
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") or line:find("^warning") then check("no warning or error: " .. line, false) end

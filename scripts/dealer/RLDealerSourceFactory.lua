@@ -47,8 +47,9 @@ local function calendar(v,birthday)
         and RLConstants and type(RLConstants.AREA_CODES)=="table" and RLConstants.AREA_CODES[v.country]~=nil
 end
 local function genes(v)
-    if not keys(v,{metabolism=true,quality=true,productivity=true,fertility=true,health=true}) then return false end
-    for _,key in ipairs({"metabolism","quality","productivity","fertility","health"}) do if not finite(v[key]) or v[key]<0 then return false end end
+    -- productivity is absent for an animal without a milk gene (beef cattle: RLRearingPolicy).
+    if not keys(v,{metabolism=true,quality=true,productivity=v.productivity~=nil,fertility=true,health=true}) then return false end
+    for _,key in ipairs({"metabolism","quality","productivity","fertility","health"}) do if (key~="productivity" or v[key]~=nil) and (not finite(v[key]) or v[key]<0) then return false end end
     return v.metabolism>0
 end
 local function fail(reason) return nil,{reason=reason} end

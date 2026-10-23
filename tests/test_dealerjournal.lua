@@ -48,3 +48,14 @@ check("journal: independent XML codec preserves exact whole purchase journal", o
 xml.values[J.ROOT .. ".data.chunk(0)#v"] = xml.values[J.ROOT .. ".data.chunk(0)#v"] .. "x"
 check("journal: damaged chunks are rejected without rewriting evidence", not J.readDocument(xml))
 check("journal: invalid directory and unknown identity refuse cleanly", not J.load(nil, storage) and not J.new("bad", "epoch"))
+-- Header and payload versions remain bound for legacy and current journal codecs.
+xml.values={};data.version=1
+assert(J.writeDocument(xml,data))
+local legacy=assert(J.readDocument(xml))
+check("journal: legacy XML retains its original version and payload",legacy.version==1
+    and xml.values[J.ROOT.."#version"]=="1" and Codec.canonical(legacy)==Codec.canonical(data))
+xml.values[J.ROOT.."#version"]=tostring(J.VERSION)
+local no,why=J.readDocument(xml)
+check("journal: new XML header cannot relabel a legacy payload",no==nil and why=="JOURNAL_VERSION")
+local no,why=J.load("/save",{load=function() return 42,"invalid" end})
+check("journal: malformed storage payload rejects without indexing a scalar",no==nil and why=="BAD_JOURNAL_HEADER")
