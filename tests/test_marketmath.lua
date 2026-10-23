@@ -53,3 +53,10 @@ check("holding: component costs only and no free missing capability", cost.total
 options.publishedOrderInformDealerBid = false
 references.productionRoutes = { [2] = references.productionRoutes[1] }
 check("dealer: sparse routes never silently disappear",P.quote(references,options)==nil)
+
+options.minSpreadAbs=10
+references.productionRoutes={
+ {purpose="DAIRY",eligible=true,retailReference=4000,probability=.1,holdingMonths=2,monthlyCost=10},
+ {purpose="TERMINAL",eligible=true,retailReference=2000,probability=1,holdingMonths=1,monthlyCost=20}}
+changed=assert(P.quote(references,options))
+check("dealer: all objectives use common retailBase resale with separate waiting costs",changed.ask==5200 and changed.candidates[3].waiting.expectedRevenue==4000 and changed.candidates[3].waiting.expectedHoldingCost==20 and near(changed.candidates[2].waiting.expectedRevenue,2218,1e-9))

@@ -36,7 +36,7 @@ function P.quote(value, options)
     local raw = candidates[1].amount
     for _, route in ipairs(value.productionRoutes) do
         if route.eligible then
-            local waiting, reason = RLMarketMath.waiting({ resale = route.retailReference * options.expectedNegotiationFactor,
+            local waiting, reason = RLMarketMath.waiting({ resale = retailBase * options.expectedNegotiationFactor,
                 liquidation = value.liquidationNet, probability = route.probability, months = route.holdingMonths,
                 monthlyCost = route.monthlyCost })
             if waiting == nil then return nil, reason end
