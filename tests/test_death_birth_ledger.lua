@@ -239,6 +239,10 @@ local function litter(n, deadAt, freeSlots, opts)
             setClusterSystem = function(self, c) self.clusterSystem = c end,
             setUniqueId = function(self) self.uniqueId = "K" .. i end,
             getSellPrice = function() return 100 + i end }
+        if opts.marketUnavailableChildren then
+            children[i].getLegacySellPrice=function()return 100+i end
+            children[i].getSellPrice=function()return nil end
+        end
     end
     local cluster = { getPendingDelta = function() return 0, 0, 0 end,
         addPendingAddCluster = function(_, c) queued[#queued + 1] = c end }
@@ -316,3 +320,5 @@ do
     end
     check("birth: every litter of 1-6 with every death pattern and room -2..7 closes, nothing negative", ok)
 end
+local marketOverflow=litter(3,{},1,{marketUnavailableChildren=true})
+check("birth: unavailable live quotes do not interrupt identities/parentage or legacy overflow disposal",marketOverflow.sold==2 and marketOverflow.kept==1 and marketOverflow.queued==1 and marketOverflow.money==205)

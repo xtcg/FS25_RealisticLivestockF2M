@@ -1,7 +1,16 @@
 --- Reply when the target husbandry is not built yet (RLPenConstruction). The base game's codes
 --- fill 0-7, so the reply is written in ERROR_CODE_NUM_BITS rather than the base game's 3.
 AnimalBuyEvent.BUY_ERROR_PEN_NOT_BUILT = 8
+AnimalBuyEvent.BUY_ERROR_PRICE_UNAVAILABLE = 9
 AnimalBuyEvent.ERROR_CODE_NUM_BITS = 4
+
+-- The wire carries float32 totals; the server always charges its exact double.
+-- Tolerance follows representable wire precision, not a fixed currency amount.
+function AnimalBuyEvent.matchesWirePrice(sent,expected)
+    local function finite(v)return type(v)=="number" and v==v and math.abs(v)<math.huge end
+    if not finite(sent) or not finite(expected) or sent>0 or expected>0 then return false end
+    return math.abs(sent-expected)<=math.max(2^-149,math.abs(expected)*2^-23)
+end
 
 
 function AnimalBuyEvent.new(object, animals, buyPrice, transportPrice)
@@ -102,60 +111,43 @@ function AnimalBuyEvent:run(connection)
 			#self.animals,
 			tostring(self.object and self.object.getName and self.object:getName() or self.object))
 
-		-- The charged price is the SERVER's, never the client's. The dispatched
-		-- float is computed on the sending peer, whose dealer-quality preset can
-		-- lag authority (a demoted admin, or the ordering gap between the stock
-		-- and settings events), so it is treated as display-only from here on.
-		-- Recomputed BEFORE the validation loop so affordability and the charge
-		-- below both use the same server number. Sign follows the dispatch
-		-- convention: computeBuyPrice returns a positive price, the event
-		-- carries it negated. transportPrice is deliberately left alone.
-		-- Priced under pcall because getSellPrice dereferences getSubType(),
-		-- genetics.quality and targetWeight with no guards, and self.animals is
-		-- a client-supplied payload. Without this a malformed animal raises
-		-- BEFORE the validation loop, the enclosing safeCall swallows it, and no
-		-- response is ever sent - the client just waits out its watchdog. Falling
-		-- back to the dispatched price keeps the validation loop reachable so it
-		-- returns its normal BUY_ERROR_* code instead.
-		local serverBuyPrice = 0
+		-- Recompute both body and the applicable delivery leg before checking
+		-- affordability. A changed quote gets a refresh response; a forged price
+		-- cannot choose what the server charges. Numeric comparison below allows
+		-- only the float32 wire representation of the exact server totals.
+		-- A failed computation still reaches ordinary subtype/pen validation,
+		-- then refuses before any stock, animal or money mutation.
+		local dispatchedBuyPrice,dispatchedTransportPrice=self.buyPrice,self.transportPrice
+		local serverBuyPrice,serverTransportPrice = 0,0
 		local priced = pcall(function()
-			local total = 0
+			local total,fees = 0,0
 			for _, animal in pairs(self.animals) do
-				total = total - RLAnimalBuyService.computeBuyPrice(animal)
+				local price=RLAnimalBuyService.computeBuyPrice(animal)
+				assert(type(price)=="number" and price==price and price>=0 and price<math.huge,"SERVER_BUY_PRICE_UNAVAILABLE")
+				local fee=0
+				if self.object==nil or self.object.spec_livestockTrailer==nil then fee=animal:getTranportationFee(1) end
+				assert(type(fee)=="number" and fee==fee and fee>=0 and fee<math.huge,"SERVER_BUY_TRANSPORT_UNAVAILABLE")
+				total = total - price
+				fees = fees - fee
 			end
-			serverBuyPrice = total
+			assert(math.abs(total)<math.huge and math.abs(fees)<math.huge,"SERVER_BUY_TOTAL_OVERFLOW")
+			serverBuyPrice,serverTransportPrice = total,fees
 		end)
 
-		-- NaN is its own check: every comparison against NaN is false, so it
-		-- would silently take the "agrees" branch below AND pass the
-		-- affordability test, reaching addMoney and turning the farm balance into
-		-- NaN. Corrupt genetics reaching getSellPrice is a real failure mode
-		-- here, so this is a guard, not ceremony. `x ~= x` is the NaN test.
-		if priced and serverBuyPrice ~= serverBuyPrice then
-			Log:warning("AnimalBuyEvent:run: server price recompute produced NaN (corrupt animal data?); keeping the dispatched price")
-			priced = false
-		end
-
 		if not priced then
-			Log:warning("AnimalBuyEvent:run: server price recompute failed for %d animal(s); keeping the dispatched price so validation can reject the payload normally",
+			Log:warning("AnimalBuyEvent:run: authoritative quote unavailable for %d animal(s); validating ordinary refusal before returning price-unavailable",
 				#self.animals)
 		else
-			-- Epsilon, not equality: the client's figure arrived as a float32
-			-- (streamReadFloat32) while this sum is a full-precision double, and
-			-- the two sides accumulate in pairs() order, which differs per
-			-- machine. An exact comparison would report a divergence on
-			-- essentially every multi-animal purchase and destroy the value of
-			-- this line as a tamper signal. One currency unit is far below
-			-- anything worth flagging.
 			local clientBuyPrice = self.buyPrice or 0
-			if math.abs(serverBuyPrice - clientBuyPrice) > 1 then
-				Log:debug("AnimalBuyEvent:run: client price %.2f differs from server recompute %.2f; charging the server's",
-					clientBuyPrice, serverBuyPrice)
+			if not AnimalBuyEvent.matchesWirePrice(clientBuyPrice,serverBuyPrice) then
+				Log:debug("AnimalBuyEvent:run: client body price %s differs from exact server quote %s; refresh required",
+					tostring(clientBuyPrice),tostring(serverBuyPrice))
 			else
 				Log:trace("AnimalBuyEvent:run: server price recompute agrees with the client (%.2f)", serverBuyPrice)
 			end
 
 			self.buyPrice = serverBuyPrice
+			self.transportPrice = serverTransportPrice
 		end
 
 		phaseReset()
@@ -180,6 +172,19 @@ function AnimalBuyEvent:run(connection)
 
 		end
 		Log:trace("AnimalBuyEvent:run phase: validate took %.2fms", phaseDoneMs())
+
+		-- An unavailable authoritative quote can still reach the validation
+		-- loop for its usual subtype/pen error, but never the asset mutation.
+		-- In particular, a new market quote may deliberately reject a scope.
+		if not priced or type(serverBuyPrice)~="number" or serverBuyPrice~=serverBuyPrice or math.abs(serverBuyPrice)==math.huge then
+			connection:sendEvent(AnimalBuyEvent.newServerToClient(AnimalBuyEvent.BUY_ERROR_PRICE_UNAVAILABLE))
+			return
+		end
+		if not AnimalBuyEvent.matchesWirePrice(dispatchedBuyPrice,serverBuyPrice)
+			or not AnimalBuyEvent.matchesWirePrice(dispatchedTransportPrice,serverTransportPrice) then
+			connection:sendEvent(AnimalBuyEvent.newServerToClient(AnimalBuyEvent.BUY_ERROR_PRICE_UNAVAILABLE))
+			return
+		end
 
 		phaseReset()
 		for _, animal in pairs(self.animals) do
@@ -252,5 +257,6 @@ end)
 for _, controller in ipairs({ AnimalScreenDealerFarm, AnimalScreenDealer, AnimalScreenDealerTrailer }) do
 	if controller ~= nil and controller.BUY_ERROR_CODE_MAPPING ~= nil then
 		controller.BUY_ERROR_CODE_MAPPING[AnimalBuyEvent.BUY_ERROR_PEN_NOT_BUILT] = { warning = true, text = "rl_ui_penNotBuilt" }
+		controller.BUY_ERROR_CODE_MAPPING[AnimalBuyEvent.BUY_ERROR_PRICE_UNAVAILABLE] = { warning = true, text = "rl_ui_priceUnavailable" }
 	end
 end

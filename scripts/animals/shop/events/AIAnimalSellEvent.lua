@@ -211,7 +211,8 @@ function AIAnimalSellEvent.quoteSale(object, identities, sellerFarmId)
 			return nil, "animal", string.format("[%d] %s sick (%s)", i, key, tostring(saleReason))
 		end
 
-		local price = animal:getSellPrice()
+		local price,priceDetail
+		if RLMarketEnginePrice~=nil then price,priceDetail=RLMarketEnginePrice.salePrice(animal) else price=animal:getSellPrice() end
 		local fee = animal:getTranportationFee(1)
 		if not isFiniteNumber(price) or price < 0 or not isFiniteNumber(fee) or fee < 0 then
 			return nil, "price", string.format("[%d] %s no valid quote (price=%s fee=%s)", i, key, tostring(price), tostring(fee))
@@ -221,8 +222,13 @@ function AIAnimalSellEvent.quoteSale(object, identities, sellerFarmId)
 		quote.keys[i] = key
 		quote.prices[i] = price
 		quote.fees[i] = fee
-		quote.credits[i] = price + fee
-		quote.total = quote.total + price + fee
+		local credit=price+fee
+		if type(priceDetail)=="table" and priceDetail.mode=="market" then
+			credit=price-fee
+			if credit<=0 then return nil,"price",string.format("[%d] %s nonpositive market net",i,key) end
+		end
+		quote.credits[i] = credit
+		quote.total = quote.total + credit
 
 	end
 

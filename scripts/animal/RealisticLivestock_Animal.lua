@@ -828,7 +828,9 @@ function Animal:showInfo(box)
         box:addLine(g_i18n:getText("rl_ui_maleNumImpregnatable"), string.format("%s", self.numImpregnatableAnimals or 0))
     end
 
-    box:addLine(g_i18n:getText("rl_ui_value"), g_i18n:formatMoney(self:getSellPrice(), 2, true, true))
+    local price=self:getSellPrice()
+    local priced=type(price)=="number" and price==price and math.abs(price)<math.huge and price>=0
+    box:addLine(g_i18n:getText("rl_ui_value"), priced and g_i18n:formatMoney(price,2,true,true) or "-")
 
     if self.isCastrated then box:addLine(g_i18n:getText("rl_ui_castrated"), g_i18n:getText("rl_ui_yes")) end
 end
@@ -1167,8 +1169,10 @@ function Animal:showMonitorInfo(box)
 
     box:addLine(g_i18n:getText("rl_ui_weight"), string.format("%.2f", self.weight) .. "kg")
     box:addLine(g_i18n:getText("rl_ui_targetWeight"), string.format("%.2f", self.targetWeight) .. "kg")
-    box:addLine(g_i18n:getText("rl_ui_valuePerKilo"),
-        g_i18n:formatMoney(self:getSellPrice() / self.weight, 2, true, true))
+    local price=self:getSellPrice()
+    local priced=type(price)=="number" and price==price and math.abs(price)<math.huge and price>=0
+        and type(self.weight)=="number" and self.weight>0 and self.weight<math.huge
+    box:addLine(g_i18n:getText("rl_ui_valuePerKilo"),priced and g_i18n:formatMoney(price/self.weight,2,true,true) or "-")
 
     for fillType, amount in pairs(self.input) do
         box:addLine(g_i18n:getText("rl_ui_input_" .. fillType),
@@ -1647,6 +1651,15 @@ function Animal:getDirtFactor() return AnimalHorse.getDirtFactor(self) end
 function Animal:changeDirt(delta) AnimalHorse.changeDirt(self, delta) end
 
 function Animal:getSellPrice()
+    if RLMarketEnginePrice~=nil then
+        return RLMarketEnginePrice.price("BID",self,function()return self:getLegacySellPrice()end)
+    end
+    return self:getLegacySellPrice()
+end
+
+
+-- Kept separate so a legacy ASK never derives its markup from a new BID.
+function Animal:getLegacySellPrice()
     local subType = self:getSubType()
 
     -- Cattle are priced by RLBreedingValue (PRICE-BREED-03): the curve price below with genes at

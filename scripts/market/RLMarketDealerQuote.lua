@@ -17,7 +17,8 @@ end
 function Q.scope(snapshot,context)
     local scope={identityKey=snapshot.identityKey,stateRevision=snapshot.stateRevision,
         referenceRevision=context.referenceRevision,difficultyMultiplier=context.difficultyMultiplier,
-        calendarMonth=context.calendarMonth,absoluteMonths=context.absoluteMonths}
+        calendarMonth=context.calendarMonth,absoluteMonths=context.absoluteMonths,
+        referenceInputs=context.referenceInputs}
     for _,key in ipairs(revisions)do scope[key]=context[key]end
     return D.fingerprint(scope)
 end
@@ -162,7 +163,7 @@ function Q.new(deps)
         if rejection then reasons[#reasons+1]={code="NONPOSITIVE_DEALER_QUOTE"}end
         local result={schemaVersion=1,status=rejection and "REJECTED" or "OK",channel=c.channel,
             settlementDirection=side=="ASK" and "OUT" or "IN",identityKey=s.identityKey,stateRevision=s.stateRevision,
-            expiresAt=time+p.quoteTTLms,candidatePaths=paths,reasons=reasons,
+            expiresAt=time+p.quoteTTLms,candidatePaths=paths,reasons=reasons,transportIncluded=false,
             eligibilityFingerprint=fp({snapshot=s,diagnostics=diagnostics}),
             settlementFingerprint=fp({scope=scope,policy=p,paths=paths,ask=ask,bid=bid}),
             references=values,retailBaseHard=retailBase,scopeFingerprint=scope,

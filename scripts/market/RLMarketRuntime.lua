@@ -5,6 +5,7 @@ local R = RLMarketRuntime
 local Log = RmLogging.getLogger("RLRM")
 local modDirectory = g_currentModDirectory
 function R.reset()
+    if RLMarketEnginePrice~=nil then RLMarketEnginePrice.clear() end
     R.configState, R.requestedMode, R.mode = {}, "legacy", "legacy"
     R.state, R.reason = "DORMANT", nil
 end
