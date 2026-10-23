@@ -703,30 +703,7 @@ function RLMenuBuyFrame:onBuyConfirmed(clickYes)
         return
     end
 
-    -- What the player agreed to pay: a repricing before dispatch that changes it asks again.
-    self.confirmedBuyTotal = (self.pendingBuyPrice or 0) + (self.pendingBuyFee or 0)
     self:startBuyFlow(self.pendingBuyAnimals, self.pendingBuyPrice or 0, self.pendingBuyFee or 0)
-end
-
-
---- Whether a repriced total differs from the confirmed one as the player sees money (whole units):
---- the quote moved between the confirmation and the destination (an hour passed: age, weight, month).
---- @param total number Repriced total (price + fee)
---- @return boolean
-function RLMenuBuyFrame:hasBuyPriceMoved(total)
-    local confirmed = self.confirmedBuyTotal
-    if type(confirmed) ~= "number" or type(total) ~= "number" then return false end
-    return math.floor(total + 0.5) ~= math.floor(confirmed + 0.5)
-end
-
-
---- Ask again at the repriced total (YesNo; yes dispatches the pending buy as repriced).
-function RLMenuBuyFrame:confirmMovedBuyPrice(count, price, fee)
-    Log:debug("RLMenuBuyFrame:confirmMovedBuyPrice: confirmed %.2f, now %.2f (%d animals)", self.confirmedBuyTotal or 0,
-        (price or 0) + (fee or 0), count)
-    self.confirmedBuyTotal = (price or 0) + (fee or 0)
-    local text = string.format(g_i18n:getText("rl_ui_buyPriceChanged"), count, g_i18n:formatMoney((price or 0) + (fee or 0), 0, true, true))
-    YesNoDialog.show(self.onBuyPartialConfirmed, self, text, g_i18n:getText("ui_attention"))
 end
 
 
@@ -871,11 +848,6 @@ function RLMenuBuyFrame:startTrailerBuyFlow(animals, _price)
     self.pendingBuyPrice       = validPrice
     self.pendingBuyFee         = validFee
 
-    if rejectedCount == 0 and self:hasBuyPriceMoved(validPrice + validFee) then
-        self:confirmMovedBuyPrice(validCount, validPrice, validFee)
-        return
-    end
-
     -- Selection clearing is DEFERRED to dispatch, so cancelling the partial confirm below
     -- preserves the selection.
 
@@ -938,11 +910,6 @@ function RLMenuBuyFrame:onBuyDestinationSelected(entry)
     self.pendingBuyPrice = validPrice
     self.pendingBuyFee = validFee
 
-    if rejectedCount == 0 and self:hasBuyPriceMoved(validPrice + validFee) then
-        self:confirmMovedBuyPrice(validCount, validPrice, validFee)
-        return
-    end
-
     if rejectedCount > 0 then
         local text = RLAnimalBuyService.buildPartialConfirmationText(
             validCount, totalCount, result.rejected, validPrice, validFee)
@@ -991,7 +958,6 @@ function RLMenuBuyFrame:dispatchPendingBuy()
         #animals, tostring(destination.getName and destination:getName()), price, fee)
 
     -- Capture the buy list, then clear the pending-buy staging (single-shot).
-    self.confirmedBuyTotal = nil
     self.pendingBuyDestination = nil
     self.pendingBuyAnimals = nil
     self.pendingBuyPrice = nil
@@ -1064,7 +1030,6 @@ end
 
 --- Clear all pending buy-flow state (cancel, error, or after dispatch).
 function RLMenuBuyFrame:clearPendingBuyState()
-    self.confirmedBuyTotal = nil
     self.pendingBuyAnimals = nil
     self.pendingBuyPrice = nil
     self.pendingBuyFee = nil

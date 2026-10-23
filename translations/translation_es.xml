@@ -199,7 +199,6 @@
         <text name="rl_ui_moveSelected" text="Mover seleccionados"/>
         <text name="rl_ui_buyConfirmation" text="¿Seguro que quieres comprar %s animales por %s?" tag="format"/>
         <text name="rl_ui_buyPartialConfirmation" text="¿Comprar %d de %d animales seleccionados por %s?" tag="format"/>
-        <text name="rl_ui_buyPriceChanged" text="El precio ha cambiado mientras tanto: %d animales cuestan ahora %s. ¿Comprar?" tag="format"/>
         <text name="rl_ui_buySkippedNotSupported" text="%d animal(es) no compatibles con esta explotación" tag="format"/>
         <text name="rl_ui_buyAllRejected" text="Ninguno de los animales seleccionados se puede comprar en esta explotación."/>
         <text name="rl_ui_sellConfirmation" text="¿Seguro que quieres vender %s animales por %s?" tag="format"/>

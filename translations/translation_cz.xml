@@ -200,7 +200,6 @@
         <text name="rl_ui_moveSelected" text="Přesunout vybrané"/>
         <text name="rl_ui_buyConfirmation" text="Opravdu chcete koupit %s zvířat za %s?" tag="format"/>
         <text name="rl_ui_buyPartialConfirmation" text="Koupit %d z %d vybraných zvířat za %s?" tag="format"/>
-        <text name="rl_ui_buyPriceChanged" text="Cena se mezitím změnila: %d zvířat nyní stojí %s. Koupit?" tag="format"/>
         <text name="rl_ui_buySkippedNotSupported" text="%d zvíře(ta) není podporováno tímto chovem" tag="format"/>
         <text name="rl_ui_buyAllRejected" text="Žádné z vybraných zvířat nelze v tomto chovu zakoupit."/>
         <text name="rl_ui_sellConfirmation" text="Opravdu chcete prodat %s zvířat za %s?" tag="format"/>

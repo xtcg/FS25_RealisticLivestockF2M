@@ -199,7 +199,6 @@
         <text name="rl_ui_moveSelected" text="Déplacer la sélection"/>
         <text name="rl_ui_buyConfirmation" text="Êtes-vous sûr de vouloir acheter %s animaux pour %s ?" tag="format"/>
         <text name="rl_ui_buyPartialConfirmation" text="Acheter %d sur %d animaux sélectionnés pour %s ?" tag="format"/>
-        <text name="rl_ui_buyPriceChanged" text="Le prix a changé entre-temps : %d animaux coûtent maintenant %s. Acheter ?" tag="format"/>
         <text name="rl_ui_buySkippedNotSupported" text="%d animal(aux) non pris en charge par cet élevage" tag="format"/>
         <text name="rl_ui_buyAllRejected" text="Aucun des animaux sélectionnés ne peut être acheté dans cet élevage."/>
         <text name="rl_ui_sellConfirmation" text="Êtes-vous sûr de vouloir vendre %s animaux pour %s ?" tag="format"/>

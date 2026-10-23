@@ -200,7 +200,6 @@
         <text name="rl_ui_moveSelected" text="Kiválasztottak áthelyezése"/>
         <text name="rl_ui_buyConfirmation" text="Biztosan meg akarsz vásárolni %s állatot %s összegért?" tag="format"/>
         <text name="rl_ui_buyPartialConfirmation" text="Megvásárolsz %d állatot a kiválasztott %d közül ennyiért: %s?" tag="format"/>
-        <text name="rl_ui_buyPriceChanged" text="Az ár közben megváltozott: %d állat most %s. Megveszed?" tag="format"/>
         <text name="rl_ui_buySkippedNotSupported" text="%d állatot nem támogat ez az állattartó épület" tag="format"/>
         <text name="rl_ui_buyAllRejected" text="A kiválasztott állatok egyike sem vásárolható meg ebbe az állattartó épületbe."/>
         <text name="rl_ui_sellConfirmation" text="Biztosan el akarsz adni %s állatot %s összegért?" tag="format"/>
