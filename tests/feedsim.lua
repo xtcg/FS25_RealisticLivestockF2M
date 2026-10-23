@@ -53,10 +53,10 @@ for _, sub in ipairs(Economics.subTypes) do
 end
 
 
---- Switch the mode on or off (the RL setting).
-function FeedSim.setMode(real)
-    RLFeed.onSettingChanged("nutritionMode", real and RLFeed.MODE_REAL or RLFeed.MODE_LEGACY)
-end
+--- The unified nutrition model is the only one (the Legacy setting is retired, batch E). Kept as a
+--- no-op for the cross-tree A/B probes (tests/species_ab.lua, feed_ab.lua), which call it on both
+--- trees: on this one "legacy" rows run the same model as "real" ones - that is the change measured.
+function FeedSim.setMode(_) end
 
 
 --- A cattle pen with a trough. stock: name -> liters.
@@ -126,8 +126,10 @@ function FeedSim.hour(pen, opts)
             -- As Animal:updateOutput: the curve at its mature age, the lactation number sets the level.
             local parity = RLMilkParity.getFactor(RLMilkParity.getParity(animal.birthCount or RLMilkParity.getImpliedBirths(animal.age)))
             local curve = Economics.curve(sub.milk, RLMilkParity.getCurveAge(animal.age)) * parity * RLBreedTraits.get(sub, "milkScale")
+            -- Beef cattle give no milk output (RLRearingPolicy; Animal:updateOutput).
+            if RLRearingPolicy.isBeef(sub) then curve = 0 end
             local lactation = animal.isLactating and lactationFactor(animal.monthsSinceLastBirth or 0) or 0
-            RLBodyCondition.applyMilk(animal, curve * lactation * animal.genetics.productivity, curve, 1)
+            RLBodyCondition.applyMilk(animal, curve * lactation * (animal.genetics.productivity or 0), curve, 1)
         end
     end
     GrowthSim.advanceHour()

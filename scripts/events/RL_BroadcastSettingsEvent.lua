@@ -36,9 +36,11 @@ function RL_BroadcastSettingsEvent:readStream(streamId, connection)
 
     if readAll then
 
-        for _, setting in pairs(RLSettings.SETTINGS) do
+        -- The sender's own count (the two sides' settings tables can differ, a retired row:
+        -- nutritionMode): read what was written, never this side's count.
+        local count = streamReadUInt8(streamId)
 
-            if setting.ignore then continue end
+        for _ = 1, count do
 
             local name = streamReadString(streamId)
             local state = streamReadUInt8(streamId)
@@ -73,10 +75,14 @@ function RL_BroadcastSettingsEvent:writeStream(streamId, connection)
 
     if self.setting == nil then
 
+        local names = {}
         for name, setting in pairs(RLSettings.SETTINGS) do
-            if setting.ignore then continue end
+            if not setting.ignore then names[#names + 1] = name end
+        end
+        streamWriteUInt8(streamId, #names)
+        for _, name in ipairs(names) do
             streamWriteString(streamId, name)
-            streamWriteUInt8(streamId, setting.state)
+            streamWriteUInt8(streamId, RLSettings.SETTINGS[name].state)
         end
 
     else
@@ -121,6 +127,13 @@ function RL_BroadcastSettingsEvent:run(connection)
 
     end
 
+    -- A single-row event for a setting this side does not have (retired: nutritionMode): nothing
+    -- to commit, apply or relay.
+    if self.setting ~= nil and RLSettings.SETTINGS[self.setting] == nil then
+        Log:warning("RL_BroadcastSettingsEvent:run: unknown setting '%s' dropped", tostring(self.setting))
+        return
+    end
+
     -- Commit the deferred wire state now that validation has passed. self.pending
     -- is set only by readStream (event received over the wire); a locally-built
     -- event (host sendEvent, or the relay below) has self.pending == nil and its
@@ -128,7 +141,14 @@ function RL_BroadcastSettingsEvent:run(connection)
     if self.pending ~= nil then
         for i = 1, #self.pending do
             local p = self.pending[i]
-            RLSettings.SETTINGS[p.name].state = p.state
+            local setting = RLSettings.SETTINGS[p.name]
+            -- A row this side does not have (a retired setting: nutritionMode) is skipped, never
+            -- created; a single-row event naming one is dropped below.
+            if setting ~= nil and not setting.ignore then
+                setting.state = p.state
+            else
+                Log:warning("RL_BroadcastSettingsEvent:run: unknown setting '%s' skipped", tostring(p.name))
+            end
         end
         Log:debug("RL_BroadcastSettingsEvent:run: committed %d pending pair(s)", #self.pending)
     end
@@ -146,9 +166,10 @@ function RL_BroadcastSettingsEvent:run(connection)
     if self.setting == nil then
 
         for name, setting in pairs(RLSettings.SETTINGS) do
-            if setting.ignore then continue end
-            if setting.element ~= nil then setting.element:setState(setting.state) end
-            if setting.callback ~= nil then setting.callback(name, setting.values[setting.state]) end
+            if not setting.ignore then
+                if setting.element ~= nil then setting.element:setState(setting.state) end
+                if setting.callback ~= nil then setting.callback(name, setting.values[setting.state]) end
+            end
         end
 
         RLDebugUtils.dumpSettingsOnce()

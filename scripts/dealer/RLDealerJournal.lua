@@ -2,7 +2,7 @@
 -- barrier; it is not an engine asset save or a power-loss/fsync guarantee.
 -- A WAL ahead of the coordinated asset checkpoint requires ownership rechecking
 -- of EVERY record, including terminal receipts (Purchase.import forceReconciliation).
-RLDealerJournal = { VERSION = 1, FILENAME = "rm_RlDealerPurchaseJournal.xml", ROOT = "rlDealerPurchaseJournal" }
+RLDealerJournal = { VERSION = 2, FILENAME = "rm_RlDealerPurchaseJournal.xml", ROOT = "rlDealerPurchaseJournal" }
 local J = RLDealerJournal
 local function finite(v) return type(v) == "number" and v == v and math.abs(v) < math.huge end
 local function integer(v) return finite(v) and v >= 0 and v % 1 == 0 end
@@ -16,10 +16,10 @@ function J.new(lineage, epoch)
     if not text(lineage) or not lineage:match("^DL[%w%-]+$") or not text(epoch) then return nil, "JOURNAL_IDENTITY" end
     return { version = J.VERSION, lineage = lineage, epoch = epoch, sequence = 0, recoveryRequired = false }
 end
-local function valid(data)
+local function valid(data, legacyMilk)
     if not keys(data,{version=true,lineage=true,epoch=true,sequence=true,baseGeneration=true,purchase=true,recovery=true})
         or RLTradePersistence.check(data, RLDealerPersistence.LIMITS)
-        or data.version ~= J.VERSION or not text(data.lineage) or not data.lineage:match("^DL[%w%-]+$")
+        or (data.version ~= 1 and data.version ~= J.VERSION) or not text(data.lineage) or not data.lineage:match("^DL[%w%-]+$")
         or not text(data.epoch) or not integer(data.sequence) or data.sequence < 1
         or not integer(data.baseGeneration) then return nil, "BAD_JOURNAL_HEADER" end
     local store, why = RLDealerPurchase.import(data.purchase)
@@ -29,7 +29,7 @@ local function valid(data)
         if not keys(r,{version=true,clockMonths=true,sources=true,sourceOwnership=true,money=true}) or r.version~=1
             or not finite(r.clockMonths) or r.clockMonths<0 or type(r.sources)~="table" or r.sourceOwnership==nil
             or RLDealerOwnedStock==nil then return nil,"BAD_JOURNAL_RECOVERY" end
-        local owned;owned,why=RLDealerOwnedStock.validate(r.sourceOwnership,r.sources,r.clockMonths)
+        local owned;owned,why=RLDealerOwnedStock.validate(r.sourceOwnership,r.sources,r.clockMonths,legacyMilk)
         if not owned then return nil,why end
         if r.money~=nil then
             if RLDealerMoneyAdapter==nil then return nil,"JOURNAL_MONEY_CAPABILITY" end
@@ -45,7 +45,7 @@ local function write(xml, data)
     local encoded = RLTradePersistence.encodeText(canonical)
     if #encoded > RLDealerPersistence.MAX_ENCODED_BYTES then return nil, "JOURNAL_TOO_LARGE" end
     local digest = RLTradePersistence.checksum(canonical)
-    xml:setString(J.ROOT .. "#version", tostring(J.VERSION))
+    xml:setString(J.ROOT .. "#version", tostring(data.version))
     xml:setString(J.ROOT .. "#digest", digest)
     xml:setString(J.ROOT .. ".data#length", tostring(#encoded))
     local index = 0
@@ -56,7 +56,8 @@ local function write(xml, data)
     return true, digest
 end
 local function read(xml)
-    if tonumber(xml:getString(J.ROOT .. "#version")) ~= J.VERSION then return nil, "JOURNAL_VERSION" end
+    local version = tonumber(xml:getString(J.ROOT .. "#version"))
+    if version ~= 1 and version ~= J.VERSION then return nil, "JOURNAL_VERSION" end
     local parts, size = {}, 0
     xml:iterate(J.ROOT .. ".data.chunk", function(_, key)
         local part = xml:getString(key .. "#v")
@@ -73,7 +74,8 @@ local function read(xml)
     if digest ~= xml:getString(J.ROOT .. "#digest") then return nil, "JOURNAL_DIGEST" end
     local data, why = RLTradePersistence.parse(canonical, RLDealerPersistence.LIMITS)
     if not data then return nil, why end
-    local store; store, why = valid(data)
+    if type(data) ~= "table" or data.version ~= version then return nil, "JOURNAL_VERSION" end
+    local store; store, why = valid(data, version == 1)
     if not store then return nil, why end
     return data, digest
 end
@@ -122,7 +124,7 @@ function J.load(directory, storage)
     if not text(directory) then return nil, "JOURNAL_DIRECTORY" end
     local ok, data, digest = pcall((storage or defaultStorage).load, directory .. "/" .. J.FILENAME)
     if not ok or data == nil then return nil, ok and digest or "JOURNAL_READ_ERROR" end
-    local store, why = valid(data); if not store then return nil, why end
+    local store, why = valid(data, type(data) == "table" and data.version == 1); if not store then return nil, why end
     if RLTradePersistence.checksum(RLTradePersistence.canonical(data)) ~= digest then return nil, "JOURNAL_DIGEST" end
     return { data = data, digest = digest }
 end

@@ -48,7 +48,7 @@ function RLFeedInfoService.getPenState(placeable)
         local active, reason = RLFeed.evaluatePen(placeable)
         state = { active = active, reason = reason }
     end
-    return { active = state.active == true, reason = state.reason or "MODE_OFF", ration = RLFeed.getRation(placeable) }
+    return { active = state.active == true, reason = state.reason or "UNKNOWN", ration = RLFeed.getRation(placeable) }
 end
 
 
@@ -61,7 +61,7 @@ end
 --- Rows are rebuilt when the hour or the trough's stock changes, not on every info refresh.
 local function getRowsCacheKey(placeable)
     local total = placeable.getTotalFood ~= nil and placeable:getTotalFood() or 0
-    return tostring(RLBodyCondition.getTickId()) .. ":" .. string.format("%.3f", total) .. ":" .. tostring(RLFeed.mode)
+    return tostring(RLBodyCondition.getTickId()) .. ":" .. string.format("%.3f", total)
 end
 
 
@@ -281,7 +281,7 @@ end
 -- =============================================================================
 
 function RLFeedInfoService.getReasonText(reason)
-    return enumText("rl_feed_reason_", reason, "MODE_OFF")
+    return enumText("rl_feed_reason_", reason, "UNKNOWN")
 end
 
 
@@ -325,7 +325,7 @@ function RLFeedInfoService.getAnimalInfo(animal)
     local owner = animal.clusterSystem ~= nil and animal.clusterSystem.owner or nil
     local spec = owner ~= nil and owner.spec_husbandryFood or nil
     local pen = spec ~= nil and spec.rlFeedPen or nil
-    if pen == nil or not pen.active or RLFeed.mode ~= RLFeed.MODE_REAL then return nil end
+    if pen == nil or not pen.active then return nil end
     local tick = RLBodyCondition.getTickId()
     local function fresh(at) return RLFeed.isFresh(at, tick) end
     local record = animal.rlFeedIntake
@@ -381,14 +381,19 @@ end
 -- Info box and menu rows
 -- =============================================================================
 
---- Rows for a cattle pen's info box while the mode is on (one short figure each).
+--- Rows for a nutrition pen's info box (one short figure each).
 --- @return table rows { titleKey, text }
 function RLFeedInfoService.getPenInfoRows(placeable)
-    if RLFeed.mode ~= RLFeed.MODE_REAL or not RLFeedInfoService.isCattlePen(placeable) then return {} end
+    if not RLFeedInfoService.isCattlePen(placeable) then return {} end
     local state = RLFeedInfoService.getPenState(placeable)
     local rows = {}
     if not state.active then
         table.insert(rows, { titleKey = "rl_feed_penMode", text = RLFeedInfoService.getReasonText(state.reason) })
+        -- Its covered cattle, sheep, goats and pigs have no other model: held, never the old rules
+        -- (RLFeed.holdUnsettled). A pen of another type (MILKCOW) keeps its own rules.
+        if state.reason ~= "NOT_CATTLE" and state.reason ~= "MILKCOW_LEGACY" then
+            table.insert(rows, { titleKey = "rl_feed_penHeld", text = getText("rl_feed_heldText"), warning = true })
+        end
         -- The old rules never eat the feeds added for the mode: say which, and when nothing else
         -- is there to eat (SHEEP-GOATMIX-NOFEED-01).
         local gap = RLFeedInfoService.getFallbackFeedGap(placeable)
@@ -477,7 +482,7 @@ function RLFeedInfoService.checkFallbackFeed(placeable, foodFactor)
     if spec == nil then return nil end
     local pen = spec.rlFeedPen
     local gap
-    if RLFeed.mode == RLFeed.MODE_REAL and pen ~= nil and not pen.active and RLFeedInfoService.isCattlePen(placeable) then
+    if pen ~= nil and not pen.active and RLFeedInfoService.isCattlePen(placeable) then
         gap = RLFeedInfoService.getFallbackFeedGap(placeable)
     end
     local names = {}
@@ -578,7 +583,34 @@ function RLFeedInfoService.notifyUnnursed(placeable, count)
     if mission == nil or mission.addIngameNotification == nil then return end
     if placeable.getOwnerFarmId ~= nil and mission.getFarmId ~= nil and placeable:getOwnerFarmId() ~= mission:getFarmId() then return end
     local name = placeable.getName ~= nil and placeable:getName() or ""
-    mission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_CRITICAL, string.format(getText("rl_feed_lambNoDam"), name, count))
+    -- A sheep pen's lambs by name; calves, piglets and kids (the same rule since the unified nursing design) as young animals.
+    local sheep = RLFeed ~= nil and RLFeed.getConfig(placeable).speciesName == "SHEEP"
+    mission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_CRITICAL,
+        string.format(getText(sheep and "rl_feed_lambNoDam" or "rl_feed_youngNoDam"), name, count))
+end
+
+
+--- A pen short of feed (RLFeed.endFeeding: the hour's feed paid under RLFeed.FEED_SHORT_SHARE of the
+--- animals' demand): one notification, none again until the pen was fed (RLFeed.FEED_OK_SHARE) and runs short
+--- anew. Without feed an animal loses weight, then health (feedProfiles.xml health), at model-day rates:
+--- at one day a month a game day is a month without feed.
+--- @param placeable table
+--- @param coverage number Share of the animals' demand the hour's feed paid (pen mean)
+function RLFeedInfoService.notifyFeedShort(placeable, coverage)
+    local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
+    if spec == nil or coverage == nil or coverage ~= coverage then return end
+    if coverage >= RLFeed.FEED_OK_SHARE then
+        spec.rlFeedShortNotified = nil
+        return
+    end
+    if coverage >= RLFeed.FEED_SHORT_SHARE or spec.rlFeedShortNotified then return end
+    local mission = g_currentMission
+    if mission == nil or mission.addIngameNotification == nil then return end
+    if placeable.getOwnerFarmId ~= nil and mission.getFarmId ~= nil and placeable:getOwnerFarmId() ~= mission:getFarmId() then return end
+    spec.rlFeedShortNotified = true
+    local name = placeable.getName ~= nil and placeable:getName() or ""
+    mission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_CRITICAL,
+        string.format(getText("rl_feed_shortAlert"), name, math.floor(math.max(coverage, 0) * 100 + 0.5)))
 end
 
 

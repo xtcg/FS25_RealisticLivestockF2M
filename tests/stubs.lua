@@ -1,6 +1,8 @@
 -- Minimal stand-ins for the GIANTS engine globals the tested scripts touch at load and run time.
 -- Each test file gets a fresh Lua state with these loaded, then overrides what it needs.
 
+g_currentModName = "FS25_RealisticLivestockRM"
+
 math.clamp = function(v, lo, hi) return math.max(lo, math.min(hi, v)) end
 math.pow = math.pow or function(a, b) return a ^ b end
 
@@ -132,6 +134,10 @@ end
 
 -- The game's milk rule (births, the monthly tick, yield, the forecast and the dealer).
 loadMod("scripts/animal/RLLactation.lua")
+-- What each subtype is kept for and which genes it has (reads RLBreedTraits when a test loads it).
+loadMod("scripts/animal/RLRearingPolicy.lua")
+-- A young animal's own demand on its dam (pure).
+loadMod("scripts/nutrition/RLYoungDemandMath.lua")
 -- Shared butcher age window, sourced by main.lua before move modules.
 loadMod("scripts/utils/RLEppAge.lua")
 
@@ -166,8 +172,8 @@ loadMod("scripts/animal/RLGrowthMath.lua")
 loadMod("scripts/animal/RLWeightProfiles.lua")
 loadMod("scripts/animal/RLGrowth.lua")
 
--- Real-equivalent nutrition (RLFeed). The mode is the legacy one unless a test switches it on
--- (RLFeed.mode), so every other test sees the old rules; tests/test_feed.lua covers it.
+-- Unified nutrition (RLFeed): the only model of the covered cattle, sheep, goats and pigs; a
+-- covered animal outside a pen that runs it is held (RLFeed.holdUnsettled). tests/test_feed.lua.
 loadMod("scripts/feed/RLFeedUnits.lua")
 loadMod("scripts/feed/RLFeedProfiles.lua")
 loadMod("scripts/feed/RLFeedMath.lua")

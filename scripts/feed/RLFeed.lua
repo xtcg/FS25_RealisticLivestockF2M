@@ -43,10 +43,6 @@ RLFeed = {}
 
 local Log = RmLogging.getLogger("RLRM")
 
-RLFeed.MODE_LEGACY = 1
-RLFeed.MODE_REAL = 2
---- The setting's value (RLSettings nutritionMode).
-RLFeed.mode = RLFeed.MODE_LEGACY
 
 RLFeed.TARGETS = { "AUTO", "FINISH", "GROW", "MAINTAIN" }
 --- Grains cattle troughs take, in the order AUTO takes them (the capped ones last: grain grist, a
@@ -105,6 +101,8 @@ end
 
 
 local observerErrors = 0
+--- Reasons a covered animal was held for (RLFeed.holdUnsettled), each logged once a session.
+local heldWarned = {}
 
 function RLFeed.notify(kind, data)
     for _, fn in ipairs(observers) do
@@ -121,22 +119,12 @@ end
 -- Mode
 -- =============================================================================
 
---- RLSettings callback.
-function RLFeed.onSettingChanged(name, value)
-    if name ~= "nutritionMode" then return end
-    local mode = value == RLFeed.MODE_REAL and RLFeed.MODE_REAL or RLFeed.MODE_LEGACY
-    if mode ~= RLFeed.mode then
-        Log:info("RLFeed: nutrition model %s", mode == RLFeed.MODE_REAL and "real-equivalent" or "legacy")
-    end
-    RLFeed.mode = mode
-end
-
-
---- Whether the mode can run at all, and why not.
+--- Whether the unified nutrition model can run at all, and why not. It is the only model for the
+--- cattle, sheep, goats and pigs it covers (the old selectable Legacy mode is retired: RLSettings
+--- migrateRetiredNutritionMode); only a config that cannot be read keeps it from running.
 --- @return boolean
---- @return string reason "OK", "MODE_OFF", "CONFIG_INVALID", "MODEL_OFF"
+--- @return string reason "OK", "CONFIG_INVALID", "MODEL_OFF"
 function RLFeed.canRun()
-    if RLFeed.mode ~= RLFeed.MODE_REAL then return false, "MODE_OFF" end
     if not RLFeedProfiles.isValid() then return false, "CONFIG_INVALID" end
     if RLGrowth == nil or not RLGrowth.isEnabled() then return false, "MODEL_OFF" end
     return true, "OK"
@@ -289,6 +277,44 @@ end
 local getNursing = RLFeed.getNursing
 
 
+--- How an animal's young are raised (RLRearingPolicy): NUTRITION_COVERAGE (beef cattle, meat
+--- sheep, pigs), DAIRY_MILK (dairy cattle, goats) or nil.
+function RLFeed.getRearingMode(animal)
+    if RLRearingPolicy == nil or animal == nil or animal.getSubType == nil then return nil end
+    return RLRearingPolicy.getRearingMode(animal:getSubType())
+end
+
+
+--- Whether an animal is beef cattle (a suckler: her calves drink at her the nutrition she pays).
+local function isBeefCattle(animal)
+    if RLRearingPolicy == nil or animal == nil or animal.getSubType == nil or getNursing(animal) ~= nil then return false end
+    if RLFeed.getConfig(animal).monogastric ~= nil then return false end
+    return RLRearingPolicy.isBeef(animal:getSubType())
+end
+RLFeed.isBeefCattle = isBeefCattle
+
+
+--- Whether a dam is paired with her young at foot by their mother id and pays their demand
+--- (the unified contract, NUTRITION_COVERAGE): a species with nursing rules (sheep, pigs) or beef
+--- cattle. A dairy cow is a dam while she gives milk (RLFeed.canNurse).
+local function pairsYoung(animal)
+    -- A dairy goat nurses as a dairy cow does (DAIRY_MILK): her milk is her genes' and lactation's.
+    if RLFeed.getRearingMode(animal) == "DAIRY_MILK" then return false end
+    return getNursing(animal) ~= nil or isBeefCattle(animal)
+end
+RLFeed.pairsYoung = pairsYoung
+
+
+--- A beef calf's months to weaning: its breed's sucklingMonths (breedTraits), else 7.
+local function getSucklerWeaningMonth(animal)
+    local subType = animal.getSubType ~= nil and animal:getSubType() or nil
+    local months = subType ~= nil and RLBreedTraits.get(subType, "sucklingMonths") or 0
+    if months == nil or months <= 1 then months = 7 end
+    return months
+end
+RLFeed.getSucklerWeaningMonth = getSucklerWeaningMonth
+
+
 --- Whether a young animal was weaned early (nursing rules): kept on its state once it was
 --- (RLFeed.afterStep), so a later shortage or a move back to its dam never puts it on milk again.
 local function isWeanedEarly(animal)
@@ -310,7 +336,14 @@ end
 --- @return number 0..1 (0 without nursing rules)
 function RLFeed.getNursingMilkMax(animal, ageOffsetMonths)
     local nursing = getNursing(animal)
-    if nursing == nil then return 0 end
+    if nursing == nil then
+        -- A beef calf: the suckler curve at its age over its breed's suckling months.
+        if isBeefCattle(animal) then
+            local x = (getFeedAge(animal) + (ageOffsetMonths or 0)) / getSucklerWeaningMonth(animal)
+            return math.clamp(RLFeedProfiles.interpolate(RLFeed.getConfig(animal).rearing.sucklerMilkMax, x), 0, 1)
+        end
+        return 0
+    end
     return math.clamp(RLFeedProfiles.interpolate(nursing.curves.milkMax, getFeedAge(animal) + (ageOffsetMonths or 0)), 0, 1)
 end
 
@@ -335,7 +368,7 @@ end
 --- on milk are in her pen).
 function RLFeed.isNursingDam(animal)
     local owner = getOwner(animal)
-    if owner == nil or animal.getIdentifiers == nil or getNursing(animal) == nil then return false end
+    if owner == nil or animal.getIdentifiers == nil or not pairsYoung(animal) then return false end
     return getPenDams(owner)[animal:getIdentifiers()] == animal
 end
 
@@ -348,31 +381,25 @@ end
 ---     ewe or a sow: they give no saleable milk.
 ---   A ewe nursing: her lambs on milk by their age are in her pen (RLFeed.isNursingDam): the milk
 ---     her budget pays for them (nursing rules, sheep); none when they are away or weaned.
----   A sow nursing: a litter of hers under the pen gate's weaning age (feedProfiles monogastric
----     youngLegacyUntilMonth) is in her pen. Shown only: no sow milk is modelled yet (the pen keeps
----     the old feeding rules, RLFeed.stepFallback), so no milk is made or paid for it.
+---   A sow nursing: her piglets on milk by their age are in her pen (the nursing rules, as a
+---     ewe's): her budget pays their demand; no saleable milk.
 --- Reads only; nothing here makes milk.
 --- @param animal table
 --- @return boolean nursing
---- @return string|nil kind "MILK" (isLactating), "NURSING" (a ewe's lambs drink her milk), "SUCKLING" (a sow's litter, not modelled)
+--- @return string|nil kind "MILK" (isLactating), "NURSING" (a ewe's lambs, a sow's piglets drink her milk)
 function RLFeed.getNursingState(animal)
     if animal == nil or animal.isDead then return false, nil end
+    -- A beef cow nurses while a calf of hers on milk is with her: she gives no saleable milk.
+    if isBeefCattle(animal) then
+        if animal.gender == "female" and animal.isParent and RLFeed.isNursingDam(animal) then return true, "NURSING" end
+        return false, nil
+    end
     if animal.isLactating == true then return true, "MILK" end
     if animal.gender ~= "female" or not animal.isParent then return false, nil end
     local config = RLFeed.getConfig(animal)
     if config.nursing ~= nil then
         if RLFeed.isNursingDam(animal) then return true, "NURSING" end
         return false, nil
-    end
-    local mono = config.monogastric
-    local owner = getOwner(animal)
-    if mono == nil or owner == nil or owner.getClusters == nil or animal.getIdentifiers == nil then return false, nil end
-    local id = animal:getIdentifiers()
-    for _, young in ipairs(owner:getClusters() or {}) do
-        if young ~= animal and not young.isDead and (young.numAnimals or 1) > 0 and young.motherId ~= nil and young.motherId == id
-            and getFeedAge(young) < mono.youngLegacyUntilMonth then
-            return true, "SUCKLING"
-        end
     end
     return false, nil
 end
@@ -417,8 +444,8 @@ end
 --- dam there that can nurse it (sold, dead, in another pen, dry), and at least calfMilk
 --- earlyWeaningMonth old (3: a calf takes to solid feed from about 2-3 months, so an orphan is
 --- weaned early rather than kept on milk). It then lives on solid feed as any weaned animal. A
---- younger one without its dam still needs milk: its pen keeps the old rules (SUCKLING_CALF) until
---- it is in a calf rearing pen, back with its dam, or old enough.
+--- younger one without its dam still needs milk: none is made for it (no other dam's, never the old
+--- rules); it lives on what it eats until it is in a calf rearing pen, back with its dam, or old enough.
 --- @param animal table
 --- @return boolean
 function RLFeed.isEarlyWeaned(animal)
@@ -447,15 +474,24 @@ end
 --- With calf rearing switched off a young calf still suckles: the default weaning curves say how
 --- long, so a pen holding one is never taken for a pen of weaned cattle.
 local function getCalfCaps(animal, ageOffsetMonths)
-    -- A monogastric species (pigs) has no calf rules: a pen with a young animal not yet weaned
-    -- keeps the old rules (RLFeed.evaluatePen, PIG_BREEDING_LEGACY), so every animal it feeds is weaned.
-    if RLFeed.getConfig(animal).monogastric ~= nil then return 0, 1 end
+    -- A monogastric species without nursing rules has no young on milk.
     local nursing = getNursing(animal)
+    if RLFeed.getConfig(animal).monogastric ~= nil and nursing == nil then return 0, 1 end
     if nursing ~= nil then
         -- Nursing rules (sheep): the species' curves at its age; an orphan ready for it is weaned.
         local age = getFeedAge(animal) + (ageOffsetMonths or 0)
         local milkMax = math.clamp(RLFeedProfiles.interpolate(nursing.curves.milkMax, age), 0, 1)
         local solidMax = math.clamp(RLFeedProfiles.interpolate(nursing.curves.solidMax, age), 0, 1)
+        if milkMax > 0 and RLFeed.isEarlyWeaned(animal) then return 0, 1 end
+        return milkMax, solidMax
+    end
+    if isBeefCattle(animal) and not isRearingPen(getOwner(animal)) then
+        -- A beef calf at its dam (the suckler curves to its breed's suckling months); an orphan from
+        -- calfMilk earlyWeaningMonth is weaned early, as any calf.
+        local x = (getFeedAge(animal) + (ageOffsetMonths or 0)) / getSucklerWeaningMonth(animal)
+        local rearing = RLFeed.getConfig(animal).rearing
+        local milkMax = math.clamp(RLFeedProfiles.interpolate(rearing.sucklerMilkMax, x), 0, 1)
+        local solidMax = math.clamp(RLFeedProfiles.interpolate(rearing.sucklerSolidMax, x), 0, 1)
         if milkMax > 0 and RLFeed.isEarlyWeaned(animal) then return 0, 1 end
         return milkMax, solidMax
     end
@@ -479,6 +515,9 @@ local function getFeedStage(animal, milkMax)
     if milkMax <= 0 then return "WEANED" end
     local nursing = getNursing(animal)
     if nursing ~= nil then return getFeedAge(animal) < nursing.weaningMonth - 1 and "PRE_WEANING" or "WEANING" end
+    if isBeefCattle(animal) and not isRearingPen(getOwner(animal)) then
+        return getFeedAge(animal) < getSucklerWeaningMonth(animal) - 1 and "PRE_WEANING" or "WEANING"
+    end
     if RLCalfRearing ~= nil and RLCalfRearing.isEnabled() then return RLCalfRearing.getStage(animal) end
     return (animal.age or 0) < RLCalfRearing.DEFAULTS.weaningMonth and "PRE_WEANING" or "WEANING"
 end
@@ -496,8 +535,8 @@ end
 --- Whether a pen runs the mode, and why (not).
 --- @param placeable table
 --- @return boolean active
---- @return string reason "OK", "MODE_OFF", "CONFIG_INVALID", "MODEL_OFF", "NOT_CATTLE", "MILKCOW_LEGACY",
----         "NO_TROUGH", "UNCOVERED_ANIMAL", "SUCKLING_CALF" (getPenState also "ERROR": the plan failed)
+--- @return string reason "OK", "CONFIG_INVALID", "MODEL_OFF", "NOT_CATTLE", "MILKCOW_LEGACY", "NO_TROUGH",
+---         "UNCOVERED_ANIMAL", "NO_NURSING_RULES" (getPenState also "ERROR": the plan failed)
 function RLFeed.evaluatePen(placeable)
     local ok, reason = RLFeed.canRun()
     if not ok then return false, reason end
@@ -521,17 +560,34 @@ function RLFeed.evaluatePen(placeable)
     local rearing = nursing == nil and isRearingPen(placeable)
     local clusters = placeable:getClusters() or {}
     -- Who can nurse is worked out afresh for the evaluation (and kept for the hour's calf caps).
-    local dams = not rearing and getPenDams(placeable, true) or nil
+    if not rearing then getPenDams(placeable, true) end
     for _, animal in ipairs(clusters) do
         if not animal.isDead and (animal.numAnimals or 1) > 0 then
             if not RLGrowth.covers(animal) then return false, "UNCOVERED_ANIMAL" end
-            -- Nursing rules: a young animal without its dam has no milk at all and lives on what it
-            -- eats (RLFeed.isEarlyWeaned); the pen runs the mode.
-            if not rearing and nursing == nil then
-                -- A calf on milk drinks from its dam: she must be here, alive and in milk; an
-                -- older one without her is weaned early (getCalfCaps).
-                local milkMax = getCalfCaps(animal)
-                if milkMax > 0 and (animal.motherId == nil or dams[animal.motherId] == nil) then return false, "SUCKLING_CALF" end
+            -- A young animal on milk without its dam here has no milk made for it (it is never
+            -- given another dam's): it lives on what it eats, its growth and health show it, and the
+            -- player is told (RLFeed.countUnnursed). The pen runs the mode - never the old rules.
+        end
+    end
+    return true, "OK"
+end
+
+
+--- A monogastric pen (pigs): it runs the model when it has a trough and every animal in it is
+--- covered. Pregnant and nursing sows and their litters run it as any pig: a sow pays her piglets'
+--- demand (RLFeed.linkDams), her pregnancy is in her budget, piglets drink and take creep feed by
+--- age. A section without nursing rules (a third-party config; an older copy of the mod's file
+--- takes the mod's: RLFeedProfiles.migrateCopy) cannot feed a litter: NO_NURSING_RULES.
+--- @return boolean active
+--- @return string reason
+function RLFeed.evaluateMonogastricPen(placeable, section)
+    if placeable.spec_husbandryFood == nil then return false, "NO_TROUGH" end
+    for _, animal in ipairs(placeable:getClusters() or {}) do
+        if not animal.isDead and (animal.numAnimals or 1) > 0 then
+            if not RLGrowth.covers(animal) then return false, "UNCOVERED_ANIMAL" end
+            if section.nursing == nil and (animal.isPregnant or (animal.gender == "female" and animal.isParent)
+                or RLFeed.getYoungMilkByAge(animal) > 0) then
+                return false, "NO_NURSING_RULES"
             end
         end
     end
@@ -539,25 +595,15 @@ function RLFeed.evaluatePen(placeable)
 end
 
 
---- A monogastric pen (pigs): it runs the mode when it has a trough and every animal in it is covered
---- and growing - none younger than youngLegacyUntilMonth (continuous months: not weaned), none
---- pregnant, no female that has given birth. Otherwise the whole pen keeps the old rules
---- (PIG_BREEDING_LEGACY): the sow's milk, pregnancy and body condition are a later batch. Its covered
---- pigs' weight still follows their curves (RLFeed.stepFallback, from AnimalHealth.updateHealth).
---- @return boolean active
---- @return string reason
-function RLFeed.evaluateMonogastricPen(placeable, section)
-    if placeable.spec_husbandryFood == nil then return false, "NO_TROUGH" end
-    local young = section.monogastric.youngLegacyUntilMonth
-    for _, animal in ipairs(placeable:getClusters() or {}) do
-        if not animal.isDead and (animal.numAnimals or 1) > 0 then
-            if not RLGrowth.covers(animal) then return false, "UNCOVERED_ANIMAL" end
-            if animal.isPregnant or (animal.gender == "female" and animal.isParent) or RLGrowth.getContinuousAge(animal) < young then
-                return false, "PIG_BREEDING_LEGACY"
-            end
-        end
+--- A young animal's milk share by its age alone (no orphan rule): its nursing rules' or the suckler
+--- curve (RLFeed.getNursingMilkMax); a calf of another breed at a beef dam the calf rearing curve.
+function RLFeed.getYoungMilkByAge(animal)
+    local share = RLFeed.getNursingMilkMax(animal)
+    if share > 0 or getNursing(animal) ~= nil or isBeefCattle(animal) then return share end
+    if RLCalfRearing ~= nil and RLCalfRearing.isEnabled() and RLFeed.getConfig(animal).monogastric == nil then
+        return (RLCalfRearing.getCaps(animal))
     end
-    return true, "OK"
+    return 0
 end
 
 
@@ -578,7 +624,7 @@ end
 function RLFeed.getNursingDams(animals)
     local dams, suckling, byId = {}, {}, nil
     for _, animal in ipairs(animals) do
-        if getNursing(animal) == nil then
+        if not pairsYoung(animal) then
             if RLFeed.canNurse(animal) then dams[animal:getIdentifiers()] = animal end
         elseif not animal.isDead and (animal.numAnimals or 1) > 0 and animal.getIdentifiers ~= nil then
             byId = byId or {}
@@ -590,7 +636,7 @@ function RLFeed.getNursingDams(animals)
         local motherId = animal.motherId
         local dam = motherId ~= nil and byId[motherId] or nil
         if dam ~= nil and dam ~= animal and dam.gender == "female" and not animal.isDead and (animal.numAnimals or 1) > 0
-            and RLFeed.getNursingMilkMax(animal) > 0 and not isWeanedEarly(animal) then
+            and RLFeed.getYoungMilkByAge(animal) > 0 and not isWeanedEarly(animal) then
             dams[motherId] = dam
             local info = suckling[dam]
             if info == nil then
@@ -618,11 +664,19 @@ end
 
 --- The ration class of an animal: CALF (on milk), LACTATING, DRY (a cow that has calved), GROWING.
 function RLFeed.getRationClass(animal)
-    if RLFeed.getConfig(animal).monogastric ~= nil then return "GROWING" end
+    if RLFeed.getConfig(animal).monogastric ~= nil then
+        -- Pigs: a piglet on milk, a sow nursing her litter here, any other pig growing (no ration
+        -- classes of their own: the class only names what it eats for).
+        if getNursing(animal) ~= nil then
+            if (getCalfCaps(animal)) > 0 then return "CALF" end
+            if RLFeed.isNursingDam(animal) then return "LACTATING" end
+        end
+        return "GROWING"
+    end
     local milkMax = getCalfCaps(animal)
     if milkMax > 0 then return "CALF" end
-    if getNursing(animal) ~= nil then
-        -- Nursing rules (sheep): a ewe is in milk while her lambs on milk are with her.
+    if pairsYoung(animal) then
+        -- Nursing rules (sheep) and beef cows: in milk while her young on milk are with her.
         if RLFeed.isNursingDam(animal) then return "LACTATING" end
         if animal.gender == "female" and animal.isParent then return "DRY" end
         return "GROWING"
@@ -749,17 +803,46 @@ end
 --- @return number realKgPerGameLiter (0 without a milk curve)
 --- @return number meMJPerKg
 function RLFeed.getMilkRealPerGameLiter(animal)
-    -- Nursing rules (sheep): the dam's milk is counted in real kg from the start (her lactation
-    -- rows), never a game liter; the ME a kg costs her is her species' milk meMJPerKg.
-    if getNursing(animal) ~= nil then return 1, RLFeed.getConfig(animal).milk.meMJPerKg end
+    -- A paired dam (sheep, pigs, beef cows): her milk is counted in real kg from the start (her
+    -- young's demand), never a game liter; the ME a kg costs her is her breed's or species' milk meMJPerKg.
     local subType = animal:getSubType()
     local binding = RLGrowth.getBinding(subType)
+    if isBeefCattle(animal) then
+        -- A beef cow's milk is counted in real kg (her calves' demand), at her breed's ME a kg.
+        local _, mePerKg = RLFeedProfiles.getMilkBridge(binding ~= nil and binding.profile or nil)
+        return 1, mePerKg
+    end
+    if pairsYoung(animal) then return 1, RLFeed.getConfig(animal).milk.meMJPerKg end
     local realKg, mePerKg = RLFeedProfiles.getMilkBridge(binding ~= nil and binding.profile or nil)
-    local milkCurve = subType ~= nil and subType.output ~= nil and subType.output.milk or nil
-    local mature = milkCurve ~= nil and milkCurve.get ~= nil and milkCurve:get(60) * RLBreedTraits.get(subType, "milkScale") or 0
+    local config = RLFeed.getConfig(animal)
+    if config.speciesName ~= nil and (binding == nil or RLFeedProfiles.getConfig().milk.breeds[(binding.profile or ""):upper()] == nil) then
+        -- A species section's own milk (goats): its real lactation average and ME a kg.
+        realKg, mePerKg = config.milk.realKgPerDay, config.milk.meMJPerKg
+    end
+    local mature = RLFeed.getMatureMilk(subType) * RLBreedTraits.get(subType, "milkScale")
     local mean = mature * RLBodyCondition.getConfig(animal).lactationMeanFactor
     if mean <= 0 then return 0, mePerKg end
     return realKg * RLFeed.getConfig(animal).realDaysPerPeriod / mean, mePerKg
+end
+
+
+--- A subtype's game milk curve at a mature age (game liters, as its output gives them): the tank
+--- milk curve (output.milk), else the milk sold in cans or pallets (output.pallets of a lactation
+--- fill type: goat milk, Hof Bergmann's cattle cans). One reader for both shapes.
+--- @return number
+function RLFeed.getMatureMilk(subType)
+    local output = subType ~= nil and subType.output or nil
+    if output == nil then return 0 end
+    local milk = output.milk
+    if milk ~= nil and milk.get ~= nil and (Animal == nil or Animal.isSemenFillType == nil or not Animal.isSemenFillType(milk.fillType)) then
+        return milk:get(60) or 0
+    end
+    local pallets = output.pallets
+    if pallets ~= nil and Animal ~= nil and Animal.isLactationPalletFillType ~= nil and Animal.isLactationPalletFillType(pallets.fillType) then
+        local curve = pallets.curve or pallets
+        return curve.get ~= nil and (curve:get(60) or 0) or 0
+    end
+    return 0
 end
 
 
@@ -783,6 +866,8 @@ function RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
         local young = physiology.youngMaintenanceMEPerKgMetabolic
         return (young + (config.requirements.maintenanceMEPerKgMetabolic - young) * t) / config.requirements.maintenanceMEPerKgMetabolic
     end
+    -- Pigs: a piglet's maintenance is its species' at its weight (the cattle calf's NRC value is not).
+    if config.monogastric ~= nil then return 1 end
     local milkMax = getCalfCaps(animal, 0.5 * (dtMonths or 0))
     if milkMax <= 0 then return 1 end
     local calf = config.calf.maintenanceMEPerKgMetabolic / config.requirements.maintenanceMEPerKgMetabolic
@@ -820,15 +905,20 @@ function RLFeed.getGrowthCost(animal, dtMonths)
 end
 
 
---- A nursing dam's milk in a step input (nursing rules, sheep): her milk at full feed this step
---- (RLFeed.getDamMilk, real kg a day) as the input's potentialMilk per month, x `share` (her water),
---- in milk, with her early-lactation reserve rule. An animal that nurses none gives none.
---- @return number kgPerDay Her milk at full feed (before `share`)
-function RLFeed.applyDamMilk(animal, input, config, share)
-    local kg, _, youngAge = RLFeed.getDamMilk(animal)
+--- A paired dam's milk in a step input (RLFeed.pairsYoung: sheep, pigs, beef cows): what her young
+--- at foot need from her this step (kgPerDay, real kg a day: the sum of their own demands,
+--- RLFeed.linkDams), never a milk table or gene, as the input's potentialMilk per month, x `share`
+--- (her water), with her early-lactation reserve rule. An animal that nurses none gives none.
+--- @return number kgPerDay
+function RLFeed.applyDamMilk(animal, input, config, share, kgPerDay)
+    local kg = math.max(kgPerDay or 0, 0)
     input.potentialMilk = kg * config.realDaysPerPeriod * (share or 1)
     input.isLactating = input.potentialMilk > 0
-    if input.isLactating then input.milkMobilizeShare = RLFeed.getDamMobilizeShare(animal, youngAge) end
+    if input.isLactating then
+        local owner = getOwner(animal)
+        local info = owner ~= nil and select(2, getPenDams(owner))[animal] or nil
+        input.milkMobilizeShare = RLFeed.getDamMobilizeShare(animal, info ~= nil and info.age or nil)
+    end
     return kg
 end
 
@@ -845,7 +935,8 @@ local function buildEnergyInput(animal, dtMonths)
     local config = RLFeed.getConfig(animal)
     input.maintenanceFactor = (input.maintenanceFactor or 1) * RLFeed.getCalfMaintenanceFactor(animal, dtMonths)
     input.growthCostPerKg = RLFeed.getGrowthCost(animal, dtMonths)
-    if config.nursing ~= nil then RLFeed.applyDamMilk(animal, input, config, 1) end
+    -- A paired dam's milk is her young's demand, added once her young are described (linkDams).
+    if pairsYoung(animal) then RLFeed.applyDamMilk(animal, input, config, 1, 0) end
     local _, mePerLiter = RLFeed.getMilkBridge(animal, input.potentialMilk)
     input.milkCostPerLiter = mePerLiter
     return input, RLFeed.getEnergyConfig(animal)
@@ -870,7 +961,7 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
     if class == "LACTATING" then milkKg = RLFeed.getMilkBridge(animal, input.potentialMilk) end
     local nursing = config.nursing
     -- A nursing dam (sheep) makes only what her young drink: her milk is never collected.
-    local milkCollect = class == "LACTATING" and (nursing ~= nil and 0 or RLBreedTraits.getMilkCollect(animal:getSubType())) or 1
+    local milkCollect = class == "LACTATING" and (pairsYoung(animal) and 0 or RLBreedTraits.getMilkCollect(animal:getSubType())) or 1
     -- Mid-step caps avoid a larger milk allowance simply because the month has fewer ticks.
     local milkMax, solidMax = getCalfCaps(animal, 0.5 * dtMonths)
     local weaningX
@@ -897,20 +988,21 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
         local binding = RLGrowth.getBinding(animal:getSubType())
         cowIntake = RLFeedProfiles.getCowIntakeFactor(binding ~= nil and binding.profile or nil)
     end
-    local milkLimit, nursingLimit = 0, 0
-    if class == "CALF" and nursing ~= nil then
-        -- Nursing rules (sheep): no trough milk; at its dam at most lambMilkKgPerDay of her whole
-        -- milk x its milkMax (twins share her pool, RLFeed.linkDams).
-        nursingLimit = nursing.lambMilkKgPerDay * config.damMilk.dm * milkMax
-    elseif class == "CALF" then
-        local binding = RLGrowth.getBinding(animal:getSubType())
-        -- The reference calf is a Holstein of its sex; a weight profile file without Holstein
-        -- leaves the calf at the reference allowance.
-        local reference = RLGrowth.getConfig().profiles.HOLSTEIN ~= nil and { profile = "HOLSTEIN", sex = binding.sex } or binding
-        milkLimit = RLFeedMath.getCalfMilkLimit(RLGrowth.getBirthMean(binding), RLGrowth.getBirthMean(reference),
-            milkMax, config.calfMilk)
-        nursingLimit = RLFeedMath.getCalfNursingLimit(RLGrowth.getBirthMean(binding), RLGrowth.getBirthMean(reference),
-            milkMax, config.calfMilk, config.damMilk)
+    local milkLimit, nursingLimit, nursingDemandME = 0, 0, 0
+    if class == "CALF" then
+        -- At its dam it drinks its own demand (RLYoungDemandMath): its stage's milk share of its own
+        -- maintenance and normal growth at its actual weight, as kg DM of her milk. What she pays
+        -- of it is settled against her budget (RLFeed.settleDamMilk); nothing caps it at a dam table.
+        nursingDemandME = RLYoungDemandMath.getDemandME(demands.maintenance / days, demands.growthStep / dtDays, milkMax)
+        nursingLimit = config.damMilk.me > 0 and nursingDemandME / config.damMilk.me or 0
+        if nursing == nil then
+            local binding = RLGrowth.getBinding(animal:getSubType())
+            -- Trough milk (a calf rearing pen's calf milk): the reference calf is a Holstein of its sex;
+            -- a weight profile file without Holstein leaves the calf at the reference allowance.
+            local reference = RLGrowth.getConfig().profiles.HOLSTEIN ~= nil and { profile = "HOLSTEIN", sex = binding.sex } or binding
+            milkLimit = RLFeedMath.getCalfMilkLimit(RLGrowth.getBirthMean(binding), RLGrowth.getBirthMean(reference),
+                milkMax, config.calfMilk)
+        end
     end
 
     local appetiteCtx = { milkKgPerDay = milkKg, weaningX = weaningX, gene = gene, lactationFactor = RLGrowth.getLactationFactor(animal, state) }
@@ -940,9 +1032,12 @@ function RLFeed.describeAnimal(animal, ration, dtMonths, dtDays)
         milkMax = class == "CALF" and milkMax or 0,
         milkMaxKgPerDay = milkLimit,
         nursingMaxKgPerDay = nursingLimit,
+        nursingDemandME = nursingDemandME,
         solidMax = solidMax,
         solidEnergy = class == "CALF" and (nursing ~= nil
             and math.clamp(RLFeedProfiles.interpolate(nursing.curves.solidEnergy, getFeedAge(animal) + 0.5 * dtMonths), 0, 1)
+            or (isBeefCattle(animal) and not isRearingPen(getOwner(animal)) and math.clamp(RLFeedProfiles.interpolate(
+                config.rearing.sucklerSolidEnergy, (getFeedAge(animal) + 0.5 * dtMonths) / getSucklerWeaningMonth(animal)), 0, 1))
             or RLCalfRearing.getSolidEnergyFactor(animal)) or 1,
         -- A young animal at foot eats at most creepMaxKgDMPerDay of concentrate (nursing rules).
         concMaxKgPerDay = class == "CALF" and nursing ~= nil and nursing.creepMaxKgDMPerDay or nil,
@@ -969,7 +1064,7 @@ end
 function RLFeed.describeMonogastricAnimal(animal, ration, dtMonths, dtDays, config)
     local mono = config.monogastric
     local body = RLBodyCondition.getConfig(animal)
-    local class = "GROWING"
+    local class = RLFeed.getRationClass(animal)
     local target = RLFeed.getAnimalTarget(animal, ration, class)
     local input, cfg = buildEnergyInput(animal, dtMonths)
     local _, _, gene = RLGrowth.getGeneFactors(animal.genetics.metabolism, animal)
@@ -980,15 +1075,35 @@ function RLFeed.describeMonogastricAnimal(animal, ration, dtMonths, dtDays, conf
     local days = config.realDaysPerPeriod
     local weight = math.max(animal.weight or 0, 0) + 0.5 * (demands.growthKg or 0)
     local sex = RLFeedMath.getMonoSex(animal.gender, animal.isCastrated)
-    local waterCoverage, water = RLFeed.getAnimalWater(animal, 0, dtDays)
+    -- A piglet on milk (pig nursing rules): its own demand on its sow (RLYoungDemandMath) beside the
+    -- creep feed its age takes (solidMax of what it can physically eat); its lysine need is met by
+    -- her milk for the milk share of its diet. A sow nursing her litter: her milk need is added once
+    -- the litter is described (RLFeed.linkDams).
+    local milkMax, solidMax = getCalfCaps(animal, 0.5 * dtMonths)
+    if class ~= "CALF" then milkMax, solidMax = 0, 1 end
+    local waterCoverage, water = RLFeed.getAnimalWater(animal, milkMax, dtDays)
+    local physical = RLFeedMath.getMonoPhysicalCap(weight, mono) * gene * water
+    local lysine = RLFeedMath.getLysineNeed(weight, sex, mono)
+    local nursingDemandME, nursingLimit = 0, 0
+    if class == "CALF" then
+        nursingDemandME = RLYoungDemandMath.getDemandME(demands.maintenance / days, demands.growthStep / dtDays, milkMax)
+        local damMilk = config.damMilk
+        nursingLimit = damMilk.me > 0 and nursingDemandME / damMilk.me or 0
+        local milkLys = damMilk.me > 0 and 1000 * (damMilk.sidLys or 0) / damMilk.me or 0
+        lysine = (1 - milkMax) * lysine + milkMax * math.min(lysine, milkLys > 0 and milkLys or lysine)
+    end
     return {
-        animal = animal, class = class, target = target, stage = "WEANED", milkKgPerDay = 0, milkCollect = 1,
+        animal = animal, class = class, target = target, stage = class == "CALF" and "PRE_WEANING" or "WEANED", milkKgPerDay = 0,
+        milkCollect = class == "LACTATING" and 0 or 1,
         weight = weight, sex = sex, waterCoverage = waterCoverage, waterCap = water,
-        appetite = RLFeedMath.getMonoPhysicalCap(weight, mono) * gene * water,
+        -- A piglet's appetite counts its milk beside the solids it can eat (solidCap).
+        appetite = physical + nursingLimit,
+        solidCap = class == "CALF" and solidMax * physical or nil,
         energyCap = RLFeedMath.getMonoEnergyIntake(weight, sex, mono) * gene * water,
-        fill = 0, concEligible = false, adapted = 1, milkMax = 0, milkMaxKgPerDay = 0, nursingMaxKgPerDay = 0,
-        solidMax = 1, solidEnergy = 1,
-        proteinNeed = RLFeedMath.getLysineNeed(weight, sex, mono),
+        fill = 0, concEligible = false, adapted = 1, milkMax = milkMax, milkMaxKgPerDay = 0, nursingMaxKgPerDay = nursingLimit,
+        nursingDemandME = nursingDemandME,
+        solidMax = solidMax, solidEnergy = 1,
+        proteinNeed = lysine,
         needs = {
             maintenance = demands.maintenance / days,
             pregnancy = demands.pregnancy / days,
@@ -1148,12 +1263,9 @@ function RLFeed.acceptsFill(placeable, fillTypeIndex)
     -- The engine still checks the supported fill type and the trough's actual capacity.
     local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
     if spec ~= nil and spec.rlRestoringFood then return true end
-    if RLFeed.mode == RLFeed.MODE_REAL then
-        local species = getAddedFills(placeable)[fillTypeIndex]
-        if type(species) == "string" then return RLFeed.isSpeciesFeedOpen(placeable, species) end
-        return true
-    end
-    return not getAddedFills(placeable)[fillTypeIndex]
+    local species = getAddedFills(placeable)[fillTypeIndex]
+    if type(species) == "string" then return RLFeed.isSpeciesFeedOpen(placeable, species) end
+    return true
 end
 
 
@@ -1362,7 +1474,7 @@ function RLFeed.limitSucklerMilk(animals)
     end
     for _, a in ipairs(animals) do
         local milkKg = a.milkKgPerDay or 0
-        if a.class == "LACTATING" and (a.milkCollect or 1) < 1 and milkKg > 0 then
+        if a.class == "LACTATING" and (a.milkCollect or 1) < 1 and milkKg > 0 and not pairsYoung(a.animal) then
             local drink = math.min(wanted[a] or 0, milkKg)
             local target = drink + a.milkCollect * (milkKg - drink)
             local factor = math.clamp(target / milkKg, 0, 1)
@@ -1378,38 +1490,79 @@ function RLFeed.limitSucklerMilk(animals)
 end
 
 
---- Each calf on milk with a dam that can nurse it among the step's animals drinks from her: one pool
---- per dam (twins share it), her milk at full feed this step x the share of it her budget paid in her
---- last step in this pen (all of it when she has none here: moved in, or the first step) (real kg
---- DM, damMilk values). The planner gives the pool's milk to her calves first; RLFeed.runStep settles
---- it against what she actually paid.
+--- A paired dam's (RLFeed.pairsYoung: sheep, pigs, beef cows) milk this step is what her young at
+--- foot need from her: kgDM a day of her milk, their own demands summed (each within its appetite).
+--- Her milk, her milk need (at the ME a real kg costs her), her appetite and protein need follow -
+--- one more young raises her need, it never adds milk for free.
+--- @param dam table The dam's descriptor
+--- @param kgDM number Her young's demand, kg DM of her milk a day
+function RLFeed.applyNursingDemand(dam, kgDM)
+    local animal = dam.animal
+    local config = RLFeed.getConfig(animal)
+    local damMilk = config.damMilk
+    local kgReal = damMilk.dm > 0 and math.max(kgDM or 0, 0) / damMilk.dm or 0
+    local _, mePerKg = RLFeed.getMilkRealPerGameLiter(animal)
+    dam.milkKgPerDay, dam.nursingKgPerDay, dam.nursingKgDMPerDay = kgReal, kgReal, math.max(kgDM or 0, 0)
+    dam.needs.milk = dam.target == "MAINTAIN" and 0 or kgReal * (mePerKg or 0)
+    if dam.appetitePerMilkKg ~= nil then dam.appetite = dam.appetite + dam.appetitePerMilkKg * kgReal end
+    if config.monogastric ~= nil then
+        local lactating = config.monogastric.lactatingLysPerMe or 0
+        if kgReal > 0 and lactating > 0 then dam.proteinNeed = math.max(dam.proteinNeed or 0, lactating) end
+    else
+        dam.proteinNeed = RLFeedMath.getProteinNeed(dam.class, RLGrowth.getContinuousAge(animal), config.protein, 0, kgReal)
+    end
+end
+
+
+--- Each young animal on milk with its dam among the step's animals drinks from her: one pool per
+--- dam (twins and litters share it). A paired dam (sheep, pigs, beef cows) makes what her young
+--- need (RLFeed.applyNursingDemand); her pool is their demand x the share of it her budget paid in
+--- her last step in this pen (all of it when she has none here: moved in, or the first step), so
+--- they plan their solids on what she is likely to give; what they get is settled against what
+--- she actually pays this step (RLFeed.settleDamMilk), never against that guess. A dairy cow's
+--- pool is her milk at full feed this step x that share. (Real kg DM, damMilk values.)
 function RLFeed.linkDams(animals, stepDays)
     local dams = {}
     for _, a in ipairs(animals) do
-        -- Nursing rules (sheep): a ewe in milk with her lambs here (her class); cattle: canNurse.
         local nurses
-        if getNursing(a.animal) ~= nil then
-            nurses = a.class == "LACTATING" and a.animal.getIdentifiers ~= nil and (a.milkKgPerDay or 0) > 0
+        if pairsYoung(a.animal) then
+            nurses = a.class == "LACTATING" and a.animal.getIdentifiers ~= nil
         else
             nurses = RLFeed.canNurse(a.animal)
         end
         if nurses then dams[a.animal:getIdentifiers()] = a end
     end
     if next(dams) == nil then return end
+    local young = {}
     for _, a in ipairs(animals) do
         local dam = a.class == "CALF" and a.animal.motherId ~= nil and dams[a.animal.motherId] or nil
         if dam ~= nil then
-            if dam.nursing == nil then
-                local damMilk = RLFeed.getConfig(dam.animal).damMilk
-                local last = dam.animal.rlFeedLastMilk
-                local owner = dam.animal.clusterSystem ~= nil and dam.animal.clusterSystem.owner or nil
-                local share = 1
-                if last ~= nil and last.owner == owner and RLFeed.isFresh(last.tick) then share = last.share end
-                dam.nursing = { dam = dam, kg = math.max(dam.milkKgPerDay or 0, 0) * share * damMilk.dm * stepDays,
-                    me = damMilk.me, cp = damMilk.cp }
-            end
-            a.damPool = dam.nursing
+            -- Its own demand, within its total appetite (the planner's milk plan).
+            local demand = math.min(math.max(a.nursingMaxKgPerDay or 0, 0), math.max(a.appetite or 0, 0))
+            dam.youngDemandKgDM = (dam.youngDemandKgDM or 0) + demand
+            young[#young + 1] = { a = a, dam = dam }
         end
+    end
+    for _, dam in pairs(dams) do
+        if pairsYoung(dam.animal) then RLFeed.applyNursingDemand(dam, dam.youngDemandKgDM or 0) end
+    end
+    for _, entry in ipairs(young) do
+        local a, dam = entry.a, entry.dam
+        if dam.nursing == nil then
+            local damMilk = RLFeed.getConfig(dam.animal).damMilk
+            local last = dam.animal.rlFeedLastMilk
+            local owner = dam.animal.clusterSystem ~= nil and dam.animal.clusterSystem.owner or nil
+            local share = 1
+            if last ~= nil and last.owner == owner and RLFeed.isFresh(last.tick) then share = last.share end
+            local coverage = pairsYoung(dam.animal)
+            local perDay = coverage and (dam.youngDemandKgDM or 0) or math.max(dam.milkKgPerDay or 0, 0) * damMilk.dm
+            dam.nursing = { dam = dam, kg = perDay * share * stepDays, me = damMilk.me, cp = damMilk.cp,
+                lys = damMilk.sidLys or 0, coverage = coverage,
+                -- Her young's whole demand this step: what she actually pays goes to them first, up to
+                -- this - more than the pool planned on when she pays more than her last step's share.
+                fullKg = (dam.youngDemandKgDM or 0) * stepDays }
+        end
+        a.damPool = dam.nursing
     end
 end
 
@@ -1500,7 +1653,8 @@ function RLFeed.runStep(placeable, window, stepDays)
                 if r < 1 then fill.kg, fill.liters, fill.me, fill.cpKg = fill.kg * r, fill.liters * r, fill.me * r, fill.cpKg * r end
             end
         end
-        if a.damMilk ~= nil then RLFeed.settleDamMilk(a, hour, config.damMilk, observed) end
+        -- Each dam's own milk (a goat's in a sheep pen is goat milk), never the pen's section.
+        if a.damMilk ~= nil then RLFeed.settleDamMilk(a, hour, RLFeed.getConfig(a.damPool.dam.animal).damMilk, observed) end
         RLFeedRationPlanner.sumAnimal(a)
         local animal = a.animal
         -- A calf's milk this step: what it planned to drink and what it got (trough and dam).
@@ -1518,8 +1672,10 @@ function RLFeed.runStep(placeable, window, stepDays)
             intakeLimit = a.intakeLimit, proteinFactor = RLFeed.getStepProteinFactor(a, config),
             lysPerMe = config.monogastric ~= nil and a.lysPerMe or nil,
             proteinNeed = a.proteinNeed, dtDays = stepDays, water = a.waterCoverage or waterCoverage, waterIntake = a.waterCap or 1,
-            damMilk = a.damMilk,
-            milkDemandFactor = a.milkDemandFactor, milkPlanKg = a.milkPlanKg or 0, milkDrunkKg = milkDrunk }
+            damMilk = a.damMilk, nursingKgPerDay = a.nursingKgPerDay,
+            milkDemandFactor = a.milkDemandFactor, milkPlanKg = a.milkPlanKg or 0, milkDrunkKg = milkDrunk,
+            -- A young animal at its dam: its own demand this step (kg DM of her milk).
+            nursingDemandKg = a.damPool ~= nil and math.min(math.max(a.nursingMaxKgPerDay or 0, 0), math.max(a.appetite or 0, 0)) * stepDays or nil }
         local before = observed ~= nil and { weight = animal.weight, health = animal.health, healthCarry = animal.rlHealthCarry or 0 } or nil
         local paidBefore = a.nursing ~= nil and hour.animals[animal] ~= nil and hour.animals[animal].milkPaidLiters or 0
         RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
@@ -1534,7 +1690,7 @@ function RLFeed.runStep(placeable, window, stepDays)
             -- What her budget paid this step, as real kg DM her calves may drink.
             local liters = hour.animals[animal].milkPaidLiters - paidBefore
             a.nursing.paidLiters = liters
-            a.nursing.paidKg = liters * RLFeed.getMilkRealPerGameLiter(animal) * config.damMilk.dm
+            a.nursing.paidKg = liters * RLFeed.getMilkRealPerGameLiter(animal) * RLFeed.getConfig(animal).damMilk.dm
         end
         if observed ~= nil then
             table.insert(observed.animals, { animal = animal, feed = feed, result = feed.result, weightBefore = before.weight,
@@ -1641,32 +1797,41 @@ end
 --- @param observed table|nil The STEP event being built
 function RLFeed.settleDamMilk(a, hour, damMilk, observed)
     local pool = a.damPool
-    if pool.factor == nil then
-        local planned = pool.plannedKg or 0
-        local paid = pool.paidKg or 0
-        pool.factor = planned > 0 and math.clamp(paid / planned, 0, 1) or 0
-        local allocated = planned * pool.factor
+    if pool.settled ~= true then
+        -- Settle from each young's whole demand, not its predicted milk. A zero prediction
+        -- must still recover this step; trough milk already drunk leaves less room.
+        local demand, q = 0, 1
+        for _, young in ipairs(pool.calves or {}) do
+            local need = math.max(young.milkPlanKg or 0, 0)
+            demand = demand + need
+            if need > 0 then
+                q = math.min(q, math.max(need - (young.troughMilkKg or 0), 0) / need)
+            end
+        end
+        q = demand > 0 and math.min(q, math.max(pool.paidKg or 0, 0) / demand) or 0
+        local allocated = demand * q
+        for _, young in ipairs(pool.calves or {}) do
+            young.settledDamMilkKg = math.max(young.milkPlanKg or 0, 0) * q
+        end
         local dam = pool.dam.animal
         local record = hour.animals[dam]
         local perLiter = RLFeed.getMilkRealPerGameLiter(dam) * damMilk.dm
         local liters = (record ~= nil and perLiter > 0) and allocated / perLiter or 0
         if record ~= nil then
-            -- Never more than she paid this step (rounding): her store takes the rest.
             liters = math.min(liters, pool.paidLiters or 0)
             record.milkLiters = math.max(record.milkLiters - liters, 0)
             record.milkToCalves = (record.milkToCalves or 0) + liters
         end
-        pool.allocatedKg = allocated
+        pool.allocatedKg, pool.settled = allocated, true
         if observed ~= nil then
-            table.insert(observed.dams, { animal = dam, plannedKg = planned, paidKg = paid, paidLiters = pool.paidLiters or 0,
+            table.insert(observed.dams, { animal = dam, plannedKg = pool.plannedKg or 0,
+                paidKg = pool.paidKg or 0, paidLiters = pool.paidLiters or 0,
                 allocatedKg = allocated, allocatedLiters = liters, calves = #pool.calves })
         end
     end
-    local f = pool.factor
-    if f < 1 then
-        local milk = a.damMilk
-        milk.kg, milk.me, milk.cpKg = milk.kg * f, milk.me * f, milk.cpKg * f
-    end
+    local kg = a.settledDamMilkKg or 0
+    a.damMilk.kg, a.damMilk.me = kg, kg * pool.me
+    a.damMilk.cpKg, a.damMilk.lysKg = kg * pool.cp, kg * (pool.lys or 0)
 end
 
 
@@ -1689,6 +1854,7 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
     record.kg, record.me, record.cpKg = record.kg + feed.kg, record.me + feed.me, record.cpKg + feed.cp * feed.kg
     record.plannedKg, record.plannedMe, record.dtDays = record.plannedKg + feed.plannedKg, record.plannedMe + feed.plannedMe, record.dtDays + feed.dtDays
     if feed.damMilk ~= nil then record.damMilkKg = record.damMilkKg + feed.damMilk.kg end
+    if feed.nursingDemandKg ~= nil then record.nursingDemandKg = (record.nursingDemandKg or 0) + feed.nursingDemandKg end
     record.milkPlanKg, record.milkDrunkKg = record.milkPlanKg + (feed.milkPlanKg or 0), record.milkDrunkKg + (feed.milkDrunkKg or 0)
     for name, fill in pairs(feed.byFill) do
         local total = record.byFill[name] or { liters = 0, kg = 0, me = 0, cpKg = 0 }
@@ -1717,9 +1883,16 @@ function RLFeed.stepAnimal(animal, feed, dtMonths, tick, placeable, hour)
     local paidLiters = potentialLiters * (result.milkFraction or 0)
     record.milkLiters = record.milkLiters + paidLiters
     record.milkPaidLiters = record.milkPaidLiters + paidLiters
+    if feed.nursingKgPerDay ~= nil then
+        -- A paired dam's nursing account (real kg): her young's whole demand and what her budget paid.
+        record.nursingDemandKg = (record.nursingDemandKg or 0) + feed.nursingKgPerDay * (feed.dtDays or 0)
+        record.nursingPaidKg = (record.nursingPaidKg or 0) + paidLiters
+    end
     if potentialLiters > 0 then
-        -- The share of her milk this step paid: what her calves' next step plans from her.
-        animal.rlFeedLastMilk = { tick = tick, owner = placeable, share = math.clamp(paidLiters / potentialLiters, 0, 1) }
+        -- The share of her milk this step paid: what her calves' next step plans from her. A paired dam's
+        -- is of her young's whole demand (her water and protein included), as their pool is.
+        local full = feed.nursingKgPerDay ~= nil and feed.nursingKgPerDay * (feed.dtDays or 0) or potentialLiters
+        animal.rlFeedLastMilk = { tick = tick, owner = placeable, share = full > 0 and math.clamp(paidLiters / full, 0, 1) or 0 }
     end
     record.milkPotential = (record.milkPotential or 0) + math.max(input.potentialMilk or 0, 0) * dtMonths
     record.coverage, record.growthFraction = result.coverage, result.growthFraction
@@ -1733,15 +1906,23 @@ end
 --- @return number
 function RLFeed.countUnnursed(placeable)
     local count = 0
-    local dams = getPenDams(placeable)
+    -- Paired afresh: the hour's steps moved every young animal's age on since the hour's pairing, and an
+    -- age read now against dams paired then miscounts (a clock that went back to a younger age at once).
+    local dams = getPenDams(placeable, true)
     for _, animal in ipairs(placeable:getClusters() or {}) do
-        if not animal.isDead and (animal.numAnimals or 1) > 0 and RLFeed.getNursingMilkMax(animal) > 0
+        if not animal.isDead and (animal.numAnimals or 1) > 0 and RLFeed.getYoungMilkByAge(animal) > 0
             and (animal.motherId == nil or dams[animal.motherId] == nil) and not RLFeed.isEarlyWeaned(animal) then
             count = count + 1
         end
     end
     return count
 end
+
+
+--- A pen whose hour's feed paid under this share of its animals' demand (the mean of their budgets'
+--- supply / demand) is short of feed (one notice); it is fed again from FEED_OK_SHARE.
+RLFeed.FEED_SHORT_SHARE = 0.5
+RLFeed.FEED_OK_SHARE = 0.9
 
 
 --- A calf drank under half the milk it planned this hour (milk it was due: its allowance within its
@@ -1811,13 +1992,20 @@ function RLFeed.endFeeding(placeable)
     local tick = window.tick
     local timeAdjustment = g_currentMission.environment.timeAdjustment or 1
 
+    local fedSum, fedCount = 0, 0
     for _, animal in ipairs(hour.order) do
         local record = hour.animals[animal]
+        -- Young of an age for milk have their own notices (calf milk, young without their dam): only the
+        -- animals living on solid feed count.
+        if record.coverage ~= nil and record.coverage == record.coverage and (record.milkPlanKg or 0) <= 0
+            and RLFeed.getYoungMilkByAge(animal) <= 0 then
+            fedSum, fedCount = fedSum + math.clamp(record.coverage, 0, 1), fedCount + 1
+        end
         record.cp = record.kg > 0 and record.cpKg / record.kg or 0
         record.milkShort = RLFeed.isMilkShort(record.milkPlanKg, record.milkDrunkKg)
         animal.rlFeedIntake = record
         -- A suckler breed's milk left after her calves is not collected (breedTraits milkCollect).
-        local collect = record.milkLiters > 0 and (getNursing(animal) ~= nil and 0 or RLBreedTraits.getMilkCollect(animal:getSubType())) or 1
+        local collect = record.milkLiters > 0 and (pairsYoung(animal) and 0 or RLBreedTraits.getMilkCollect(animal:getSubType())) or 1
         record.milkLiters = record.milkLiters * collect
         -- The store deposits liters per hour x the hour's time adjustment.
         animal.rlMilkPaid = { tick = tick, litersPerHour = timeAdjustment > 0 and record.milkLiters / timeAdjustment or 0, deposited = false }
@@ -1825,13 +2013,17 @@ function RLFeed.endFeeding(placeable)
             intakeRatio = record.plannedKg > 0 and record.kg / record.plannedKg or 0,
             -- What her budget paid of her milk (her calves drank part of it: milkToCalves).
             milkShare = (record.milkPotential or 0) > 0 and (record.milkPaidLiters or record.milkLiters) / record.milkPotential or nil,
-            growthFraction = record.growthFraction, intakeSource = "feed" }
+            growthFraction = record.growthFraction, intakeSource = "feed",
+            -- The nursing contract: a dam's share of her young's demand she paid; a young animal's
+            -- share of its own demand it received.
+            nursingCoverage = RLYoungDemandMath.getCoverage(record.nursingPaidKg ~= nil and record.nursingPaidKg or record.damMilkKg,
+                record.nursingDemandKg) }
     end
     if hour.steps > 0 then placeable.rlBodyConditionStepped = tick end
     hour.calfMilk = hour.steps > 0 and isRearingPen(placeable) and RLFeed.getPenCalfMilkAlert(placeable, hour) or nil
     -- Nursing rules (sheep): young still on milk with no dam here (moved, sold, or its dam moved
     -- away) get no milk at all - the player is told, never stopped (S5 D4).
-    if hour.steps > 0 and getNursing(placeable) ~= nil then hour.unnursed = RLFeed.countUnnursed(placeable) end
+    if hour.steps > 0 and not isRearingPen(placeable) then hour.unnursed = RLFeed.countUnnursed(placeable) end
 
     hour.tick = tick
     hour.limits = {}
@@ -1840,6 +2032,9 @@ function RLFeed.endFeeding(placeable)
     hour.animals, hour.order = #hour.order, nil
     hour.water = RLFeed.getHourWater(placeable, tick)
     hour.coverage = hour.plannedMe > 0 and hour.eatenMe / hour.plannedMe or (hour.animals > 0 and 0 or 1)
+    -- What the hour's feed paid of the animals' own demand (each budget's supply / demand, the mean of the
+    -- pen): the planner plans from the stock, so an empty trough plans nothing and eats all of it.
+    hour.feedCoverage = fedCount > 0 and fedSum / fedCount or nil
     -- The old ledger's energy row reads the share of the planned ME eaten in this mode.
     local supply = spec.rlNutritionSupply
     if supply ~= nil and supply.tick == tick and hour.steps > 0 then supply.energyShare = { ME = math.clamp(hour.coverage, 0, 1) } end
@@ -1851,6 +2046,12 @@ function RLFeed.endFeeding(placeable)
     if hour.unnursed ~= nil and RLFeedInfoService ~= nil and RLFeedInfoService.notifyUnnursed ~= nil and g_currentMission ~= nil
         and g_currentMission.getIsClient ~= nil and g_currentMission:getIsClient() then
         RLFeedInfoService.notifyUnnursed(placeable, hour.unnursed)
+    end
+    -- The hour's feed paid under FEED_SHORT_SHARE of the animals' demand: the player is told once, again
+    -- only after the pen has been fed (FEED_OK_SHARE) and runs short anew.
+    if hour.steps > 0 and hour.feedCoverage ~= nil and RLFeedInfoService ~= nil and RLFeedInfoService.notifyFeedShort ~= nil
+        and g_currentMission ~= nil and g_currentMission.getIsClient ~= nil and g_currentMission:getIsClient() then
+        RLFeedInfoService.notifyFeedShort(placeable, hour.feedCoverage)
     end
     RLFeed.addToMonth(placeable, hour)
     if #observers > 0 then RLFeed.notify("HOUR", { placeable = placeable, tick = tick, hour = hour }) end
@@ -1921,7 +2122,7 @@ function RLFeed.onPenDayChanged(placeable)
     spec.rlFeedDay = nil
     local pen = spec.rlFeedPen
     if day == nil or day.hours == 0 then
-        if pen ~= nil and not pen.active and pen.reason ~= "MODE_OFF" and pen.reason ~= "NOT_CATTLE" and RLFeed.mode == RLFeed.MODE_REAL then
+        if pen ~= nil and not pen.active and pen.reason ~= "NOT_CATTLE" then
             RLPenLog.emit("FEED_DAY", { pen = RLPenLog.pen(placeable), active = false, reason = pen.reason })
         end
         return
@@ -1976,44 +2177,43 @@ function RLFeed.runsFor(animal, tick)
 end
 
 
---- A covered pig in a pen that does not run the mode this hour (PIG_BREEDING_LEGACY: a sow, a
---- pregnant female or an unweaned piglet in it; or no trough, an uncovered animal, a failed plan):
---- its weight still follows its own curve on the weight model's budget - the old weight rule
---- (Animal:updateWeight, a fixed gain off whole months) put piglets about three times above it. What
---- it eats is not known here, so the hour pays the pig's own needs (maintenance, pregnancy, its
---- curve's growth, its reserve back to the reference) x the pen's food factor, the old rules' measure
---- of the feeding (water included). An approximation: no sow milk, colostrum or litter budget (a later
---- batch), no ration or lysine; its health stays the old rules'. The same state and budget as the
---- mode's steps, so a piglet taken over at 28 days goes on from the weight it has; an older, heavier
---- one keeps its weight and grows on from there.
+--- A covered animal of the unified nutrition model (cattle, sheep, goats, pigs: RLRearingPolicy
+--- names its use) in a pen that did not run the model this hour - no trough, an animal the model
+--- does not cover beside it, a failed plan, a config that cannot be read. There is no other
+--- nutrition model for it any more (the old feeding rules and the pig fallback are retired): the
+--- hour is not settled. Its weight, reserve and health stay as they are, its model clock moves on
+--- (RLGrowth.markLegacyHour) and the hour is marked, so no pen steps it again this hour; the pen's
+--- reason is kept with it and shown (RLFeedInfoService). Never a made-up gain on the food factor.
 --- @param animal table
---- @param foodFactor number The pen's food factor this hour
---- @return boolean handled
-function RLFeed.stepFallback(animal, foodFactor)
-    if animal == nil or animal.isDead or not RLGrowth.covers(animal) then return false end
-    local config = RLFeed.getConfig(animal)
-    if config.monogastric == nil then return false end
+--- @return boolean held Whether the animal is one the model covers (its hour then needs nothing else)
+function RLFeed.holdUnsettled(animal)
+    if animal == nil or animal.isDead then return false end
+    if RLRearingPolicy == nil or RLRearingPolicy.getAnimalUse(animal) == nil then return false end
+    local refused = nil
+    if not RLGrowth.covers(animal) then
+        -- A sheep, goat or pig with a curve whose species sections cannot be read is refused by the
+        -- model (CONFIG_INVALID), never given the old rules instead; anything else outside it (not
+        -- an individual animal, a breed with no curve) keeps its own type's rules.
+        if animal.isIndividual ~= true or animal.genetics == nil or animal.getSubType == nil or not RLGrowth.isEnabled() then return false end
+        local subType = animal:getSubType()
+        if RLGrowth.getBinding(subType) == nil or not RLGrowth.needsRealNutrition(subType) then return false end
+        refused = "CONFIG_INVALID"
+    end
     local tick = RLBodyCondition.getTickId()
-    if tick == nil then return false end
-    local state = RLGrowth.ensureState(animal)
-    if state.lastTick == tick or animal.rlFeedStepTick == tick then return true end
-    local hourDays = RLFeed.getHourDays()
-    local dtMonths = hourDays / config.realDaysPerPeriod
-    if not (dtMonths > 0) then return false end
-    RLGrowth.resync(animal, state)
-    local input, cfg = buildEnergyInput(animal, dtMonths)
-    local body = RLBodyCondition.getConfig(animal)
-    input.reserveCeiling = math.min(RLBodyCondition.getReserveCeiling(animal) or body.referenceReserve, body.referenceReserve)
-    local demands = RLGrowthMath.getStepDemands(input, cfg)
-    local deposit = math.min(demands.depositHeadroomKg, demands.depositRatePerMonthKg) * cfg.depositNUPerKg
-    local perMonth = demands.maintenance + demands.pregnancy + demands.growthStep / dtMonths + deposit
-    local share = math.clamp(foodFactor or 0, 0, 1)
-    local feed = { tick = tick, kg = 0, me = perMonth * share * dtMonths, cp = 0, byFill = {}, plannedKg = 0,
-        plannedMe = perMonth * dtMonths, class = "GROWING", target = "GROW", proteinFactor = 1, dtDays = hourDays, water = 1,
-        fallback = true }
-    local result = RLGrowth.stepFeed(animal, feed, dtMonths, tick)
-    if result == nil then return true end
-    animal.rlFeedFallback = { tick = tick, share = share, coverage = result.coverage, growthFraction = result.growthFraction }
+    if tick == nil then return true end
+    if animal.rlFeedStepTick == tick or animal.rlLegacyHourTick == tick then return true end
+    RLGrowth.markLegacyHour(animal)
+    animal.rlLegacyHourTick = tick
+    local owner = getOwner(animal)
+    local spec = owner ~= nil and owner.spec_husbandryFood or nil
+    local pen = spec ~= nil and spec.rlFeedPen or nil
+    local reason = refused or (pen ~= nil and pen.tick == tick and pen.reason) or (owner == nil and "NO_PEN" or "NOT_EVALUATED")
+    animal.rlFeedHold = { tick = tick, reason = reason }
+    if heldWarned[reason] == nil then
+        heldWarned[reason] = true
+        Log:warning("RLFeed: covered animals in a pen that cannot run the nutrition model (%s) are held this hour: no growth, no health change",
+            tostring(reason))
+    end
     return true
 end
 
@@ -2030,7 +2230,7 @@ end
 function RLFeed.applyStepInput(animal, input, feed, dtMonths)
     local config = RLFeed.getConfig(animal)
     -- A nursing dam's milk (sheep): her lactation row this step, x her water as a cow's.
-    if config.nursing ~= nil then RLFeed.applyDamMilk(animal, input, config, feed.water or 1) end
+    if pairsYoung(animal) then RLFeed.applyDamMilk(animal, input, config, feed.water or 1, feed.nursingKgPerDay) end
     input.supplyPerPeriod = dtMonths > 0 and feed.me / dtMonths or 0
     -- A ewe lamb turning hogg: her ceiling moves over the window (RLFeed.getTransitionCeiling).
     input.reserveCeiling = RLFeed.getTransitionCeiling(animal, dtMonths) or input.reserveCeiling

@@ -17,8 +17,10 @@ function S.seed(profile, sex, gene)
         sub.output = { milk = { get = function(_, age) return Economics.curve(sub.milk, age) end } }
         sub.healthIncreaseHour, sub.healthDecreaseHour = 10, 25
     end
-    return { subType = sub, geneticsScreened = true,
-        genetics = { metabolism = gene or 1, quality = 1, productivity = 1, fertility = 1, health = 1 } }
+    -- The genes the probe's breed has: a beef breed has no milk gene (RLRearingPolicy).
+    local genetics = { metabolism = gene or 1, quality = 1, productivity = 1, fertility = 1, health = 1 }
+    RLRearingPolicy.normalizeGenetics(sub, genetics)
+    return { subType = sub, geneticsScreened = true, genetics = genetics }
 end
 function S.history(seed, age, template, reproduction)
     local binding = RLGrowth.getBinding(seed.subType)

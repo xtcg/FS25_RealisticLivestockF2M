@@ -191,7 +191,6 @@ do
         results[days] = runs
     end
     GrowthSim.setDaysPerPeriod(1)
-    FeedSim.setMode(false)
     local worst = 0
     for _, days in ipairs({ 3, 7, 28 }) do
         for _, gene in ipairs({ 1.75, 1, 0.25 }) do

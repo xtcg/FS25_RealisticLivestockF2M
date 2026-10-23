@@ -273,7 +273,7 @@ end
 
 
 -- Hand-tool straw spec (HandToolAIStraw's specName).
-RLPedigree.STRAW_SPEC = "spec_FS25_RealisticLivestockRM.aiStraw"
+RLPedigree.STRAW_SPEC = "spec_" .. g_currentModName .. ".aiStraw"
 
 
 --- Ids the pruning keeps, and records them so a save holds the current parents: every husbandry,

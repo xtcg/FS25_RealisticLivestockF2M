@@ -1,7 +1,7 @@
 -- Stored trough contents are restored before the save's nutrition setting is loaded.
 -- Engine-shaped load/add/capacity path from FS25 PlaceableHusbandryFood: restoring existing
 -- stock must not use the later runtime gate for NEW unloading. The base supported-fill and
--- capacity checks still apply, including when curves are off or goats share a sheep pen.
+-- capacity checks still apply, including when curves are off or an uncovered animal shares a sheep pen.
 loadMod("tests/sheepsim.lua")
 
 Utils = {
@@ -72,16 +72,13 @@ local function restore(pen, rows, fail)
 end
 local FILL = FeedSim.FILL
 SheepSim.enable(true)
-FeedSim.setMode(false) -- Fresh game startup, before the save's settings callback.
 local pen = penFor({ SheepSim.ewe("SHEEP_LANDRACE", "S1") })
 restore(pen, { { "DRYGRASS_WINDROW", 1000 }, { "SILAGE", 400 }, { "BARLEY", 300 }, { "PEA", 100 } })
-check("stock restore: startup legacy mode preserves saved sheep hay/silage/barley/peas",
-    pen:level("DRYGRASS_WINDROW") == 1000 and pen:level("SILAGE") == 400 and pen:level("BARLEY") == 300 and pen:level("PEA") == 100)
-check("stock restore: runtime legacy unloading still rejects new silage/grain",
-    pen:getFreeFoodCapacity(FILL.SILAGE) == 0 and pen:getFreeFoodCapacity(FILL.BARLEY) == 0 and pen.spec_husbandryFood.rlRestoringFood == nil)
-FeedSim.setMode(true)
+check("stock restore: startup preserves saved sheep hay/silage/barley/peas",
+    pen:level("DRYGRASS_WINDROW") == 1000 and pen:level("SILAGE") == 400 and pen:level("BARLEY") == 300 and pen:level("PEA") == 100
+    and pen.spec_husbandryFood.rlRestoringFood == nil)
 GrowthSim.advanceHour()
-check("stock restore: once real mode is loaded the sheep pen accepts new silage/grain",
+check("stock restore: the sheep pen accepts new silage/grain (the unified model is the only one)",
     pen:getFreeFoodCapacity(FILL.SILAGE) > 0 and pen:getFreeFoodCapacity(FILL.BARLEY) > 0)
 local feeding = penFor({ SheepSim.ewe("SHEEP_LANDRACE", "S2") })
 restore(feeding, { { "SILAGE", 400 } })
@@ -95,10 +92,13 @@ restore(off, { { "SILAGE", 400 }, { "BARLEY", 300 } })
 check("stock restore: disabled sheep curves retain existing stock without opening new unloading",
     off:level("SILAGE") == 400 and off:level("BARLEY") == 300 and off:getFreeFoodCapacity(FILL.SILAGE) == 0)
 SheepSim.enable(true)
-local goat = GrowthSim.makeAnimal("GOAT", { age = 24 })
+-- An uncovered animal (a vanilla cluster) in the sheep pen keeps it out of the mode. (A goat no longer does:
+-- it is covered on its own GOAT section.)
+local goat = GrowthSim.makeAnimal("SHEEP_LANDRACE", { age = 24 })
+goat.isIndividual = false
 local mixed = penFor({ SheepSim.ewe("SHEEP_LANDRACE", "S4"), goat })
 restore(mixed, { { "SILAGE", 400 }, { "BARLEY", 300 } })
-check("stock restore: mixed goat pen retains existing silage/grain and still rejects new unloading",
+check("stock restore: a pen with an uncovered animal retains existing silage/grain and still rejects new unloading",
     mixed:level("SILAGE") == 400 and mixed:level("BARLEY") == 300 and mixed:getFreeFoodCapacity(FILL.BARLEY) == 0)
 
 local small = penFor({}, 100)

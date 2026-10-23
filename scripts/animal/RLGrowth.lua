@@ -183,7 +183,11 @@ function RLGrowth.coversSubType(subType)
     if not RLGrowth.isEnabled() then return false end
     local binding = RLGrowth.getBinding(subType)
     if binding == nil then return false end
-    if RLGrowth.needsRealNutrition(subType) then return RLGrowth.speciesNutritionReady(binding.typeName) end
+    -- Goats need their own sections (GOAT), never the sheep's.
+    if RLGrowth.needsRealNutrition(subType) then
+        local key = RLSpecies ~= nil and RLSpecies.getSubTypeKey(subType) or nil
+        return RLGrowth.speciesNutritionReady(key or binding.typeName)
+    end
     return true
 end
 
@@ -247,13 +251,13 @@ function RLGrowth.markLegacyHour(animal)
 end
 
 
---- Whether a type that needs the real-equivalent nutrition model can run it now: the mode on and
---- valid, and the type's feed and body condition sections valid.
+--- Whether a type that needs the unified nutrition model can run it now: the type's feed and body
+--- condition sections valid.
 --- @param typeName string
 --- @return boolean
 function RLGrowth.speciesNutritionReady(typeName)
     typeName = typeName:upper()
-    if RLFeed == nil or RLFeed.mode ~= RLFeed.MODE_REAL or RLFeedProfiles == nil then return false end
+    if RLFeed == nil or RLFeedProfiles == nil then return false end
     local feed = RLFeedProfiles.getConfig()
     local section = feed.valid == true and feed.species ~= nil and feed.species[typeName] or nil
     if section == nil or section.valid ~= true then return false end

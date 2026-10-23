@@ -81,8 +81,9 @@ do
         and input.growthCostPerKg > RLFeedMath.getGrowthCost(calf.weight, config.requirements))
 
     local older = GrowthSim.makeAnimal("BULL_HOLSTEIN", { age = 8 })
-    local heifer = GrowthSim.makeAnimal("COW_ANGUS", { age = 5 })
-    check("calf budget: from weaning (and at 8 months) the adult maintenance and growth cost exactly",
+    -- A beef heifer is weaned at her breed's suckling months (7, breedTraits sucklingMonths).
+    local heifer = GrowthSim.makeAnimal("COW_ANGUS", { age = 7 })
+    check("calf budget: from weaning (a beef heifer at 7 months, a dairy bull at 8) the adult maintenance and growth cost exactly",
         RLFeed.getCalfMaintenanceFactor(older, dtMonths) == 1 and RLFeed.getGrowthCost(older, dtMonths) == RLFeedMath.getGrowthCost(older.weight, config.requirements)
         and RLFeed.getCalfMaintenanceFactor(heifer, dtMonths) == 1 and RLFeed.getGrowthCost(heifer, dtMonths) == RLFeedMath.getGrowthCost(heifer.weight, config.requirements))
     local od = RLFeed.describeAnimal(older, RLFeed.DEFAULT_RATION, dtMonths, dtDays)

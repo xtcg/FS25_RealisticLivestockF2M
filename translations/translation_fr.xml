@@ -1021,10 +1021,6 @@
         <text name="rl_pedigree_info" text="Consanguinité de la descendance %s"/>
         <text name="rl_pedigree_none" text="Aucun ancêtre commun trouvé"/>
         <text name="rl_ai_chance" text="Qualité du lot %s | Gestation attendue pour cette femelle %s (fertilité %s x conception %s x lot %s)"/>
-        <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
-        <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
-        <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>
-        <text name="rl_settings_nutritionMode_texts_2" text="Real-equivalent (feed saving)"/>
         <text name="rl_feed_grainGroup" text="Grain (supplement)"/>
 
         <!-- Feed UI: Chinese and English; English fallback for other languages. -->
@@ -1047,15 +1043,15 @@
         <text name="rl_feed_feedShareFormat" text="%s (%.0f%% DM)"/>
         <text name="rl_feed_feedPlanFormat" text="%s · plan %.0f L/%s"/>
         <text name="rl_feed_reason_OK" text="Real-equivalent"/>
-        <text name="rl_feed_reason_MODE_OFF" text="Legacy mode"/>
         <text name="rl_feed_reason_CONFIG_INVALID" text="Invalid feed data"/>
         <text name="rl_feed_reason_MODEL_OFF" text="Weight model off"/>
         <text name="rl_feed_reason_NOT_CATTLE" text="Cattle only"/>
         <text name="rl_feed_reason_MILKCOW_LEGACY" text="Milk cows: legacy"/>
         <text name="rl_feed_reason_NO_TROUGH" text="No supported trough"/>
         <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="Unsupported animal"/>
-        <text name="rl_feed_reason_SUCKLING_CALF" text="Veau : mère/case à veaux"/>
-        <text name="rl_feed_reason_PIG_BREEDING_LEGACY" text="Sow/piglets: old rules"/>
+        <text name="rl_feed_reason_NO_NURSING_RULES" text="Sans règle d’allaitement"/>
+        <text name="rl_feed_penHeld" text="Croissance"/>
+        <text name="rl_feed_heldText" text="En pause"/>
         <text name="rl_feed_reason_UNKNOWN" text="Status unavailable"/>
         <text name="rl_feed_limit_NONE" text="No limit"/>
         <text name="rl_feed_limit_FIBRE" text="Fibre limit"/>
@@ -1085,6 +1081,8 @@
         <text name="rl_feed_calfMilkAlert" text="%s: %d calves on milk have no calf milk - they will lose health and may die"/>
         <text name="rl_feed_calfMilkLowAlert" text="%s: calf milk runs out in %s"/>
         <text name="rl_feed_lambNoDam" text="%s: %d lambs on milk are away from their ewe - no milk for them; they lose health and may die"/>
+        <text name="rl_feed_youngNoDam" text="%s : %d jeunes animaux encore au lait sont séparés de leur mère - pas de lait pour eux ; ils perdent de la santé et peuvent mourir"/>
+        <text name="rl_feed_shortAlert" text="%s : la mangeoire ne couvre que %d%% des besoins des animaux - ils perdent du poids et de la santé ; remplissez-la"/>
         <text name="rl_feed_penNotEaten" text="Not eaten (old rules)"/>
         <text name="rl_feed_penNoBaseFeed" text="Base feed"/>
         <text name="rl_feed_noBaseFeed" text="None - animals get no feed"/>

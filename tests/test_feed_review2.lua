@@ -35,8 +35,9 @@ do
     RLBodyCondition.applyMilk = function(animal, potential, ...) return original(animal, animal == cow and 0 or potential, ...) end
     FeedSim.hour(pen)
     RLBodyCondition.applyMilk = original
-    check("dam: a lactating cow whose milk stopped cannot nurse; her calf keeps the pen on the old rules",
-        nursing == "OK" and pen.spec_husbandryFood.rlFeedPen.reason == "SUCKLING_CALF")
+    check("dam: a dairy cow whose milk stopped cannot nurse: her calf drinks none of hers, the pen keeps the mode",
+        nursing == "OK" and pen.spec_husbandryFood.rlFeedPen.reason == "OK" and calf.rlFeedIntake ~= nil
+        and calf.rlFeedIntake.damMilkKg == 0)
 end
 
 

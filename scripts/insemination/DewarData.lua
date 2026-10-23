@@ -15,7 +15,8 @@ local Log = RmLogging.getLogger("RLRM")
 
 DewarData = {}
 
-DewarData.SPEC_TABLE_NAME = "spec_FS25_RealisticLivestockRM.dewarData"
+local saveNamespace = "." .. g_currentModName .. ".dewarData"
+DewarData.SPEC_TABLE_NAME = "spec_" .. g_currentModName .. ".dewarData"
 DewarData.CAPACITY = 1000
 --- Price of one straw from an average sire (breeding index 1) at conception rate 1 and dealer
 --- price factor 1, before RLSemenCollection.getStrawPrice applies those. Set so the AI dealer's
@@ -90,7 +91,10 @@ function DewarData:onLoad(savegame)
 
     -- Load from savegame if available
     if savegame ~= nil and savegame.xmlFile ~= nil then
-        local key = savegame.key .. ".FS25_RealisticLivestockRM.dewarData"
+        local key = savegame.key .. saveNamespace
+        if not savegame.xmlFile:hasProperty(key) then
+            key = savegame.key .. ".FS25_RealisticLivestockRM.dewarData"
+        end
         if savegame.xmlFile:hasProperty(key) then
             DewarData.loadDewarFromSavegame(self, savegame.xmlFile, key)
         end
@@ -159,6 +163,10 @@ function DewarData:loadDewarFromSavegame(xmlFile, key)
             ["quality"] = xmlFile:getFloat(animalKey .. ".genetics#quality"),
             ["productivity"] = xmlFile:getFloat(animalKey .. ".genetics#productivity")
         }
+        -- A beef sire's straw has no milk gene (RLRearingPolicy): an old save's value is dropped.
+        if RLRearingPolicy ~= nil and select(2, RLRearingPolicy.normalizeByIndex(animal.subTypeIndex, animal.genetics)) then
+            RLRearingPolicy.noteMigrated("straw", animal.uniqueId)
+        end
 
         -- Validate subtype consistency
         local animalSystem = g_currentMission.animalSystem
@@ -295,6 +303,7 @@ function DewarData:onReadStream(streamId, connection)
         animal.genetics.quality = streamReadFloat32(streamId)
         animal.genetics.productivity = streamReadFloat32(streamId)
         if animal.genetics.productivity < 0 then animal.genetics.productivity = nil end
+        if RLRearingPolicy ~= nil then RLRearingPolicy.normalizeByIndex(animal.subTypeIndex, animal.genetics) end
         animal.collected = streamReadBool(streamId)
         RLSemenBatch.readStream(streamId, animal)
 
