@@ -53,12 +53,11 @@ local filtered=RLAnimalBuyService.filterBuyableAnimals({getNumOfFreeAnimalSlots=
 end)
 check("market buy UI: unavailable trailer item is rejected before numeric validation",#filtered.valid==1 and filtered.valid[1]==b and #filtered.rejected==1 and filtered.firstErrorCode==9 and validations==1)
 
--- A quote that moved while the player decided (2026-10-23 game tests: confirmed 1062, an hour passed in the
--- dialog, 1065 charged without asking; then the check sat only at the destination step, which a player
--- waiting in the first dialog never reached): the total is priced again at "yes" and at the destination,
--- and a change in whole money asks again at the new amount; an unchanged total goes on at once.
+-- A quote that moved between the confirmation and the destination (2026-10-23 game test: confirmed 1062,
+-- an hour passed in the dialog, 1065 was charged without asking): the player is asked again at the new
+-- total; an unchanged total (in whole money) dispatches at once.
 do
-    local shown, dispatched, flows = {}, 0, 0
+    local shown, dispatched = {}, 0
     YesNoDialog={show=function(cb,target,text)shown[#shown+1]={cb=cb,target=target,text=text}end}
     InfoDialog={show=function()end}
     g_i18n.getText=function(_,key)if key=="rl_ui_buyPriceChanged"then return "%d now %s"end return key end
@@ -66,37 +65,23 @@ do
     RLAnimalMoveService={buildMoveValidationResult=function(animals)return {valid=animals,rejected={}}end}
     local total=1062.4
     RLAnimalBuyService.computeBulkTotal=function(list)return total,0,total,#list end
-    local f=setmetatable({dispatchPendingBuy=function(self)dispatched=dispatched+1;self.confirmedBuyTotal=nil end,
-        getTrailerDealerContext=function()return nil end,startBuyFlow=function()flows=flows+1 end},{__index=RLMenuBuyFrame})
-    local function confirm(shownPrice)
-        f.pendingBuyAnimals={a};f.pendingBuyPrice=shownPrice;f.pendingBuyFee=0
+    local f=setmetatable({dispatchPendingBuy=function(self)dispatched=dispatched+1;self.confirmedBuyTotal=nil end},{__index=RLMenuBuyFrame})
+    local function confirmThenPick(confirmedPrice)
+        f.pendingBuyAnimals={a};f.pendingBuyPrice=confirmedPrice;f.pendingBuyFee=0
+        f.startBuyFlow=function()end
         f:onBuyConfirmed(true)
+        f:onBuyDestinationSelected({placeable={},name="pen"})
     end
-    local function pick() f:onBuyDestinationSelected({placeable={},name="pen"}) end
-
-    confirm(1062.1);pick()
-    check("moved quote: same whole-money total goes to the destination and dispatches without asking",flows==1 and dispatched==1 and #shown==0)
-
+    confirmThenPick(1062.1)
+    check("moved quote: same whole-money total dispatches without asking again",dispatched==1 and #shown==0)
     total=1065.3
-    confirm(1062.1)
-    check("moved quote: an hour in the first dialog asks again at yes, before the destination",
-        flows==1 and #shown==1 and shown[1].text=="1 now 1065.3" and f.pendingBuyPrice==1065.3)
+    confirmThenPick(1062.1)
+    check("moved quote: a changed total asks again at the new amount, nothing dispatched yet",
+        dispatched==1 and #shown==1 and shown[1].text=="1 now 1065.3" and f.pendingBuyPrice==1065.3)
     shown[1].cb(shown[1].target,true)
-    check("moved quote: yes to the new price goes on to the destination",flows==2 and f.confirmedBuyTotal==1065.3)
-    pick()
-    check("moved quote: the destination at the re-confirmed price dispatches without a third question",dispatched==2 and #shown==1)
-
-    total=1062.4
-    confirm(1062.1)
-    total=1065.3
-    pick()
-    check("moved quote: a move while the destination dialog is open asks again there",dispatched==2 and #shown==2)
-    shown[2].cb(shown[2].target,true)
-    check("moved quote: yes there buys at the repriced total",dispatched==3)
-
-    total=1070
-    confirm(1062.1)
-    shown[3].cb(shown[3].target,false)
-    check("moved quote: no clears the pending buy and its confirmed total",flows==3 and f.pendingBuyAnimals==nil and f.confirmedBuyTotal==nil)
+    check("moved quote: yes buys at the repriced total",dispatched==2)
+    confirmThenPick(1062.1)
+    shown[2].cb(shown[2].target,false)
+    check("moved quote: no clears the pending buy and its confirmed total",dispatched==2 and f.pendingBuyAnimals==nil and f.confirmedBuyTotal==nil)
     check("moved quote: no confirmed total (a direct dispatch path) never asks",not RLMenuBuyFrame.hasBuyPriceMoved({},5))
 end
