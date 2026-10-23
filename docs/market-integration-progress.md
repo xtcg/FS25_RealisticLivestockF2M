@@ -9,7 +9,7 @@
 | unitId | capabilityScope | 交付 | 状态与限制 |
 |---|---|---|---|
 | P0 | 当前 Dealer T1–T6、身份与保存 | `market-integration-baseline.md` | 完成源码审计；已有能力与缺口分别登记；实机未验 |
-| U01 | 牛猪羊健康公畜；HARD/NORMAL/EASY；单只/批量 | `tests/fixtures/market_legacy.lua`、`test_marketlegacy.lua` | 冻结旧 BID/ASK、运输费、肉量、旧屠宰保底值；基线观测与手算关系分列。不是实际路线套利扫描 |
+| U01 | 牛猪羊健康公畜；HARD/NORMAL/EASY；单只/批量 | `tests/fixtures/market_legacy.lua`、`test_marketlegacy.lua` | 冻结旧 BID/ASK、运输费、肉量、旧屠宰保底值；基线观测与手算关系分列。不是实际路线套利扫描。修订 2（2026-10-23）：合入 #87 后猪羊有体况，重新录制猪羊值，牛不变 |
 | U02 | schema 1 的 Snapshot/ValueBreakdown/QuoteContext/MarketQuote | `RLMarketSchema.lua`、`test_marketschema.lua` | 纯形状校验；未知版本、非有限数、元表、可执行字段拒绝；缺能力与真实0区分。身份来源、指纹完整性、费用明细和有效期执行不在本单元 |
 | U09 | 明确 speciesKey + breedingObjective 的注册和求值 | `RLAnimalValueProvider.lua`、`test_marketservices.lua` | 无生产 provider 自动注册；未知作用域返回 UNSUPPORTED；输入/输出复制隔离；分类/trait版本绑定；异常和重入拒绝 |
 | U10 | 捕获旧 BID/ASK 的兼容包装 | `RLLegacyPriceAdapter.lua`、真实样本回归 | 原精度、当前货币、不二次加价/缩放、不加运费；保留真实0参考值而不授予成交权限 |
