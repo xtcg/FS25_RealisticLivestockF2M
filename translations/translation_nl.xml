@@ -1058,6 +1058,7 @@
         <text name="rl_feed_calfMilkLowAlert" text="%s: calf milk runs out in %s"/>
         <text name="rl_feed_lambNoDam" text="%s: %d lambs on milk are away from their ewe - no milk for them; they lose health and may die"/>
         <text name="rl_feed_youngNoDam" text="%s: %d jonge dieren die nog melk drinken zijn niet bij hun moeder - geen melk voor hen; ze verliezen gezondheid en kunnen sterven"/>
+        <text name="rl_feed_shortAlert" text="%s: de voerbak dekt maar %d%% van het voer van de dieren - ze verliezen gewicht en gezondheid; vul hem bij"/>
         <text name="rl_feed_penNotEaten" text="Not eaten (old rules)"/>
         <text name="rl_feed_penNoBaseFeed" text="Base feed"/>
         <text name="rl_feed_noBaseFeed" text="None - animals get no feed"/>

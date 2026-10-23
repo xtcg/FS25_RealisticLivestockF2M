@@ -1060,6 +1060,7 @@
         <text name="rl_feed_calfMilkLowAlert" text="%s: calf milk runs out in %s"/>
         <text name="rl_feed_lambNoDam" text="%s: %d Lämmer, die noch Milch brauchen, sind nicht bei ihrem Mutterschaf - sie verlieren Gesundheit und können sterben"/>
         <text name="rl_feed_youngNoDam" text="%s: %d Jungtiere, die noch Milch brauchen, sind nicht bei ihrem Muttertier - sie verlieren Gesundheit und können sterben"/>
+        <text name="rl_feed_shortAlert" text="%s: Das Futter deckt nur %d%% des Bedarfs der Tiere - sie verlieren Gewicht und Gesundheit; bitte nachfüllen"/>
         <text name="rl_feed_penNotEaten" text="Nicht gefressen (alte Regeln)"/>
         <text name="rl_feed_penNoBaseFeed" text="Grundfutter"/>
         <text name="rl_feed_noBaseFeed" text="Keins - die Tiere bekommen kein Futter"/>

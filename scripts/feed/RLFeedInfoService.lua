@@ -590,6 +590,30 @@ function RLFeedInfoService.notifyUnnursed(placeable, count)
 end
 
 
+--- A pen short of feed (RLFeed.endFeeding: the hour's feed paid under RLFeed.FEED_SHORT_SHARE of the
+--- animals' demand): one notification, none again until the pen was fed (RLFeed.FEED_OK_SHARE) and runs short
+--- anew. Without feed an animal loses weight, then health (feedProfiles.xml health), at model-day rates:
+--- at one day a month a game day is a month without feed.
+--- @param placeable table
+--- @param coverage number Share of the animals' demand the hour's feed paid (pen mean)
+function RLFeedInfoService.notifyFeedShort(placeable, coverage)
+    local spec = placeable ~= nil and placeable.spec_husbandryFood or nil
+    if spec == nil or coverage == nil or coverage ~= coverage then return end
+    if coverage >= RLFeed.FEED_OK_SHARE then
+        spec.rlFeedShortNotified = nil
+        return
+    end
+    if coverage >= RLFeed.FEED_SHORT_SHARE or spec.rlFeedShortNotified then return end
+    local mission = g_currentMission
+    if mission == nil or mission.addIngameNotification == nil then return end
+    if placeable.getOwnerFarmId ~= nil and mission.getFarmId ~= nil and placeable:getOwnerFarmId() ~= mission:getFarmId() then return end
+    spec.rlFeedShortNotified = true
+    local name = placeable.getName ~= nil and placeable:getName() or ""
+    mission:addIngameNotification(FSBaseMission.INGAME_NOTIFICATION_CRITICAL,
+        string.format(getText("rl_feed_shortAlert"), name, math.floor(math.max(coverage, 0) * 100 + 0.5)))
+end
+
+
 --- Rows for an animal's info (RLBodyCondition.addInfos), in the mode: real intake against plan,
 --- concentrate share and what limits the ration, and for a bull or steer the finishing forecast.
 --- @return table rows { key, titleKey, valueText, ratio }

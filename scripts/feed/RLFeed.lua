@@ -1917,6 +1917,12 @@ function RLFeed.countUnnursed(placeable)
 end
 
 
+--- A pen whose hour's feed paid under this share of its animals' demand (the mean of their budgets'
+--- supply / demand) is short of feed (one notice); it is fed again from FEED_OK_SHARE.
+RLFeed.FEED_SHORT_SHARE = 0.5
+RLFeed.FEED_OK_SHARE = 0.9
+
+
 --- A calf drank under half the milk it planned this hour (milk it was due: its allowance within its
 --- appetite, from its dam and the trough).
 RLFeed.MILK_SHORT_SHARE = 0.5
@@ -1984,8 +1990,15 @@ function RLFeed.endFeeding(placeable)
     local tick = window.tick
     local timeAdjustment = g_currentMission.environment.timeAdjustment or 1
 
+    local fedSum, fedCount = 0, 0
     for _, animal in ipairs(hour.order) do
         local record = hour.animals[animal]
+        -- Young of an age for milk have their own notices (calf milk, young without their dam): only the
+        -- animals living on solid feed count.
+        if record.coverage ~= nil and record.coverage == record.coverage and (record.milkPlanKg or 0) <= 0
+            and RLFeed.getYoungMilkByAge(animal) <= 0 then
+            fedSum, fedCount = fedSum + math.clamp(record.coverage, 0, 1), fedCount + 1
+        end
         record.cp = record.kg > 0 and record.cpKg / record.kg or 0
         record.milkShort = RLFeed.isMilkShort(record.milkPlanKg, record.milkDrunkKg)
         animal.rlFeedIntake = record
@@ -2017,6 +2030,9 @@ function RLFeed.endFeeding(placeable)
     hour.animals, hour.order = #hour.order, nil
     hour.water = RLFeed.getHourWater(placeable, tick)
     hour.coverage = hour.plannedMe > 0 and hour.eatenMe / hour.plannedMe or (hour.animals > 0 and 0 or 1)
+    -- What the hour's feed paid of the animals' own demand (each budget's supply / demand, the mean of the
+    -- pen): the planner plans from the stock, so an empty trough plans nothing and eats all of it.
+    hour.feedCoverage = fedCount > 0 and fedSum / fedCount or nil
     -- The old ledger's energy row reads the share of the planned ME eaten in this mode.
     local supply = spec.rlNutritionSupply
     if supply ~= nil and supply.tick == tick and hour.steps > 0 then supply.energyShare = { ME = math.clamp(hour.coverage, 0, 1) } end
@@ -2028,6 +2044,12 @@ function RLFeed.endFeeding(placeable)
     if hour.unnursed ~= nil and RLFeedInfoService ~= nil and RLFeedInfoService.notifyUnnursed ~= nil and g_currentMission ~= nil
         and g_currentMission.getIsClient ~= nil and g_currentMission:getIsClient() then
         RLFeedInfoService.notifyUnnursed(placeable, hour.unnursed)
+    end
+    -- The hour's feed paid under FEED_SHORT_SHARE of the animals' demand: the player is told once, again
+    -- only after the pen has been fed (FEED_OK_SHARE) and runs short anew.
+    if hour.steps > 0 and hour.feedCoverage ~= nil and RLFeedInfoService ~= nil and RLFeedInfoService.notifyFeedShort ~= nil
+        and g_currentMission ~= nil and g_currentMission.getIsClient ~= nil and g_currentMission:getIsClient() then
+        RLFeedInfoService.notifyFeedShort(placeable, hour.feedCoverage)
     end
     RLFeed.addToMonth(placeable, hour)
     if #observers > 0 then RLFeed.notify("HOUR", { placeable = placeable, tick = tick, hour = hour }) end
