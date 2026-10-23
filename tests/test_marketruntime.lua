@@ -36,7 +36,7 @@ local h=assert(io.open(REPO.."scripts/main.lua","r"));local main=h:read("*a");h:
 local last=0
 for _, name in ipairs({"RLMarketData","RLMarketSchema","RLMarketMoney","RLMarketCurve","RLMarketConfig","RLMarketSpecies","RLMarketSnapshot","RLAnimalValueProvider","RLLegacyPriceAdapter","RLMarketMath","RLDealerPricePolicy",
     "RLBrokerConditionPackage","RLMarketCommodityValue","RLMarketCattleValue","RLMarketPigValue","RLMarketSheepValue","RLMarketValueAdapter","RLMarketProviders","RLMarketDealerQuote","RLMarketPriceService","RLMarketEnginePrice",
-    "RLMarketResourceLock","RLAnimalAcquisition","RLBrokerEligibility","RLBrokerQuota","RLBrokerDemand","RLBrokerMonth","RLBrokerPricePolicy","RLBrokerOrderService","RLBrokerPublicRoute","RLBrokerSourceAdapter","RLBrokerMoneyAdapter","RLBrokerTransaction","RLBrokerPersistence","RLBrokerNativeStorage","RLMarketCheckpoint","RLMarketSaveAdapter","RLMarketRuntime"}) do
+    "RLMarketResourceLock","RLAnimalAcquisition","RLBrokerEligibility","RLBrokerQuota","RLBrokerDemand","RLBrokerMonth","RLBrokerPricePolicy","RLBrokerOrderService","RLBrokerPublicRoute","RLBrokerSourceAdapter","RLBrokerMoneyAdapter","RLBrokerTransaction","RLBrokerPersistence","RLBrokerNativeStorage","RLMarketCheckpoint","RLMarketNativeAnimals","RLMarketSaveAdapter","RLMarketRuntime"}) do
     local pos=assert(main:find('scripts/market/'..name..'.lua',1,true))
     check("market lifecycle: source order "..name,pos>last);last=pos
 end

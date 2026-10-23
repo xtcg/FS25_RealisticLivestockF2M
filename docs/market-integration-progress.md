@@ -129,3 +129,30 @@ Review追加并关闭了错误难度/参考载荷的缓存报价可被接纳、�
 已吸收的身份分配日志不要求删除：适配实际读取原身份owner XML、原career身份marker及四个原生参与文件，验证其独立身份代次、共同sharedSaveId、全文与完整导出ledger一致；旧日志只有sequence与所有key已被该保存账本吸收且main/pending完整一致，才可加入共同证明。同代/未来代、缺键、序列超前、异谱系或未知残留仍拒绝。不会用市场generation代替独立身份generation，也不会凭live scan清除日志。
 
 冻结代码 `b9297ff1` 的完整回归返回 **6488/6488、exit 0**，日志 `/private/tmp/rlrm-market-phase4-tests.log`；运行期间源代码/测试未改动，仅提交相同代码。实机、地图GUI、双客户端及断电持久性仍未验证。此结果不自动覆盖其后缓存/默认native inspector等新增改动。
+
+## 收尾：默认原生动物清单读取器
+
+| implementationSHA | 实现 | 验证与未完成边界 |
+|---|---|---|
+| （本提交） | `RLMarketNativeAnimals`：从原生 `placeables.xml`/`vehicles.xml` 全树只读列出逐头动物键（farmId + id + 出生国），供 `RLMarketSaveAdapter.inspectAnimals` 注入；`fromMission` 以世界中实际对象的 UID、写入专精模块、所有者和持久化状态决定每个容器 | 定向24项（`test_marketnativeanimals`）；装载顺序与 main 全列表装载通过；全量 **6518/6518** |
+
+上一阶段留下的未提交草稿有两处会让真实存档整体判为 unsupported，已修正：
+
+1. **精液管的种公记录。** `DewarData`（车辆）与 `DewarObjectStorageHook`（物品存储）把种公写为 `dewarData` 下名为 `animal` 的记录（带 `genetics` 子节点、无 `numAnimals`）。草稿把它当作未声明的活体布局拒绝；现在单独计为 `strawRecords`，不进入活体清单。`dewarData` 下带 `numAnimals` 的节点、或记录内部再嵌套的 `animal` 仍拒绝。
+2. **地图/模组对象。** 草稿要求 `customEnvironment==nil`，Hof Bergmann 的栏舍来自地图模组，世界里任一模组车辆也会让整份清单失败。现在以写入专精模块的身份（`PlaceableHusbandryAnimals`、`LivestockTrailer` 原模块）为准，不看对象来源；名称表明可能存动物的模组专精（含 animal/livestock/husbandry/horse/rideable）仍拒绝，其他模组对象视为 NON_ANIMAL。
+
+真实存档只读核对（离线，按文档自身布局解析容器，不经世界对象）：
+
+| 存档 | 地图 | placeables 活体 | vehicles 活体 | 精液管记录 |
+|---|---|---:|---:|---:|
+| savegame2 | Hof Bergmann | 16 | 4 | 2 |
+| savegame3 | Le Mechet | 45 | 0 | 0 |
+| savegame4 | Hof Bergmann | 52 | 38 | 2 |
+
+数量与文件内 `<animal` 计数逐一吻合。这只证明文档布局可读；`fromMission` 对真实世界对象（HB 栏舍专精列表、模组车辆）的判定尚未实机验证，若 HB 栏舍带名称含 husbandry 的地图专精，会明确返回 unsupported 而非误读。SaveAdapter 仍未在生产中实例化，同步保存 hooks 未安装，市场运行时保持 legacy。
+
+## 本阶段收尾状态
+
+- 分支 `feat/market-integration-p0`（基于 `dev@7f01d330`），全部改动已提交；全量回归 6518/6518。
+- 所有新能力仍由独立门控关闭：生产价格模式 legacy，无准入 scope，Broker 交易/保存 hooks/UI/网络未接线。合入 `dev` 不改变玩家可见价格与交易。
+- 未完成且不得据本阶段标为通过：真实保存 hooks 与 SaveAdapter 装配、各发布 scope 的经济参数与可达性扫描、UI/网络接运自送、实机/联机/断电持久性验证（见单元表）。
