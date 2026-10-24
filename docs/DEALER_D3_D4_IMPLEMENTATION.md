@@ -672,7 +672,7 @@ The review fixes are in commits after `c9ab73c`, which also merge dev (sheep S3/
 - **Protocols.** Purchase and quote events are read to the end before they are validated, so a rejected event can't throw the stream out of alignment.
 - **Lock expiry after the debit.** The money adapter's durable checkpoints can take longer than `LOCK_MS`. The commit fence and `markSold(..., paid=true)` therefore skip the real-time lock check once the money is applied. Before the debit, an expired lock still rolls the purchase back.
 - **Source births.** Every newborn is checked before any is added. A collision quarantines the birth, keeps the identities as evidence and frees `pendingAdds`.
-- **Unsaved WAL (decided 2026-10-13).** A WAL on the last verified checkpoint's generation belongs to a session that was left without saving. It is moved aside (`*.unsaved.xml`) and the dealer stays dormant on its saved stock. An older WAL that no later save reconciled still closes for reconciliation.
+- **Unsaved WAL (decided 2026-10-13).** A WAL on the last verified checkpoint's generation belongs to a session that was left without saving. It is copied aside (`*.unsaved.<epoch>.xml`) and the dealer stays dormant on its saved stock. The WAL itself stays in place (2026-10-24: the engine refuses a mod `deleteFile` in the savegame folder); the next journal write replaces it and the next save replaces the folder, and a second load of the same WAL finds its archive and goes on. An older WAL that no later save reconciled still closes for reconciliation.
 - **Pen reads.** `RLHusbandryProfiles.read` scopes replace the `readOnly` parameter.
   - The parsed config is memoized.
   - Nothing is written on a pen during a read, and nothing is logged.

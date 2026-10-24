@@ -73,20 +73,33 @@ R.archiveStorage = {
         if archiveFault == "COPY_CORRUPT" then archiveDisk[to].data.sequence = 999 end
         return true
     end,
-    remove = function(path)
-        moved[#moved + 1] = "delete " .. path
-        if archiveFault == "DELETE_FALSE" then return false end
-        if archiveFault == "DELETE_THROW" then error("delete fault") end
-        archiveDisk[path] = nil
-        return true
-    end,
+    remove = function(path) error("the engine refuses deleteFile in the savegame folder") end,
 }
 R.onMissionStarted({ missionInfo = { savegameDirectory = "/save" } })
-check("dealer runtime: unsaved WAL is exactly archived before deletion, saved stock stays dormant",
+check("dealer runtime: unsaved WAL is exactly archived and left in place (no delete), saved stock stays dormant",
     R.state == "DORMANT" and R.reason == "WAL_UNSAVED_DISCARDED" and C.state == C.READY and not R.store.recoveryRequired
-    and moved[1] == "copy " .. source .. " " .. archive and moved[2] == "delete " .. source
-    and archiveDisk[source] == nil and RLTradePersistence.canonical(archiveDisk[archive]) == RLTradePersistence.canonical(unsavedWal))
-for _, fault in ipairs({ "COPY_FALSE", "COPY_THROW", "COPY_CORRUPT", "READ_THROW", "DELETE_FALSE", "DELETE_THROW" }) do
+    and moved[1] == "copy " .. source .. " " .. archive and #moved == 1
+    and archiveDisk[source] ~= nil and RLTradePersistence.canonical(archiveDisk[archive]) == RLTradePersistence.canonical(unsavedWal))
+-- Game test 2026-10-24: a second load without a save in between meets the same WAL and its archive.
+R.reset(true); moved = {}
+R.onMissionStarted({ missionInfo = { savegameDirectory = "/save" } })
+check("dealer runtime: loading the same unsaved WAL again is a no-op, not RECOVERY_REQUIRED",
+    R.state == "DORMANT" and R.reason == "WAL_UNSAVED_DISCARDED" and #moved == 0)
+-- A later unsaved session (new epoch) is archived beside the first one's evidence.
+do
+    local later = clone(unsavedWal); later.data.epoch = "e20261024170000123"; later.data.sequence = 5
+    later.digest = RLTradePersistence.checksum(RLTradePersistence.canonical(later.data))
+    archiveDisk[source] = clone(later); moved = {}
+    R.reset(true); RLDealerJournal.load = function() return later end
+    R.onMissionStarted({ missionInfo = { savegameDirectory = "/save" } })
+    local named = "/save/rm_RlDealerPurchaseJournal.unsaved.e20261024170000123.xml"
+    check("dealer runtime: a later unsaved session is archived under its own epoch beside the earlier evidence",
+        R.state == "DORMANT" and moved[1] == "copy " .. source .. " " .. named and archiveDisk[archive] ~= nil
+        and RLTradePersistence.canonical(archiveDisk[named]) == RLTradePersistence.canonical(later))
+    RLDealerJournal.load = function() return unsavedWal end
+    archiveDisk[source] = clone(unsavedWal)
+end
+for _, fault in ipairs({ "COPY_FALSE", "COPY_THROW", "COPY_CORRUPT", "READ_THROW" }) do
     R.reset(true); archiveDisk, moved, archiveFault = {[source]=clone(unsavedWal)}, {}, fault
     R.store = assert(V.new("archive-failure", 10))
     local path = R.archiveWal(source, unsavedWal)

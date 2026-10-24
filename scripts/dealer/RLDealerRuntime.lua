@@ -100,10 +100,14 @@ function R.compareJournal(document, generation, lineage)
     R.store.purchase, R.store.recoveryRequired = purchase, true
     return nil, "WAL_ASSET_RECONCILIATION_REQUIRED"
 end
---- Move an unsaved session's WAL aside (rm_RlDealerPurchaseJournal.unsaved.xml) so the next purchase
---- starts a fresh one; the next save replaces the folder and drops it (savegameBackup keeps it).
+--- Keep an unsaved session's WAL as evidence (rm_RlDealerPurchaseJournal.unsaved.<epoch>.xml) and
+--- let the dealer go on. The engine refuses a mod deleteFile in the savegame folder ("No access to
+--- folder"), so the WAL itself stays: the next journal write replaces it whole (new epoch, sequence 1)
+--- and the next save replaces the folder. Loading the same WAL again finds its archive and is a no-op.
 function R.archiveWal(walPath, expected)
-    local archived = walPath:gsub("%.xml$", ".unsaved.xml")
+    local epoch = type(expected) == "table" and type(expected.data) == "table" and expected.data.epoch or nil
+    local tag = type(epoch) == "string" and epoch:match("^[%w%-]+$") and ("." .. epoch) or ""
+    local archived = walPath:gsub("%.xml$", ".unsaved" .. tag .. ".xml")
     local io = R.archiveStorage or {
         exists = function(path) return fileExists(path) end,
         read = function(path)
@@ -115,7 +119,6 @@ function R.archiveWal(walPath, expected)
             return { data = data, digest = digest }
         end,
         copy = function(from, to) return copyFile(from, to, true) end,
-        remove = function(path) return deleteFile(path) end,
     }
     local function same(document)
         return type(document) == "table" and type(document.data) == "table"
@@ -133,10 +136,7 @@ function R.archiveWal(walPath, expected)
             if io.copy(walPath, archived) == false then return nil, "WAL_ARCHIVE_COPY_FAILED" end
             if not same(io.read(archived)) then return nil, "WAL_ARCHIVE_READBACK_FAILED" end
         end
-        -- The source may only be removed once the exact evidence is verified elsewhere.
         if not same(io.read(walPath)) then return nil, "WAL_ARCHIVE_SOURCE_CHANGED" end
-        if io.remove(walPath) == false or io.exists(walPath) then return nil, "WAL_ARCHIVE_DELETE_FAILED" end
-        if not same(io.read(archived)) then return nil, "WAL_ARCHIVE_FINAL_READBACK_FAILED" end
         return archived
     end
     local ok, path, why = pcall(archive)
