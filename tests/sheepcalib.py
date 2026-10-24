@@ -7,32 +7,17 @@ and the exit code is 1 when anything failed (or the Lua run logged an error).
     python tests/sheepcalib.py [--json out.json] [--ab cattle-legacy=a.json --ab cattle-real=b.json --ab species=c.json]
 """
 import argparse
-import glob
 import json
 import os
 
-import lupa
+from lua_test_support import new_runtime, to_python as lua_to_py
 
 TESTS = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(TESTS)
 
 
-def lua_to_py(value):
-    if lupa.lua_type(value) == "table":
-        keys = list(value.keys())
-        if keys and all(isinstance(k, int) for k in keys) and sorted(keys) == list(range(1, len(keys) + 1)):
-            return [lua_to_py(value[k]) for k in sorted(keys)]
-        return {str(k): lua_to_py(value[k]) for k in keys}
-    return value
-
-
 def run(group="main"):
-    lua = lupa.LuaRuntime(unpack_returned_tuples=True)
-    lua.globals().REPO = REPO + "/"
-    lua.globals().listRepoLua = lambda sub: lua.table_from(sorted(
-        os.path.relpath(p, REPO) for p in glob.glob(os.path.join(REPO, sub, "**", "*.lua"), recursive=True)))
-    with open(os.path.join(TESTS, "stubs.lua"), encoding="utf-8") as f:
-        lua.execute(f.read())
+    lua = new_runtime()
     for name in ("sheepcalib.lua", "sheepcalib_scenarios.lua"):
         with open(os.path.join(TESTS, name), encoding="utf-8") as f:
             lua.execute(f.read())

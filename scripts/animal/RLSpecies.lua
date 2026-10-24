@@ -41,9 +41,11 @@ function RLSpecies.getSubTypeKey(subType)
     -- Goats share the SHEEP type but have sections of their own (GOAT): their own growth, milk and
     -- nursing values, never a sheep's (unified nursing design, 2026-10-22). A config without a GOAT
     -- section gives them its root, as before.
-    if typeName == "SHEEP" and RLRearingPolicy ~= nil and RLRearingPolicy.getUseNamed(typeName, subType.breed, subType.name) == "DAIRY_GOAT" then
-        cache[subType] = "GOAT"
-        return "GOAT"
+    local use=RLRearingPolicy ~= nil and type(RLRearingPolicy.getUseNamed)=="function" and RLRearingPolicy.getUseNamed(typeName, subType.breed, subType.name) or nil
+    local sectionKey=RLSpeciesCatalog.configKey(typeName,use)
+    if sectionKey~=typeName then
+        cache[subType] = sectionKey
+        return sectionKey
     end
     if RLWeightProfiles ~= nil and RLWeightProfiles.getTypeEntry ~= nil and RLWeightProfiles.isExcludedBreed ~= nil
         and RLWeightProfiles.isExcludedBreed(RLWeightProfiles.getTypeEntry(typeName), subType.breed) then

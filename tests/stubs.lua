@@ -148,7 +148,9 @@ RLLivestockPrices = { getMultiplier = function() return 1 end }
 -- Body condition (scripts/nutrition). Loaded for every test: Animal and the price, carcass and
 -- reproduction code read it. Without an AnimalType global no animal is covered, so its factors
 -- are 1 and tests of other code see the old behaviour; tests/test_bodycondition.lua covers it.
+loadMod("scripts/animal/RLSpeciesCatalog.lua")
 loadMod("scripts/animal/RLSpecies.lua")
+loadMod("scripts/animal/RLAnimalState.lua")
 loadMod("scripts/animal/RLWeightMath.lua")
 loadMod("scripts/animal/RLMilkParity.lua")
 loadMod("scripts/nutrition/RLNutritionMath.lua")

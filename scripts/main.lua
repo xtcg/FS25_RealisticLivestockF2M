@@ -51,7 +51,9 @@ source(modDirectory .. "scripts/animal/RLBreedTraits.lua")
 source(modDirectory .. "scripts/animal/RLRearingPolicy.lua")
 source(modDirectory .. "scripts/animal/RLCurveScale.lua")
 -- Which species section of the nutrition configs an animal or pen reads (sheep; cattle read the root)
+source(modDirectory .. "scripts/animal/RLSpeciesCatalog.lua")
 source(modDirectory .. "scripts/animal/RLSpecies.lua")
+source(modDirectory .. "scripts/animal/RLAnimalState.lua")
 -- Carcass yield arithmetic, pure; AnimalMoveEvent feeds it the animal and config snapshot
 source(modDirectory .. "scripts/animal/RLMeatMath.lua")
 -- Delivery rules shared by the delivery code and the trade quote (contract order, fee, butcher recipe), pure

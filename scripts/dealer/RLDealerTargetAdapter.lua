@@ -5,7 +5,6 @@ local A=RLDealerTargetAdapter
 -- Engine state of the pen, not the animal: ids, cluster link, dirty flag, and the 3D visual a pen gives each
 -- animal (AnimalClusterHusbandry:updateVisuals sets visualAnimalIndex and Animal:createVisual's visualAnimal,
 -- which links back to the animal; both appear as soon as the animal is in the pen).
-local volatile={id=true,idFull=true,clusterSystem=true,isDirty=true,visualAnimal=true,visualAnimalIndex=true}
 local function finite(v) return type(v)=="number" and v==v and math.abs(v)<math.huge end
 local function dense(t)
     if type(t)~="table" then return false end
@@ -21,20 +20,7 @@ local function key(a)
     return RLTradeSourceAdapter.identityKey(a)
 end
 A.identityKey=key
-local function snapshot(v,depth,seen)
-    local kind=type(v)
-    if kind=="function" then return nil end
-    if kind=="number" then if not finite(v) then error("NONFINITE_STATE") end;return v end
-    if kind~="table" then if kind=="userdata" or kind=="thread" then error("OPAQUE_STATE") end;return v end
-    if depth>24 or seen[v] then error("CYCLIC_OR_DEEP_STATE") end
-    seen[v]=true;local out={}
-    for k,x in pairs(v) do
-        if (type(k)~="string" and (not finite(k) or k%1~=0)) then error("STATE_KEY") end
-        if type(x)~="function" and not (depth==0 and volatile[k]) then out[k]=snapshot(x,depth+1,seen) end
-    end
-    seen[v]=nil;return out
-end
-local function frozen(a) local ok,s=pcall(snapshot,a,0,{});if not ok then return nil end;return s end
+local function frozen(a) return RLAnimalState.capture(a,{ignoreNestedMethods=true}) end
 local function equal(a,b)
     if type(a)~=type(b) then return false end
     if type(a)~="table" then return a==b end
@@ -47,7 +33,7 @@ end
 local function intact(a,saved)
     local now=frozen(a)
     if now==nil or type(saved)~="table" then return false end
-    local base={};for k,v in pairs(saved) do if not volatile[k] then base[k]=v end end
+    local base={};for k,v in pairs(saved) do if not RLAnimalState.isVolatile(k) then base[k]=v end end
     if base.variation==nil then now.variation=nil end
     return equal(now,base)
 end

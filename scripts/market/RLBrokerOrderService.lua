@@ -67,9 +67,9 @@ function S.new(deps)
         return RLMarketData.copy(result)
     end
     local function guarded(fn,...)
-        local ok,result,reason=pcall(fn,...)
+        local ok,result,reason,details=pcall(fn,...)
         if not ok then return nil,"BROKER_SERVICE_ERROR" end
-        return result,reason
+        return result,reason,details
     end
     function service:preflight(principal,request)
         return guarded(function()

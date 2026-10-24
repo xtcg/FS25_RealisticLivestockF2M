@@ -12,7 +12,8 @@ local function setup(options)
     local order={orderId="o1",monthId="M1",rules=rules,configRevision="cfg1",formulaVersion=1,priceRevision="p1",priceBasis="CURRENT_MARKET",classRevision="c1",traitMappingRevision="t1"}
     local req={orderId="o1",animalKey=key,sourceRef="pen-alias",transportMode="PICKUP"}
     local q,l=RLBrokerQuota.new(),RLMarketResourceLock.new()
-    local definition={species={COW={monthlyHeadCap=1,perBreedHeadCap=1}},orders={o1={speciesKey="COW",breedScope="ANY",quantityTotal=1}}}
+    local heads=options.headCap or 1
+    local definition={species={COW={monthlyHeadCap=heads,perBreedHeadCap=heads}},orders={o1={speciesKey="COW",breedScope="ANY",quantityTotal=heads}}}
     assert(q:initialize("M1",definition))
     local x={source=s,animal=a,other=b,mission=m,farm=f,quota=q,locks=l,request=req,time=1000,ready=true,permission=true,docs={},order=order}
     x.service=assert(RLBrokerOrderService.new({serverEpoch="e1",authorize=function()return x.permission end,
@@ -173,3 +174,39 @@ check("broker transaction: same integer-valued farm has canonical wallet resourc
 malformed=cp(x.disk);local receipt=malformed.records[x.id].paymentReceipts[x.id..":payment"]
 receipt.action.kind="SALE";receipt.actionFingerprint=D.fingerprint(receipt.action)
 check("broker transaction: another transaction kind cannot masquerade as Broker receipt",not T.validateDocument(malformed))
+
+-- Real husbandry IDs are strings and visual objects point back to the animal.
+x=setup();getAnimalRootNode=function()return 99 end
+loadMod("scripts/animals/husbandry/cluster/VisualAnimal.lua")
+x.animal.id="1-7";x.other.id="1-8"
+x.animal.visualAnimal=VisualAnimal.new(x.animal,1,7)
+x.other.visualAnimal=VisualAnimal.new(x.other,1,8)
+check("broker transaction: actual visual objects and string engine IDs commit",x:confirm().status=="COMMITTED" and x.mission.calls==1)
+-- Previous source evidence remains valid on restore; schema-1 animal payloads
+-- are not rewritten merely because new transactions use compact schema 2.
+local legacy=cp(x.disk);local record=legacy.records[x.id];local source=record.sourceEvidence
+source.version=1
+for _,member in ipairs(source.members)do
+    local animal=member.identityKey==source.identityKey and x.animal or x.other
+    member.state=assert(RLAnimalState.capture(animal,{ignored={rlGrowthCurve=true,rlInfoRows=true}}))
+    member.stateFingerprint=nil
+end
+source.fingerprint=nil;source.fingerprint=D.fingerprint(source)
+check("broker transaction: legacy full source evidence still validates",T.validateDocument(legacy))
+
+x=setup({headCap=60})
+for i=3,60 do
+    local _,a=F.source("PEN");a.uniqueId=tostring(20000+i);a.id="1-"..i;a.clusterSystem=x.source.system
+    x.source.system.animals[i]=a
+end
+-- Exercise actual coordinator history growth, not a mirrored size formula.
+x.store.write=function(doc)x.disk=cp(doc);return true end
+local successful=0
+for i=1,30 do
+    local req=cp(x.request);req.animalKey=RLTradeSourceAdapter.identityKey(x.source.system.animals[1])
+    local credential=assert(x.service:preview(actor,req)).credential
+    local result=x.tx:confirm(actor,T.requestId("e1",i),credential,req)
+    if not result or result.status~="COMMITTED" then break end
+    successful=successful+1
+end
+check("broker transaction: sixty-head source survives thirty sequential deliveries",successful==30 and x.mission.calls==30 and #x.source.system.animals==30 and T.validateDocument(x.disk))

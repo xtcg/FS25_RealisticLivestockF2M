@@ -27,7 +27,7 @@ local function resources(plan,evidence,principal)
     local snapshot=plan.currentSnapshot
     if type(snapshot)~="table" or snapshot.identityKey~=plan.request.animalKey or not text(snapshot.speciesKey)
         or not text(snapshot.breedId) then return nil,"INVALID_PLAN_ANIMAL" end
-    if type(evidence)~="table" or evidence.version~=1 or evidence.kind~="BROKER_SOURCE" or not text(evidence.sourceId)
+    if type(evidence)~="table" or (evidence.version~=1 and evidence.version~=2) or evidence.kind~="BROKER_SOURCE" or not text(evidence.sourceId)
         or evidence.identityKey~=snapshot.identityKey or evidence.ownerFarmId~=principal.farmId
         or (evidence.sourceKind~="PEN" and evidence.sourceKind~="TRAILER") or type(evidence.animal)~="table"
         or type(evidence.members)~="table" or type(evidence.queues)~="table" or evidence.reloadRestoreSupported~=false then return nil,"INVALID_SOURCE_EVIDENCE" end
@@ -37,10 +37,20 @@ local function resources(plan,evidence,principal)
     local seen,count,selected={},0,0
     for index,member in pairs(evidence.members)do
         if not integer(index,1) or index>#evidence.members or type(member)~="table" or not text(member.identityKey) or seen[member.identityKey]
-            or type(member.state)~="table" or not integer(member.engineId,0) then return nil,"INVALID_SOURCE_MEMBER" end
+            then return nil,"INVALID_SOURCE_MEMBER" end
+        local engineId=member.engineId
+        if engineId~=nil and not text(engineId) and not integer(engineId,0) then return nil,"INVALID_SOURCE_MEMBER" end
+        local stateFingerprint
+        if evidence.version==1 then
+            if type(member.state)~="table" then return nil,"INVALID_SOURCE_MEMBER" end
+            stateFingerprint=fp(member.state)
+        else
+            if member.state~=nil or not text(member.stateFingerprint) or member.stateFingerprint:sub(1,8)~="market1:" then return nil,"INVALID_SOURCE_MEMBER" end
+            stateFingerprint=member.stateFingerprint
+        end
         seen[member.identityKey]=true;count=count+1
         if member.identityKey==evidence.identityKey then
-            if not exact(member.state,evidence.animal) then return nil,"SOURCE_SELECTED_STATE_MISMATCH" end
+            if stateFingerprint~=fp(evidence.animal) then return nil,"SOURCE_SELECTED_STATE_MISMATCH" end
             selected=selected+1
         end
     end

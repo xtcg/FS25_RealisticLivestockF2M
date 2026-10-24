@@ -12,9 +12,9 @@ function RLMarketSpecies.resolve(subType, typeName, options)
     if type(subType) ~= "table" or type(subType.name) ~= "string" or type(subType.breed) ~= "string" then
         return nil, "UNRESOLVED_SUBTYPE"
     end
-    local species = typeName
-    if typeName == "SHEEP" and subType.breed == "GOAT" then species = "GOAT" end
-    if species ~= "COW" and species ~= "PIG" and species ~= "SHEEP" and species ~= "GOAT" then
+    local species = RLSpeciesCatalog.marketKey(typeName,subType.breed)
+    local member=RLSpeciesCatalog.get(species)
+    if member==nil or member.market==false then
         return nil, "UNSUPPORTED_SPECIES:" .. tostring(species)
     end
     local config = options.dealerConfig

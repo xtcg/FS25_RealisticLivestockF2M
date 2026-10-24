@@ -37,13 +37,27 @@ function RLMarketData.fingerprint(data)
     return "market1:" .. result
 end
 function RLMarketData.copy(data)
-    local fingerprint, reason = RLMarketData.fingerprint(data)
-    if not fingerprint then return nil, reason end
-    local function clone(v)
-        if type(v) ~= "table" then return v end
-        local result = {}
-        for k, item in pairs(v) do result[k] = clone(item) end
+    -- Validate while cloning; copying does not need a sorted canonical string.
+    -- Count keys as well as values, preserving fingerprint's exact data budget.
+    local active,count={},0
+    local function clone(v,depth)
+        count=count+1
+        if count>100000 or depth>24 then error("DATA_LIMIT",0) end
+        local kind=type(v)
+        if kind=="number" then number(v);return v end
+        if kind=="nil" or kind=="boolean" or kind=="string" then return v end
+        if kind~="table" or getmetatable(v)~=nil then error("NON_DATA_INPUT",0) end
+        if active[v] then error("CYCLIC_DATA",0) end
+        active[v]=true
+        local result={}
+        for key,item in pairs(v) do
+            if type(key)~="string" and type(key)~="number" then error("NON_DATA_KEY",0) end
+            result[clone(key,depth+1)]=clone(item,depth+1)
+        end
+        active[v]=nil
         return result
     end
-    return clone(data)
+    local okay,result=pcall(clone,data,0)
+    if not okay then return nil,"INVALID_MARKET_DATA" end
+    return result
 end

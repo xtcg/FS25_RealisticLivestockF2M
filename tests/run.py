@@ -11,6 +11,7 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 
+from lua_test_support import new_runtime
 import lupa
 
 TESTS = os.path.dirname(os.path.abspath(__file__))
@@ -18,13 +19,7 @@ REPO = os.path.dirname(TESTS)
 
 
 def run(path):
-    lua = lupa.LuaRuntime(unpack_returned_tuples=True)
-    lua.globals().REPO = REPO + "/"
-    # Repository-relative paths of the .lua files under a directory (Lua has no directory listing here).
-    lua.globals().listRepoLua = lambda sub: lua.table_from(sorted(
-        os.path.relpath(p, REPO) for p in glob.glob(os.path.join(REPO, sub, "**", "*.lua"), recursive=True)))
-    with open(os.path.join(TESTS, "stubs.lua"), encoding="utf-8") as f:
-        lua.execute(f.read())
+    lua = new_runtime()
     with open(path, encoding="utf-8") as f:
         lua.execute(f.read())
     return [(r["name"], r["ok"]) for r in lua.globals().RESULTS.values()]
