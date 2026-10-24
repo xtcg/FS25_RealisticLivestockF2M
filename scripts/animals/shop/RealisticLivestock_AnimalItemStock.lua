@@ -108,7 +108,7 @@ function RealisticLivestock_AnimalItemStock.new(animal)
 		
 			table.insert(self.infos, {
 				title = g_i18n:getText("rl_ui_targetWeight"),
-				value = string.format("%.2f", animal.targetWeight or 50) .. "kg"
+				value = string.format("%.2f", RLGrowth.getDisplayTarget(animal) or 50) .. "kg"
 			})
 		
 			if animal.animalTypeIndex == AnimalType.COW and animal.gender == "female" and animal:getAge() >= subType.reproductionMinAgeMonth then
