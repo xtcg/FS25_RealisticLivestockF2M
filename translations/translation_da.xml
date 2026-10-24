@@ -223,6 +223,7 @@
         <text name="rl_ui_input_water" text="Vand"/>
         <text name="rl_ui_input_straw" text="Strå"/>
         <text name="rl_ui_output_milk" text="Mælk"/>
+        <text name="rl_ui_output_pallets_milk" text="Mælk"/>
         <text name="rl_ui_output_manure" text="Gødning"/>
         <text name="rl_ui_output_liquidManure" text="Flydende gødning"/>
         <text name="rl_ui_output_pallets_eggs" text="Æg"/>

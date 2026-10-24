@@ -267,3 +267,56 @@ do
     check("grid: 3 rows shrink the section to two grid rows from its full height",
         near(frame.statsSection.size[2], 0.255 * (10 + 2 * 35) / 255, 1e-12) and not frame.statRow[4].visible)
 end
+
+-- Output rows: both display sites build "rl_ui_output_" .. name, where a "pallets" output is renamed
+-- per species. Every name they can build needs a text in every language (cow pallets = Hof Bergmann
+-- milk cans showed "Missing 'rl_ui_output_pallets_milk'").
+for _, path in ipairs({ "scripts/animal/RealisticLivestock_Animal.lua", "scripts/gui/rlmenu/services/RLAnimalInfoService.lua" }) do
+    local source = readFile(path)
+    local names = { milk = true, manure = true, liquidManure = true }
+    for name in source:gmatch('"(pallets_%a+)"') do names[name] = true end
+    check(path .. " maps cow pallets to pallets_milk", names.pallets_milk == true)
+    for _, lang in ipairs(LANGUAGES) do
+        local _, byName = loadTranslation(lang)
+        local missing = {}
+        for name in pairs(names) do
+            if not byName["rl_ui_output_" .. name] then missing[#missing + 1] = name end
+        end
+        table.sort(missing)
+        check(string.format("%s: %s output rows have texts (%s)", lang, path:match("[^/]+$"), table.concat(missing, ",")), #missing == 0)
+    end
+end
+
+-- Hof Bergmann cows carry milk (tank) and pallets (milk cans) for the same milk; the info box and
+-- the menu show it once, as the milk row.
+AnimalType = AnimalType or { COW = 1, PIG = 2, SHEEP = 3, HORSE = 4, CHICKEN = 5 }
+loadAnimalSection("function Animal.isDuplicateMilkRow", "--- Cattle's milk level by lactation number")
+local cow = { animalTypeIndex = AnimalType.COW, output = { milk = 1, pallets = 1, manure = 2 } }
+check("dairy cow: pallets row repeats the milk row", Animal.isDuplicateMilkRow(cow, "pallets"))
+check("dairy cow: milk and manure rows stay", not Animal.isDuplicateMilkRow(cow, "milk") and not Animal.isDuplicateMilkRow(cow, "manure"))
+check("cow with cans only keeps the pallets row",
+    not Animal.isDuplicateMilkRow({ animalTypeIndex = AnimalType.COW, output = { pallets = 1 } }, "pallets"))
+check("sheep wool pallets stay",
+    not Animal.isDuplicateMilkRow({ animalTypeIndex = AnimalType.SHEEP, output = { milk = 1, pallets = 1 } }, "pallets"))
+for _, path in ipairs({ "scripts/animal/RealisticLivestock_Animal.lua", "scripts/gui/rlmenu/services/RLAnimalInfoService.lua" }) do
+    local source = readFile(path)
+    check(path:match("[^/]+$") .. " skips the repeated milk row", source:find("Animal.isDuplicateMilkRow(", 1, true) ~= nil
+        and source:find("if outputText ~= nil then", 1, true) ~= nil)
+end
+
+-- Hof Bergmann cows carry milk (tank) and pallets (milk cans) for the same milk; the info box and
+-- the menu show it once, as the milk row.
+AnimalType = AnimalType or { COW = 1, PIG = 2, SHEEP = 3, HORSE = 4, CHICKEN = 5 }
+loadAnimalSection("function Animal.isDuplicateMilkRow", "--- Cattle's milk level by lactation number")
+local cow = { animalTypeIndex = AnimalType.COW, output = { milk = 1, pallets = 1, manure = 2 } }
+check("dairy cow: pallets row repeats the milk row", Animal.isDuplicateMilkRow(cow, "pallets"))
+check("dairy cow: milk and manure rows stay", not Animal.isDuplicateMilkRow(cow, "milk") and not Animal.isDuplicateMilkRow(cow, "manure"))
+check("cow with cans only keeps the pallets row",
+    not Animal.isDuplicateMilkRow({ animalTypeIndex = AnimalType.COW, output = { pallets = 1 } }, "pallets"))
+check("sheep wool pallets stay",
+    not Animal.isDuplicateMilkRow({ animalTypeIndex = AnimalType.SHEEP, output = { milk = 1, pallets = 1 } }, "pallets"))
+for _, path in ipairs({ "scripts/animal/RealisticLivestock_Animal.lua", "scripts/gui/rlmenu/services/RLAnimalInfoService.lua" }) do
+    local source = readFile(path)
+    check(path:match("[^/]+$") .. " skips the repeated milk row", source:find("Animal.isDuplicateMilkRow(", 1, true) ~= nil
+        and source:find("if outputText ~= nil then", 1, true) ~= nil)
+end

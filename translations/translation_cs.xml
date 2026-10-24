@@ -228,6 +228,7 @@
         <text name="rl_ui_input_water" text="饮水"/>
         <text name="rl_ui_input_straw" text="垫草"/>
         <text name="rl_ui_output_milk" text="牛奶"/>
+        <text name="rl_ui_output_pallets_milk" text="牛奶"/>
         <text name="rl_ui_output_manure" text="粪肥"/>
         <text name="rl_ui_output_liquidManure" text="液肥"/>
         <text name="rl_ui_output_pallets_eggs" text="鸡蛋"/>

@@ -211,6 +211,7 @@
         <text name="rl_ui_input_water" text="Вода"/>
         <text name="rl_ui_input_straw" text="Солома"/>
         <text name="rl_ui_output_milk" text="Молоко"/>
+        <text name="rl_ui_output_pallets_milk" text="Молоко"/>
         <text name="rl_ui_output_manure" text="Гній"/>
         <text name="rl_ui_output_liquidManure" text="Рідкий гній"/>
         <text name="rl_ui_output_pallets_eggs" text="Яйця"/>

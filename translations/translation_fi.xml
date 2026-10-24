@@ -228,6 +228,7 @@
         <text name="rl_ui_input_water" text="Vesi"/>
         <text name="rl_ui_input_straw" text="Olki"/>
         <text name="rl_ui_output_milk" text="Maito"/>
+        <text name="rl_ui_output_pallets_milk" text="Maito"/>
         <text name="rl_ui_output_manure" text="Lanta"/>
         <text name="rl_ui_output_liquidManure" text="Liete"/>
         <text name="rl_ui_output_pallets_eggs" text="Munia"/>

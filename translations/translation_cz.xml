@@ -239,6 +239,7 @@
         <text name="rl_ui_input_water" text="Voda"/>
         <text name="rl_ui_input_straw" text="Sláma"/>
         <text name="rl_ui_output_milk" text="Mléko"/>
+        <text name="rl_ui_output_pallets_milk" text="Mléko"/>
         <text name="rl_ui_output_manure" text="Hnůj"/>
         <text name="rl_ui_output_liquidManure" text="Močůvka"/>
         <text name="rl_ui_output_pallets_eggs" text="Vajíčka"/>

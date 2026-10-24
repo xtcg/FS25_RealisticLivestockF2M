@@ -225,6 +225,7 @@
         <text name="rl_ui_input_water" text="Wasser"/>
         <text name="rl_ui_input_straw" text="Stroh"/>
         <text name="rl_ui_output_milk" text="Milch"/>
+        <text name="rl_ui_output_pallets_milk" text="Milch"/>
         <text name="rl_ui_output_manure" text="Mist"/>
         <text name="rl_ui_output_liquidManure" text="Gülle"/>
         <text name="rl_ui_output_pallets_eggs" text="Eier"/>

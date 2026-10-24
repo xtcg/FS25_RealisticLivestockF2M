@@ -1191,7 +1191,9 @@ function Animal:showMonitorInfo(box)
     for fillType, amount in pairs(self.output) do
         local outputText = fillType
 
-        if fillType == "pallets" then
+        if Animal.isDuplicateMilkRow(self, fillType) then
+            outputText = nil
+        elseif fillType == "pallets" then
             if self.animalTypeIndex == AnimalType.COW then outputText = "pallets_milk" end
 
             if self.animalTypeIndex == AnimalType.SHEEP then outputText = self.subType == "GOAT" and "pallets_goatMilk" or
@@ -1200,8 +1202,10 @@ function Animal:showMonitorInfo(box)
             if self.animalTypeIndex == AnimalType.CHICKEN then outputText = "pallets_eggs" end
         end
 
-        box:addLine(g_i18n:getText("rl_ui_output_" .. outputText),
-            RLAnimalDisplayHelper.formatMonthlyAmount(amount))
+        if outputText ~= nil then
+            box:addLine(g_i18n:getText("rl_ui_output_" .. outputText),
+                RLAnimalDisplayHelper.formatMonthlyAmount(amount))
+        end
     end
 end
 
@@ -1967,6 +1971,16 @@ end
 function Animal:getLactationFactor()
     if not self.isLactating or not self.isParent then return 0 end
     return RLLactation.getYieldFactor(self.monthsSinceLastBirth or 12, RLLactation.getMonths(self:getSubType()))
+end
+
+--- Whether an output row repeats the milk row. Hof Bergmann cows have both a milk (tank) and a
+--- pallets (milk can) output for the same milk; the barn delivers it to whichever it has.
+---@param animal table
+---@param fillType string output key
+---@return boolean
+function Animal.isDuplicateMilkRow(animal, fillType)
+    return fillType == "pallets" and AnimalType ~= nil and animal.animalTypeIndex == AnimalType.COW
+        and type(animal.output) == "table" and animal.output.milk ~= nil
 end
 
 --- Cattle's milk level by lactation number (RLMilkParity): 1 for other animals and for any output
