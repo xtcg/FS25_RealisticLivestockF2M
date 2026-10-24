@@ -313,6 +313,7 @@ source(modDirectory .. "scripts/dealer/RLDealerGeneration.lua")
 source(modDirectory .. "scripts/dealer/RLDealerScheduler.lua")
 source(modDirectory .. "scripts/dealer/RLDealerAssembly.lua")
 source(modDirectory .. "scripts/dealer/RLDealerService.lua")
+source(modDirectory .. "scripts/dealer/RLDealerMessages.lua")
 source(modDirectory .. "scripts/dealer/RLDealerGameBinding.lua")
 source(modDirectory .. "scripts/dealer/RLDealerRuntime.lua")
 

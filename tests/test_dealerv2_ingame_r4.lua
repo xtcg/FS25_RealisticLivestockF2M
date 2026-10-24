@@ -182,3 +182,29 @@ do
     R.logTick(L, { filled = 1, empty = 0, deficit = 3, months = 0.5 })
     check("r4 tick log: a filled place is logged", lines[3] ~= nil and lines[3]:find("filled=1", 1, true) ~= nil)
 end
+
+-- r5 game test: a refused console order raised "attempt to index nil with 'text'" - RLDealerMessages was
+-- never sourced, so the refusal reason was lost. Every dealer file the runtime or the console uses is loaded,
+-- before the console.
+do
+    local main = source("scripts/main.lua")
+    local console = main:find('"scripts/console/RLIdentityConsole.lua"', 1, true)
+    -- every dealer module the console and the service name, when it has its own file
+    local seen = {}
+    for _, user in ipairs({ "scripts/console/RLIdentityConsole.lua", "scripts/dealer/RLDealerService.lua", "scripts/dealer/RLDealerRuntime.lua" }) do
+        for name in source(user):gmatch("(RLDealer%w+)") do
+            local path = "scripts/dealer/" .. name .. ".lua"
+            local file = io.open(REPO .. path, "r")
+            if file ~= nil and not seen[path] then
+                file:close()
+                seen[path] = true
+                local at = main:find('"' .. path .. '"', 1, true)
+                check("main.lua sources " .. path .. " before the console", at ~= nil and console ~= nil and at < console)
+            end
+        end
+    end
+    check("the console's message table is among them", seen["scripts/dealer/RLDealerMessages.lua"] == true)
+    local service = source("scripts/dealer/RLDealerService.lua")
+    local _, logged = service:gsub('Log:error%("RLDEALERV2 purchase failed with an error: %%s", tostring%(result%)%)', "")
+    check("a purchase that raises is logged with its error (both routes)", logged == 2)
+end
