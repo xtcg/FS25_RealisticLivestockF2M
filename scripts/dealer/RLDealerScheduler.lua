@@ -84,10 +84,14 @@ function S.tick(sched, store, segments, world, ctx)
         else
             local places = math.min(sched.budget, sched.deficit)
             for _ = 1, places do
-                local row = RLDealerGeneration.fillPlace(store, world, ctx)
+                local row, why, info = RLDealerGeneration.fillPlace(store, world, ctx)
                 sched.deficit = sched.deficit - 1
                 if row ~= nil then sched.stats.filled = sched.stats.filled + 1; report.filled = report.filled + 1
-                else sched.stats.empty = sched.stats.empty + 1; report.empty = report.empty + 1 end
+                else
+                    sched.stats.empty = sched.stats.empty + 1; report.empty = report.empty + 1
+                    -- Why the place stayed empty, for the log (RLDealerRuntime.onHour): every attempt's reason.
+                    report.emptyReason, report.emptyReasons = why, type(info) == "table" and info.reasons or nil
+                end
                 if store.recoveryRequired then sched.paused = "RECOVERY_REQUIRED"; break end
             end
         end

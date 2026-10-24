@@ -125,6 +125,10 @@ end
 
 function C.dealerEnable()
     if not RLAnimalIdentityRuntime.server then return "RLDEALERV2: server only" end
+    -- A second enable would build a second money adapter over the bound one (MONEY_RECONCILIATION_REQUIRED).
+    if RLDealerRuntime.CHANNEL_ENABLED and RLDealerRuntime.state == "READY" and RLDealerRuntime.service ~= nil then
+        return say("RLDEALERV2: already enabled for this session; rlDealerV2Status shows the gate")
+    end
     local ok, why = RLDealerRuntime.enable()
     if not ok then return say("RLDEALERV2: not enabled: " .. tostring(why)) end
     return say("RLDEALERV2: enabled for this session (singleplayer cattle). Save the game once so the first checkpoint verifies; purchases open after it.")
@@ -252,3 +256,14 @@ function C.dump()
         tostring(RLAnimalIdentityCheckpoint.generation), farm ~= nil and farm.money or -1))
     return string.format("%d live keys, %d ledger keys; see the log", #scan.records, ledgerKeys)
 end
+
+
+-- addConsoleCommand calls target[name](target, ...): with RLIdentityConsole as the target every handler
+-- got the table as its first argument and the typed words one place later (`rlIdentityActivate accept`
+-- never saw "accept"). The console registers this target instead; C.* keep their plain arguments for
+-- other callers (the test kit, tests).
+C.commands = setmetatable({}, { __index = function(_, name)
+    local fn = rawget(C, name)
+    if type(fn) ~= "function" then return nil end
+    return function(_, ...) return fn(...) end
+end })

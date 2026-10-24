@@ -29,6 +29,7 @@ function R.reset(isServer)
     R.server, R.store, R.evidence, R.discardedWal = isServer == true, nil, nil, nil
     R.service, R.parts, R.capabilities = nil, nil, {}
     R.CHANNEL_ENABLED = false
+    R.lastTickBlock, R.lastTickPause = nil, nil
     R.state, R.reason = isServer and "LOADING" or "DISABLED", isServer and "WAITING_FOR_MISSION" or "CLIENT"
     -- Events from an earlier map must never retain a service or authority handle.
     if RLDealerPurchaseEvent then RLDealerPurchaseEvent.service = nil end
@@ -290,9 +291,35 @@ function R.onHour()
     -- The planner dates birthdays and due dates from world.now: it is the game date of THIS tick.
     R.parts.world.now = RLDealerGameBinding.now(environment)
     local ok, report, why = pcall(R.service.tick, { { hours = 1, daysPerMonth = environment.daysPerPeriod } }, R.parts.world)
+    local Log = RmLogging.getLogger("RLRM")
     if not ok then
-        RmLogging.getLogger("RLRM"):error("RLDealerRuntime.onHour: %s", tostring(report))
+        Log:error("RLDealerRuntime.onHour: %s", tostring(report))
+        return
     end
+    R.logTick(Log, report, why)
+end
+--- One line per tick that did something or could not: a filled or empty place (with every attempt's
+--- reason), and a blocked tick once per new reason. A quiet tick (no checkpoint, no deficit) logs nothing.
+function R.logTick(Log, report, why)
+    if report == nil then
+        if why ~= R.lastTickBlock then
+            R.lastTickBlock = why
+            Log:warning("RLDEALERV2 TICK blocked: %s", tostring(why))
+        end
+        return
+    end
+    R.lastTickBlock = nil
+    if (report.filled or 0) > 0 then
+        Log:info("RLDEALERV2 TICK filled=%d deficit=%s months=%s", report.filled, tostring(report.deficit), tostring(report.months))
+    end
+    if (report.empty or 0) > 0 then
+        local reasons = type(report.emptyReasons) == "table" and table.concat(report.emptyReasons, ", ") or ""
+        Log:warning("RLDEALERV2 TICK place left empty: %s [%s] deficit=%s", tostring(report.emptyReason), reasons, tostring(report.deficit))
+    end
+    if report.paused ~= nil and report.paused ~= R.lastTickPause then
+        Log:warning("RLDEALERV2 TICK paused: %s", tostring(report.paused))
+    end
+    R.lastTickPause = report.paused
 end
 function R.getStatus()
     return { version = R.VERSION, state = R.state, reason = R.reason, channelEnabled = R.CHANNEL_ENABLED == true,

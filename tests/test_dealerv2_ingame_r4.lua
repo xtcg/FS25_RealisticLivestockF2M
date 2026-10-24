@@ -134,3 +134,51 @@ do
     check("r4 batch: without the identity runtime the callback runs as before", AnimalSystem.onDayChanged("sys") == "onDayChanged")
     AnimalSystem, RLAnimalIdentityRuntime = oldSystem, oldRuntime
 end
+
+-- 6. Console: the typed words reach the handlers; a second enable says so; ticks say why.
+do
+    loadMod("scripts/console/RLIdentityConsole.lua")
+    local C = RLIdentityConsole
+    local got = {}
+    local saved = { activate = C.activate, dealerOrder = C.dealerOrder, dealerQuote = C.dealerQuote }
+    C.activate = function(arg) got.activate = arg; return "ok" end
+    C.dealerOrder = function(id) got.order = id end
+    C.dealerQuote = function(dest, a, b) got.quote = { dest, a, b } end
+    -- What the engine does with addConsoleCommand(name, help, fn, target): target[fn](target, words...).
+    local function console(fn, ...) local target = C.commands; return target[fn](target, ...) end
+    console("activate", "accept"); console("dealerOrder", "console-e1-2"); console("dealerQuote", "pen:1", "S1", "S2")
+    check("r4 console: rlIdentityActivate accept reaches activate as \"accept\"", got.activate == "accept")
+    check("r4 console: order ids and quote words arrive in place", got.order == "console-e1-2"
+        and got.quote[1] == "pen:1" and got.quote[2] == "S1" and got.quote[3] == "S2")
+    check("r4 console: direct callers (test kit) keep the plain call", C.activate("accept") == "ok" and C.commands.nothing == nil)
+    for k, v in pairs(saved) do C[k] = v end
+    local manager = source("scripts/console/RLConsoleCommandManager.lua")
+    check("r4 console: every RLIdentityConsole command registers the dropping target",
+        select(2, manager:gsub(", RLIdentityConsole%.commands, ", "")) == 15 and manager:find(", RLIdentityConsole, ", 1, true) == nil)
+
+    local oldId, oldD = RLAnimalIdentityRuntime, RLDealerRuntime
+    RLAnimalIdentityRuntime = { server = true }
+    local enables = 0
+    RLDealerRuntime = { CHANNEL_ENABLED = true, state = "READY", service = {}, enable = function() enables = enables + 1; return nil, "MONEY_RECONCILIATION_REQUIRED" end }
+    local text = C.dealerEnable()
+    check("r4 enable: a second rlDealerV2Enable in the session answers already enabled, not a money error",
+        enables == 0 and text:find("already enabled", 1, true) ~= nil)
+    RLAnimalIdentityRuntime, RLDealerRuntime = oldId, oldD
+end
+do
+    loadMod("scripts/dealer/RLDealerRuntime.lua")
+    local R = RLDealerRuntime
+    local lines = {}
+    local L = { info = function(_, f, ...) lines[#lines + 1] = "I " .. string.format(f, ...) end,
+        warning = function(_, f, ...) lines[#lines + 1] = "W " .. string.format(f, ...) end }
+    R.lastTickBlock, R.lastTickPause = nil, nil
+    R.logTick(L, { filled = 0, empty = 0, deficit = 0 })
+    check("r4 tick log: a quiet tick logs nothing", #lines == 0)
+    R.logTick(L, { filled = 0, empty = 1, deficit = 198, emptyReason = "EMPTY:REPLAY:MILK_RULES", emptyReasons = { "REPLAY:MILK_RULES", "ADMIT:X" } })
+    check("r4 tick log: an empty place names every attempt's reason", lines[1] ~= nil and lines[1]:find("EMPTY:REPLAY:MILK_RULES", 1, true)
+        and lines[1]:find("ADMIT:X", 1, true) and lines[1]:sub(1, 1) == "W")
+    R.logTick(L, nil, "TRANSACTION_IN_PROGRESS"); R.logTick(L, nil, "TRANSACTION_IN_PROGRESS")
+    check("r4 tick log: a blocked tick is logged once per new reason", #lines == 2)
+    R.logTick(L, { filled = 1, empty = 0, deficit = 3, months = 0.5 })
+    check("r4 tick log: a filled place is logged", lines[3] ~= nil and lines[3]:find("filled=1", 1, true) ~= nil)
+end
