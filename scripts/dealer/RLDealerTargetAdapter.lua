@@ -2,7 +2,9 @@
 -- The transaction owner must coordinate its receipts with WAL and source state.
 RLDealerTargetAdapter = {}
 local A=RLDealerTargetAdapter
-local volatile={id=true,idFull=true,clusterSystem=true,isDirty=true}
+-- Engine state of the pen, not the animal: ids, cluster link, dirty flag, and the 3D visual a pen gives each
+-- animal (Animal:createVisual; it links back to the animal, and appears as soon as the animal is in the pen).
+local volatile={id=true,idFull=true,clusterSystem=true,isDirty=true,visualAnimal=true}
 local function finite(v) return type(v)=="number" and v==v and math.abs(v)<math.huge end
 local function dense(t)
     if type(t)~="table" then return false end

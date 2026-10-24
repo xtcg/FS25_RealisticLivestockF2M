@@ -137,3 +137,21 @@ check("dealer target: world-scoped binding catches listener duplicate identity b
 d,c,batch=fixture();b=assert(A.bind(d,batch));assert(A.apply(b))
 c.afterFlush=function() batch[1].clusterSystem={} end
 check("dealer target: target absence cannot prove compensation if original object acquired another owner", not A.rollback(b) and not A.verifyRestored(b))
+
+-- r6 game test: every animal in a pen has a 3D visual that links back to it (Animal:createVisual), so
+-- binding an occupied pen failed (TARGET_STATE_UNREADABLE) and the visual the flush gave a new animal
+-- read as a changed field (TARGET_FIELDS_OR_MEMBERS_CHANGED). The visual is the pen's, not the animal's.
+do
+    local function giveVisual(a) local v={husbandryId=7,nodeId=12345};v.animal=a;a.visualAnimal=v end
+    local d,c,batch,other=fixture()
+    giveVisual(other)
+    local b,why=A.bind(d,batch)
+    check("dealer target: an occupied pen whose animals have 3D visuals binds", b~=nil, why)
+    c.afterFlush=function() for _,a in ipairs(c.animals) do if a.visualAnimal==nil then giveVisual(a) end end end
+    local ok,o=A.apply(b or {})
+    check("dealer target: visuals the pen gives the new animals are not a field change", ok and #o.added==2 and batch[1].visualAnimal~=nil)
+    check("dealer target: rollback after visuals still restores the pen", A.rollback(b)==true and #c.animals==1 and c.animals[1]==other)
+    d,c,batch,other=fixture();giveVisual(other);b=assert(A.bind(d,batch))
+    c.onAdd=function() other.weight=999 end
+    check("dealer target: business state of a visual animal is still guarded", not A.apply(b) and c.flushes==0)
+end
