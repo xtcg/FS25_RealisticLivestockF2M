@@ -25,7 +25,8 @@
 ]]
 
 -- 2: beef stock draws and inherits no milk gene (RLRearingPolicy), so its random stream differs from 1.
-RLDealerPlanner = { VERSION = 2 }
+-- 3: a breed without breeding rules offers no parent or pregnant stock (breedableCandidates).
+RLDealerPlanner = { VERSION = 3 }
 local P = RLDealerPlanner
 
 local function copy(v)
@@ -94,6 +95,29 @@ local function selectFetuses(world, rng, dam, sire, childNum)
 end
 
 
+-- The replay validates every past conception against the breed's rules (RLDealerReplay.getBreedingRules),
+-- which only a breed with breedingWeightRatio has. Without them a parent or pregnant animal can never
+-- pass: purposes that always need one are dropped, optional ones keep their young, open animals.
+local function breedableCandidates(entry, candidates)
+    local ratio = entry.breedingWeightRatio
+    if type(ratio) == "number" and ratio == ratio and ratio > 0 and ratio <= 1 then return candidates end
+    local out = {}
+    for _, candidate in ipairs(candidates) do
+        local purpose = candidate.purpose
+        if purpose.parent ~= "always" and purpose.pregnant ~= "always" then
+            if purpose.parent == "optional" or purpose.pregnant == "optional" then
+                local open = copy(purpose)
+                if open.parent == "optional" then open.parent = "never" end
+                if open.pregnant == "optional" then open.pregnant = "never" end
+                candidate = { purpose = open, segments = candidate.segments, lo = candidate.lo, hi = candidate.hi }
+            end
+            out[#out + 1] = candidate
+        end
+    end
+    return out
+end
+
+
 --- One selection, or nil and why. `rng` is the job's stream.
 function P.plan(world, rng)
     local subTypeIndex = RLDealerStockPolicy.pickSubType(world.config, world.subTypes, world.typeName, rng.random)
@@ -103,7 +127,7 @@ function P.plan(world, rng)
     if entry.status ~= RLDealerStockPolicy.COVERED then return nil, "NOT_COVERED" end
     local ctx = world.getSaleAgeContext(subType)
 
-    local candidate = RLDealerStockPolicy.pickCandidate(RLDealerStockPolicy.getCandidates(entry, subType, ctx), rng.random)
+    local candidate = RLDealerStockPolicy.pickCandidate(breedableCandidates(entry, RLDealerStockPolicy.getCandidates(entry, subType, ctx)), rng.random)
     if candidate == nil then return nil, "NO_PURPOSE" end
     local purpose = candidate.purpose
     local source = RLDealerStockPolicy.pickSource(RLDealerStockPolicy.getSources(entry, purpose, subType.gender), rng.random)

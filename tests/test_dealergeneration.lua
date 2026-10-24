@@ -471,3 +471,39 @@ do
     for _, r in pairs(s8.listings.records) do if r.state == "LISTED" then listedCount = listedCount + 1 end end
     check("R6 consume failure after admission: the place is filled once, not retried into extra listings", row8 ~= nil and listedCount == 1)
 end
+
+
+-- Game test 2026-10-24: a breed without breedingWeightRatio has no breeding rules in the replay, so the
+-- planner must not draw parent or pregnant stock for it (every such attempt failed MISSING_BREEDING_RULES).
+do
+    local _, _, w9 = setup()
+    local function plans(stripRatio)
+        local getEntry = RLDealerStockPolicy.getEntry
+        if stripRatio then
+            RLDealerStockPolicy.getEntry = function(...)
+                local e = getEntry(...)
+                local c = {}; for k, v in pairs(e) do c[k] = v end
+                c.breedingWeightRatio = nil
+                return c
+            end
+        end
+        local selections, bred, purposes = 0, 0, {}
+        for i = 1, 300 do
+            local sel = RLDealerPlanner.plan(w9, RLDealerRng.new("plan9:" .. i))
+            if sel ~= nil then
+                selections = selections + 1
+                purposes[sel.purpose] = true
+                if sel.reproduction.isParent or sel.reproduction.isPregnant then bred = bred + 1 end
+            end
+        end
+        RLDealerStockPolicy.getEntry = getEntry
+        return selections, bred, purposes
+    end
+    local n, bred = plans(false)
+    check("R11 a breed with breeding rules still draws parent or pregnant stock", n > 0 and bred > 0, n .. "/" .. bred)
+    local m, none, purposes = plans(true)
+    local names = {}; for p in pairs(purposes) do names[#names + 1] = p end
+    check("R11 a breed without breedingWeightRatio draws only open, never-calved stock", m > 0 and none == 0,
+        m .. "/" .. none .. " " .. table.concat(names, ","))
+    check("R11 planner version marks the changed draw", RLDealerPlanner.VERSION == 3)
+end

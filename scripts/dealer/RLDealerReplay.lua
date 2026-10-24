@@ -181,12 +181,35 @@ function R.getSourceLifecycle(history, observations, time)
     return life
 end
 
+-- A subtype's milk curve as Animal:updateOutput reads it: the game loads output.milk as
+-- { fillType, curve } (AnimalSystem:loadSubType), not as a curve; the tank milk first, else milk
+-- sold in cans (output.pallets of a lactation fill type: Hof Bergmann's cattle). nil = none.
+function R.getMilkCurve(sub)
+    local output = sub ~= nil and sub.output or nil
+    if output == nil then return nil end
+    local function curveOf(entry)
+        local curve = type(entry) == "table" and (entry.curve or entry) or nil
+        if type(curve) == "table" and type(curve.get) == "function" then return curve end
+        return nil
+    end
+    local milk = output.milk
+    if milk ~= nil and (Animal == nil or Animal.isSemenFillType == nil or not Animal.isSemenFillType(milk.fillType)) then
+        local curve = curveOf(milk)
+        if curve ~= nil then return curve end
+    end
+    local pallets = output.pallets
+    if pallets ~= nil and Animal ~= nil and Animal.isLactationPalletFillType ~= nil and Animal.isLactationPalletFillType(pallets.fillType) then
+        return curveOf(pallets)
+    end
+    return nil
+end
+
 local function refreshMilk(animal, lastBirth, time)
     animal.monthsSinceLastBirth = lastBirth ~= nil and time - lastBirth or 12
     animal.isLactating = lastBirth ~= nil and RLLactation.isWithin(animal.monthsSinceLastBirth)
     local sub = animal:getSubType()
-    local curve = sub.output ~= nil and sub.output.milk or nil
-    local milk = curve ~= nil and curve.get ~= nil and curve:get(RLMilkParity.getCurveAge(animal.age)) or 0
+    local curve = R.getMilkCurve(sub)
+    local milk = curve ~= nil and curve:get(RLMilkParity.getCurveAge(animal.age)) or 0
     milk = milk * RLMilkParity.getFactor(RLMilkParity.getParity(animal.birthCount)) * RLBreedTraits.get(sub, "milkScale")
     RLBodyCondition.applyMilk(animal, animal.isLactating
         and milk * RLLactation.getYieldFactor(animal.monthsSinceLastBirth) * (animal.genetics.productivity or 0) or 0, milk, 1)
@@ -228,9 +251,10 @@ local function replay(seed, history, options, previous, targetAge, sourceBoundar
     end
     if not finite(sub.healthIncreaseHour) or sub.healthIncreaseHour < 0
         or not finite(sub.healthDecreaseHour) or sub.healthDecreaseHour < 0 then return reject("HEALTH_RULES") end
+    -- A dairy dam that calved needs her milk curve; a beef dam gives no milk output (RLRearingPolicy).
+    local beef = RLRearingPolicy ~= nil and RLRearingPolicy.isBeef ~= nil and RLRearingPolicy.isBeef(sub)
     for _, event in ipairs(history.events) do
-        if event.kind == "CALVING" and (sub.output == nil or sub.output.milk == nil
-            or type(sub.output.milk.get) ~= "function") then return reject("MILK_RULES") end
+        if event.kind == "CALVING" and not beef and R.getMilkCurve(sub) == nil then return reject("MILK_RULES") end
     end
     local genes = seed.genetics
     for _, key in ipairs({ "metabolism", "quality", "productivity", "fertility", "health" }) do

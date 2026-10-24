@@ -1527,7 +1527,7 @@ U25的交付是能力分派和牛/商品注册，明确unsupported也是有效�
 |无 v2 文件、无残留 marker/WAL|未初始化，建立迁移报告；完成首次完整保存前关闭新渠道|
 |完整 checkpoint 全部一致、无额外 WAL|恢复已保存库存与身份；通过资金历史结清后可进入 READY|
 |WAL 与保存结果完全一致|确认已吸收，记录归档/压缩边界，不重复调用资金或转移|
-|WAL 基于最后已验证 generation，内容为未保存会话|按已批准规则移到 *.unsaved.xml，采用最后完整存档；身份烧号按 D3 处理|
+|WAL 基于最后已验证 generation，内容为未保存会话|按已批准规则复制到 *.unsaved.<epoch>.xml（引擎不允许 mod 删除存档目录里的文件，原 WAL 留到下次写入或保存时被替换），采用最后完整存档；身份烧号按 D3 处理|
 |WAL 更旧但未被后续保存对齐|RECOVERY_REQUIRED，保留保存点与 WAL 两份证据|
 |WAL 属于未来 generation/其他 lineage，或文件混代/损坏|RECOVERY_REQUIRED，不合并资金/动物，不重新生成库存|
 

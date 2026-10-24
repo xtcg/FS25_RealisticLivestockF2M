@@ -66,7 +66,10 @@ function S.new(parts)
         parts.purchaseContext.connection = connection
         local ran, result, failure = pcall(RLDealerPurchase.execute, parts.stock.purchase, request, principal, parts.adapter)
         parts.purchaseContext.connection = previous
-        if not ran then return nil, "SERVICE_ERROR" end
+        if not ran then
+            if Log ~= nil then Log:error("RLDEALERV2 purchase failed with an error: %s", tostring(result)) end
+            return nil, "SERVICE_ERROR"
+        end
         return result, failure
     end
 
@@ -127,7 +130,10 @@ function S.new(parts)
         parts.purchaseContext.useLocal, parts.purchaseContext.connection = true, nil
         local ran, result, failure = pcall(RLDealerPurchase.execute, parts.stock.purchase, request, principal, parts.adapter)
         parts.purchaseContext.useLocal = previous
-        if not ran then return nil, "SERVICE_ERROR" end
+        if not ran then
+            if Log ~= nil then Log:error("RLDEALERV2 purchase failed with an error: %s", tostring(result)) end
+            return nil, "SERVICE_ERROR"
+        end
         return result, failure
     end
     function self.localLookup(requestId)

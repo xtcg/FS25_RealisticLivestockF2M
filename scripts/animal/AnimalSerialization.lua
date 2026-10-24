@@ -298,7 +298,7 @@ function AnimalSerialization.readStream(animal, streamId, connection)
             if productivity ~= nil and productivity > 0 then genetics.productivity = productivity end
 
             local child = Animal.new({
-                age = 0,
+                age = -1,  -- unborn, as AnimalReproduction.createPregnancy makes it
                 health = health,
                 gender = gender,
                 subTypeIndex = childSubTypeIndex,
