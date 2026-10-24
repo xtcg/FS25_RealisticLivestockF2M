@@ -263,3 +263,30 @@ check("HB + CowBreeds: Hereford/Highland stay on the pack's own slots (no Herefo
 check("hash: stable 8 hex digits, differs on change",
     RLModelMerge.hash("abc") == RLModelMerge.hash("abc") and #RLModelMerge.hash("abc") == 8
     and RLModelMerge.hash("abc") ~= RLModelMerge.hash("abd"))
+
+-- r6 game test: the LSFM animated livestock trailer resolves a type config's files with
+-- Utils.getFilename(value, folder of the config), as base Utils does: "$" or join. The generated config's
+-- absolute "D:/mods/..." became "<modSettings>/generated/D:/mods/..." and the trailer animals did not load.
+do
+    local gen = "C:/Users/p/Documents/My Games/FarmingSimulator2025/modSettings/FS25_RealisticLivestockRM/generated/"
+    local U = {}
+    function U.getFilename(filename, baseDir)
+        if filename:sub(1, 1) == "$" then return "GAME/" .. filename:sub(2), false end
+        if baseDir == nil or baseDir == "" then return filename, false end
+        return baseDir .. filename, true
+    end
+    RLModelMerge.guardGeneratedPaths(U, gen)
+    local wrapped = U.getFilename
+    RLModelMerge.guardGeneratedPaths(U, gen)
+    check("generated paths: guard installs once per folder", U.getFilename == wrapped)
+    local path, relative = U.getFilename("D:/mods/fs25/FS25_CowBreedsRLRM/models/cow/angus/cattleCalf.i3d", gen)
+    check("generated paths: a drive path in a generated config stays as written",
+        path == "D:/mods/fs25/FS25_CowBreedsRLRM/models/cow/angus/cattleCalf.i3d" and relative == false)
+    check("generated paths: backslash drive paths and root paths too",
+        U.getFilename("D:\\mods\\x.xml", gen) == "D:\\mods\\x.xml" and U.getFilename("/mods/x.xml", gen) == "/mods/x.xml")
+    check("generated paths: game paths and relative paths of the generated folder resolve as before",
+        U.getFilename("$dataS/x_posed.i3d", gen) == "GAME/dataS/x_posed.i3d" and U.getFilename("loco.xml", gen) == gen .. "loco.xml")
+    check("generated paths: other folders keep base behaviour, even for drive paths",
+        U.getFilename("D:/mods/x.i3d", "D:/mods/fs25/FS25_HofBergmann/") == "D:/mods/fs25/FS25_HofBergmann/D:/mods/x.i3d"
+        and U.getFilename("models/x.i3d", "D:/mods/fs25/FS25_HofBergmann/") == "D:/mods/fs25/FS25_HofBergmann/models/x.i3d")
+end
