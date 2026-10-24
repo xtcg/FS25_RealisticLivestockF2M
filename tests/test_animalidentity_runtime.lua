@@ -343,3 +343,48 @@ do
         check("journal strict writer rejects nonfinite sequence",P.writeJournal(document(),{lineage="Lstrict-1",generation=1,sequence=invalid,keys={}})==nil)
     end
 end
+
+-- ---- batch: one journal barrier per synchronous callback (game test 2026-10-24) ------------------
+do
+    local saved = R.journalBarrier
+    local calls, answer = 0, true
+    local function setup()
+        ready(R.SHADOW)
+        R.activate({ records = {}, counters = { { country = 3, farmId = "9", type = "T1", nextRaw = 1 } } }, { accept = true })
+        calls, answer = 0, true
+        R.journalBarrier = function() calls = calls + 1; return answer end
+        return { countries = { [3] = { index = 3, farms = { { id = 9, ids = { [1] = 1 }, quality = 1 } } } } }
+    end
+    local function take(sys) return W.nextSystemRaw("sale-animal", sys, 3, sys.countries[3].farms[1], 1, "sale", function() error("legacy") end) end
+
+    local sys = setup()
+    for _ = 1, 5 do take(sys) end
+    check("batch: outside a batch every key has its own barrier", calls == 5)
+
+    sys = setup()
+    local raws = {}
+    local a, b = R.batch(function(x)
+        for i = 1, 5 do raws[i] = take(sys) end
+        check("batch: inside, no barrier runs until the end", calls == 0 and #R.journalKeys() >= 5)
+        return x, "two"
+    end, "one")
+    check("batch: the five keys are journaled by ONE barrier at the end, and results pass through",
+        calls == 1 and a == "one" and b == "two" and raws[5] ~= nil and raws[1] ~= raws[5] and R.batchDepth == 0)
+    calls = 0
+    R.batch(function() R.batch(function() take(sys); take(sys) end); take(sys) end)
+    check("batch: nested batches flush once, at the outermost end", calls == 1)
+    calls = 0
+    R.batch(function() end)
+    check("batch: a batch that took no key runs no barrier", calls == 0)
+
+    sys = setup()
+    local ok, err = pcall(R.batch, function() take(sys); error("boom") end)
+    check("batch: an error inside still flushes the keys taken, then propagates", not ok and tostring(err):find("boom") ~= nil
+        and calls == 1 and R.batchDepth == 0 and not R.batchPending)
+
+    sys = setup(); answer = false
+    R.batch(function() take(sys) end)
+    check("batch: a failed end barrier blocks the ledger as a per-key failure does",
+        R.state == "RECOVERY_REQUIRED" and R.allocationBlocked ~= nil)
+    R.journalBarrier = saved
+end

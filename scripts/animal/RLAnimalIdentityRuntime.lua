@@ -65,6 +65,7 @@ function R.reset(isServer)
     R.shadow = { observed = 0, collisions = 0, byEntry = {}, lines = 0, seen = {} }
     R.held = {}
     R.allocations = 0
+    R.batchDepth, R.batchPending = 0, nil
 end
 
 
@@ -219,8 +220,7 @@ local function allocationGate()
     return nil, "JOURNAL_BARRIER_MISSING"
 end
 
-local function persistReserved(keys)
-    for _, item in ipairs(keys) do journalKey(type(item) == "table" and item.key or item) end
+local function runBarrier()
     local barrier = R.journalBarrier or (RLAnimalIdentityCheckpoint and RLAnimalIdentityCheckpoint.persistAllocation)
     local ok, saved, why = false, nil, "JOURNAL_BARRIER_MISSING"
     if barrier ~= nil then
@@ -242,6 +242,38 @@ local function persistReserved(keys)
         return nil, why
     end
     return true
+end
+
+local function persistReserved(keys)
+    for _, item in ipairs(keys) do journalKey(type(item) == "table" and item.key or item) end
+    -- Inside R.batch the keys wait in R.journal for the one barrier at its end (see R.batch).
+    if (R.batchDepth or 0) > 0 then R.batchPending = true; return true end
+    return runBarrier()
+end
+
+
+local unpackValues = table.unpack or unpack
+local function packValues(...) return { n = select("#", ...), ... } end
+
+--- Run fn(...) as one allocation batch: the keys it reserves are journaled by ONE barrier when it
+--- returns instead of one barrier per key. The barrier rewrites the whole unsaved-key journal (two
+--- files, each read back), so per key it cost O(keys) and a day change of the old dealer's restock
+--- (~1500 keys a game day at 200 animals) stalled the game (game test 2026-10-24).
+--- Only for one synchronous engine callback: no save, network send or frame can fall inside it, so a
+--- key is still on disk before anything outside this Lua call can see it. If the end barrier fails the
+--- ledger goes to RECOVERY_REQUIRED as a failed per-key barrier does (the animals made in the batch
+--- exist only in this unsaved session). Nested batches flush once, at the outermost end.
+function R.batch(fn, ...)
+    R.batchDepth = (R.batchDepth or 0) + 1
+    local results = packValues(pcall(fn, ...))
+    R.batchDepth = R.batchDepth - 1
+    if R.batchDepth == 0 and R.batchPending then
+        R.batchPending = nil
+        local persisted, why = runBarrier()
+        if not persisted then log("error", "IDENTITY: the batched journal barrier failed: %s", tostring(why)) end
+    end
+    if not results[1] then error(results[2], 0) end
+    return unpackValues(results, 2, results.n)
 end
 
 

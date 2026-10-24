@@ -111,3 +111,26 @@ do
         and R.getMilkCurve({ output = { milk = stubMilk } }) == stubMilk
         and R.getMilkCurve({ output = { milk = { fillType = 1 } } }) == nil and R.getMilkCurve({}) == nil)
 end
+
+-- 5. The old dealer's hour/day/period callbacks run as one identity batch each.
+do
+    local text = source("scripts/animals/husbandry/RealisticLivestock_AnimalSystem.lua")
+    local from = assert(text:find("-- The old dealer's restock and rotation", 1, true))
+    local oldSystem, oldRuntime = AnimalSystem, RLAnimalIdentityRuntime
+    local seen = {}
+    AnimalSystem = {}
+    for _, name in ipairs({ "onHourChanged", "onDayChanged", "onPeriodChanged" }) do
+        AnimalSystem[name] = function(self, arg) seen[#seen + 1] = name .. ":" .. tostring(self) .. ":" .. tostring(arg); return name end
+    end
+    local batches = 0
+    RLAnimalIdentityRuntime = { batch = function(fn, ...) batches = batches + 1; return fn(...) end }
+    assert(load(text:sub(from), "AnimalSystem batch wrappers"))()
+    local r1 = AnimalSystem.onHourChanged("sys", 1)
+    local r2 = AnimalSystem.onDayChanged("sys")
+    local r3 = AnimalSystem.onPeriodChanged("sys")
+    check("r4 batch: hour, day and period callbacks each run inside one identity batch with their own self",
+        batches == 3 and r1 == "onHourChanged" and r3 == "onPeriodChanged" and seen[1] == "onHourChanged:sys:1" and seen[2] == "onDayChanged:sys:nil")
+    RLAnimalIdentityRuntime = nil
+    check("r4 batch: without the identity runtime the callback runs as before", AnimalSystem.onDayChanged("sys") == "onDayChanged")
+    AnimalSystem, RLAnimalIdentityRuntime = oldSystem, oldRuntime
+end

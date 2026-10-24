@@ -3416,3 +3416,17 @@ function AnimalSystem:createNewAIAnimal(animalTypeIndex)
     return animal
 
 end
+
+-- The old dealer's restock and rotation, AI bulls and sale births take many keys in one callback:
+-- under the identity ledger each would rewrite the unsaved-key journal. One batch per callback
+-- journals them once at its end (RLAnimalIdentityRuntime.batch). Subscribed in initialiseCountries,
+-- after this file loaded, so the subscription takes these wrappers.
+for _, name in ipairs({ "onHourChanged", "onDayChanged", "onPeriodChanged" }) do
+    local handler = AnimalSystem[name]
+    AnimalSystem[name] = function(self, ...)
+        if RLAnimalIdentityRuntime ~= nil and RLAnimalIdentityRuntime.batch ~= nil then
+            return RLAnimalIdentityRuntime.batch(handler, self, ...)
+        end
+        return handler(self, ...)
+    end
+end
