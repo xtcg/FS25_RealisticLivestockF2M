@@ -153,6 +153,10 @@ function AnimalPersistence.loadFromXMLFile(xmlFile, key, clusterSystem, isLegacy
 
             local child = AnimalPersistence.loadFromXMLFile(xmlFile, pregnanciesKey, nil, isLegacy)
 
+            -- An unborn child is age -1 as AnimalReproduction.createPregnancy makes it; the save
+            -- writes no age, and the default 0 would make it look born (no ID) to identity checks.
+            if child ~= nil and not xmlFile:hasProperty(pregnanciesKey .. "#age") then child.age = -1 end
+
             table.insert(pregnancy.pregnancies, child)
 
         end)
