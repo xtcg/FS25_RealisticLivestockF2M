@@ -3,7 +3,7 @@ RLDealerQuoteProtocol = {}
 local P=RLDealerQuoteProtocol
 P.VERSION,P.REQUEST,P.REPLY,P.MAX_TTL_MS=1,1,2,15000
 local function text(v,empty) return type(v)=="string" and (empty or #v>0) and #v<=4096 end
-local function finite(v) return type(v)=="number" and v==v and math.abs(v)<math.huge end
+local finite=RLPlain.finite
 local function fields(v,allowed)
     if type(v)~="table" or getmetatable(v)~=nil then return false end
     for k in pairs(v) do if not allowed[k] then return false end end

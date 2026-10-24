@@ -4,7 +4,7 @@
 RLMarketCheckpoint={}
 local C=RLMarketCheckpoint
 local roles={"placeables","vehicles","farms","animals","identity","acquisition","broker","months"}
-local function text(v)return type(v)=="string" and v:match("%S")~=nil end
+local text=RLPlain.text
 local function integer(v,min)return type(v)=="number" and v==v and v>=min and v<2^52 and v%1==0 end
 local function requireValue(ok,reason)if not ok then error(reason,0)end end
 local function copy(v)

@@ -2,7 +2,7 @@
 -- The portable record is data for persistence adapters; it is not a trusted client payload.
 RLDealerSourceState = { VERSION = 1, HANDOFF_TOLERANCE_KG = 0.001 }
 local S = RLDealerSourceState
-local function finite(x) return type(x) == "number" and x == x and math.abs(x) < math.huge end
+local finite=RLPlain.finite
 local function fail(reason) return nil, { reason = reason } end
 local function near(a, b) return finite(a) and finite(b) and math.abs(a - b) <= 1e-8 end
 local function portable(value, seen, depth)
@@ -18,19 +18,8 @@ local function portable(value, seen, depth)
     seen[value] = nil
     return true
 end
-local function copy(value)
-    if type(value) ~= "table" then return value end
-    local out = {}
-    for k, v in pairs(value) do out[k] = copy(v) end
-    return out
-end
-local function equal(a, b)
-    if type(a) ~= type(b) then return false end
-    if type(a) ~= "table" then return a == b end
-    for k, v in pairs(a) do if not equal(v, b[k]) then return false end end
-    for k in pairs(b) do if a[k] == nil then return false end end
-    return true
-end
+local copy=RLPlain.copy
+local equal=RLPlain.equal
 local fields = { "age", "subType", "subTypeIndex", "animalTypeIndex", "breed", "gender", "isIndividual",
     "isCastrated", "genetics", "health", "isParent", "birthCount", "isPregnant", "reproduction", "diseases",
     "input", "output", "weight", "targetWeight", "rlGrowth", "bodyCondition", "rlFeedGain", "rlHealthCarry",

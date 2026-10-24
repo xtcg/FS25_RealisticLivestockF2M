@@ -23,6 +23,9 @@ source(modDirectory .. "scripts/fontlib/RmFontManager.lua")
 source(modDirectory .. "scripts/gui/MPLoadingScreen.lua")
 
 -- SECTION 2b: Utilities
+-- Plain-data primitives (copy, equal, finite, ...) the dealer, market and trade modules bind at file scope
+source(modDirectory .. "scripts/core/RLPlain.lua")
+source(modDirectory .. "scripts/core/RLNativeSaveHooks.lua")
 source(modDirectory .. "scripts/utils/RmSafeUtils.lua")
 source(modDirectory .. "scripts/utils/RLAnimalUtil.lua")
 source(modDirectory .. "scripts/utils/RLPenLog.lua")
@@ -51,7 +54,10 @@ source(modDirectory .. "scripts/animal/RLBreedTraits.lua")
 source(modDirectory .. "scripts/animal/RLRearingPolicy.lua")
 source(modDirectory .. "scripts/animal/RLCurveScale.lua")
 -- Which species section of the nutrition configs an animal or pen reads (sheep; cattle read the root)
+source(modDirectory .. "scripts/animal/RLSpeciesCatalog.lua")
 source(modDirectory .. "scripts/animal/RLSpecies.lua")
+source(modDirectory .. "scripts/animal/RLAnimalState.lua")
+source(modDirectory .. "scripts/animal/RLAnimalOutput.lua")
 -- Carcass yield arithmetic, pure; AnimalMoveEvent feeds it the animal and config snapshot
 source(modDirectory .. "scripts/animal/RLMeatMath.lua")
 -- Delivery rules shared by the delivery code and the trade quote (contract order, fee, butcher recipe), pure
@@ -200,6 +206,7 @@ source(modDirectory .. "scripts/animal/AnimalReproduction.lua")
 
 -- SECTION 11e: Health/Death Logic (delegate module, sourced before Animal.lua)
 source(modDirectory .. "scripts/animal/AnimalHealth.lua")
+source(modDirectory .. "scripts/animal/AnimalProduction.lua")
 
 -- SECTION 11f: Persistence & Serialization (delegate modules, sourced before Animal.lua)
 source(modDirectory .. "scripts/animal/AnimalPersistence.lua")

@@ -3,8 +3,8 @@
 RLDealerClientRequest={}
 local C=RLDealerClientRequest
 C.QUOTE_TIMEOUT_MS,C.PURCHASE_TIMEOUT_MS=15000,30000
-local function copy(t) if type(t)~="table" then return t end; local out={}; for k,v in pairs(t) do out[k]=copy(v) end; return out end
-local function finite(v) return type(v)=="number" and v==v and math.abs(v)<math.huge end
+local copy=RLPlain.copy
+local finite=RLPlain.finite
 local function now(client)
     local ok,ms=pcall(client.adapter.monotonicMs)
     if not ok or not finite(ms) or ms<0 or (client.lastMs and ms<client.lastMs) then return nil,"BAD_LOCAL_CLOCK" end

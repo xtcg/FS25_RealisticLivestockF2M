@@ -20,7 +20,7 @@ P.LIMITS = { maxNodes = 4000, maxString = 512, maxDepth = 5 }
 P.MAX_SELECTION = 100
 
 
-local function finite(v) return type(v) == "number" and v == v and math.abs(v) < math.huge end
+local finite=RLPlain.finite
 local function text(v, max) return type(v) == "string" and #v > 0 and #v <= (max or 256) end
 local function integer(v, lo, hi) return finite(v) and v % 1 == 0 and v >= lo and (hi == nil or v <= hi) end
 

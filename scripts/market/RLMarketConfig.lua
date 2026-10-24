@@ -9,7 +9,7 @@ local scalarSet = {}; for _, k in ipairs(C.SCALARS) do scalarSet[k] = true end
 local ratios = {minSpreadRate = true, profitRate = true, commissionRate = true, discountRate = true}
 local policies = {costModel = {fixedMonthlyCurve = true}, resaleModel = {productionRetail = true}, fallbackModel = {commodityWholesale = true}, profitModel = {fixedPlusRate = true}}
 local purposes = {YOUNG_STOCK = true, STORE_STOCK = true, FINISHED_STOCK = true, BREEDING_FEMALE = true, BREEDING_MALE = true, CULL_STOCK = true}
-local function finite(x) return type(x) == "number" and x == x and math.abs(x) < math.huge end
+local finite=RLPlain.finite
 local function stringValue(x) return type(x) == "string" and x:match("%S") ~= nil end
 local function integer(x, minimum) return finite(x) and x % 1 == 0 and x >= minimum end
 local function requireValue(ok, reason) if not ok then error(reason, 0) end end

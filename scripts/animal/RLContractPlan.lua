@@ -3,9 +3,7 @@
 -- check ownership, unique live identities, disease/age gates and source pending queues.
 RLContractPlan = {}
 
-local function finite(n)
-    return type(n) == "number" and n == n and n > -math.huge and n < math.huge
-end
+local finite=RLPlain.finite
 
 local function reject(reason)
     return nil, reason

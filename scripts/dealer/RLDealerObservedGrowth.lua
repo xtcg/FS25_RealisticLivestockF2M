@@ -2,16 +2,12 @@
 -- candidate eligibility, price or a sale listing. Owner keeps the real child.
 RLDealerObservedGrowth = { VERSION=1, KIND="OBSERVED_NEWBORN_REARING", MAX_STEPS=100000 }
 local G=RLDealerObservedGrowth
-local function finite(v) return type(v)=="number" and v==v and math.abs(v)<math.huge end
+local finite=RLPlain.finite
 local function id(v) return (type(v)=="string" and #v>0) or finite(v) end
-local function copy(v) if type(v)~="table" then return v end;local o={};for k,x in pairs(v) do o[k]=copy(x) end;return o end
+local copy=RLPlain.copy
 local function near(a,b) return finite(a) and finite(b) and math.abs(a-b)<1e-8 end
 local function fail(reason,record) return nil,{reason=reason,evidence=record} end
-local function equal(a,b)
-    if type(a)~=type(b) then return false end;if type(a)~="table" then return a==b end
-    for k,v in pairs(a) do if not equal(v,b[k]) then return false end end
-    for k in pairs(b) do if a[k]==nil then return false end end;return true
-end
+local equal=RLPlain.equal
 local fields={"age","subType","subTypeIndex","animalTypeIndex","breed","gender","isIndividual","isCastrated",
     "genetics","health","isParent","birthCount","isPregnant","reproduction","diseases","input","output",
     "weight","targetWeight","rlGrowth","bodyCondition","rlFeedGain","rlHealthCarry","rlMilk","monthsSinceLastBirth",

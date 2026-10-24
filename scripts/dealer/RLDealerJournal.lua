@@ -4,7 +4,7 @@
 -- of EVERY record, including terminal receipts (Purchase.import forceReconciliation).
 RLDealerJournal = { VERSION = 2, FILENAME = "rm_RlDealerPurchaseJournal.xml", ROOT = "rlDealerPurchaseJournal" }
 local J = RLDealerJournal
-local function finite(v) return type(v) == "number" and v == v and math.abs(v) < math.huge end
+local finite=RLPlain.finite
 local function integer(v) return finite(v) and v >= 0 and v % 1 == 0 end
 local function text(v) return type(v) == "string" and #v > 0 and #v <= 256 end
 local function keys(t, allowed)

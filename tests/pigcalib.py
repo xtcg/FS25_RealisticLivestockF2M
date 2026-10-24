@@ -7,12 +7,11 @@ it prints the R3 lysine controls (NRC four-phase diets, lysine never limiting): 
     python tests/pigcalib.py [--json out.json] [--ab species=species_ab.json --ab cattle=...]
 """
 import argparse
-import glob
 import json
 import math
 import os
 
-import lupa
+from lua_test_support import new_runtime, to_python as lua_to_py
 
 TESTS = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(TESTS)
@@ -29,22 +28,8 @@ REQUIRED = [
 SEEN = {}
 
 
-def lua_to_py(value):
-    if lupa.lua_type(value) == "table":
-        keys = list(value.keys())
-        if keys and all(isinstance(k, int) for k in keys) and sorted(keys) == list(range(1, len(keys) + 1)):
-            return [lua_to_py(value[k]) for k in sorted(keys)]
-        return {str(k): lua_to_py(value[k]) for k in keys}
-    return value
-
-
 def run():
-    lua = lupa.LuaRuntime(unpack_returned_tuples=True)
-    lua.globals().REPO = REPO + "/"
-    lua.globals().listRepoLua = lambda sub: lua.table_from(sorted(
-        os.path.relpath(p, REPO) for p in glob.glob(os.path.join(REPO, sub, "**", "*.lua"), recursive=True)))
-    with open(os.path.join(TESTS, "stubs.lua"), encoding="utf-8") as f:
-        lua.execute(f.read())
+    lua = new_runtime()
     with open(os.path.join(TESTS, "pigcalib.lua"), encoding="utf-8") as f:
         lua.execute(f.read())
     lua.globals().PigCalib.run()

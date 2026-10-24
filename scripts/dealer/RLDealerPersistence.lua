@@ -7,13 +7,10 @@ D.FILENAME, D.ROOT = "rm_RlDealerStockCheckpoint.xml", "rlDealerStockCheckpoint"
 D.LIMITS = { maxNodes = 400000, maxString = 262144, maxDepth = 32 }
 D.MAX_ENCODED_BYTES = 32 * 1024 * 1024
 D.REQUIRED_PARTICIPANTS = { "placeables", "vehicles", "farms" }
-local function finite(v) return type(v) == "number" and v == v and math.abs(v) < math.huge end
+local finite=RLPlain.finite
 local function integer(v) return finite(v) and v >= 0 and v % 1 == 0 end
 local function str(v) return type(v) == "string" and #v > 0 and #v <= 4096 end
-local function copy(v)
-    if type(v) ~= "table" then return v end
-    local out = {}; for k, x in pairs(v) do out[k] = copy(x) end; return out
-end
+local copy=RLPlain.copy
 local function exactKeys(t, allowed)
     if type(t) ~= "table" then return false end
     for k in pairs(t) do if not allowed[k] then return false end end

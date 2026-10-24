@@ -13,7 +13,7 @@ local N=RLMarketNativeAnimals
 N.MAX_NODES=500000
 N.MAX_DEPTH=48
 local function need(ok,why)if not ok then error(why,0)end end
-local function text(v)return type(v)=="string" and v:match("%S")~=nil end
+local text=RLPlain.text
 local function integer(v,min)return type(v)=="number" and v==v and v>=min and v<2^52 and v%1==0 end
 local function cp(v)return assert(RLMarketData.copy(v))end
 local function fields(v,allowed)need(type(v)=="table","NATIVE_LAYOUT_TABLE_REQUIRED");for k in pairs(v)do need(allowed[k],"UNKNOWN_NATIVE_LAYOUT_FIELD")end end

@@ -2,7 +2,7 @@
 -- Never calls sell-price, canBeSold, birth-count recovery, growth initialization,
 -- update/step, disease treatment, or any state-producing animal method.
 RLMarketSnapshot = {}
-local function finite(v) return type(v) == "number" and v == v and v ~= math.huge and v ~= -math.huge end
+local finite=RLPlain.finite
 local function field(out, key, value, caps, capability)
     if value ~= nil then out[key] = value end
     if caps then caps[capability or key] = value ~= nil end
@@ -119,7 +119,7 @@ local function capture(animal, context, deps)
     local function outputOf(s, names)
         local chosen, chosenKey
         for key, output in pairs(s.output or {}) do
-            if type(output) == "table" and (type(output.get) == "function" or (type(output.curve) == "table" and type(output.curve.get) == "function")) and output.fillType ~= nil then
+            if RLAnimalOutput.curve(output) ~= nil and output.fillType ~= nil then
                 local name = fillName(output.fillType)
                 local order = name ~= nil and name .. ":" .. tostring(key) or nil
                 if name ~= nil and names[name] and (chosenKey == nil or order < chosenKey) then

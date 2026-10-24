@@ -7,14 +7,9 @@ local TEMPLATES = {
     MODERATE_SLOW_REARING = { mode = "MODERATE_SLOW", production = false },
     NORMAL_PRODUCTION = { mode = "NORMAL", production = true },
 }
-local function finite(x) return type(x) == "number" and x == x and math.abs(x) < math.huge end
+local finite=RLPlain.finite
 local function integer(x) return finite(x) and x >= 0 and x == math.floor(x) end
-local function copy(value)
-    if type(value) ~= "table" then return value end
-    local out = {}
-    for k, v in pairs(value) do out[k] = copy(v) end
-    return out
-end
+local copy=RLPlain.copy
 
 function H.getTemplate(id)
     local template = TEMPLATES[id]

@@ -2,7 +2,7 @@
 -- explicit boundary: this controller never crosses it by synthesizing a birth.
 RLDealerOwnedProgress = { VERSION=1 }
 local U=RLDealerOwnedProgress
-local function copy(v) if type(v)~="table" then return v end;local o={};for k,x in pairs(v) do o[k]=copy(x) end;return o end
+local copy=RLPlain.copy
 local function equal(a,b) return RLTradePersistence.canonical(a)==RLTradePersistence.canonical(b) end
 local physical={"age","breed","gender","isIndividual","isCastrated","genetics","health","isParent","birthCount",
     "isPregnant","reproduction","input","output","weight","targetWeight","rlGrowth","bodyCondition","rlFeedGain",

@@ -5,6 +5,7 @@
 -- Shared by tests/test_pig_p5.lua and the offline calibration (tests/pigcalib.lua).
 
 loadMod("tests/feedsim.lua")
+loadMod("tests/fixtures/species_sim_support.lua")
 
 PigSim = {}
 
@@ -23,18 +24,13 @@ g_fillTypeManager.getFillTypeNameByIndex = function(_, i) return FILL_NAMES[i] e
 g_fillTypeManager.getFillTypeIndexByName = function(_, n) return FILL[n] end
 g_fillTypeManager.getFillTypeByIndex = function(_, index) return { title = FILL_NAMES[index] } end
 
-local PIG
-for _, sub in ipairs(Economics.subTypes) do
-    if sub.typeName == "PIG" and PIG == nil then PIG = sub.typeIndex end
-end
+local PIG=assert(SpeciesSimSupport.typeIndex(Economics.subTypes,"PIG"))
 PigSim.TYPE = PIG
 AnimalType.PIG = PIG
 g_currentMission.animalSystem.subTypes = Economics.subTypes
 
-local function group(title, weight, names)
-    local fillTypes = {}
-    for _, name in ipairs(names) do table.insert(fillTypes, FILL[name]) end
-    return { title = title, productionWeight = weight, eatWeight = 1, fillTypes = fillTypes }
+local function group(title,weight,names)
+    return SpeciesSimSupport.foodGroup(FILL,title,weight,names)
 end
 -- Hof Bergmann 1.5 (character/animalFood.xml): PIG, SERIAL.
 local pigFood = { consumptionType = 1, groups = {

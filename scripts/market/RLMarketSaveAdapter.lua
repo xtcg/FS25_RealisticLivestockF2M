@@ -11,7 +11,7 @@ local roles={"identity","acquisition","broker","months"}
 local roots={placeables="placeables",vehicles="vehicles",farms="farms",career="careerSavegame"}
 local filenames={identity="rm_RlMarketIdentity.xml",acquisition="rm_RlMarketAcquisition.xml",broker="rm_RlMarketBroker.xml",months="rm_RlMarketMonths.xml"}
 local function need(ok,why)if not ok then error(why,0)end end
-local function text(v)return type(v)=="string" and v:match("%S")~=nil end
+local text=RLPlain.text
 local function integer(v,min)return type(v)=="number" and v==v and v>=min and v<2^52 and v%1==0 end
 local function cp(v)return assert(RLMarketData.copy(v))end
 local function same(a,b)local fingerprint=RLMarketData.fingerprint(a);return fingerprint~=nil and fingerprint==RLMarketData.fingerprint(b)end

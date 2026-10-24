@@ -2,10 +2,7 @@
 -- children retain different physiological schemas, bound to the same real owner.
 RLDealerOwnedStock = { VERSION = 1 }
 local K = RLDealerOwnedStock
-local function copy(v)
-    if type(v) ~= "table" then return v end
-    local out = {}; for k, x in pairs(v) do out[k] = copy(x) end; return out
-end
+local copy=RLPlain.copy
 local function id(v) return type(v) == "string" and #v > 0 and #v <= 256 end
 local function equal(a, b)
     if type(a) ~= type(b) then return false end

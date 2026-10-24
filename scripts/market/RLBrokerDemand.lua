@@ -7,8 +7,8 @@ D.VERSION=1
 local speciesOrder={"COW","SHEEP","PIG"}
 local groups={"GROWER","FINISHED","BREEDING"}
 local groupIndex={GROWER=1,FINISHED=2,BREEDING=3}
-local function text(v) return type(v)=="string" and v:match("%S")~=nil end
-local function finite(v) return type(v)=="number" and v==v and math.abs(v)<math.huge end
+local text=RLPlain.text
+local finite=RLPlain.finite
 local function integer(v,min) return finite(v) and v>=min and v<2^52 and v%1==0 end
 local function requireValue(ok,reason) if not ok then error(reason,0) end end
 local function copy(v) local value,why=RLMarketData.copy(v);requireValue(value~=nil,why);return value end

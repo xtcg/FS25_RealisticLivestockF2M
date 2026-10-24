@@ -13,12 +13,7 @@ local known = { PREPARED = true, VALIDATING = true, APPLYING_TARGET = true, TARG
     APPLYING_SOURCE = true, SOURCE_APPLIED = true, SOURCE_UNKNOWN = true, SETTLING = true, SETTLED = true,
     COMMITTED = true, COMMITTED_PARTIAL = true, ROLLED_BACK = true, REJECTED = true, NEEDS_RECONCILIATION = true }
 T.TERMINAL, T.FINISHED, T.KNOWN = terminal, finished, known
-local function copy(value)
-    if type(value) ~= "table" then return value end
-    local result = {}
-    for k, v in pairs(value) do result[k] = copy(v) end
-    return result
-end
+local copy=RLPlain.copy
 local function call(fn, ...)
     local ok, value = pcall(fn, ...)
     if not ok then return false, tostring(value) end
@@ -318,9 +313,7 @@ end
 
 local paymentStatus = { APPLIED = true, NOT_APPLIED = true, UNKNOWN = true }
 
-local function isFinite(value)
-    return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
-end
+local isFinite=RLPlain.finite
 
 local function stringList(list)
     if list == nil then return {} end

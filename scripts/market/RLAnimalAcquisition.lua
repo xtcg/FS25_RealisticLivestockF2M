@@ -3,7 +3,7 @@
 -- difficulty multiplier never rewrites what the player actually paid.
 RLAnimalAcquisition = {}
 local A = RLAnimalAcquisition
-local function text(v) return type(v)=="string" and v:match("%S")~=nil end
+local text=RLPlain.text
 local function nonnegative(v) return RLMarketMoney.finite(v) and v>=0 end
 function A.validate(receipt)
     local r,reason=RLMarketData.copy(receipt)
@@ -32,15 +32,7 @@ end
 -- Store schema 2 keeps complete batch retry evidence. Receipt schema remains 1.
 -- Each animal belongs to exactly one request; purchase requests additionally bind
 -- the actual whole-batch spend. No schema-1 store migration is guessed here.
-local function dense(list)
-    if type(list)~="table" then return false end
-    local count=0
-    for key in pairs(list) do
-        if type(key)~="number" or key%1~=0 or key<1 or key>#list then return false end
-        count=count+1
-    end
-    return count==#list
-end
+local dense=RLPlain.dense
 local function evidence(requestId,receipts,actualTotalPaid,kind,settlementOrder)
     if not text(requestId) then return nil,"INVALID_ACQUISITION_REQUEST" end
     local copied,reason=RLMarketData.copy(receipts)

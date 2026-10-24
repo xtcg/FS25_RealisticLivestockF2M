@@ -1,13 +1,8 @@
 -- D3-3 hourly reference. Detached cattle only; never called by live dealer generation yet.
 RLDealerReplay = { VERSION = 1, RECIPE_VERSION = 1 }
 local R = RLDealerReplay
-local function finite(x) return type(x) == "number" and x == x and math.abs(x) < math.huge end
-local function copy(t)
-    if type(t) ~= "table" then return t end
-    local out = {}
-    for k, v in pairs(t) do out[k] = copy(v) end
-    return out
-end
+local finite=RLPlain.finite
+local copy=RLPlain.copy
 
 -- Candidate recipes use existing feed profiles and physical planner limits, never energy
 -- invented from a deficit. Calibration reports determine which purposes they can supply.
@@ -185,23 +180,8 @@ end
 -- { fillType, curve } (AnimalSystem:loadSubType), not as a curve; the tank milk first, else milk
 -- sold in cans (output.pallets of a lactation fill type: Hof Bergmann's cattle). nil = none.
 function R.getMilkCurve(sub)
-    local output = sub ~= nil and sub.output or nil
-    if output == nil then return nil end
-    local function curveOf(entry)
-        local curve = type(entry) == "table" and (entry.curve or entry) or nil
-        if type(curve) == "table" and type(curve.get) == "function" then return curve end
-        return nil
-    end
-    local milk = output.milk
-    if milk ~= nil and (Animal == nil or Animal.isSemenFillType == nil or not Animal.isSemenFillType(milk.fillType)) then
-        local curve = curveOf(milk)
-        if curve ~= nil then return curve end
-    end
-    local pallets = output.pallets
-    if pallets ~= nil and Animal ~= nil and Animal.isLactationPalletFillType ~= nil and Animal.isLactationPalletFillType(pallets.fillType) then
-        return curveOf(pallets)
-    end
-    return nil
+    local curve=RLAnimalOutput.milkCurve(sub)
+    return curve
 end
 
 local function refreshMilk(animal, lastBirth, time)

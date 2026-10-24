@@ -1,6 +1,5 @@
 -- Explicit capability registration. Loading this file enables no economic route.
 RLMarketProviders = {}
-local models = { COW = "RLMarketCattleValue", PIG = "RLMarketPigValue", SHEEP = "RLMarketSheepValue" }
 local function refsFor(snapshot, context)
     local r = context.referenceInputs
     if type(r) ~= "table" or r.currencyBasis ~= "HARD" then return nil, "MISSING_REFERENCE_INPUTS" end
@@ -17,7 +16,8 @@ local function result(snapshot, context, species, objective, id, selectionWeight
     local commodity, unavailable = RLMarketCommodityValue.evaluate(snapshot, refs.commodity)
     local production
     if objective ~= "COMMODITY" then
-        production, why = _G[models[species]].evaluate(snapshot, objective, refs.production)
+        local member=RLSpeciesCatalog.get(species)
+        production, why = _G[member.marketModel].evaluate(snapshot, objective, refs.production)
         if not production then return nil, why end
     elseif not commodity then return nil, unavailable end
     if production then
@@ -54,14 +54,16 @@ end
 function RLMarketProviders.register(registry, options)
     options=options or {}
     local selectWeights=options.selectionWeights or function(species,objective,input)
-        local prefix=species=="COW" and "cattle" or species=="SHEEP" and "sheep" or nil
+        local member=RLSpeciesCatalog.get(species)
+        local prefix=member and member.indexPrefix
         if prefix then
             return RLBrokerConditionPackage and RLBrokerConditionPackage.indexWeights(prefix.."."..objective:lower()) or nil
         end
         -- No cattle/sheep selection profile is borrowed for pigs.
         return input.selectionWeights and input.selectionWeights[objective]
     end
-    for _, species in ipairs({ "COW", "PIG", "SHEEP" }) do
+    for _, member in ipairs(RLSpeciesCatalog.marketMembers()) do
+        local species=member.key
         for _, objective in ipairs({ "COMMODITY", "DAIRY", "TERMINAL", "MATERNAL" }) do
             local id = "market.reference." .. species .. "." .. objective
             local function compute(s, c) return result(s, c, species, objective, id, selectWeights) end

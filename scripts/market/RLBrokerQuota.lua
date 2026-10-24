@@ -3,7 +3,7 @@
 -- before reserve. All mutation below is synchronous and invokes no callbacks.
 RLBrokerQuota = {}
 local Q=RLBrokerQuota
-local function text(v) return type(v)=="string" and v:match("%S")~=nil end
+local text=RLPlain.text
 local function integer(v,min) return RLMarketMoney.finite(v) and v%1==0 and v>=min and v<2^52 end
 local function breedMatches(species,breed) return text(breed) and breed:sub(1,#species+1)==species..":" and #breed>#species+1 end
 function Q.resources(monthId,orderId,species,breed)

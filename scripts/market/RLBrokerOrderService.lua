@@ -3,7 +3,7 @@
 -- Confirmation here only produces a server plan for the transaction coordinator.
 RLBrokerOrderService={}
 local S=RLBrokerOrderService
-local function text(v) return type(v)=="string" and v:match("%S")~=nil end
+local text=RLPlain.text
 local function copy(v) return assert(RLMarketData.copy(v)) end
 function S.new(deps)
     if type(deps)~="table" or not text(deps.serverEpoch) then return nil,"SERVER_EPOCH_REQUIRED" end
@@ -67,9 +67,9 @@ function S.new(deps)
         return RLMarketData.copy(result)
     end
     local function guarded(fn,...)
-        local ok,result,reason=pcall(fn,...)
+        local ok,result,reason,details=pcall(fn,...)
         if not ok then return nil,"BROKER_SERVICE_ERROR" end
-        return result,reason
+        return result,reason,details
     end
     function service:preflight(principal,request)
         return guarded(function()

@@ -6,12 +6,9 @@ local Q = RLDealerQuote
 Q.VERSION = 1
 Q.TTL_MS = 15000
 Q.MAX_ACTIVE = 256
-local function finite(v) return type(v)=="number" and v==v and math.abs(v)<math.huge end
+local finite=RLPlain.finite
 local function text(v) return type(v)=="string" and #v>0 and #v<=4096 end
-local function copy(t)
-    if type(t)~="table" then return t end
-    local out={}; for k,v in pairs(t) do out[k]=copy(v) end; return out
-end
+local copy=RLPlain.copy
 local function call(a,name,...)
     local ok,v,why=pcall(a[name],...)
     if not ok then return nil,"ADAPTER_ERROR:"..name end

@@ -4,9 +4,9 @@
 RLDealerMoneyAdapter={}
 local M=RLDealerMoneyAdapter
 M.VERSION=1
-local function finite(v) return type(v)=="number" and v==v and math.abs(v)<math.huge end
+local finite=RLPlain.finite
 local function text(v) return type(v)=="string" and #v>0 and #v<=4096 end
-local function copy(t) if type(t)~="table" then return t end; local out={}; for k,v in pairs(t) do out[k]=copy(v) end; return out end
+local copy=RLPlain.copy
 local function safe(fn,...) local ok,v,why=pcall(fn,...); if not ok then return nil,"CALLBACK_ERROR" end; return v,why end
 local function moneyType(store)
     local registered=MoneyType and MoneyType.NEW_ANIMALS_COST

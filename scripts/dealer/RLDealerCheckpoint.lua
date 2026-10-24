@@ -178,23 +178,15 @@ end
 function C.install()
     if C.installed then return end
     C.installed=true
-    if FSCareerMissionInfo and FSCareerMissionInfo.saveToXMLFile then
-        FSCareerMissionInfo.saveToXMLFile=Utils.prependedFunction(FSCareerMissionInfo.saveToXMLFile,function(self) C.onSaveBegin(self) end)
-        FSCareerMissionInfo.saveToXMLFile=Utils.appendedFunction(FSCareerMissionInfo.saveToXMLFile,function(self) C.onSaveEnd(self) end)
-    end
-    if PlaceableSystem and PlaceableSystem.saveToXML then
-        PlaceableSystem.saveToXML=Utils.prependedFunction(PlaceableSystem.saveToXML,function(_,xml) C.markParticipant("placeables",xml,"placeables") end)
-    end
-    if VehicleSystem and VehicleSystem.saveToXML then
-        VehicleSystem.saveToXML=Utils.prependedFunction(VehicleSystem.saveToXML,function(_,_,xml) C.markParticipant("vehicles",xml,"vehicles") end)
-    end
-    if Farm and Farm.saveToXMLFile then
-        Farm.saveToXMLFile=Utils.appendedFunction(Farm.saveToXMLFile,function(_,xml) C.markParticipant("farms",xml,"farms") end)
-    end
-    if SavegameController and SavegameController.onSaveComplete then
-        SavegameController.onSaveComplete=Utils.appendedFunction(SavegameController.onSaveComplete,function(controller,code,directory)
+    return RLNativeSaveHooks.install(C,{
+        begin=function(self) C.onSaveBegin(self) end,
+        finish=function(self) C.onSaveEnd(self) end,
+        placeables=function(_,xml) C.markParticipant("placeables",xml,"placeables") end,
+        vehicles=function(_,_,xml) C.markParticipant("vehicles",xml,"vehicles") end,
+        farms=function(_,xml) C.markParticipant("farms",xml,"farms") end,
+        complete=function(controller,code,directory)
             local savegame=controller and controller.currentSavegame
             C.onSaveComplete(code,directory or (savegame and savegame.savegameDirectory))
-        end)
-    end
+        end,
+    })
 end

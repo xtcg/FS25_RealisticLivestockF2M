@@ -2,12 +2,9 @@
 -- MODEL_ASSUMED replay history. It calls the normal reproduction sampler exactly once.
 RLDealerSourceReproduction = { VERSION = 1 }
 local B = RLDealerSourceReproduction
-local function finite(x) return type(x) == "number" and x == x and math.abs(x) < math.huge end
+local finite=RLPlain.finite
 local function id(x) return type(x) == "string" and x ~= "" and x ~= "-1" and #x <= 256 end
-local function copy(x)
-    if type(x) ~= "table" then return x end
-    local c = {}; for k,v in pairs(x) do c[k] = copy(v) end; return c
-end
+local copy=RLPlain.copy
 local function fail(reason) return nil, { reason = reason } end
 local function genes(g)
     if type(g) ~= "table" then return false end

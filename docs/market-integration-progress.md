@@ -156,3 +156,53 @@ Review追加并关闭了错误难度/参考载荷的缓存报价可被接纳、�
 - 分支 `feat/market-integration-p0`（基于 `dev@7f01d330`），全部改动已提交；全量回归 6518/6518。
 - 所有新能力仍由独立门控关闭：生产价格模式 legacy，无准入 scope，Broker 交易/保存 hooks/UI/网络未接线。合入 `dev` 不改变玩家可见价格与交易。
 - 未完成且不得据本阶段标为通过：真实保存 hooks 与 SaveAdapter 装配、各发布 scope 的经济参数与可达性扫描、UI/网络接运自送、实机/联机/断电持久性验证（见单元表）。
+
+
+## 收购合同前置框架重构（2026-10-24）
+
+基于 `dev@15ac4a19`。本批集中可共享的协议与测试基础，不开放任何 market/Broker 准入 scope。
+
+- `RLSpeciesCatalog` 集中 COW/PIG/SHEEP/GOAT/MILKCOW 的引擎类型、营养分段、曲线类型/绑定、泌乳语义、市场模型与选择指数前缀，以及15类 Broker 包的物种/用途/年龄健康边界。配置分段、市场分类的物种解析、provider 注册及合同包编译消费此表。成员表不是能力认证：GOAT 不借用 SHEEP provider，MILKCOW 继续不进入市场；实际品种的生产类别仍以 Dealer/市场配置解析为准，泌乳输出仍读取真实 subtype。
+- 共用市场契约测试按成员表运行，覆盖确定性、无输入修改、未知成本、不育/阉割/退出年龄及跨物种隔离；专项现金流数值测试继续保留。配置一致性测试读取真实 feed/body/weight 解析器，并逐个编译成员表中的合同包。15包在普通/慢熟设置下的30份规范输出与重构前完全一致。
+- PigSim/SheepSim 共享类型查找和食物组构建；猪羊校准器与测试入口共享 Lua 启动和结果转换。日粮、繁殖季节、模型、科学参考和判定阈值仍分别维护，没有机械合并不同生理。
+- `RLAnimalState` 统一 Broker 来源与 Dealer 目标的业务状态边界，排除带回指的视觉对象和引擎定位字段，保留完整妊娠、疾病和生长数据。嵌套方法的兼容策略由渠道显式指定。Broker 接受真实圈舍字符串引擎ID，也允许未生成视觉ID的成员；锁和成交身份仍使用完整动物键。
+- 新来源证据版本2以完整规范状态字符串保存各成员的比较证据（不是短哈希），选中动物仍保存完整业务树；验证器保留版本1读取。`RLMarketData.copy` 改为校验与复制一次遍历，不再为每次复制生成规范字符串，节点/深度限制和隔离语义保留。新增60头圈舍连续30次交付的回归；此结果不是无限历史容量证明。
+- 报价拒绝分支保留第三返回值的资格详情，避免UI重新请求诊断。
+
+后续随实际收购闭环继续实施：运行时装配；跨旧渠道的共同资源锁准入；引擎保存生命周期协调；共同保存后的历史分片/归档。当前精简证据降低了节点占用，但全历史仍有容量限制与全量读写成本；不能通过删回执、增大常量或短哈希冒充已完成归档。市场能力门仍关闭。新增物种复用已有模型时可集中登记；新生理、地图容器和引擎接入仍须能力与实机验证。
+
+
+本批验证（业务代码 `ae7d0cc1`）：完整 `python3 -B tests/run.py` **6884/6884，exit 0**（lupa Lua 5.5，日志 `/private/tmp/fs25-framework-tests.log`）；Lua 5.4 下16个相关文件 **521/521**；12个新增/修改业务 Lua 文件通过 Lua 5.1 语法编译；15个合同包普通/慢熟30份规范结果与原实现完全相等；共享校准启动器与嵌套结果转换核对通过。完整测试首轮在旧测试写 `/var/tmp` 时受沙箱阻挡，按权限流程重跑后通过。未执行实机、联机或完整科学校准，不把成员一致性检查当作新物种流程认证。
+
+
+## 全项目共用边界整理（2026-10-24，续）
+
+继续在前置框架基础上整理实际运行的跨模块流程：
+
+- `RLNativeSaveHooks` 统一原生保存方法的挂接入口。Trade、Dealer、Identity 按原注册顺序加入；前置回调逆序、后置回调顺序，保持原 Utils 包装行为。三个 checkpoint 仍各自负责错误保护、完成目录取值、标记、代次、文件格式和恢复判定，注册器不产生共同保存证明。重复安装不重复包装；回调内拒绝新增监听；测试的独立引擎世界创建独立注册器。
+- `AnimalProduction` 接管逐小时输入/产出计算，Animal 保留原方法委托、可配置类字段和持久字段。输入计算与提取前逐字一致；输出只将曲线读取交给共用读取器，其余哺乳、胎次、疾病、体况及精液规则保留。
+- `RLAnimalOutput` 为产出计算、饲料成熟奶量预测、Dealer回放与市场快照提供同一个曲线形状读取边界。兼容直接 AnimCurve 与原生 `{fillType, curve}`，奶罐回退及精液排除继续沿现有 Animal 判定。修复 feed 成熟奶量只识别直接 `.get` 的遗漏：同一原生包装曲线在旧入口读成0，新入口与Dealer一致读为120（固定探针值，不是生产参数）。
+- 新增原生保存监听顺序/签名/重入/异常测试，并通过三个真实 checkpoint 安装器的组合检查；新增成熟奶量与商人读取一致性测试。未改存档schema、网络协议、经济参数或准入开关。
+
+全项目检查中暂不机械合并：RealisticLivestock.lua 带执行告警的历史兼容路径；不同语义的浅复制/纯数据复制/动物业务状态复制；Feed 内有共享局部状态的营养计划和资源结算。它们需要按调用与恢复契约继续拆分，不能仅按物种字面量数量或重复行数批量替换。本批保存入口整理不等于Broker运行时、统一冻结或历史归档已经贯通；新增模块未授予这些能力。
+
+
+本续批验证：完整 `python3 -B tests/run.py` **6904/6904，exit 0**（Lua 5.5，日志 `/private/tmp/fs25-project-framework-tests.log`）；Lua 5.4 下11个相关测试文件 **390/390**；10个新增/修改模块通过 Lua 5.1 语法编译（Animal 主文件保留既有 GIANTS `continue`，其委托由专项和完整回归执行）。新原生保存监听测试共13项，包含三个真实安装器组合、目录优先级及观察器异常。没有执行游戏内或联机保存验证。
+
+
+## 共享数据原语与静态结构检查（2026-10-25）
+
+基于上一节的分支，合入 `dev@09c1db03`（PR #96，无冲突，合并后回归 6930/6930）后继续。
+
+- **`RLPlain`**（`scripts/core/RLPlain.lua`，`main.lua` 第2b节最先加载）收口 dealer / market / 交易账本各文件私有定义的同形函数：`copy`（无环保护的递归复制）、`equal`（结构相等）、`finite`、`text`（含非空白字符的字符串）、`dense`（键恰为 1..#t）。只收录各处**逐字等价**的实现：改写按“归一化函数体（变量名、分号、空白无关）完全一致”机械匹配，共替换 93 处定义（60 个文件）；带校验的复制（`RLMarketData.copy`、`RLTradePersistence.parse`）、带上限的协议检查（`RLDealerPurchaseProtocol` 的 `dense/text`）、基于规范串的 `equal`、带环检测的 `RLDealerListingRegistry.copy`、剔除 `ref` 的 `RLHBContractAdapter.copy` 语义不同，原样保留。`RLMarketSchema` 因其测试要求仅凭 Lua 原语即可加载（证明线协议不依赖 mod 全局），保留私有副本。事件层（MP）、feed/growth 纯模型层不在本批范围。
+- **`tests/check_structure.py`**（由 `tests/run.py` 调用，CI 的 `python tests/run.py` 即带上它）：
+  1. 加载顺序：解析 `main.lua` 的 `source` 顺序，找出每个文件在**文件作用域**（函数体之外）读取、而由**更晚**加载的文件赋值的全局。此前 `main.lua` 里十余处“必须排在 X 之后”只写在注释里，只有实机加载才暴露。自检：把 5 组注释已声明的依赖对（RLDiseaseRecord→RLDiseaseDefinition、RLDealerQualityModel→Resolver、RLConstants→RLGenetics、RLHerdsmanRuleService→Presenter、RLMenuTabPolicy→RLMenu）互换，必须报违规，否则判定扫描失明。当前真实顺序 0 违规；把 `RLPlain` 挪到最后会报 60 处。
+  2. 全局冲突：两个文件对同一全局赋值（非 `X = X or ...` 幂等形式）会按加载顺序静默覆盖；当前 0 处。
+  3. 私有副本：dealer / market / animal 内不得再出现与 `RLPlain` 等价的文件作用域私有定义（含 `isFinite` 写法），例外清单写在检查器里并注明原因。
+- **`AnimalProduction.updateOutput`**：曲线不可读（`RLAnimalOutput.curve` 返回 nil）的输出原先在逐小时更新中直接索引 nil 报错，其后的 nil 保护与告警成了死代码；现按该保护的原意产出 0 并告警，不中断同一动物其余输出。新增 2 项测试。
+- 新增 `tests/test_plain.lua`（19 项：NaN/无穷、共享子表独立复制、元表丢弃、额外键双向、空洞/字符串/小数/零负键）。
+
+验证：完整 `python3 -B tests/run.py` **6952/6952，exit 0**（Lua 5.5）；`economics.py` 可运行；`marketreachability.py --months 2 --subtype COW_HEREFORD` 在改动前后输出逐项一致（仅 `sourceSha256` 元数据不同）。未做实机、联机验证；本批不改存档 schema、网络协议、经济参数或准入开关。
+
+仍未收口（需按调用与恢复契约分别处理，不能按行数批量替换）：6 个 MP 事件各自的 `getUserContext` 与“权限 + 农场作用域”校验；`integer` 的 17 种带不同上下界的变体；`fail/call/fields/keys` 的不同错误返回约定；`AnimalProduction.updateOutput`（175 行）按产出类型拆分。
+

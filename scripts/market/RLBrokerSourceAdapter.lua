@@ -3,29 +3,10 @@
 -- refuses to reconstruct live Animal objects after reload.
 RLBrokerSourceAdapter = {}
 local A = RLBrokerSourceAdapter
-local ignored = { id=true,idFull=true,clusterSystem=true,isDirty=true,rlGrowthCurve=true,rlInfoRows=true }
-local function data(value, root, active)
-    local kind=type(value)
-    if kind~="table" then
-        if kind=="function" or kind=="userdata" or kind=="thread" then error("NON_PORTABLE_FIELD") end
-        if kind=="number" and (value~=value or math.abs(value)==math.huge) then error("NON_FINITE_FIELD") end
-        return value
-    end
-    active=active or {};if active[value] then error("CYCLIC_ANIMAL_STATE") end;active[value]=true
-    local out={}
-    -- Raw fields retain Disease records/models and all pregnancy/growth data;
-    -- no truncation, tostring(table), metatable execution or live system link.
-    for key,item in next,value do
-        if not (root and (ignored[key] or type(item)=="function")) then
-            if type(key)~="string" and type(key)~="number" then error("NON_PORTABLE_KEY") end
-            out[key]=data(item,false,active)
-        end
-    end
-    active[value]=nil;return out
-end
+local ignored = {rlGrowthCurve=true,rlInfoRows=true}
 local function copy(value) return assert(RLMarketData.copy(value)) end
 local function fingerprint(value) return assert(RLMarketData.fingerprint(value)) end
-local function fields(animal) return data(animal,true,{}) end
+local function fields(animal) return assert(RLAnimalState.capture(animal,{ignored=ignored})) end
 local function members(system)
     local list=system:getClusters()
     if type(list)~="table" then error("SOURCE_UNREADABLE") end
@@ -111,11 +92,13 @@ function A.prepare(source,key,options)
             if identity==nil or seen[identity] then return nil,"SOURCE_IDENTITY_NOT_UNIQUE" end
             seen[identity]=true
             local state=fields(animal)
-            portableMembers[#portableMembers+1]={identityKey=identity,state=state,engineId=animal.id,engineIdFull=animal.idFull}
+            -- Other members need exact comparison evidence, not another nested
+            -- copy of every pregnancy/disease tree in every historical receipt.
+            portableMembers[#portableMembers+1]={identityKey=identity,stateFingerprint=fingerprint(state),engineId=animal.id,engineIdFull=animal.idFull}
             if animal==binding.animals[1] then h.selectedState=fingerprint(state)
             else h.otherStates[animal]=fingerprint(state) end
         end
-        h.evidence={version=1,kind="BROKER_SOURCE",sourceKind=binding.kind,sourceId=options.sourceId,
+        h.evidence={version=2,kind="BROKER_SOURCE",sourceKind=binding.kind,sourceId=options.sourceId,
             ownerFarmId=options.farmId,identityKey=key,animal=fields(binding.animals[1]),members=portableMembers,
             queues={add={},remove={}},locationEvidence=options.locationEvidence and copy(options.locationEvidence),
             reloadRestoreSupported=false}

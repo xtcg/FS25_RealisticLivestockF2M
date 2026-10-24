@@ -2,14 +2,10 @@
 -- purchase endpoint; the coordinator must repeat it immediately before effects.
 RLDealerCapacity={}
 local C=RLDealerCapacity
-local function copy(v) if type(v)~="table" then return v end;local out={};for k,x in pairs(v) do out[k]=copy(x) end;return out end
+local copy=RLPlain.copy
 local function fail(reason) error(reason,0) end
 local function integer(v) return type(v)=="number" and v==v and v>=0 and v<math.huge and v%1==0 end
-local function dense(t)
-    if type(t)~="table" then return false end
-    local n=0;for k in pairs(t) do if not integer(k) or k<1 or k>#t then return false end;n=n+1 end
-    return n==#t
-end
+local dense=RLPlain.dense
 local function equal(a,b) return RLTradePersistence.canonical(a)==RLTradePersistence.canonical(b) end
 local function call(object,name,...)
     if type(object[name])~="function" then fail("CAPABILITY:"..name) end
