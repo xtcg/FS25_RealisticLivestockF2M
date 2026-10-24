@@ -259,4 +259,65 @@ function RLMeatValue.getSlaughterValue(animal)
 end
 
 
+--- U13/U14: undiscounted reference-route proceeds, separate from the legacy
+--- floor. Caller supplies a verified route/price snapshot, never an implicit
+--- "best station" or an assumed personal precision-farming bonus.
+--- Returns HARD money. This does not change meat quantities or payment code.
+function RLMeatValue.calculateBreakdown(input)
+    local function finite(n) return type(n) == "number" and n == n and math.abs(n) ~= math.huge end
+    if type(input) ~= "table" or type(input.basis) ~= "table" then return nil, "MISSING_SLAUGHTER_BASIS" end
+    local basis = input.basis
+    if type(basis.stationId) ~= "string" or basis.stationId == "" or basis.reachable ~= true
+        or type(basis.priceRevision) ~= "string" or basis.priceRevision == ""
+        or (basis.priceKind ~= "CURRENT" and basis.priceKind ~= "ANNUAL_MEAN")
+        or basis.includesPersonalBonus ~= false then return nil, "UNVERIFIED_SLAUGHTER_BASIS" end
+    for _, key in ipairs({ "meatKg", "pricePerKg", "processingFeePerKg", "slaughterFee", "typicalMeatKg", "difficultyMultiplier" }) do
+        if not finite(input[key]) or input[key] < 0 then return nil, "INVALID_SLAUGHTER_" .. key end
+    end
+    if input.difficultyMultiplier <= 0 or input.typicalMeatKg <= 0 or input.meatKg <= 0
+        or (input.priceBasis ~= "HARD" and input.priceBasis ~= "CURRENT")
+        or (input.feeBasis ~= "HARD" and input.feeBasis ~= "CURRENT") then return nil, "INVALID_SLAUGHTER_BASIS" end
+    local price = input.priceBasis == "CURRENT" and input.pricePerKg / input.difficultyMultiplier or input.pricePerKg
+    local feeMultiplier = input.feeBasis == "CURRENT" and 1 / input.difficultyMultiplier or 1
+    local gross = input.meatKg * price
+    local fees = (input.slaughterFee * input.meatKg / input.typicalMeatKg
+        + input.processingFeePerKg * input.meatKg) * feeMultiplier
+    local net = gross - fees
+    if not finite(gross) or not finite(fees) or not finite(net) then return nil, "SLAUGHTER_OVERFLOW" end
+    local copiedBasis = {}
+    for _, key in ipairs({ "stationId", "reachable", "priceRevision", "priceKind", "includesPersonalBonus", "routeId" }) do copiedBasis[key] = basis[key] end
+    copiedBasis.moneyBasis = "HARD"
+    return { available = true, meatKg = input.meatKg, gross = gross, fees = fees, net = net,
+        basis = copiedBasis }
+end
+
+--- Read-only game boundary for an explicitly configured reference route.
+--- No available route means unsupported, not zero slaughter revenue.
+local function marketBreakdown(animal, route)
+    if type(animal) ~= "table" then return nil, "INCOMPLETE_MEAT_CAPABILITY" end
+    if type(route) ~= "table" then return nil, "MISSING_SLAUGHTER_ROUTE" end
+    local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
+    local subType = animalSystem ~= nil and animalSystem:getSubTypeByIndex(animal.subTypeIndex) or nil
+    if subType == nil then return nil, "UNKNOWN_SUBTYPE" end
+    local snapshot, params, formula = AnimalMoveEvent.getCarcassSnapshot(animal, route.facility, animal.subTypeIndex, true)
+    if #RLMeatMath.check(snapshot, params, formula) > 0 then return nil, "INCOMPLETE_MEAT_CAPABILITY" end
+    local result = RLMeatMath.compute(snapshot, params, formula)
+    local layers = AnimalMoveEvent.getCarcassConfig().layers
+    local age = type(animal.age) == "number" and animal.age or nil
+    local minAge = RLBreedTraits.resolve(layers, subType, "slaughterMinAgeMonth", nil)
+    if age == nil or minAge == nil or age < minAge then return nil, "SLAUGHTER_AGE_UNAVAILABLE" end
+    local fee = RLBreedTraits.resolve(layers, subType, "slaughterFee", nil)
+    local perKg = RLBreedTraits.resolve(layers, subType, "processingFeePerKg", nil)
+    if fee == nil or perKg == nil then return nil, "PROCESSING_FEES_UNAVAILABLE" end
+    return RLMeatValue.calculateBreakdown({ meatKg = result.modelMeat, typicalMeatKg = params.meatPerHead,
+        pricePerKg = route.pricePerKg, priceBasis = route.priceBasis,
+        feeBasis = "HARD", slaughterFee = fee, processingFeePerKg = perKg,
+        difficultyMultiplier = RLLivestockPrices.getMultiplier(), basis = route.basis })
+end
+function RLMeatValue.getMarketBreakdown(animal, route)
+    local ok, result, reason = pcall(marketBreakdown, animal, route)
+    if not ok then return nil, "INCOMPLETE_MEAT_CAPABILITY" end
+    return result, reason
+end
+
 Log:debug("RLMeatValue loaded")

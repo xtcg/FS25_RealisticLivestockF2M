@@ -18,7 +18,7 @@ local fields={"age","subType","subTypeIndex","animalTypeIndex","breed","gender",
     "isLactating","farmId","uniqueId","birthday","isDead","deathEnabled","mother","father"}
 local function genes(g)
     if type(g)~="table" then return false end
-    for _,k in ipairs({"metabolism","quality","productivity","fertility","health"}) do if not finite(g[k]) or g[k]<0 then return false end end
+    for _,k in ipairs({"metabolism","quality","productivity","fertility","health"}) do if (k~="productivity" or g[k]~=nil) and (not finite(g[k]) or g[k]<0) then return false end end
     return g.metabolism>0
 end
 local function identity(a)
@@ -33,7 +33,7 @@ local function array(t)
     for k,v in pairs(t) do if type(k)~="number" or k<1 or k%1~=0 or k>#t or type(v)~="table" then return false end;n=n+1 end
     return n==#t
 end
-local function actualBirth(a,event)
+local function actualBirth(a,event,legacyMilk)
     if not identity(a) or type(event)~="table" or event.version~=1 or event.stage~="COMMITTED"
         or event.evidence~="OBSERVED_SOURCE_BIRTH" or not id(event.eventId) or not id(event.sourceId)
         or not finite(event.cursorMonths) or type(event.result)~="table" or event.result.eventId~=event.eventId
@@ -46,13 +46,15 @@ local function actualBirth(a,event)
     for _,v in ipairs(event.selected) do if v.uniqueId==a.uniqueId and v.farmId==a.farmId then selected=v;ns=ns+1 end end
     for _,v in ipairs(event.draws) do if v.uniqueId==a.uniqueId and v.farmId==a.farmId then draw=v;nd=nd+1 end end
     for _,v in ipairs(event.result.newborns) do if v.uniqueId==a.uniqueId and v.farmId==a.farmId then born=v;nb=nb+1 end end
+    local birthGenes=selected and copy(selected.genetics) or nil
+    if not legacyMilk and RLRearingPolicy then RLRearingPolicy.normalizeNamed("COW",a.breed,birthGenes) end
     return ns==1 and nd==1 and nb==1 and selected.subType==a.subType and draw.subType==a.subType and born.subType==a.subType
-        and equal(selected.genetics,a.genetics)
+        and equal(birthGenes,a.genetics)
         and born.alive==true and finite(draw.z) and finite(draw.meanWeightKg) and draw.meanWeightKg>0
         and draw.weightKg==a.rlGrowth.birthWeightKg and born.birthWeightKg==draw.weightKg
         and a.birthday.day==event.day and a.birthday.month==event.month and a.birthday.year==event.year
 end
-function G.validate(r)
+function G.validate(r,legacyMilk)
     if type(r)~="table" or not plain(r) or r.version~=G.VERSION or r.kind~=G.KIND
         or r.evidence~="OBSERVED_SOURCE_BIRTH" or r.history~=nil or r.eligibility~=nil then return nil,"OBSERVED_SCHEMA" end
     local a,s=r.animal,r.animal and r.animal.rlGrowth
@@ -64,7 +66,7 @@ function G.validate(r)
         or not near(s.ageMonths,r.cursorMonths-r.birthCursorMonths) or a.age~=math.floor(s.ageMonths+1e-10)
         or a.isDead==true or a.isPregnant==true or a.isParent==true or (a.birthCount or 0)~=0 or (a.reproduction or 0)~=0
         or a.isLactating==true or a.pregnancy~=nil then return nil,"OBSERVED_STATE_OR_REPRODUCTION_GATE" end
-    if not actualBirth(a,r.birthEvent) or r.birthEvent.cursorMonths~=r.birthCursorMonths then return nil,"OBSERVED_BIRTH_EVIDENCE" end
+    if not actualBirth(a,r.birthEvent,legacyMilk) or r.birthEvent.cursorMonths~=r.birthCursorMonths then return nil,"OBSERVED_BIRTH_EVIDENCE" end
     if not finite(r.weaningMonth) or r.weaningMonth<0 or not equal(r.recipe,RLDealerReplay.getRecipe("NORMAL_REARING"))
         or not finite(r.steps) or r.steps<0 or r.steps%1~=0 or type(r.ledger)~="table"
         or not finite(r.ledger.feedMe) or r.ledger.feedMe<0 or not finite(r.ledger.maxEnergyError) or r.ledger.maxEnergyError<0

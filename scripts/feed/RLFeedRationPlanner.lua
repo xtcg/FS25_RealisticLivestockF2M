@@ -280,7 +280,9 @@ end
 function RLFeedRationPlanner.sumAnimal(a)
     local kg, me, cpKg, lysKg = 0, 0, 0, 0
     for _, fill in pairs(a.byFill) do kg, me, cpKg, lysKg = kg + fill.kg, me + fill.me, cpKg + fill.cpKg, lysKg + (fill.lysKg or 0) end
-    if a.damMilk ~= nil then kg, me, cpKg = kg + a.damMilk.kg, me + a.damMilk.me, cpKg + a.damMilk.cpKg end
+    if a.damMilk ~= nil then
+        kg, me, cpKg, lysKg = kg + a.damMilk.kg, me + a.damMilk.me, cpKg + a.damMilk.cpKg, lysKg + (a.damMilk.lysKg or 0)
+    end
     a.kg, a.me = kg, me
     a.cp = kg > 0 and cpKg / kg or 0
     -- SID lysine eaten (kg) and per MJ of ME (g/MJ): read by monogastric sections (pigs) only.
@@ -542,8 +544,9 @@ function RLFeedRationPlanner.plan(request)
             share(group.milkTaken, group.milkTotal, a.troughMilkKg, group.milk, 1)
             -- Its dam's milk is no trough feed: kept apart (RLFeed settles it against what she paid).
             a.damMilk = nil
-            if a.damMilkKg > 0 then
-                a.damMilk = { kg = a.damMilkKg, me = a.damMilkKg * a.damPool.me, cpKg = a.damMilkKg * a.damPool.cp }
+            if a.damPool ~= nil and a.milkPlanKg > 0 then
+                a.damMilk = { kg = a.damMilkKg, me = a.damMilkKg * a.damPool.me, cpKg = a.damMilkKg * a.damPool.cp,
+                    lysKg = a.damMilkKg * (a.damPool.lys or 0) }
             end
             share(group.forageTaken, group.forageTotal, a.forageEaten, group.forage, energy)
             share(group.concTaken, group.concTotal, a.concEaten, group.concentrate, util)
@@ -639,11 +642,36 @@ function RLFeedRationPlanner.planMonogastric(request)
         return cached
     end
 
+    -- Milk first: a piglet at its sow plans its own demand (within its appetite); a litter shares
+    -- her pool by its plans (each the same share), as a ruminant's young do.
+    local pools = {}
+    for _, a in ipairs(request.animals) do
+        a.milkPlanKg, a.damMilkKg, a.milkKg, a.troughMilkKg = 0, 0, 0, 0
+        local pool = a.damPool
+        if pool ~= nil and (a.milkMax or 0) > 0 then
+            a.milkPlanKg = math.min(math.max(a.nursingMaxKgPerDay or 0, 0), math.max(a.appetite or 0, 0)) * dt
+            if a.milkPlanKg > 0 then
+                if pools[pool] == nil then pools[pool] = 0; pool.calves = {} end
+                pools[pool] = pools[pool] + a.milkPlanKg
+                table.insert(pool.calves, a)
+            end
+        end
+    end
+    for pool, wanted in pairs(pools) do
+        local share = wanted > 0 and math.min(1, math.max(pool.kg or 0, 0) / wanted) or 0
+        pool.plannedKg = 0
+        for _, a in ipairs(pool.calves) do
+            a.damMilkKg = a.milkPlanKg * share
+            a.milkKg = a.damMilkKg
+            pool.plannedKg = pool.plannedKg + a.damMilkKg
+        end
+    end
+
     local need = {}
     local plannedMe, plannedKg = 0, 0
     local main
     for _, a in ipairs(request.animals) do
-        a.milkPlanKg, a.damMilkKg, a.milkKg, a.troughMilkKg = 0, 0, 0, 0
+        local milkMe = a.damMilkKg > 0 and a.damMilkKg * a.damPool.me or 0
         a.c, a.cEaten, a.util, a.concLimit, a.forageKg, a.concKg = 0, 0, 1, nil, 0, 0
         local m = mixFor(a)
         a.monoMix = m
@@ -656,7 +684,8 @@ function RLFeedRationPlanner.planMonogastric(request)
             local production = (needs.growth or 0) + (needs.milk or 0)
             local protein = RLFeedMath.getProteinFactor(RLFeedMath.getLysinePerME(mix.lys, mix.me), a.proteinNeed or 0,
                 request.proteinMaintenance or 0)
-            local cap = math.max(a.appetite or 0, 0) * dt
+            -- A piglet on milk eats creep feed up to what its age takes (solidCap), its milk beside it.
+            local cap = math.max(a.solidCap or a.appetite or 0, 0) * dt
             local energy
             if a.target == "GROW" then
                 energy = (maintenance + protein * production + (needs.deposit or 0)) * dt
@@ -665,6 +694,7 @@ function RLFeedRationPlanner.planMonogastric(request)
             else
                 energy = math.max(a.energyCap or 0, 0) * dt
             end
+            energy = energy - milkMe
             local byEnergy = math.max(energy, 0) / mix.me
             kg, limit = cap, "APPETITE"
             if byEnergy < kg then kg, limit = byEnergy, (a.target == "GROW" or a.target == "MAINTAIN") and "DEMAND" or "ENERGY" end
@@ -674,7 +704,7 @@ function RLFeedRationPlanner.planMonogastric(request)
             if m.total < 1 - 1e-9 then kg, limit = 0, "FEED_CAP" end
         end
         a.intakeLimit, a.solidMe, a.monoKg = limit, mix ~= nil and mix.me or 0, kg
-        a.plannedKg, a.plannedMe = kg, kg * (mix ~= nil and mix.me or 0)
+        a.plannedKg, a.plannedMe = kg + a.damMilkKg, kg * (mix ~= nil and mix.me or 0) + milkMe
         plannedMe, plannedKg = plannedMe + a.plannedMe, plannedKg + a.plannedKg
         local perMonth = request.realDaysPerPeriod / dt
         a.plannedByFill, a.litersPerPeriod = {}, 0
@@ -711,6 +741,11 @@ function RLFeedRationPlanner.planMonogastric(request)
         if meal < 1 - 1e-12 and a.monoKg > 0 then a.intakeLimit = "FEED_SHORT" end
         a.byFill = {}
         a.damMilk = nil
+        if a.damPool ~= nil and a.milkPlanKg > 0 then
+            -- Its sow's milk is no trough feed: kept apart (RLFeed settles it against what she paid).
+            local pool = a.damPool
+            a.damMilk = { kg = a.damMilkKg, me = a.damMilkKg * pool.me, cpKg = a.damMilkKg * pool.cp, lysKg = a.damMilkKg * (pool.lys or 0) }
+        end
         for _, entry in ipairs(m.entries) do
             local got = a.monoKg * (m.shares[entry.name] or 0) * meal
             if got > 0 then

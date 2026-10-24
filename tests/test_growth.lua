@@ -1097,10 +1097,10 @@ do
     legacy.isIndividual = nil
     calls = 0
     routed(legacy)
-    check(string.format("routing: a covered calf takes the v2 step (+%.2f kg) and never the old weight rule; an uncovered one the old rule",
-        gain), gain > 0 and v2Calls == 0 and calls == 1)
+    check(string.format("routing: a covered calf outside a pen running the unified model is held (%+.2f kg), never the old weight rule; an uncovered one the old rule",
+        gain), gain == 0 and v2Calls == 0 and calls == 1)
 
-    -- No game hour to count a step in: the old rule this hour, run to the old target.
+    -- No game hour to count a step in: a covered animal is held too (no old rule, no target).
     local strong = GrowthSim.makeAnimal("BULL_ANGUS", { age = 3, genetics = { metabolism = 1.5, quality = 1, productivity = 1, fertility = 1, health = 1 } })
     local usedTarget
     local sub = strong:getSubType()
@@ -1110,8 +1110,7 @@ do
     GrowthSim.env.currentMonotonicDay = nil
     AnimalHealth.updateHealth(strong, 1)
     GrowthSim.env.currentMonotonicDay = day
-    check(string.format("routing: with no game hour a covered animal takes the old rule to its old target (%.0f kg, not the size gene's %.0f)",
-        usedTarget or -1, strong.targetWeight), near(usedTarget or 0, 1000 * 1.2, 1e-9) and strong.targetWeight < 1100)
+    check("routing: with no game hour a covered animal is held - the old rule never runs", usedTarget == nil)
 end
 
 
@@ -1225,6 +1224,16 @@ do
         tostring(record.curve.adultKg), tostring(record.curve.birthKg), tostring(record.curve.plateauMonth), longest),
         record.curve.active and record.curve.adultKg == 1000 and record.curve.plateauMonth == 60 and #record.curve.knots == 8
         and longest < RLPenLog.MAX_LINE)
+end
+
+do
+    local bull = GrowthSim.makeAnimal("BULL_ANGUS", { age = 8 })
+    bull.rlGrowth.frameTargetKg = 1234.5
+    local plain = { targetWeight = 321, isIndividual = false }
+    check(string.format("display target: a covered animal shows its curve plateau (%s kg, target %s kg), any other its target weight",
+        tostring(G.getDisplayTarget(bull)), tostring(bull.targetWeight)),
+        G.getDisplayTarget(bull) == 1234.5 and bull.targetWeight ~= 1234.5
+        and G.getDisplayTarget(plain) == 321 and G.getDisplayTarget(nil) == nil)
 end
 
 for _, line in ipairs(LOG) do

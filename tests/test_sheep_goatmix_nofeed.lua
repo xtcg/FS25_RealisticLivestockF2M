@@ -1,5 +1,6 @@
 -- SHEEP-GOATMIX-NOFEED-01: a sheep pen holding only the feeds RLFeed adds for sheep (silage, peas)
--- gets a goat. The whole pen goes back to the old rules (correct: a goat never runs the mode), and
+-- gets an animal the mode does not cover (a vanilla cluster; since the unified nursing design of 2026-10-22
+-- a goat is covered on its own GOAT section and keeps the pen in the mode). The whole pen goes back to the old rules, and
 -- the old rules never eat those feeds, so the pen has nothing to eat. The fallback stays; the pen
 -- now says which feeds are not eaten and that its own feed is missing (pen rows, one log line per
 -- change, one notification), and the feeding really gives nothing (food factor 0, stock kept).
@@ -63,12 +64,21 @@ RLFeed.beginFeeding(pen)
 check("pure sheep pen runs the mode and has no fallback gap",
     pen.spec_husbandryFood.rlFeedPen.active == true and Info.checkFallbackFeed(pen, 1) == nil and #notifications == 0)
 
--- A goat joins: the pen falls back.
-local goat = SheepSim.identify((GrowthSim.makeAnimal("GOAT", { age = 24 })), "GM3")
+-- A goat joins: covered on its own section, the pen keeps the mode.
+local doe = SheepSim.identify((GrowthSim.makeAnimal("GOAT", { age = 24 })), "GM4")
+table.insert(pen.animals, doe)
+doe.clusterSystem = { owner = pen }
+check("a goat in the pen: covered by its own GOAT section, the pen keeps the mode", RLFeed.beginFeeding(pen) == true
+    and RLFeed.getConfig(doe) == RLFeedProfiles.getConfig().species.GOAT)
+table.remove(pen.animals)
+
+-- An uncovered animal joins (a vanilla cluster): the pen falls back.
+local goat = SheepSim.identify((GrowthSim.makeAnimal("SHEEP_LANDRACE", { age = 24 })), "GM3")
+goat.isIndividual = false
 table.insert(pen.animals, goat)
 goat.clusterSystem = { owner = pen }
 local active = RLFeed.beginFeeding(pen)
-check("goat in the pen: the whole pen falls back (UNCOVERED_ANIMAL)", active == false and pen.spec_husbandryFood.rlFeedPen.reason == "UNCOVERED_ANIMAL")
+check("uncovered animal in the pen: the whole pen falls back (UNCOVERED_ANIMAL)", active == false and pen.spec_husbandryFood.rlFeedPen.reason == "UNCOVERED_ANIMAL")
 
 local gap = Info.getFallbackFeedGap(pen)
 check("fallback gap: silage and peas are the feeds not eaten, no base feed",
@@ -114,10 +124,10 @@ check("base feed added: still lists silage/peas, no longer a warning or a missin
     gap2 ~= nil and gap2.baseMissing == false and not warned and not noBase and factor2 > 0 and pen:level("SILAGE") == 400
     and #notifications == 1)
 
--- The goat leaves: the pen runs the mode again and the hint clears.
+-- The uncovered animal leaves: the pen runs the mode again and the hint clears.
 table.remove(pen.animals)
 RLFeed.beginFeeding(pen)
-check("goat gone: the pen runs the mode again, nothing to say", pen.spec_husbandryFood.rlFeedPen.active == true
+check("uncovered animal gone: the pen runs the mode again, nothing to say", pen.spec_husbandryFood.rlFeedPen.active == true
     and Info.checkFallbackFeed(pen, 1) == nil and pen.spec_husbandryFood.rlFallbackFeedKey == nil)
 
 while #LOG > logged do table.remove(LOG) end

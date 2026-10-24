@@ -131,11 +131,6 @@ do
     FeedSim.hour(ordinary)
     check("ordinary pen: a calf at its dam is not a rearing pen's alert", Info.getCalfMilkAlert(ordinary) == nil)
 
-    FeedSim.setMode(false)
-    local legacy = rearingPen({ FORAGE = 1e5 })
-    FeedSim.hour(legacy)
-    check("old rules: no alert", Info.getCalfMilkAlert(legacy) == nil)
-    FeedSim.setMode(true)
 end
 
 

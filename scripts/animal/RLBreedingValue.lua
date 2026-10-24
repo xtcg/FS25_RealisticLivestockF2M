@@ -79,6 +79,10 @@ local counterpartCache = {}
 
 local GENE_MIN, GENE_MAX = 0.25, 1.75
 local STANDARD = { productivity = 1, fertility = 1, health = 1, quality = 1 }
+-- The standard of an animal without a milk gene (beef cattle, RLRearingPolicy): measured against
+-- a standard animal of its own kind, never against one with a milk gene.
+local STANDARD_NO_MILK = { fertility = 1, health = 1, quality = 1 }
+local function standardFor(genes) return genes.productivity == nil and STANDARD_NO_MILK or STANDARD end
 
 
 -- =============================================================================
@@ -165,9 +169,11 @@ end
 --- @param gender string
 --- @return number
 function RLBreedingValue.getScore(genes, params, gender)
-    local p, f, h, q = genes.productivity or 1, genes.fertility or 1, genes.health or 1, genes.quality or 1
-    local dairy = params.wDairyProductivity * p + params.wDairyFertility * f + params.wDairyHealth * h
-    local dairyWeight = params.wDairyProductivity + params.wDairyFertility + params.wDairyHealth
+    local p, f, h, q = genes.productivity, genes.fertility or 1, genes.health or 1, genes.quality or 1
+    -- An animal without a milk gene (beef cattle, RLRearingPolicy) is scored on the genes it has.
+    local wp = p ~= nil and params.wDairyProductivity or 0
+    local dairy = wp * (p or 0) + params.wDairyFertility * f + params.wDairyHealth * h
+    local dairyWeight = wp + params.wDairyFertility + params.wDairyHealth
     local beef, beefWeight
     if gender == "male" then
         beef = params.wTerminalQuality * q + params.wTerminalFertility * f + params.wTerminalHealth * h
@@ -227,8 +233,9 @@ function RLBreedingValue.femalePV(ctx, genes, state, horizon)
     local w = weigher(ctx, genes)
     local open = RLBreedingValue.getOpenMonths(genes.fertility, params)
     local share = math.clamp(params.dairyShare, 0, 1)
+    -- No milk gene (beef cattle): no milk increment over the standard either.
     local perLiter = ctx.milkPrice * share
-        * (params.milkNetShare + ((genes.productivity or 1) - 1) * params.milkIncrementShare)
+        * (params.milkNetShare + (genes.productivity ~= nil and (genes.productivity - 1) * params.milkIncrementShare or 0))
     local months = RLLactation.MONTHS
 
     local pv, births, lastEnd = 0, {}, 0
@@ -260,7 +267,9 @@ function RLBreedingValue.femalePV(ctx, genes, state, horizon)
         parity = parity + 1
         local weight = w(t) * litter
         -- A suckler calf's weaning weight follows its dam's milk (productivity), her beef share only.
-        pv = pv + weight * ctx.calfValue * (1 + (1 - share) * params.maternalMilkEffect * ((genes.productivity or 1) - 1))
+        -- Beef cattle have no milk gene (RLRearingPolicy): their calves are worth the standard calf's.
+        local maternal = genes.productivity ~= nil and (1 - share) * params.maternalMilkEffect * (genes.productivity - 1) or 0
+        pv = pv + weight * ctx.calfValue * (1 + maternal)
         births[#births + 1] = { weight = weight, existing = existing }
         if perLiter ~= 0 then lactation(t, 0, parity) else lastEnd = math.max(lastEnd, t) end
         t = t + params.postpartumWaitMonth + open + ctx.gestation
@@ -381,7 +390,7 @@ function RLBreedingValue.offspringDelta(ctx, genes, gender, depth, known)
         * math.exp(-discount * params.sonSlaughterAgeMonth)
 
     local function daughter()
-        local base, _, horizon = RLBreedingValue.femalePV(ctx, STANDARD, newbornState(ctx), nil)
+        local base, _, horizon = RLBreedingValue.femalePV(ctx, standardFor(genes), newbornState(ctx), nil)
         local own = RLBreedingValue.femalePV(ctx, genes, newbornState(ctx), horizon)
         return own - base + (1 - math.clamp(params.dairyShare, 0, 1)) * 0.5 * meat
     end
@@ -411,7 +420,8 @@ end
 --- @return table
 function RLBreedingValue.inheritedGenes(genes, mate)
     return {
-        productivity = RLBreedingValue.inheritedMean(genes.productivity or 1, mate),
+        -- A gene the parent does not have is not inherited (beef cattle: no milk gene).
+        productivity = genes.productivity ~= nil and RLBreedingValue.inheritedMean(genes.productivity, mate) or nil,
         fertility = RLBreedingValue.inheritedMean(genes.fertility or 1, mate),
         health = RLBreedingValue.inheritedMean(genes.health or 1, mate),
         quality = RLBreedingValue.inheritedMean(genes.quality or 1, mate),
@@ -610,7 +620,12 @@ end
 
 local function genesOf(animal)
     local g = animal.genetics
-    return { productivity = g.productivity or 1, fertility = g.fertility or 1, health = g.health or 1, quality = g.quality or 1 }
+    -- Only the genes its subtype has: a beef animal's milk gene, even one left in its table, counts
+    -- for nothing (RLRearingPolicy); any other animal without one is measured as standard.
+    local subType = animal.getSubType ~= nil and animal:getSubType() or nil
+    local hasMilk = RLRearingPolicy == nil or subType == nil or RLRearingPolicy.hasTrait(subType, "productivity")
+    return { productivity = hasMilk and (g.productivity or 1) or nil, fertility = g.fertility or 1, health = g.health or 1,
+        quality = g.quality or 1 }
 end
 
 
@@ -661,8 +676,9 @@ local function quoteCow(animal, subType, ctx, curve, meatRoute, body)
     local genes = genesOf(animal)
     local state, reference = femaleStates(animal, ctx)
 
-    local pv0, births0, horizon = RLBreedingValue.femalePV(ctx, STANDARD, state, nil)
-    local refPv = RLBreedingValue.femalePV(ctx, STANDARD, reference, nil)
+    local standard = standardFor(genes)
+    local pv0, births0, horizon = RLBreedingValue.femalePV(ctx, standard, state, nil)
+    local refPv = RLBreedingValue.femalePV(ctx, standard, reference, nil)
     local pvP, births = RLBreedingValue.femalePV(ctx, genes, state, horizon)
 
     local stateValue = pv0 - refPv
@@ -672,7 +688,7 @@ local function quoteCow(animal, subType, ctx, curve, meatRoute, body)
     -- (cowMateGene, the same in every world): over the same mate's calves of a standard cow.
     local mate = ctx.params.cowMateGene
     local perCalf = RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(genes, mate), nil)
-        - (mate ~= 1 and RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(STANDARD, mate), nil) or 0)
+        - (mate ~= 1 and RLBreedingValue.offspringDelta(ctx, RLBreedingValue.inheritedGenes(standard, mate), nil) or 0)
     local future = 0
     for _, birth in ipairs(births) do
         if not birth.existing then future = future + birth.weight end

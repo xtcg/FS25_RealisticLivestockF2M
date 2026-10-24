@@ -145,3 +145,53 @@ soldRow=assert(RLDealerListingRegistry.reserve(sold.listings,soldRow.saleId,sold
 RLDealerListingRegistry.markSold(sold.listings,soldRow.saleId,"buy",soldRow.recordRevision,100.25,1)
 sold.purchase.records.buy=transaction(soldRow.saleId);sold.sources["dam-1"]=nil
 check("dealer persistence: sold source ownership may leave farm without terminal listing pinning it", D.validateSnapshot(sold,markers) ~= nil)
+
+-- Pre-rearing version 1 checkpoints retained a fifth gene for beef cattle. The
+-- authenticated raw data stays intact; only the detached runtime state migrates.
+local beefSeed=Sim.seed("ANGUS","female",1)
+local beefResult=assert(RLDealerReplay.run(beefSeed,Sim.history(beefSeed,1),{daysPerMonth=1}))
+local beefSource=assert(RLDealerSourceState.capture(beefResult,100.25))
+local migratedGenes
+for _,p in ipairs({0.25,1.75}) do
+    local legacy=clone(snapshot);legacy.version=1
+    legacy.sources["dam-1"]=clone(beefSource)
+    legacy.sources["dam-1"].animal.genetics.productivity=p
+    local legacyXml=rewriteRaw(legacy)
+    local legacyCommit=assert(D.commitMarker(legacy,legacyXml.values[D.ROOT.."#digest"]))
+    local random=math.random;math.random=function() error("migration must not draw genes") end
+    local migrated,reason=D.readDocument(legacyXml,markers,resolver,legacyCommit)
+    math.random=random
+    check("dealer migration: old beef checkpoint restores without reroll ("..p..")",migrated~=nil)
+    assert(migrated,reason)
+    local current=migrated.restored.sources["dam-1"]
+    check("dealer migration: mutable beef drops milk and preserves exact physiology ("..p..")",
+        current.animal.genetics.productivity==nil and T.canonical(current)==T.canonical(beefSource))
+    check("dealer migration: raw authenticated evidence is unchanged ("..p..")",
+        migrated.data.sources["dam-1"].animal.genetics.productivity==p
+        and migrated.digest==legacyXml.values[D.ROOT.."#digest"])
+    if migratedGenes then check("dealer migration: old milk values have identical effective genes",
+        T.canonical(current.animal.genetics)==T.canonical(migratedGenes)) end
+    migratedGenes=current.animal.genetics
+    local wrong=clone(legacyCommit);wrong.dealerStockDigest="0000000000000000"
+    local no,why=D.readDocument(legacyXml,markers,resolver,wrong)
+    check("dealer migration: invalid external commit cannot authorize migration ("..p..")",
+        no==nil and why=="CAREER_COMMIT_MISMATCH")
+end
+local invalidLegacy=clone(snapshot);invalidLegacy.version=1
+invalidLegacy.sources["dam-1"]=clone(beefSource)
+invalidLegacy.sources["dam-1"].animal.genetics.productivity=-100
+local invalidXml=rewriteRaw(invalidLegacy)
+local no,why=D.readDocument(invalidXml,markers,resolver,D.commitMarker(invalidLegacy,invalidXml.values[D.ROOT.."#digest"]))
+check("dealer migration: obsolete trait is validated before it can be dropped",
+    no==nil and why=="SOURCE:dam-1:SOURCE_GENETICS")
+invalidLegacy.version=D.VERSION
+invalidLegacy.sources["dam-1"].animal.genetics.productivity=1
+invalidXml=rewriteRaw(invalidLegacy)
+no,why=D.readDocument(invalidXml,markers,resolver,D.commitMarker(invalidLegacy,invalidXml.values[D.ROOT.."#digest"]))
+check("dealer migration: new checkpoints retain strict four-gene validation",
+    no==nil and why=="SOURCE:dam-1:SOURCE_GENETICS")
+local dairyLegacy=clone(snapshot);dairyLegacy.version=1
+local dairyXml=rewriteRaw(dairyLegacy)
+local dairyLoaded=assert(D.readDocument(dairyXml,markers,resolver,D.commitMarker(dairyLegacy,dairyXml.values[D.ROOT.."#digest"])))
+check("dealer migration: dairy genes and complete source state remain unchanged",
+    T.canonical(dairyLoaded.restored.sources)==T.canonical(snapshot.sources))

@@ -18,6 +18,7 @@ RLMenuBuyFrame = {}
 local RLMenuBuyFrame_mt = Class(RLMenuBuyFrame, TabbedMenuFrameElement)
 
 local Log = RmLogging.getLogger("RLRM")
+local function priceAvailable(value)return type(value)=="number" and value==value and value>=0 and value<math.huge end
 
 local modDirectory = g_currentModDirectory
 
@@ -436,7 +437,8 @@ function RLMenuBuyFrame:reloadAnimalList()
 
         for _, item in ipairs(self.items or {}) do
             if item.cluster ~= nil then
-                parts[#parts + 1] = string.format("%.0f", RLAnimalBuyService.computeBuyPrice(item.cluster))
+                local price=RLAnimalBuyService.computeBuyPrice(item.cluster)
+                parts[#parts + 1] = priceAvailable(price) and string.format("%.0f",price) or "-"
             end
         end
 
@@ -595,10 +597,13 @@ function RLMenuBuyFrame:updateButtonVisibility()
             buySelText = buySelText .. " (" .. selectedCount .. ")"
         end
         self.buySelectedButtonInfo.text = buySelText
-        self.buySelectedButtonInfo.disabled = (selectedCount == 0) or (not canTrade)
+        local cartPrice=0
+        if selectedCount>0 then cartPrice=self:computeCartTotals() end
+        self.buySelectedButtonInfo.disabled = (selectedCount == 0) or (not canTrade) or not priceAvailable(cartPrice)
         table.insert(self.menuButtonInfo, self.buySelectedButtonInfo)
 
-        self.buyButtonInfo.disabled = (focusedAnimal == nil) or (not canTrade)
+        local focusedPrice=focusedAnimal and RLAnimalBuyService.computeBuyPrice(focusedAnimal)
+        self.buyButtonInfo.disabled = (focusedAnimal == nil) or (not canTrade) or not priceAvailable(focusedPrice)
         table.insert(self.menuButtonInfo, self.buyButtonInfo)
     end
 
@@ -622,6 +627,7 @@ function RLMenuBuyFrame:onClickBuy()
     end
 
     local price = RLAnimalBuyService.computeBuyPrice(animal)
+    if not priceAvailable(price) then self:clearPendingBuyState();InfoDialog.show(g_i18n:getText("rl_ui_priceUnavailable"));return end
     -- A trailer-dealer buy has no transport leg, so its confirmation is price-only.
     local fee = 0
     if self:getTrailerDealerContext() == nil then
@@ -665,6 +671,7 @@ function RLMenuBuyFrame:onClickBuySelected()
     end
 
     local totalPrice, totalFee, _, count = RLAnimalBuyService.computeBulkTotal(animals)
+    if not priceAvailable(totalPrice) or not priceAvailable(totalFee) then self:clearPendingBuyState();InfoDialog.show(g_i18n:getText("rl_ui_priceUnavailable"));return end
     -- Trailer-dealer buys carry no transport fee (legacy parity); the confirmation is price-only.
     if self:getTrailerDealerContext() ~= nil then totalFee = 0 end
     local confirmText = RLAnimalBuyService.buildBulkConfirmationText(count, totalPrice, totalFee)
@@ -831,8 +838,11 @@ function RLMenuBuyFrame:startTrailerBuyFlow(animals, _price)
             rejectedCount, totalCount, tostring(result.firstErrorCode))
     end
 
-    -- Reprice for the VALID subset only; a trailer buy carries no transport fee.
-    local validPrice = RLAnimalBuyService.computeBulkTotal(result.valid)
+    -- A trailer buy carries no transport fee. All animals fit: the confirmed price is sent; some
+    -- rejected: the valid subset is priced now.
+    local validPrice = self.pendingBuyPrice
+    if rejectedCount > 0 then validPrice = RLAnimalBuyService.computeBulkTotal(result.valid) end
+    if not priceAvailable(validPrice) then self:clearPendingBuyState();InfoDialog.show(g_i18n:getText("rl_ui_priceUnavailable"));return end
     local validFee   = 0
 
     self.pendingBuyDestination = trailer
@@ -893,8 +903,12 @@ function RLMenuBuyFrame:onBuyDestinationSelected(entry)
         return
     end
 
-    -- Reprice for the VALID subset only.
-    local validPrice, validFee = RLAnimalBuyService.computeBulkTotal(result.valid)
+    -- All animals fit: the price the player confirmed is the one sent (the server charges it while it is
+    -- within AnimalBuyEvent.QUOTE_TOLERANCE of its quote). Some rejected: the valid subset is priced now
+    -- and shown in the partial confirmation.
+    local validPrice, validFee = self.pendingBuyPrice, self.pendingBuyFee
+    if rejectedCount > 0 then validPrice, validFee = RLAnimalBuyService.computeBulkTotal(result.valid) end
+    if not priceAvailable(validPrice) or not priceAvailable(validFee) then self:clearPendingBuyState();InfoDialog.show(g_i18n:getText("rl_ui_priceUnavailable"));return end
 
     self.pendingBuyDestination = entry.placeable
     self.pendingBuyAnimals = result.valid
@@ -1041,6 +1055,7 @@ function RLMenuBuyFrame:computeCartTotals()
     local totalPrice = 0
     local totalFee = 0
     local count = 0
+    local unavailable=false
     -- Trailer-dealer buys carry no transport fee (legacy parity); the cart total is price-only.
     local includeFee = self:getTrailerDealerContext() == nil
 
@@ -1055,9 +1070,11 @@ function RLMenuBuyFrame:computeCartTotals()
                     if identityKey ~= nil and self.selectedAnimals[identityKey] then
                         -- The SAME call dispatch hands to the event, so the cart total
                         -- and the charged amount cannot disagree.
-                        totalPrice = totalPrice + RLAnimalBuyService.computeBuyPrice(cluster)
+                        local price=RLAnimalBuyService.computeBuyPrice(cluster)
+                        if priceAvailable(price) then totalPrice=totalPrice+price else unavailable=true end
                         if includeFee then
-                            totalFee = totalFee + (cluster:getTranportationFee(1) or 0)
+                            local fee=cluster:getTranportationFee(1) or 0
+                            if priceAvailable(fee) then totalFee=totalFee+fee else unavailable=true end
                         end
                         count = count + 1
                     end
@@ -1066,6 +1083,7 @@ function RLMenuBuyFrame:computeCartTotals()
         end
     end
 
+    if unavailable or not priceAvailable(totalPrice+totalFee) then return nil,nil,count end
     Log:trace("RLMenuBuyFrame:computeCartTotals: count=%d price=%.0f fee=%.0f total=%.0f",
         count, totalPrice, totalFee, totalPrice + totalFee)
     return totalPrice, totalFee, count
@@ -1075,18 +1093,22 @@ end
 --- Update the cart display: Buy ADDS the fee to the price, where Sell subtracts it.
 function RLMenuBuyFrame:updateCartDisplay()
     local totalPrice, totalFee, count = self:computeCartTotals()
+    local available=priceAvailable(totalPrice) and priceAvailable(totalFee)
+    local priceText=available and g_i18n:formatMoney(totalPrice,0,true,true) or "-"
+    local feeText=available and g_i18n:formatMoney(totalFee,0,true,true) or "-"
+    local totalText=available and g_i18n:formatMoney(totalPrice+totalFee,0,true,true) or "-"
 
     if self.cartCountValue ~= nil then
         self.cartCountValue:setText(tostring(count))
     end
     if self.cartPriceValue ~= nil then
-        self.cartPriceValue:setText(g_i18n:formatMoney(totalPrice, 0, true, true))
+        self.cartPriceValue:setText(priceText)
     end
     if self.cartFeeValue ~= nil then
-        self.cartFeeValue:setText(g_i18n:formatMoney(totalFee, 0, true, true))
+        self.cartFeeValue:setText(feeText)
     end
     if self.cartTotalValue ~= nil then
-        self.cartTotalValue:setText(g_i18n:formatMoney(totalPrice + totalFee, 0, true, true))
+        self.cartTotalValue:setText(totalText)
     end
 
     if self.cartLayout ~= nil and self.cartLayout.invalidateLayout ~= nil then
@@ -1095,9 +1117,7 @@ function RLMenuBuyFrame:updateCartDisplay()
 
     Log:trace("RLMenuBuyFrame:updateCartDisplay: %d selected, price=%s fee=%s total=%s",
         count,
-        g_i18n:formatMoney(totalPrice, 0, true, true),
-        g_i18n:formatMoney(totalFee, 0, true, true),
-        g_i18n:formatMoney(totalPrice + totalFee, 0, true, true))
+        priceText,feeText,totalText)
 end
 
 
@@ -1310,7 +1330,10 @@ function RLMenuBuyFrame:populateCellForItemInSection(list, section, index, cell)
     local priceCell = cell:getAttribute("price")
     if priceCell ~= nil and item.cluster ~= nil then
         local buyPrice = RLAnimalBuyService.computeBuyPrice(item.cluster)
-        if priceCell.setValue ~= nil then
+        if not priceAvailable(buyPrice) then
+            if priceCell.setText~=nil then priceCell:setText("-") elseif priceCell.setVisible~=nil then priceCell:setVisible(false) end
+        elseif priceCell.setValue ~= nil then
+            if priceCell.setVisible~=nil then priceCell:setVisible(true) end
             priceCell:setValue(buyPrice)
         else
             priceCell:setText(g_i18n:formatMoney(buyPrice, 0, true, true))

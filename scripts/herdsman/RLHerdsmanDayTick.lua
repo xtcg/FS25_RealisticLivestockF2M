@@ -204,6 +204,7 @@ local function buildPlannerCtx(farm, husbandriesById, env)
         -- Deliberately NOT defaulted here: the planner treats it as a structural dep and must
         -- raise on a ctx that lacks it rather than price at a stale markup.
         buyMarkup           = env.buyMarkup,
+        pricing             = env.pricing,
     }
 end
 
@@ -397,6 +398,13 @@ function RLHerdsmanDayTick.buildEnv()
         -- handler. Called at RUNTIME only - main.lua sources RLDealerQualityResolver AFTER this
         -- module, so a file-scope reference here would read nil.
         buyMarkup          = RLDealerQualityResolver.getMarkup(),
+        pricing            = {
+            buyPrice=function(animal,markup)return RLAnimalBuyService.computeBuyPrice(animal,markup)end,
+            sellPrice=function(animal)
+                if RLMarketEnginePrice~=nil then return RLMarketEnginePrice.salePrice(animal) end
+                return animal:getSellPrice(),{mode="legacy"}
+            end,
+        },
         dealerQualityIndex = RLDealerQualityResolver.getActiveIndex(),
         -- The horse-care deferral seam. The care write sets riding = 100, and
         -- @see AnimalHorse.processRidingUpdate grades fitness from riding and then zeroes it for

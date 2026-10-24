@@ -99,6 +99,10 @@ function HandToolAIStraw:onPostLoad(savegame)
 			["quality"] = xmlFile:getFloat(animalKey .. ".genetics#quality"),
 			["productivity"] = xmlFile:getFloat(animalKey .. ".genetics#productivity")
 		}
+		-- A beef sire's straw has no milk gene (RLRearingPolicy).
+		if RLRearingPolicy ~= nil and select(2, RLRearingPolicy.normalizeByIndex(animal.subTypeIndex, animal.genetics)) then
+			RLRearingPolicy.noteMigrated("straw", animal.uniqueId)
+		end
 
 		self.animal = animal
 
@@ -194,6 +198,7 @@ function HandToolAIStraw:onReadStream(streamId, connection)
 		animal.genetics.productivity = streamReadFloat32(streamId)
 
 		if animal.genetics.productivity < 0 then animal.genetics.productivity = nil end
+		if RLRearingPolicy ~= nil then RLRearingPolicy.normalizeByIndex(animal.subTypeIndex, animal.genetics) end
 		RLSemenBatch.readStream(streamId, animal)
 
 	end

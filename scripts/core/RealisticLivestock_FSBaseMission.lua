@@ -3,6 +3,27 @@ local modDirectory = g_currentModDirectory
 local modSettingsDirectory = g_currentModSettingsDirectory
 local Log = RmLogging.getLogger("RLRM")
 
+-- Historical identities are evidence, not a request to allocate replacement IDs.
+-- Keep duplicate/placeholder animals intact for an explicit recovery workflow.
+function RealisticLivestock_FSBaseMission._inspectIdentityConflicts(records)
+    local result = { count = 0, duplicates = {}, placeholders = {} }
+    local seen = {}
+    for _, record in ipairs(records or {}) do
+        if record.farmId ~= nil and record.uniqueId ~= nil and record.country ~= nil then
+            local key = tostring(record.farmId).." "..tostring(record.uniqueId).." "..tostring(record.country)
+            if tostring(record.farmId)=="1" and tostring(record.uniqueId)=="1" then
+                result.placeholders[#result.placeholders+1]=key;result.count=result.count+1
+            end
+            if seen[key] then
+                if not result.duplicates[key] then result.count=result.count+1 end
+                result.duplicates[key]=(result.duplicates[key] or 1)+1
+            end
+            seen[key]=true
+        end
+    end
+    return result
+end
+
 
 --[[
     Pure builder for the startup dialog queue: a context table in, an ordered array of
@@ -255,23 +276,13 @@ function RealisticLivestock_FSBaseMission:onStartMission()
 
     local temp = self.environment.weather.temperatureUpdater.currentMin or 20
 	local isServer = self:getIsServer()
-    local fallbackRepairCount = 0
+    local identityConflictCount = 0
 
     for _, placeable in pairs(self.husbandrySystem.placeables) do
 
         local animals = placeable:getClusters()
 
         for _, animal in pairs(animals) do
-            -- Repair fallback ids from a load-order race: placeables load before
-            -- FarmManager:loadFromXMLFile, so the farm lookup in Animal.new returns nil on a
-            -- first-time install over an existing save. By onStartMission it resolves.
-            if isServer and animal.uniqueId == "1" and animal.farmId == "1" then
-                animal:setUniqueId()
-                Log:debug("Fallback ID repair: 1/1 -> %s/%s (subType=%s)",
-                    animal.farmId, animal.uniqueId, animal.subType or "?")
-                fallbackRepairCount = fallbackRepairCount + 1
-            end
-
             animal:updateInput()
             animal:updateOutput(temp)
         end
@@ -280,32 +291,29 @@ function RealisticLivestock_FSBaseMission:onStartMission()
 
     end
 
-    if fallbackRepairCount > 0 then
-        Log:info("onStartMission: repaired %d animal(s) with fallback IDs (load-order race)", fallbackRepairCount)
-    end
-
-    -- ID-COLLISION-01: live animals sharing one full key (the old per-species counters) - the later one
-    -- gets a new key, unambiguous parent references follow; counted with the repairs above.
-    if isServer and RLAnimalIdentityRepair ~= nil then
-        local repaired, summary = pcall(RLAnimalIdentityRepair.run, self)
-        if not repaired then
-            Log:error("onStartMission: duplicate identity repair failed: %s", tostring(summary))
-        elseif summary.renumbered > 0 then
-            fallbackRepairCount = fallbackRepairCount + summary.renumbered
+    if isServer and RLAnimalIdentityWorld ~= nil then
+        local inspected, scan = pcall(RLAnimalIdentityWorld.scan, self)
+        if inspected and scan ~= nil then
+            local report = RealisticLivestock_FSBaseMission._inspectIdentityConflicts(scan.records)
+            RealisticLivestock_FSBaseMission.identityConflictReport = report
+            identityConflictCount = report.count + #(scan.partial or {})
+        else identityConflictCount = 1 end
+        if identityConflictCount > 0 then
+            Log:error("onStartMission: %d historical identity conflict(s); preserving original IDs, transaction channels require recovery", identityConflictCount)
         end
     end
 
-    -- T02 ledger: check the saved ledger against the files the game just loaded, after the
-    -- identity repair above and before the first herdsman day; opens or keeps closed the T02 gate.
+    -- Conflicts are a gate, not successful historical repairs. Checkpoints finish
+    -- reading their evidence before applying this explicit admission restriction.
     if isServer then
-        local checked, checkErr = pcall(RLTradeCheckpoint.onMissionStarted, self, { identityRepairs = fallbackRepairCount })
+        local checked, checkErr = pcall(RLTradeCheckpoint.onMissionStarted, self, { identityRepairs = 0, identityConflicts = identityConflictCount })
         if not checked then
             Log:error("onStartMission: T02 ledger check failed: %s - T02 transactions stay closed", tostring(checkErr))
             RLTradeCheckpoint.state, RLTradeCheckpoint.reason = RLTradeCheckpoint.RECOVERY_REQUIRED, "CHECK_THREW"
         end
         if RLDealerRuntime ~= nil then
             local dealerChecked, dealerError = pcall(RLDealerRuntime.onMissionStarted, self,
-                { identityRepairs = fallbackRepairCount })
+                { identityRepairs = 0, identityConflicts = identityConflictCount })
             if not dealerChecked then
                 Log:error("onStartMission: dealer checkpoint check failed: %s - v2 purchases stay closed", tostring(dealerError))
                 RLDealerRuntime.state, RLDealerRuntime.reason = "RECOVERY_REQUIRED", "CHECK_THREW"
@@ -314,7 +322,7 @@ function RealisticLivestock_FSBaseMission:onStartMission()
         end
     end
 
-    -- Identity ledger: after the identity repair above (so repaired ids are in the scan) and the T02 / dealer checks.
+    -- Identity ledger scans original keys after the T02 / Dealer checks.
     if isServer then
         local idChecked, idError = pcall(RLAnimalIdentityCheckpoint.onMissionStarted, self)
         if not idChecked then

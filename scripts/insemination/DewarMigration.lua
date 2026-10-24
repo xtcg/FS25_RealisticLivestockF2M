@@ -154,6 +154,7 @@ function DewarMigration.readDewarEntry(xmlFile, key)
             ["quality"] = xmlFile:getFloat(animalKey .. ".genetics#quality"),
             ["productivity"] = xmlFile:getFloat(animalKey .. ".genetics#productivity")
         }
+        if RLRearingPolicy ~= nil then RLRearingPolicy.normalizeByIndex(animal.subTypeIndex, animal.genetics) end
 
         -- Validate subtype consistency
         local animalSystem = g_currentMission.animalSystem

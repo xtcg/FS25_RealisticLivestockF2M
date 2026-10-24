@@ -1934,8 +1934,10 @@ function AnimalSystem:_tryCreateSaleAnimal(animalTypeIndex, animalType, buyableS
     -- Genetics come from the shared bell draw, which centres every sale animal
     -- on its own base quality rather than on the source farm's. Productivity is
     -- drawn only for the types that carry it.
+    -- A beef breed draws no milk gene at all (RLRearingPolicy), so the stock filter never sees one.
     local traitKeys = (animalTypeIndex == AnimalType.COW or animalTypeIndex == AnimalType.SHEEP
         or animalTypeIndex == AnimalType.CHICKEN)
+        and (RLRearingPolicy == nil or RLRearingPolicy.hasTrait(subType, "productivity"))
         and RLGeneticsDraw.TRAITS_WITH_PRODUCTIVITY or RLGeneticsDraw.TRAITS_BASE
 
     local genetics = RLGeneticsDraw.draw(traitKeys)
@@ -3377,7 +3379,11 @@ function AnimalSystem:createNewAIAnimal(animalTypeIndex)
         ["health"] = math.clamp(math.random(geneticsModifier - 300, geneticsModifier + 300) / 1000, 1.15, 1.75)
     }
 
-    if animalTypeIndex == AnimalType.COW or animalTypeIndex == AnimalType.SHEEP or animalTypeIndex == AnimalType.CHICKEN then genetics.productivity = math.clamp(math.random(geneticsModifier - 300, geneticsModifier + 300) / 1000, 1.15, 1.75) end
+    -- Only a sire that has the gene draws it (RLRearingPolicy: a beef bull has no milk gene).
+    if (animalTypeIndex == AnimalType.COW or animalTypeIndex == AnimalType.SHEEP or animalTypeIndex == AnimalType.CHICKEN)
+        and (RLRearingPolicy == nil or RLRearingPolicy.hasTrait(subType, "productivity")) then
+        genetics.productivity = math.clamp(math.random(geneticsModifier - 300, geneticsModifier + 300) / 1000, 1.15, 1.75)
+    end
 
   
     local name = g_currentMission.animalNameSystem:getRandomName("male")
@@ -3409,4 +3415,18 @@ function AnimalSystem:createNewAIAnimal(animalTypeIndex)
 
     return animal
 
+end
+
+-- The old dealer's restock and rotation, AI bulls and sale births take many keys in one callback:
+-- under the identity ledger each would rewrite the unsaved-key journal. One batch per callback
+-- journals them once at its end (RLAnimalIdentityRuntime.batch). Subscribed in initialiseCountries,
+-- after this file loaded, so the subscription takes these wrappers.
+for _, name in ipairs({ "onHourChanged", "onDayChanged", "onPeriodChanged" }) do
+    local handler = AnimalSystem[name]
+    AnimalSystem[name] = function(self, ...)
+        if RLAnimalIdentityRuntime ~= nil and RLAnimalIdentityRuntime.batch ~= nil then
+            return RLAnimalIdentityRuntime.batch(handler, self, ...)
+        end
+        return handler(self, ...)
+    end
 end

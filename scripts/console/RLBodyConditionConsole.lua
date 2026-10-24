@@ -13,8 +13,11 @@
                                           live weight moves with the reserve as in the game.
     rlBcFastForward <hours> [pen]         Run that many hourly cycles of the cattle pens at once:
                                           the real feeding, budget, milk and pallet code, with
-                                          food, water and straw really consumed. Ages, days,
-                                          months, pregnancies and diseases do not advance.
+                                          food, water and straw really consumed. Whole-month ages
+                                          follow the model clock (else a clock more than
+                                          RLGrowth.AGE_CLOCK_STALE_ABOVE months ahead is read as stale
+                                          and starts again at the whole age); days, months,
+                                          pregnancies, birthdays and diseases do not advance.
 
     [pen] / pen:NAME match any part of a pen's name, case-insensitive.
 ]]
@@ -221,6 +224,16 @@ function RLBodyConditionConsole:set(kind, value, target)
 end
 
 
+--- A fast-forwarded animal's whole months follow its continuous age clock (RLGrowth state ageMonths),
+--- as a birthday would, so the clock is never read as stale (RLGrowth.getContinuousAge).
+function RLBodyConditionConsole.followClock(animal)
+    local state = animal.rlGrowth
+    if state == nil or type(state.ageMonths) ~= "number" or state.ageMonths ~= state.ageMonths then return end
+    local whole = math.floor(state.ageMonths + RLGrowth.AGE_CLOCK_SNAP)
+    if whole > (animal.age or 0) then animal.age = whole end
+end
+
+
 --- rlBcFastForward <hours> [pen]
 function RLBodyConditionConsole:fastForward(hours, filter)
     hours = tonumber(hours)
@@ -250,7 +263,10 @@ function RLBodyConditionConsole:fastForward(hours, filter)
     -- Each simulated hour gets its own tick, so the ledger and the once-per-hour guard see a new hour.
     for _ = 1, hours do
         RLBodyCondition.debugTickOffset = (RLBodyCondition.debugTickOffset or 0) + 1
-        for _, pen in ipairs(pens) do pen:hourChanged(hour) end
+        for _, pen in ipairs(pens) do
+            pen:hourChanged(hour)
+            for _, animal in ipairs(pen:getClusters()) do RLBodyConditionConsole.followClock(animal) end
+        end
     end
 
     for _, pen in ipairs(pens) do

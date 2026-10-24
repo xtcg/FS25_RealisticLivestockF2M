@@ -228,6 +228,7 @@
         <text name="rl_ui_input_water" text="饮水"/>
         <text name="rl_ui_input_straw" text="垫草"/>
         <text name="rl_ui_output_milk" text="牛奶"/>
+        <text name="rl_ui_output_pallets_milk" text="牛奶"/>
         <text name="rl_ui_output_manure" text="粪肥"/>
         <text name="rl_ui_output_liquidManure" text="液肥"/>
         <text name="rl_ui_output_pallets_eggs" text="鸡蛋"/>
@@ -1009,10 +1010,6 @@
         <text name="rl_pedigree_info" text="后代近交系数 %s"/>
         <text name="rl_pedigree_none" text="未发现共同的上代"/>
         <text name="rl_ai_chance" text="批次品质 %s | 这头母畜预计受胎率 %s（繁殖力 %s x 受孕 %s x 批次 %s）"/>
-        <text name="rl_settings_nutritionMode_label" text="营养模型"/>
-        <text name="rl_settings_nutritionMode_tooltip" text="牛：旧版沿用原饲料规则。现实等效按现实干物质与能量计算采食和日粮，默认扣料为现实等效体积的1/8，不是旧版用量的1/8。"/>
-        <text name="rl_settings_nutritionMode_texts_1" text="旧版"/>
-        <text name="rl_settings_nutritionMode_texts_2" text="现实等效（省料）"/>
         <text name="rl_feed_grainGroup" text="谷物补料"/>
 
         <!-- Feed UI: Chinese and English; English fallback for other languages. -->
@@ -1035,15 +1032,15 @@
         <text name="rl_feed_feedShareFormat" text="%s（干物质%.0f%%）"/>
         <text name="rl_feed_feedPlanFormat" text="%s · 计划%.0f升/%s"/>
         <text name="rl_feed_reason_OK" text="现实等效"/>
-        <text name="rl_feed_reason_MODE_OFF" text="旧营养模式"/>
         <text name="rl_feed_reason_CONFIG_INVALID" text="饲料配置无效"/>
         <text name="rl_feed_reason_MODEL_OFF" text="体重模型未启用"/>
         <text name="rl_feed_reason_NOT_CATTLE" text="仅适用于牛"/>
         <text name="rl_feed_reason_MILKCOW_LEGACY" text="特殊奶牛沿用旧模式"/>
         <text name="rl_feed_reason_NO_TROUGH" text="食槽不支持"/>
         <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="栏内有未覆盖动物"/>
-        <text name="rl_feed_reason_SUCKLING_CALF" text="吃奶小牛需母牛或小牛栏"/>
-        <text name="rl_feed_reason_PIG_BREEDING_LEGACY" text="有母猪或仔猪：旧规则"/>
+        <text name="rl_feed_reason_NO_NURSING_RULES" text="缺少幼畜喂奶规则"/>
+        <text name="rl_feed_penHeld" text="生长"/>
+        <text name="rl_feed_heldText" text="暂停，健康不变"/>
         <text name="rl_feed_reason_UNKNOWN" text="状态未知"/>
         <text name="rl_feed_limit_NONE" text="无限制"/>
         <text name="rl_feed_limit_FIBRE" text="粗料限制"/>
@@ -1073,6 +1070,8 @@
         <text name="rl_feed_calfMilkAlert" text="%s：%d 头吃奶小牛没有小牛奶，会掉健康甚至死亡"/>
         <text name="rl_feed_calfMilkLowAlert" text="%s：小牛奶约 %s 后用完"/>
         <text name="rl_feed_lambNoDam" text="%s：%d 只仍需喝奶的小羊不在母羊身边，没有奶可喝，会掉健康甚至死亡"/>
+        <text name="rl_feed_youngNoDam" text="%s：%d 只仍需喝奶的幼畜不在母畜身边，没有奶可喝，会掉健康甚至死亡"/>
+        <text name="rl_feed_shortAlert" text="%s：饲料只够动物需求的 %d%%，体重和健康会下降，请补充饲料"/>
         <text name="rl_feed_penNotEaten" text="旧模式不吃"/>
         <text name="rl_feed_penNoBaseFeed" text="基础饲料"/>
         <text name="rl_feed_noBaseFeed" text="没有，动物吃不到饲料"/>
@@ -1123,5 +1122,6 @@
         <text name="rl_meadow_witherWarning" text="%s：牧场鲜草约%d天后入冬枯退，请在食槽补充干草或青贮"/>
         <text name="rl_wool_shorn" text="%s：已为%d只羊剪毛，共%d升羊毛等待装托盘"/>
         <text name="rl_menu_settings_tab_manual" text="玩家指南"/>
+        <text name="rl_ui_priceUnavailable" text="当前无法报价。请刷新后重试。"/>
     </texts>
 </l10n>

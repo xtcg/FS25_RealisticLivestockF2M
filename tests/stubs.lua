@@ -51,6 +51,7 @@ end
 function near(a, b, eps) return a ~= nil and b ~= nil and math.abs(a - b) < (eps or 0.01) end
 
 function loadMod(path)
+    if recordMeasurementSource ~= nil then recordMeasurementSource(REPO .. path) end
     local chunk, err = loadfile(REPO .. path)
     assert(chunk, err)
     chunk()
@@ -59,6 +60,7 @@ end
 -- XMLFile over a real file on disk: elements and attributes only (comments and the
 -- declaration dropped), addressed with the engine's "root.child(i).grandchild(j)#attr" keys.
 function loadXMLFileFromDisk(path)
+    if recordMeasurementSource ~= nil then recordMeasurementSource(path) end
     local handle = io.open(path, "r")
     if handle == nil then return nil end
     local text = handle:read("*a"):gsub("<!%-%-.-%-%->", ""):gsub("<%?.-%?>", "")
@@ -118,6 +120,7 @@ end
 -- `first` up to (not including) the line containing `last`. The whole file uses GIANTS Lua's
 -- `continue`, which stock Lua cannot parse. Animal is created if missing.
 function loadAnimalSection(first, last)
+    if recordMeasurementSource ~= nil then recordMeasurementSource(REPO .. "scripts/animal/RealisticLivestock_Animal.lua") end
     local handle = assert(io.open(REPO .. "scripts/animal/RealisticLivestock_Animal.lua", "r"))
     local text = handle:read("*a")
     handle:close()
@@ -131,6 +134,10 @@ end
 
 -- The game's milk rule (births, the monthly tick, yield, the forecast and the dealer).
 loadMod("scripts/animal/RLLactation.lua")
+-- What each subtype is kept for and which genes it has (reads RLBreedTraits when a test loads it).
+loadMod("scripts/animal/RLRearingPolicy.lua")
+-- A young animal's own demand on its dam (pure).
+loadMod("scripts/nutrition/RLYoungDemandMath.lua")
 -- Shared butcher age window, sourced by main.lua before move modules.
 loadMod("scripts/utils/RLEppAge.lua")
 
@@ -165,8 +172,8 @@ loadMod("scripts/animal/RLGrowthMath.lua")
 loadMod("scripts/animal/RLWeightProfiles.lua")
 loadMod("scripts/animal/RLGrowth.lua")
 
--- Real-equivalent nutrition (RLFeed). The mode is the legacy one unless a test switches it on
--- (RLFeed.mode), so every other test sees the old rules; tests/test_feed.lua covers it.
+-- Unified nutrition (RLFeed): the only model of the covered cattle, sheep, goats and pigs; a
+-- covered animal outside a pen that runs it is held (RLFeed.holdUnsettled). tests/test_feed.lua.
 loadMod("scripts/feed/RLFeedUnits.lua")
 loadMod("scripts/feed/RLFeedProfiles.lua")
 loadMod("scripts/feed/RLFeedMath.lua")

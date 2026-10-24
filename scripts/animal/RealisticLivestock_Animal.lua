@@ -142,7 +142,10 @@ function Animal.new(config)
         end
 
 
-        if self.animalTypeIndex == AnimalType.COW or self.animalTypeIndex == AnimalType.SHEEP or self.animalTypeIndex == AnimalType.CHICKEN then
+        -- Only an animal that has the gene draws it (RLRearingPolicy: beef cattle have no milk gene).
+        local hasProductivity = self.animalTypeIndex == AnimalType.COW or self.animalTypeIndex == AnimalType.SHEEP or self.animalTypeIndex == AnimalType.CHICKEN
+        if hasProductivity and RLRearingPolicy ~= nil and subType ~= nil then hasProductivity = RLRearingPolicy.hasTrait(subType, "productivity") end
+        if hasProductivity then
             local productivityChance = math.random()
 
             if productivityChance < 0.05 then
@@ -187,6 +190,11 @@ function Animal.new(config)
         else
             self.genetics.metabolism = math.random(90, 110) / 100
         end
+    elseif RLRearingPolicy ~= nil and subType ~= nil then
+        -- Given genes (a load, a birth, a stream, a dealer): a gene the animal does not have is
+        -- dropped, the others kept as they are.
+        local _, removed = RLRearingPolicy.normalizeGenetics(subType, genetics)
+        if removed then RLRearingPolicy.noteMigrated("animal", cfg.uniqueId) end
     end
 
 
@@ -467,6 +475,7 @@ function Animal:getBirthday()
 end
 
 function Animal:setGenetics(genetics)
+    if RLRearingPolicy ~= nil and genetics ~= nil then RLRearingPolicy.normalizeGenetics(self:getSubType(), genetics) end
     self.genetics = genetics
 end
 
@@ -671,10 +680,11 @@ function Animal:addInfos(infos, forceShowAll)
         end
 
 
+        local displayTarget = RLGrowth.getDisplayTarget(self) or self.targetWeight
         self.infoWeight.value = 1
-        self.infoWeight.ratio = self.weight / self.targetWeight
+        self.infoWeight.ratio = displayTarget > 0 and self.weight / displayTarget or 0
         self.infoWeight.valueText = string.format("%.2f", self.weight) ..
-        "kg / " .. string.format("%.2f", self.targetWeight) .. "kg"
+        "kg / " .. string.format("%.2f", displayTarget) .. "kg"
 
         table.insert(infos, self.infoWeight)
     end
@@ -828,7 +838,9 @@ function Animal:showInfo(box)
         box:addLine(g_i18n:getText("rl_ui_maleNumImpregnatable"), string.format("%s", self.numImpregnatableAnimals or 0))
     end
 
-    box:addLine(g_i18n:getText("rl_ui_value"), g_i18n:formatMoney(self:getSellPrice(), 2, true, true))
+    local price=self:getSellPrice()
+    local priced=type(price)=="number" and price==price and math.abs(price)<math.huge and price>=0
+    box:addLine(g_i18n:getText("rl_ui_value"), priced and g_i18n:formatMoney(price,2,true,true) or "-")
 
     if self.isCastrated then box:addLine(g_i18n:getText("rl_ui_castrated"), g_i18n:getText("rl_ui_yes")) end
 end
@@ -1166,9 +1178,11 @@ function Animal:showMonitorInfo(box)
     end
 
     box:addLine(g_i18n:getText("rl_ui_weight"), string.format("%.2f", self.weight) .. "kg")
-    box:addLine(g_i18n:getText("rl_ui_targetWeight"), string.format("%.2f", self.targetWeight) .. "kg")
-    box:addLine(g_i18n:getText("rl_ui_valuePerKilo"),
-        g_i18n:formatMoney(self:getSellPrice() / self.weight, 2, true, true))
+    box:addLine(g_i18n:getText("rl_ui_targetWeight"), string.format("%.2f", RLGrowth.getDisplayTarget(self) or self.targetWeight) .. "kg")
+    local price=self:getSellPrice()
+    local priced=type(price)=="number" and price==price and math.abs(price)<math.huge and price>=0
+        and type(self.weight)=="number" and self.weight>0 and self.weight<math.huge
+    box:addLine(g_i18n:getText("rl_ui_valuePerKilo"),priced and g_i18n:formatMoney(price/self.weight,2,true,true) or "-")
 
     for fillType, amount in pairs(self.input) do
         box:addLine(g_i18n:getText("rl_ui_input_" .. fillType),
@@ -1178,7 +1192,9 @@ function Animal:showMonitorInfo(box)
     for fillType, amount in pairs(self.output) do
         local outputText = fillType
 
-        if fillType == "pallets" then
+        if Animal.isDuplicateMilkRow(self, fillType) then
+            outputText = nil
+        elseif fillType == "pallets" then
             if self.animalTypeIndex == AnimalType.COW then outputText = "pallets_milk" end
 
             if self.animalTypeIndex == AnimalType.SHEEP then outputText = self.subType == "GOAT" and "pallets_goatMilk" or
@@ -1187,8 +1203,10 @@ function Animal:showMonitorInfo(box)
             if self.animalTypeIndex == AnimalType.CHICKEN then outputText = "pallets_eggs" end
         end
 
-        box:addLine(g_i18n:getText("rl_ui_output_" .. outputText),
-            RLAnimalDisplayHelper.formatMonthlyAmount(amount))
+        if outputText ~= nil then
+            box:addLine(g_i18n:getText("rl_ui_output_" .. outputText),
+                RLAnimalDisplayHelper.formatMonthlyAmount(amount))
+        end
     end
 end
 
@@ -1647,6 +1665,15 @@ function Animal:getDirtFactor() return AnimalHorse.getDirtFactor(self) end
 function Animal:changeDirt(delta) AnimalHorse.changeDirt(self, delta) end
 
 function Animal:getSellPrice()
+    if RLMarketEnginePrice~=nil then
+        return RLMarketEnginePrice.price("BID",self,function()return self:getLegacySellPrice()end)
+    end
+    return self:getLegacySellPrice()
+end
+
+
+-- Kept separate so a legacy ASK never derives its markup from a new BID.
+function Animal:getLegacySellPrice()
     local subType = self:getSubType()
 
     -- Cattle are priced by RLBreedingValue (PRICE-BREED-03): the curve price below with genes at
@@ -1947,6 +1974,16 @@ function Animal:getLactationFactor()
     return RLLactation.getYieldFactor(self.monthsSinceLastBirth or 12, RLLactation.getMonths(self:getSubType()))
 end
 
+--- Whether an output row repeats the milk row. Hof Bergmann cows have both a milk (tank) and a
+--- pallets (milk can) output for the same milk; the barn delivers it to whichever it has.
+---@param animal table
+---@param fillType string output key
+---@return boolean
+function Animal.isDuplicateMilkRow(animal, fillType)
+    return fillType == "pallets" and AnimalType ~= nil and animal.animalTypeIndex == AnimalType.COW
+        and type(animal.output) == "table" and animal.output.milk ~= nil
+end
+
 --- Cattle's milk level by lactation number (RLMilkParity): 1 for other animals and for any output
 --- that is not milk. The milk curve is read at the mature age at the earliest for cattle's milk.
 ---@param fillType string
@@ -2014,6 +2051,10 @@ function Animal:updateOutput(temp)
         local parityFactor = cattleMilk and self:getParityFactor() or 1
         -- A breed whose milk curve is not on this mod's scale (a pack's own animals.xml) is scaled to it (breedTraits milkScale).
         local milkScale = cattleMilk and RLBreedTraits.get(subType, "milkScale") or 1
+        -- Beef cattle give no milk output at all (RLRearingPolicy): no curve, no milk gene, nothing for a
+        -- store. What a beef cow's calves drink is the nutrition she pays for them (RLFeed nursing),
+        -- never this curve.
+        if cattleMilk and RLRearingPolicy ~= nil and RLRearingPolicy.isBeef(subType) then milkScale = 0 end
 
         if output.curve ~= nil then
             litersPerDay = output.curve:get(curveAge)
@@ -2116,7 +2157,9 @@ function Animal:updateOutput(temp)
         -- the budget paid for instead (RLBodyCondition.depositMilk), otherwise this as before.
         if isMilk then
             litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, milkCurve, diseaseFactor, healthyLitersPerDay)
-        elseif palletMilkCurve ~= nil and Animal.isCowMilkPalletFillType(output.fillType) then
+        elseif palletMilkCurve ~= nil and Animal.isLactationPalletFillType(output.fillType) then
+            -- Milk in cans or pallets (cow and buffalo cans, goat milk): recorded for the budget the same
+            -- way, so a covered dam's store gets what her budget paid after her young drank (RLFeed).
             litersPerDay = RLBodyCondition.applyMilk(self, litersPerDay, palletMilkCurve, diseaseFactor, healthyLitersPerDay)
         end
         -- A suckler (beef) breed's milk is for her calf, not the store (breedTraits milkCollect 0):

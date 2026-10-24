@@ -151,7 +151,8 @@ local function advancePregnancy(animal, spec, day, month, year, isSaleAnimal)
                     quality = animal.genetics.quality,
                     health = animal.genetics.health,
                     fertility = animal.genetics.fertility,
-                    productivity = animal.genetics.productivity or 1.0,
+                    -- Only a gene the dam has (beef cattle have no milk gene: RLRearingPolicy).
+                    productivity = animal.genetics.productivity,
                 }
             end
 
@@ -160,11 +161,8 @@ local function advancePregnancy(animal, spec, day, month, year, isSaleAnimal)
             if animal.impregnatedBy.quality == nil then animal.impregnatedBy.quality = animal.genetics.quality end
             if animal.impregnatedBy.health == nil then animal.impregnatedBy.health = animal.genetics.health end
             if animal.impregnatedBy.fertility == nil then animal.impregnatedBy.fertility = animal.genetics.fertility end
-            if animal.impregnatedBy.productivity == nil then
-                animal.impregnatedBy.productivity = animal.genetics.productivity or 1.0
-                Log:trace("advancePregnancy: backfilled impregnatedBy.productivity for animal %s (genetics.productivity was %s)",
-                    animal.uniqueId or "?", tostring(animal.genetics.productivity))
-            end
+            -- A sire without the milk gene (beef, pig, horse) keeps none: nothing is backfilled; the
+            -- young's genes were drawn at conception.
 
             -- Identity ledger: reserve this litter's keys before anything below changes. When it cannot,
             -- the mother stays pregnant with every field as it was (no draw, no parity change, no
@@ -414,7 +412,9 @@ function AnimalReproduction.createPregnancy(animal, childNum, month, year, fathe
             quality = 1.0,
             health = 1.0,
             fertility = 1.0,
-            productivity = 1.0,
+            -- An unknown sire of a dam that has the gene is an average one; of a beef dam, none.
+            productivity = (RLRearingPolicy == nil or RLRearingPolicy.hasTrait(animal:getSubType(), "productivity"))
+                and animal.genetics.productivity ~= nil and 1.0 or nil,
         }
 
         local eligibleFathers = {}
@@ -486,11 +486,18 @@ function AnimalReproduction.createPregnancy(animal, childNum, month, year, fathe
 
     end
 
-    -- Coalesce productivity to 1.0 for paternal-snapshot field. genetics.productivity
-    -- is nil for PIG and HORSE; without this both eligible-father selection and
-    -- resolveInsemination's explicit-father path would assign nil here, crashing
-    -- AnimalPregnancyEvent:writeStream's streamWriteFloat32 call.
-    father.productivity = father.productivity or 1.0
+    -- The sire snapshot keeps only the genes the sire has: nil productivity for a pig, a horse or
+    -- beef cattle (RLRearingPolicy; a beef straw from an old save drops it here too). Streams
+    -- write an absent value as -1 (AnimalPregnancyEvent, AnimalSerialization).
+    if RLRearingPolicy ~= nil then
+        local fatherSubType = fatherSubTypeIndex ~= nil and g_currentMission.animalSystem:getSubTypeByIndex(fatherSubTypeIndex) or nil
+        if fatherSubType ~= nil then
+            RLRearingPolicy.normalizeGenetics(fatherSubType, father)
+        else
+            local typeName = RLBreedTraits ~= nil and RLBreedTraits.getTypeName(animal:getSubType()) or nil
+            RLRearingPolicy.normalizeNamed(typeName, father.breed, father)
+        end
+    end
 
     animal.impregnatedBy = father
     animal.reproduction = 0
@@ -624,7 +631,12 @@ function AnimalReproduction.createPregnancy(animal, childNum, month, year, fathe
 
         local productivity = nil
 
-        if genetics.productivity ~= nil then
+        if RLRearingPolicy ~= nil then
+            -- Only a young of a subtype with the gene inherits it (beef calves have none), from the
+            -- parents that have it: a beef sire's missing value is never made up as 1.
+            productivity = RLRearingPolicy.inheritProductivity(resolvedSubType, genetics.productivity, father.productivity,
+                function(m, f) return BreedingMath.breedOffspring(m, f, { sd = BreedingMath.SD_CONST }) end)
+        elseif genetics.productivity ~= nil then
             productivity = BreedingMath.breedOffspring(genetics.productivity, father.productivity or 1, { sd = BreedingMath.SD_CONST })
         end
 
@@ -1034,9 +1046,15 @@ function AnimalReproduction.reproduce(animal, spec, day, month, year, isSaleAnim
 
 
         if not sourceBirth then
+            -- Capacity overflow remains an explicit legacy disposal policy,
+            -- separate from an optional live Dealer quotation. Lack of a market
+            -- BID must not fail a birth after IDs and parent links were written.
+            local overflowPrice
+            if type(child.getLegacySellPrice)=="function" then overflowPrice=child:getLegacySellPrice()
+            else overflowPrice=child:getSellPrice() end
             table.insert(sellPrices, {
                 ["index"] = i,
-                ["sellPrice"] = child:getSellPrice(),
+                ["sellPrice"] = overflowPrice,
             })
         end
 

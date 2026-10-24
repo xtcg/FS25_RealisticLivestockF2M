@@ -24,15 +24,19 @@ RLAnimalBuyService = {}
 --- TRACE digest in RLMenuBuyFrame carries this information instead.
 --- @param animal table Animal/cluster object
 --- @return number price Dealer buy price (positive): getSellPrice() * the active preset's markup
-function RLAnimalBuyService.computeBuyPrice(animal)
+function RLAnimalBuyService.computeBuyPrice(animal, legacyMarkup)
     if animal == nil then
         Log:warning("RLAnimalBuyService.computeBuyPrice: nil animal")
         return 0
     end
 
-    -- Buy-side dealer markup, resolved from the active dealer-quality preset
-    -- (matches AnimalItemNew, which resolves through the same accessor).
-    return (animal:getSellPrice() or 0) * RLDealerQualityResolver.getMarkup()
+    local function legacy()
+        local bid
+        if type(animal.getLegacySellPrice)=="function" then bid=animal:getLegacySellPrice() else bid=animal:getSellPrice() end
+        return (bid or 0)*(legacyMarkup or RLDealerQualityResolver.getMarkup())
+    end
+    if RLMarketEnginePrice~=nil then return RLMarketEnginePrice.price("ASK",animal,legacy) end
+    return legacy()
 end
 
 
@@ -55,11 +59,17 @@ function RLAnimalBuyService.computeBulkTotal(animals)
     local totalPrice = 0
     local totalFee = 0
     for _, animal in ipairs(animals) do
-        totalPrice = totalPrice + (animal:getSellPrice() or 0) * markup
-        totalFee = totalFee + (animal:getTranportationFee(1) or 0)
+        local price,reason = RLAnimalBuyService.computeBuyPrice(animal,markup)
+        if type(price)~="number" or price~=price or price<0 or price==math.huge then return nil,nil,nil,0,reason or "BUY_PRICE_UNAVAILABLE" end
+        local fee=animal:getTranportationFee(1) or 0
+        if type(fee)~="number" or fee~=fee or fee<0 or fee==math.huge then return nil,nil,nil,0,"BUY_TRANSPORT_UNAVAILABLE" end
+        totalPrice = totalPrice + price
+        totalFee = totalFee + fee
+        if totalPrice==math.huge or totalFee==math.huge then return nil,nil,nil,0,"BUY_TOTAL_OVERFLOW" end
     end
 
     local total = totalPrice + totalFee
+    if total==math.huge then return nil,nil,nil,0,"BUY_TOTAL_OVERFLOW" end
     Log:debug("RLAnimalBuyService.computeBulkTotal: %d animals, price=%.0f fee=%.0f total=%.0f",
         #animals, totalPrice, totalFee, total)
     return totalPrice, totalFee, total, #animals
@@ -246,8 +256,11 @@ function RLAnimalBuyService.filterBuyableAnimals(destination, animals, ownerFarm
                 tostring(label))
         else
             -- Negated price + numAnimals = 1, exactly as legacy applySource/applySourceBulk.
-            local price = -RLAnimalBuyService.computeBuyPrice(animal)
-            local errorCode = validate(destination, animal.subTypeIndex, animal.age, 1, price, 0, ownerFarmId)
+            local price = RLAnimalBuyService.computeBuyPrice(animal)
+            local errorCode
+            if type(price)~="number" or price~=price or price<0 or price==math.huge then
+                errorCode=AnimalBuyEvent.BUY_ERROR_PRICE_UNAVAILABLE or AnimalBuyEvent.BUY_ERROR_ANIMAL_NOT_SUPPORTED
+            else errorCode=validate(destination, animal.subTypeIndex, animal.age, 1, -price, 0, ownerFarmId) end
             if errorCode == nil then
                 errorCode = AnimalBuyEvent.getPenErrorCode(destination, animal)
             end

@@ -11,6 +11,8 @@ loadMod("scripts/animal/RLTradePersistence.lua")
 loadMod("scripts/animal/RLAnimalIdentity.lua")
 loadMod("scripts/animal/RLAnimalIdentityPersistence.lua")
 loadMod("scripts/animal/RLAnimalIdentityRuntime.lua")
+-- This unit fixture omits engine storage; checkpoint tests exercise the real barrier.
+RLAnimalIdentityRuntime.journalBarrier = function() return true end
 loadMod("scripts/animal/RLAnimalIdentityWorld.lua")
 loadMod("scripts/animal/RLAnimalIdentityRepair.lua")
 local I, R, W, U, Repair = RLAnimalIdentity, RLAnimalIdentityRuntime, RLAnimalIdentityWorld, RLAnimalUtil, RLAnimalIdentityRepair

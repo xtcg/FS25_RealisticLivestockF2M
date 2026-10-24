@@ -2,9 +2,9 @@
     RLSpecies.lua
     Which species section of a config an animal, pen, subtype or type name reads. The nutrition
     configs (feedProfiles.xml, bodyCondition.xml) hold the cattle values at their root and may
-    hold a <species name="SHEEP"> section of their own; anything without a section - cattle,
-    every other type, and a breed its type's weight profiles exclude (goats share the SHEEP type
-    but are not sheep: weightProfiles.xml excludeBreeds) - reads the root, the same table as
+    hold a <species name="SHEEP"> section of their own; goats (the SHEEP type's GOAT breed) read
+    a GOAT section; anything without a section - cattle, every other type, and a breed its type's
+    weight profiles exclude (weightProfiles.xml excludeBreeds) - reads the root, the same table as
     before.
 
     Read only, no engine state changed. The type name is the animal system's (upper case).
@@ -38,6 +38,13 @@ function RLSpecies.getSubTypeKey(subType)
     end
     if typeName == nil then return nil end
     local key = typeName
+    -- Goats share the SHEEP type but have sections of their own (GOAT): their own growth, milk and
+    -- nursing values, never a sheep's (unified nursing design, 2026-10-22). A config without a GOAT
+    -- section gives them its root, as before.
+    if typeName == "SHEEP" and RLRearingPolicy ~= nil and RLRearingPolicy.getUseNamed(typeName, subType.breed, subType.name) == "DAIRY_GOAT" then
+        cache[subType] = "GOAT"
+        return "GOAT"
+    end
     if RLWeightProfiles ~= nil and RLWeightProfiles.getTypeEntry ~= nil and RLWeightProfiles.isExcludedBreed ~= nil
         and RLWeightProfiles.isExcludedBreed(RLWeightProfiles.getTypeEntry(typeName), subType.breed) then
         key = false

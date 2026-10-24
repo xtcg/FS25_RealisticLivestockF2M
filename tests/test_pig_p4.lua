@@ -118,7 +118,7 @@ pigType.enabled = false
 check("on: PIG_LANDRACE -> PIG:LANDRACE female, BOAR_BERKSHIRE -> PIG:BERKSHIRE male (EXACT)", okOn and gb ~= nil
     and gb.profile == "PIG:LANDRACE" and gb.sex == "female" and gr == "EXACT" and bb ~= nil and bb.profile == "PIG:BERKSHIRE" and bb.sex == "male")
 check("on: every cattle and sheep subtype's binding is the same as with pigs off", okOn and unchanged == true and next(before) ~= nil)
-check("on: the pig type is not ready to run (no PIG section in feedProfiles.xml / bodyCondition.xml)", okOn and covered == false)
+check("on: the pig type is ready to run (its PIG feed and body condition sections are valid; no mode setting)", okOn and covered == true)
 
 -- The curves at their measured points.
 local function curveOf(breed, sex) return RLGrowthCurve.new(config.profiles["PIG:" .. breed].knots[sex]) end

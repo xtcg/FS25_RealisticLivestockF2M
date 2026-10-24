@@ -140,16 +140,17 @@ do
     check("model: apply sends a copy of the draft for the pen", model:apply() == true and #sent == 1 and sent[1].object == pen
         and sent[1].ration ~= model.draft and sent[1].ration.target == model.draft.target and sent[1].ration.share == nil)
 
-    -- Read-only: the mode off, a pen on the old rules, no permission. Nothing is sent.
-    FeedSim.setMode(false)
+    -- Read-only: a pen that cannot run the model, no permission. Nothing is sent. (No mode setting
+    -- any more: a pen that runs the model is editable.)
     local editable, reason = Model.new(pen):getAccess()
-    check("model: read-only while the mode is off", not editable and reason == "MODE_OFF" and model:apply() == false and #sent == 1)
-    FeedSim.setMode(true)
+    check("model: a pen running the unified model is editable (no MODE_OFF)", editable and reason ~= "MODE_OFF" and #sent == 1)
+    -- An animal the weight model does not cover (a vanilla cluster) keeps its pen on the old rules.
     local calf = GrowthSim.makeAnimal("BULL_ANGUS", { age = 1 })
+    calf.isIndividual = false
     local nursery = FeedSim.makePen({ calf }, { DRYGRASS_WINDROW = 1000 })
     nursery.spec_husbandryFood.rlFeedPen = nil
     editable, reason = Model.new(nursery):getAccess()
-    check("model: read-only in a pen the old rules feed, with its reason", not editable and reason == "SUCKLING_CALF")
+    check("model: read-only in a pen the old rules feed, with its reason", not editable and reason == "UNCOVERED_ANIMAL")
     RLPermissionHelper = { hasLocalPermission = function() return false end }
     editable, reason = Model.new(pen):getAccess()
     check("model: read-only without the tradeAnimals permission", not editable and reason == "NO_PERMISSION" and model:apply() == false and #sent == 1)

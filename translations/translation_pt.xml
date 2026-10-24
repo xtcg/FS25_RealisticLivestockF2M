@@ -225,6 +225,7 @@
         <text name="rl_ui_input_water" text="Water"/>
         <text name="rl_ui_input_straw" text="Straw"/>
         <text name="rl_ui_output_milk" text="Milk"/>
+        <text name="rl_ui_output_pallets_milk" text="Milk"/>
         <text name="rl_ui_output_manure" text="Manure"/>
         <text name="rl_ui_output_liquidManure" text="Liquid manure"/>
         <text name="rl_ui_output_pallets_eggs" text="Eggs"/>
@@ -1000,10 +1001,6 @@
         <text name="rl_pedigree_info" text="Consanguinidade da cria %s"/>
         <text name="rl_pedigree_none" text="Nenhum antepassado comum encontrado"/>
         <text name="rl_ai_chance" text="Qualidade do lote %s | Conceção esperada para esta fêmea %s (fertilidade %s x conceção %s x lote %s)"/>
-        <text name="rl_settings_nutritionMode_label" text="Nutrition Model"/>
-        <text name="rl_settings_nutritionMode_tooltip" text="Cattle: Legacy keeps the old feed rules. Real-equivalent counts intake and ration in real dry matter and energy, Default feed use is 1/8 of the real-equivalent volume, not 1/8 of Legacy use."/>
-        <text name="rl_settings_nutritionMode_texts_1" text="Legacy"/>
-        <text name="rl_settings_nutritionMode_texts_2" text="Real-equivalent (feed saving)"/>
         <text name="rl_feed_grainGroup" text="Grain (supplement)"/>
 
         <!-- Feed UI: Chinese and English; English fallback for other languages. -->
@@ -1026,15 +1023,15 @@
         <text name="rl_feed_feedShareFormat" text="%s (%.0f%% DM)"/>
         <text name="rl_feed_feedPlanFormat" text="%s · plan %.0f L/%s"/>
         <text name="rl_feed_reason_OK" text="Real-equivalent"/>
-        <text name="rl_feed_reason_MODE_OFF" text="Legacy mode"/>
         <text name="rl_feed_reason_CONFIG_INVALID" text="Invalid feed data"/>
         <text name="rl_feed_reason_MODEL_OFF" text="Weight model off"/>
         <text name="rl_feed_reason_NOT_CATTLE" text="Cattle only"/>
         <text name="rl_feed_reason_MILKCOW_LEGACY" text="Milk cows: legacy"/>
         <text name="rl_feed_reason_NO_TROUGH" text="No supported trough"/>
         <text name="rl_feed_reason_UNCOVERED_ANIMAL" text="Unsupported animal"/>
-        <text name="rl_feed_reason_SUCKLING_CALF" text="Vitelo: mãe ou vitelaria"/>
-        <text name="rl_feed_reason_PIG_BREEDING_LEGACY" text="Sow/piglets: old rules"/>
+        <text name="rl_feed_reason_NO_NURSING_RULES" text="Sem regras de amamentar"/>
+        <text name="rl_feed_penHeld" text="Crescimento"/>
+        <text name="rl_feed_heldText" text="Em pausa"/>
         <text name="rl_feed_reason_UNKNOWN" text="Status unavailable"/>
         <text name="rl_feed_limit_NONE" text="No limit"/>
         <text name="rl_feed_limit_FIBRE" text="Fibre limit"/>
@@ -1064,6 +1061,8 @@
         <text name="rl_feed_calfMilkAlert" text="%s: %d calves on milk have no calf milk - they will lose health and may die"/>
         <text name="rl_feed_calfMilkLowAlert" text="%s: calf milk runs out in %s"/>
         <text name="rl_feed_lambNoDam" text="%s: %d lambs on milk are away from their ewe - no milk for them; they lose health and may die"/>
+        <text name="rl_feed_youngNoDam" text="%s: %d crias ainda a mamar estão longe da mãe - sem leite para elas; perdem saúde e podem morrer"/>
+        <text name="rl_feed_shortAlert" text="%s: o comedouro cobre apenas %d%% da alimentação dos animais - vão perder peso e saúde; reabasteça-o"/>
         <text name="rl_feed_penNotEaten" text="Not eaten (old rules)"/>
         <text name="rl_feed_penNoBaseFeed" text="Base feed"/>
         <text name="rl_feed_noBaseFeed" text="None - animals get no feed"/>
@@ -1114,5 +1113,6 @@
         <text name="rl_meadow_witherWarning" text="%s: the pasture grass dies back for winter in about %d days - put hay or silage in the trough"/>
         <text name="rl_wool_shorn" text="%s: %d sheep shorn, %d l of wool waiting for pallets"/>
         <text name="rl_menu_settings_tab_manual" text="Player guide"/>
+        <text name="rl_ui_priceUnavailable" text="Preço indisponível. Atualize e tente novamente."/>
     </texts>
 </l10n>

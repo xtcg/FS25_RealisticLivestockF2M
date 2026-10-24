@@ -132,16 +132,20 @@ local function buildOutputRows(animal)
 
     for fillType, amount in pairs(animal.output) do
         local outputText = fillType
-        if fillType == "pallets" then
+        if Animal.isDuplicateMilkRow(animal, fillType) then
+            outputText = nil
+        elseif fillType == "pallets" then
             if animal.animalTypeIndex == AnimalType.COW then outputText = "pallets_milk" end
             if animal.animalTypeIndex == AnimalType.SHEEP then
                 outputText = (animal.subType == "GOAT") and "pallets_goatMilk" or "pallets_wool"
             end
             if animal.animalTypeIndex == AnimalType.CHICKEN then outputText = "pallets_eggs" end
         end
-        local title = g_i18n:getText("rl_ui_output_" .. outputText)
-        local valueText = RLAnimalDisplayHelper.formatMonthlyAmount(amount)
-        table.insert(rows, { title = title, valueText = valueText })
+        if outputText ~= nil then
+            local title = g_i18n:getText("rl_ui_output_" .. outputText)
+            local valueText = RLAnimalDisplayHelper.formatMonthlyAmount(amount)
+            table.insert(rows, { title = title, valueText = valueText })
+        end
     end
     return rows
 end

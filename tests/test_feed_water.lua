@@ -171,4 +171,3 @@ do
 end
 
 PigSim.enable(false)
-FeedSim.setMode(false)

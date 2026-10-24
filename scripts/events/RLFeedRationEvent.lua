@@ -63,9 +63,9 @@ function RLFeedRationEvent:run(connection)
         end
         -- The pen must run the mode's rations at all: the dialog is read-only otherwise, and a
         -- client's request is not taken on trust (UI-RATION-01).
-        if RLFeed.mode ~= RLFeed.MODE_REAL or not RLFeed.isNutritionPen(object) then
+        if not RLFeed.isNutritionPen(object) then
             Log:warning("RLFeedRationEvent: %s from user '%s' for '%s'; dropped",
-                RLFeed.mode ~= RLFeed.MODE_REAL and "MODE_OFF" or "NOT_NUTRITION_PEN", tostring(userName),
+                "NOT_NUTRITION_PEN", tostring(userName),
                 object.getName ~= nil and tostring(object:getName()) or "?")
             return
         end

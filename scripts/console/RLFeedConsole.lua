@@ -53,8 +53,8 @@ function RLFeedConsole:report(arg1, arg2)
     if showAnimals then filter = arg2 end
     local config = RLFeed.getConfig()
     local ok, reason = RLFeed.canRun()
-    out(string.format("rlFeedReport: nutrition model %s (%s); feed data v%s hash %s, scale %.3f, %s model days a month%s",
-        RLFeed.mode == RLFeed.MODE_REAL and "REAL-EQUIVALENT" or "LEGACY", reason, tostring(config.version), config.hash,
+    out(string.format("rlFeedReport: unified nutrition model (%s); feed data v%s hash %s, scale %.3f, %s model days a month%s",
+        reason, tostring(config.version), config.hash,
         config.resourceScale, tostring(config.realDaysPerPeriod), config.valid and "" or (" - INVALID: " .. tostring(config.invalidReason))))
 
     local pens = getPens(filter)

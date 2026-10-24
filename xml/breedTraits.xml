@@ -95,11 +95,11 @@
                 birthSurvivalBase="0.97" birthHealthEffect="0.20"
                 birthLowWeightSD="1.8" birthLowWeightPenalty="0.10"
                 birthHighWeightSD="1.3" birthHighWeightPenalty="0.12">
-        <breed name="HIGHLAND"      feed="0.80" growth="0.90" grass="1.25" hay="1.15" silage="1.00" birthWeightRatio="0.054" milkCollect="0" sucklingMonths="7"/>   <!-- 27 / 29 kg -->
-        <breed name="HEREFORD"      feed="0.90" growth="1.02" grass="1.15" hay="1.10" silage="1.00" birthWeightRatio="0.0567" milkCollect="0" sucklingMonths="7"/>  <!-- 34 / 36 kg -->
+        <breed name="HIGHLAND"      feed="0.80" growth="0.90" grass="1.25" hay="1.15" silage="1.00" birthWeightRatio="0.054" milkCollect="0" sucklingMonths="7" productionUse="BEEF"/>   <!-- 27 / 29 kg -->
+        <breed name="HEREFORD"      feed="0.90" growth="1.02" grass="1.15" hay="1.10" silage="1.00" birthWeightRatio="0.0567" milkCollect="0" sucklingMonths="7" productionUse="BEEF"/>  <!-- 34 / 36 kg -->
         <breed name="WATER_BUFFALO" feed="0.90" growth="0.96" grass="1.15" hay="1.05" silage="1.00" birthWeightRatio="0.0618"/>  <!-- 34 / 36 kg -->
-        <breed name="LIMOUSIN"      feed="0.95" growth="1.08" grass="0.95" hay="1.00" silage="1.05" birthWeightRatio="0.0585" milkCollect="0" sucklingMonths="7"/>  <!-- 38 / 41 kg -->
-        <breed name="ANGUS"         feed="1.00" growth="1.00" grass="1.00" hay="1.00" silage="1.00" birthWeightRatio="0.0492" milkCollect="0" sucklingMonths="7"/>  <!-- 32 / 34 kg, easy calving -->
+        <breed name="LIMOUSIN"      feed="0.95" growth="1.08" grass="0.95" hay="1.00" silage="1.05" birthWeightRatio="0.0585" milkCollect="0" sucklingMonths="7" productionUse="BEEF"/>  <!-- 38 / 41 kg -->
+        <breed name="ANGUS"         feed="1.00" growth="1.00" grass="1.00" hay="1.00" silage="1.00" birthWeightRatio="0.0492" milkCollect="0" sucklingMonths="7" productionUse="BEEF"/>  <!-- 32 / 34 kg, easy calving -->
         <breed name="SWISS_BROWN"   feed="1.00" growth="1.00" grass="1.05" hay="1.05" silage="1.00" birthWeightRatio="0.0615"/>  <!-- 40 / 43 kg -->
         <breed name="HOLSTEIN"      feed="1.10" growth="0.95" grass="0.90" hay="0.95" silage="1.10" birthWeightRatio="0.0618"/>  <!-- 42 / 45 kg -->
 
@@ -112,14 +112,22 @@
             suckler calves are weaned from about 6 months and sold as weanlings at 5-12 months (AHDB, "Successful calf
             weaning"); 7 is one default for every suckler breed. Set on the breed, so its bull and heifer calves have it
             too; at most 10. The same eleven breeds as milkCollect="0".
+
+            productionUse: what a breed is kept for (RLRearingPolicy), read on the breed so its bulls, cows and calves
+            share it. BEEF: no milk yield gene at all (the genetics hold metabolism, quality, fertility and health; an old
+            save's or straw's milk value is dropped on load), no saleable milk, and a cow raises her calves on the
+            nutrition she is fed for them (feedProfiles.xml rearing). Unset: DAIRY for cattle (the breed's milk gene is
+            kept and inherited, a cow's own calves drink first and the rest is collected); a copy of this file from before
+            productionUse still marks a breed BEEF when it sets sucklingMonths or milkCollect="0". Goats (SHEEP breed GOAT)
+            are DAIRY_GOAT, other sheep MEAT_SHEEP (their productivity is wool), pigs PIG.
         -->
-        <breed name="CHAROLAIS_PACK"      sucklingMonths="7"/>
-        <breed name="REDANGUS_PACK"       sucklingMonths="7"/>
-        <breed name="SHORTHORN_PACK"      sucklingMonths="7"/>
-        <breed name="IRISHMOILED_PACK"    sucklingMonths="7"/>
-        <breed name="BRITISHBLUE_PACK"    sucklingMonths="7"/>
-        <breed name="BELTEDGALLOWAY_PACK" sucklingMonths="7"/>
-        <breed name="SIMMENTAL_PACK"      sucklingMonths="7"/>
+        <breed name="CHAROLAIS_PACK"      sucklingMonths="7" productionUse="BEEF"/>
+        <breed name="REDANGUS_PACK"       sucklingMonths="7" productionUse="BEEF"/>
+        <breed name="SHORTHORN_PACK"      sucklingMonths="7" productionUse="BEEF"/>
+        <breed name="IRISHMOILED_PACK"    sucklingMonths="7" productionUse="BEEF"/>
+        <breed name="BRITISHBLUE_PACK"    sucklingMonths="7" productionUse="BEEF"/>
+        <breed name="BELTEDGALLOWAY_PACK" sucklingMonths="7" productionUse="BEEF"/>
+        <breed name="SIMMENTAL_PACK"      sucklingMonths="7" productionUse="BEEF"/>
     </animalType>
 
     <!-- Gilts grow almost as fast as boars; the mod's 0.6 for females is for breeding stock. -->

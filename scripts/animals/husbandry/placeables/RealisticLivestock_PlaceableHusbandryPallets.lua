@@ -131,7 +131,8 @@ function PlaceableHusbandryPallets:updateInputAndOutput(superFunc, animals)
                     spec.litersPerHour[pallets.fillType] = spec.litersPerHour[pallets.fillType] + output
                     table.addElement(spec.activeFillTypes, pallets.fillType)
                     RLWoolShearing.addContribution(spec, animal, pallets.fillType, output)
-                    if Animal.isCowMilkPalletFillType(pallets.fillType) and RLBodyCondition.isEligible(animal) then
+                    -- Every milk sold in cans or pallets (cow, buffalo, goat): one budget, one deposit.
+                    if (Animal.isLactationPalletFillType or Animal.isCowMilkPalletFillType)(pallets.fillType) and RLBodyCondition.isEligible(animal) then
                         table.insert(spec.rlMilkContributions, { animal = animal, fillType = pallets.fillType, liters = output })
                     end
                     if output > 0 then

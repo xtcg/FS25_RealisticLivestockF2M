@@ -34,8 +34,8 @@
     newborn; the pregnancy itself is the saved intent. Children take their keys from the litter in order
     (R.raw with ctx.litter); R.endBirth burns the keys of dead or unborn children.
 
-    Unsaved session. Every key handed out is appended to a journal list that the checkpoint writes
-    beside the save; on a load of the same generation those keys are burned (they were shown to the
+    Unsaved session. Every reserved key is synchronously written and read back by the checkpoint
+    beside the save before binding or publication; on a load of the same generation those keys are burned (they were shown to the
     player in a session that was not saved). The animals are not restored.
 ]]
 
@@ -58,12 +58,14 @@ function R.reset(isServer)
     R.reason = R.server and "WAITING_FOR_MISSION" or "CLIENT"
     R.ledger, R.mode, R.lineage = nil, R.SHADOW, nil
     R.litters, R.current = {}, nil
-    R.journal, R.journalSent = {}, 0
+    R.journal, R.journalSent, R.journalSeen = {}, 0, {}
+    R.allocationBlocked, R.activationQuarantine, R.journalBarrierBusy = nil, nil, nil
     R.live = nil
     R.issued, R.skipLines = {}, 0
     R.shadow = { observed = 0, collisions = 0, byEntry = {}, lines = 0, seen = {} }
     R.held = {}
     R.allocations = 0
+    R.batchDepth, R.batchPending = 0, nil
 end
 
 
@@ -198,8 +200,80 @@ end
 
 
 local function journalKey(key)
+    R.journalSeen = R.journalSeen or {}
+    if R.journalSeen[key] then return end
+    R.journalSeen[key] = true
     R.journal[#R.journal + 1] = key
     R.journalDirty = true
+end
+
+
+-- Reserve durability precedes materialization, native-counter mirroring and publication.
+-- A verified journal protects the keys even if later binding fails: restart burns them,
+-- never replays an animal. Tests may inject a barrier; production requires the checkpoint.
+local function allocationGate()
+    if R.journalBarrierBusy then return nil, "IDENTITY_JOURNAL_IN_PROGRESS" end
+    if R.journalBarrier ~= nil then return true end
+    if RLAnimalIdentityCheckpoint and RLAnimalIdentityCheckpoint.allocationGate then
+        return RLAnimalIdentityCheckpoint.allocationGate()
+    end
+    return nil, "JOURNAL_BARRIER_MISSING"
+end
+
+local function runBarrier()
+    local barrier = R.journalBarrier or (RLAnimalIdentityCheckpoint and RLAnimalIdentityCheckpoint.persistAllocation)
+    local ok, saved, why = false, nil, "JOURNAL_BARRIER_MISSING"
+    if barrier ~= nil then
+        R.journalBarrierBusy = true
+        ok, saved, why = pcall(barrier)
+        R.journalBarrierBusy = nil
+    end
+    if saved == true and not R.authoritative() then saved, why = nil, "JOURNAL_AUTHORITY_CHANGED" end
+    if not ok or saved ~= true then
+        why = ok and (why or "JOURNAL_BARRIER_FAILED") or "JOURNAL_BARRIER_UNCERTAIN"
+        -- An initial complete checkpoint is required but does not constitute damaged evidence.
+        if why ~= "INITIAL_SAVE_REQUIRED" and why ~= "IDENTITY_SAVE_IN_PROGRESS" then
+            R.allocationBlocked = why
+            R.state, R.reason = "RECOVERY_REQUIRED", why
+            if R.journalBarrier == nil and RLAnimalIdentityCheckpoint and RLAnimalIdentityCheckpoint.failAllocation then
+                RLAnimalIdentityCheckpoint.failAllocation(why)
+            end
+        end
+        return nil, why
+    end
+    return true
+end
+
+local function persistReserved(keys)
+    for _, item in ipairs(keys) do journalKey(type(item) == "table" and item.key or item) end
+    -- Inside R.batch the keys wait in R.journal for the one barrier at its end (see R.batch).
+    if (R.batchDepth or 0) > 0 then R.batchPending = true; return true end
+    return runBarrier()
+end
+
+
+local unpackValues = table.unpack or unpack
+local function packValues(...) return { n = select("#", ...), ... } end
+
+--- Run fn(...) as one allocation batch: the keys it reserves are journaled by ONE barrier when it
+--- returns instead of one barrier per key. The barrier rewrites the whole unsaved-key journal (two
+--- files, each read back), so per key it cost O(keys) and a day change of the old dealer's restock
+--- (~1500 keys a game day at 200 animals) stalled the game (game test 2026-10-24).
+--- Only for one synchronous engine callback: no save, network send or frame can fall inside it, so a
+--- key is still on disk before anything outside this Lua call can see it. If the end barrier fails the
+--- ledger goes to RECOVERY_REQUIRED as a failed per-key barrier does (the animals made in the batch
+--- exist only in this unsaved session). Nested batches flush once, at the outermost end.
+function R.batch(fn, ...)
+    R.batchDepth = (R.batchDepth or 0) + 1
+    local results = packValues(pcall(fn, ...))
+    R.batchDepth = R.batchDepth - 1
+    if R.batchDepth == 0 and R.batchPending then
+        R.batchPending = nil
+        local persisted, why = runBarrier()
+        if not persisted then log("error", "IDENTITY: the batched journal barrier failed: %s", tostring(why)) end
+    end
+    if not results[1] then error(results[2], 0) end
+    return unpackValues(results, 2, results.n)
 end
 
 
@@ -218,6 +292,9 @@ local function allocateOne(ctx)
     local res
     res, why = I.reserveBatch(l, requestId, plan, { isOccupied = R.isTaken })
     if res == nil then return nil, why end
+    local persisted
+    persisted, why = persistReserved(res.keys)
+    if not persisted then return nil, why end
     local key = res.keys[1]
     assert(I.bindMaterialization(l, requestId, "auto"))
     assert(I.consume(l, key.key))
@@ -246,6 +323,9 @@ end
 --- ctx = { entry, country, herd, typeKey, role, counterMax = fn, mirror = fn(raw), litter = litter }
 function R.raw(ctx, legacyFn)
     if not R.server then return legacyFn() end
+    if R.allocationBlocked then return nil, R.allocationBlocked end
+    if R.mode == R.ON and R.journalBarrier == nil and RLAnimalIdentityCheckpoint
+        and not RLAnimalIdentityCheckpoint.journalVerified then return nil, "JOURNAL_VERIFICATION_REQUIRED" end
     if not R.authoritative() then
         -- Not the allocator (OFF, SHADOW, loading, recovery): the native counter, past taken keys.
         local raw, skipped, first = R.freeRaw(ctx, legacyFn)
@@ -255,6 +335,8 @@ function R.raw(ctx, legacyFn)
         end
         return raw
     end
+    local allowed, blocked = allocationGate()
+    if not allowed then return nil, blocked end
     if ctx.country == nil or ctx.herd == nil then return nil, "NO_DOMAIN" end
     local raw, why
     if ctx.litter ~= nil then
@@ -291,6 +373,9 @@ local function reserveLitter(ctx, eventId, n)
         local untouched = true
         for _, k in ipairs(res.keys) do if k.state ~= I.RESERVED and k.state ~= I.MATERIALIZED then untouched = false end end
         if untouched then
+            local persisted
+            persisted, why = persistReserved(res.keys)
+            if not persisted then return nil, why end
             if not res.replayed or res.keys[1].state == I.RESERVED then
                 local bound
                 bound, why = I.bindMaterialization(l, requestId, "litter:" .. eventId)
@@ -309,7 +394,12 @@ end
 --- `context` = R.animalContext(mother, isSaleAnimal) result; `eventId` is stable for this pregnancy.
 function R.beginBirth(context, eventId, n)
     R.current = nil
+    if R.allocationBlocked then return false, R.allocationBlocked end
+    if R.mode == R.ON and R.journalBarrier == nil and RLAnimalIdentityCheckpoint
+        and not RLAnimalIdentityCheckpoint.journalVerified then return false, "JOURNAL_VERIFICATION_REQUIRED" end
     if not R.authoritative() then return true end
+    local allowed, blocked = allocationGate()
+    if not allowed then return false, blocked end
     if context == nil then return false, "NO_DOMAIN" end
     local litter, why = reserveLitter(context, eventId, n)
     if litter == nil then
@@ -356,11 +446,16 @@ end
 --- Returns { keys = { { key, farmId, uniqueId, country, raw, role, state } } } or nil and why.
 function R.reserveFor(ctx, requestId, items)
     if not R.authoritative() then return nil, "IDENTITY_NOT_AUTHORITATIVE" end
+    local allowed, blocked = allocationGate()
+    if not allowed then return nil, blocked end
     local d, why = ensureDomain(ctx)
     if d == nil then return nil, why end
     local res
     res, why = I.reserveBatch(R.ledger, requestId, { country = ctx.country, farmId = tostring(ctx.herd), items = items })
     if res == nil then return nil, why end
+    local persisted
+    persisted, why = persistReserved(res.keys)
+    if not persisted then return nil, why end
     if not res.replayed and ctx.mirror ~= nil then
         for _, k in ipairs(res.keys) do ctx.mirror(k.raw) end
     end
@@ -456,6 +551,14 @@ end
 local function checkScan(scan)
     if type(scan) ~= "table" or type(scan.records) ~= "table" or type(scan.counters) ~= "table" then return "BAD_SCAN" end
     if type(scan.partial) == "table" and #scan.partial > 0 then return "SCAN_PARTIAL" end
+    local seen = {}
+    for _, record in ipairs(scan.records) do
+        if record.farmId ~= nil and record.uniqueId ~= nil and record.country ~= nil then
+            local key = I.keyString(record.farmId, record.uniqueId, record.country)
+            if seen[key] then return "DUPLICATE_IDENTITIES" end
+            seen[key] = true
+        end
+    end
     return nil
 end
 
@@ -495,7 +598,11 @@ function R.activate(scan, options)
     options = options or {}
     if not R.server or R.state ~= "READY" then return nil, "NOT_READY:" .. tostring(R.state) end
     if R.mode == R.ON then return nil, "ALREADY_ON" end
-    if checkScan(scan) == "BAD_SCAN" then return nil, "BAD_SCAN" end
+    local bad = checkScan(scan)
+    if bad ~= nil then
+        if bad == "DUPLICATE_IDENTITIES" then R.activationQuarantine = R.report(scan) end
+        return nil, bad, nil, R.activationQuarantine
+    end
     local ledger = R.ledger
     if ledger == nil then
         if type(R.lineage) ~= "string" then return nil, "NO_LINEAGE" end
@@ -569,5 +676,5 @@ function R.journalKeys() return R.journal end
 
 
 function R.clearJournal()
-    R.journal, R.journalDirty = {}, false
+    R.journal, R.journalDirty, R.journalSeen = {}, false, {}
 end

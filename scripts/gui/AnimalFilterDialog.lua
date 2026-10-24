@@ -421,19 +421,10 @@ function AnimalFilterDialog:onOpen()
 
             elseif filter.isFunction then
 
-                value = animal[filter.target](animal)
-
-                -- Mirror the buy-mode markup applied in applyFilters (the
-                -- matching site is in applyFilters, keyed off the same
-                -- filter.target == "getSellPrice" test) so filter.min /
-                -- filter.max are derived in the SAME space the predicate later
-                -- compares against. Without this, top-of-range items would
-                -- compare marked-up value > raw_max and silently drop after
-                -- dialog OK. Both sites resolve the markup through the same
-                -- accessor, so they cannot drift apart when the preset changes.
+                -- Purchase ranges use the same independent ASK as the row.
                 if filter.target == "getSellPrice" and self.isBuyMode then
-                    value = value * RLDealerQualityResolver.getMarkup()
-                end
+                    value = RLAnimalBuyService.computeBuyPrice(animal)
+                else value = animal[filter.target](animal) end
 
             else
 
@@ -441,10 +432,12 @@ function AnimalFilterDialog:onOpen()
 
             end
 
-            if value < filter.min then filter.min = math.floor(value) end
-            if value > filter.max then filter.max = math.ceil(value) end
-
-            filter.hasValues = true
+            -- An animal without the gene (a beef animal's milk gene: RLRearingPolicy) adds nothing to its range.
+            if type(value)=="number" and value==value and math.abs(value)<math.huge then
+                if value < filter.min then filter.min = math.floor(value) end
+                if value > filter.max then filter.max = math.ceil(value) end
+                filter.hasValues = true
+            end
 
         end
 
@@ -924,16 +917,9 @@ function AnimalFilterDialog.applyFilters(items, filters, isBuyMode)
 
                 elseif filter.isFunction then
 
-                    value = animal[filter.target](animal)
-
-                    -- Key off the stable function-name target, NOT the
-                    -- localized filter.name (e.g. "Wert", "Valor"). The markup
-                    -- resolves through the same accessor the range derivation
-                    -- uses, keeping the filter space and the displayed price
-                    -- one space under every dealer-quality preset.
                     if filter.target == "getSellPrice" and isBuyMode then
-                        value = value * RLDealerQualityResolver.getMarkup()
-                    end
+                        value = RLAnimalBuyService.computeBuyPrice(animal)
+                    else value = animal[filter.target](animal) end
 
                 else
 
@@ -941,7 +927,9 @@ function AnimalFilterDialog.applyFilters(items, filters, isBuyMode)
 
                 end
 
-                if value < filter.min or value > filter.max then
+                -- A set range on a gene the animal does not have (beef cattle's milk gene) never matches it:
+                -- a missing gene is not read as 0, the lowest band or the average.
+                if type(value)~="number" or value~=value or math.abs(value)==math.huge or value < filter.min or value > filter.max then
                     meetsFilters = false
                     break
                 end

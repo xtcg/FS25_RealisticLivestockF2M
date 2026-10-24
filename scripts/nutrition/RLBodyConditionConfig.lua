@@ -256,12 +256,56 @@ function RLBodyConditionConfig.validate(config)
 end
 
 
+--- Migrate a copy of the file (the mod's modSettings folder) to what the unified nutrition model
+--- needs, from the mod's own file. The body condition budget is part of the one nutrition model:
+--- a copy that fails its checks gives way to the mod's file; a copy's enabled="false" (once the old
+--- weight and milk rules) is no longer a way back to them and is not honoured; a species section it
+--- lacks or that fails its checks (an older copy: no GOAT) is the mod's. Other values are the copy's.
+--- @param config table The copy's config
+--- @param builtin table|nil The mod's own file's
+--- @return table config
+function RLBodyConditionConfig.migrateCopy(config, builtin)
+    if builtin == nil or builtin.enabled ~= true then return config end
+    if config.invalidReason ~= nil then
+        Log:error("RLBodyConditionConfig: the modSettings copy is invalid (%s) - the mod's own bodyCondition.xml is used",
+            tostring(config.invalidReason))
+        builtin.migrated = { "COPY_INVALID" }
+        return builtin
+    end
+    local notes = {}
+    if config.enabled ~= true then
+        config.enabled = true
+        notes[#notes + 1] = "ENABLED_IGNORED"
+        for _, section in pairs(config.species or {}) do
+            if section.invalidReason == nil then section.enabled = true end
+        end
+    end
+    config.species = config.species or {}
+    local names = {}
+    for name in pairs(builtin.species or {}) do names[#names + 1] = name end
+    table.sort(names)
+    for _, name in ipairs(names) do
+        local own, section = config.species[name], builtin.species[name]
+        if section.enabled == true and (own == nil or own.enabled ~= true) then
+            config.species[name] = section
+            notes[#notes + 1] = name .. (own == nil and ":SECTION_ADDED" or ":SECTION_REPLACED")
+        end
+    end
+    for _, note in ipairs(notes) do
+        Log:info("RLBodyConditionConfig: modSettings copy migrated (%s) from the mod's own file", note)
+    end
+    config.migrated = notes
+    return config
+end
+
+
 --- The config, loaded on the first call.
 --- @return table
 function RLBodyConditionConfig.get()
     if RLBodyConditionConfig.config == nil then
-        RLBodyConditionConfig.config = RLBreedTraits.loadConfig(RLBodyConditionConfig.CONFIG_FILE, "bodyCondition",
+        local config, builtin = RLBreedTraits.loadConfigPair(RLBodyConditionConfig.CONFIG_FILE, "bodyCondition",
             RLBodyConditionConfig.parse)
+        RLBodyConditionConfig.config = RLBodyConditionConfig.migrateCopy(config, builtin)
     end
     return RLBodyConditionConfig.config
 end

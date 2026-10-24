@@ -917,6 +917,7 @@ function RLMapBridge.applyKeptModels(animalSystem)
                 path = string.format("%sgenerated/models_%s_%s.xml", modSettingsDirectory, entry.typeName, RLModelMerge.hash(result.text))
                 createFolder(modSettingsDirectory)
                 createFolder(modSettingsDirectory .. "generated/")
+                RLModelMerge.guardGeneratedPaths(Utils, modSettingsDirectory .. "generated/")
                 local file = io.open(path, "w")
                 if file == nil then
                     result, err = nil, "cannot write " .. path

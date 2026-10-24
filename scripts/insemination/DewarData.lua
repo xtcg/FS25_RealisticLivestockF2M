@@ -163,6 +163,10 @@ function DewarData:loadDewarFromSavegame(xmlFile, key)
             ["quality"] = xmlFile:getFloat(animalKey .. ".genetics#quality"),
             ["productivity"] = xmlFile:getFloat(animalKey .. ".genetics#productivity")
         }
+        -- A beef sire's straw has no milk gene (RLRearingPolicy): an old save's value is dropped.
+        if RLRearingPolicy ~= nil and select(2, RLRearingPolicy.normalizeByIndex(animal.subTypeIndex, animal.genetics)) then
+            RLRearingPolicy.noteMigrated("straw", animal.uniqueId)
+        end
 
         -- Validate subtype consistency
         local animalSystem = g_currentMission.animalSystem
@@ -299,6 +303,7 @@ function DewarData:onReadStream(streamId, connection)
         animal.genetics.quality = streamReadFloat32(streamId)
         animal.genetics.productivity = streamReadFloat32(streamId)
         if animal.genetics.productivity < 0 then animal.genetics.productivity = nil end
+        if RLRearingPolicy ~= nil then RLRearingPolicy.normalizeByIndex(animal.subTypeIndex, animal.genetics) end
         animal.collected = streamReadBool(streamId)
         RLSemenBatch.readStream(streamId, animal)
 

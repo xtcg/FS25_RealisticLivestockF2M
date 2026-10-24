@@ -59,8 +59,10 @@ function B.generationWorld(animalSystem, typeIndex, now)
         end
         return nil
     end
-    world.drawGenetics = function(rng)
+    -- subType: the animal the genes are for; a beef breed has no milk gene to draw (RLRearingPolicy).
+    world.drawGenetics = function(rng, subType)
         local traits = (typeIndex == AnimalType.COW or typeIndex == AnimalType.SHEEP or typeIndex == AnimalType.CHICKEN)
+            and (RLRearingPolicy == nil or subType == nil or RLRearingPolicy.hasTrait(subType, "productivity"))
             and RLGeneticsDraw.TRAITS_WITH_PRODUCTIVITY or RLGeneticsDraw.TRAITS_BASE
         local genetics = RLGeneticsDraw.draw(traits, rng.random)
         local preset = RLDealerQualityResolver.getActiveIndex()

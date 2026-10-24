@@ -40,5 +40,4 @@ for _, days in ipairs({ 1, 2, 28 }) do
         math.abs(dr - 1) <= 1e-5 and math.abs(dl - 1) <= 1e-5 and pen.spec_husbandryFood.rlFeedPen.active)
 end
 GrowthSim.setDaysPerPeriod(1)
-FeedSim.setMode(false)
 SheepSim.enable(false)

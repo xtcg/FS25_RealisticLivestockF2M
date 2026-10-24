@@ -210,7 +210,7 @@ local function load(dir, opts)
     C.reset(g_currentMission:getIsServer())
     if opts.beforeStart ~= nil then opts.beforeStart() end
     -- RealisticLivestock_FSBaseMission:onStartMission (end)
-    if g_currentMission:getIsServer() then C.onMissionStarted(g_currentMission, { identityRepairs = opts.repairs or 0 }) end
+    if g_currentMission:getIsServer() then C.onMissionStarted(g_currentMission, { identityRepairs = opts.repairs or 0, identityConflicts = opts.conflicts or 0 }) end
     return old
 end
 
@@ -1017,4 +1017,13 @@ do
     check("J24 recovery required: TEST refused with the reason", has(select(2, RLLiveSale.setMode("TEST")), "LEDGER_RECOVERY_REQUIRED"))
     check("J24 recovery required: SHADOW and OFF still allowed (they write nothing)", RLLiveSale.setMode("SHADOW") == true
         and RLLiveSale.setMode("OFF") == true)
+end
+
+do
+    fresh()
+    save()
+    load(world.dir,{conflicts=1})
+    check("identity admission: original duplicate keys close real T02 checkpoint gate",C.state==C.RECOVERY_REQUIRED
+        and C.reason=="HISTORICAL_IDENTITY_CONFLICTS" and RLContractTrade.store.recoveryRequired)
+    check("identity admission: TEST cannot bypass historical identity conflict",not RLLiveSale.setMode("TEST"))
 end

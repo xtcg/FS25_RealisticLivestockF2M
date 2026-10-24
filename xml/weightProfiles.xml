@@ -238,13 +238,20 @@
         4.3-5.5 months once S5's feed and body condition hold them back - an S5 acceptance check.
         Profiles of a type other than cattle are its own: SHEEP LANDRACE is not a cattle or a pig breed.
     -->
-    <!-- Goats share the SHEEP type but are not sheep: no sheep curve, the old rules (excludeBreeds). -->
+    <!-- Goats share the SHEEP type but are not sheep: their own GOAT profile below and their own feed and body
+         condition sections (GOAT, RLSpecies), never a sheep's (unified nursing design, 2026-10-22). -->
     <!-- S5 preparation: the approved wether speed is independent of cattle's steer speed.
          Remaining physiology coefficients still need the complete feed/milk calibration. -->
     <!-- nutrition="REAL": sheep take their curves only under the real-equivalent nutrition model
          (their budget is calibrated in its units, feedProfiles.xml species SHEEP); under the old
          model they keep the old rules. -->
-    <animalType name="SHEEP" enabled="true" status="S5_DEFAULT_ON" excludeBreeds="GOAT" castratedSpeed="0.86" nutrition="REAL"/>
+    <animalType name="SHEEP" enabled="true" status="S5_DEFAULT_ON" castratedSpeed="0.86" nutrition="REAL"/>
+    <!-- Goat GAME_FIT curve (2026-10-22): birth and adult weights from animals.xml (3.5 / 3.74 kg; 65 / 90 kg); the buck
+         passes the carcass reference of 35 kg at 8 months (carcassYield.xml). Not a breed-calibrated curve. -->
+    <profile name="GOAT" type="SHEEP" status="GAME_FIT" birthFemaleKg="3.5" maleBirthFactor="1.06857">
+        <female knots="3:12 6:24 8:30 12:42 24:60 36:65"/>
+        <male knots="3:14 6:28 8:35 12:52 24:82 36:90"/>
+    </profile>
     <profile name="LANDRACE" type="SHEEP" status="S4_CANDIDATE" birthFemaleKg="6.4" maleBirthFactor="1.07">  <!-- Merinolandschaf (DE) (A) -->
         <female knots="6:56 15:74.8 24:83.6 36:88"/>
         <male knots="2.6:42.67 6:72 15:108 24:133.9 36:144"/>
