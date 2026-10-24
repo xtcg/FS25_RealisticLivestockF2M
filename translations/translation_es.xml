@@ -236,6 +236,7 @@
         <text name="rl_ui_input_water" text="Agua"/>
         <text name="rl_ui_input_straw" text="Paja"/>
         <text name="rl_ui_output_milk" text="Leche"/>
+        <text name="rl_ui_output_pallets_milk" text="Leche"/>
         <text name="rl_ui_output_manure" text="Estiércol"/>
         <text name="rl_ui_output_liquidManure" text="Purín"/>
         <text name="rl_ui_output_pallets_eggs" text="Huevos"/>

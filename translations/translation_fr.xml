@@ -238,6 +238,7 @@
         <text name="rl_ui_input_water" text="Eau"/>
         <text name="rl_ui_input_straw" text="Paille"/>
         <text name="rl_ui_output_milk" text="Lait"/>
+        <text name="rl_ui_output_pallets_milk" text="Lait"/>
         <text name="rl_ui_output_manure" text="Fumier"/>
         <text name="rl_ui_output_liquidManure" text="Lisier"/>
         <text name="rl_ui_output_pallets_eggs" text="Œufs"/>

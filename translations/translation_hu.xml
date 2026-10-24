@@ -239,6 +239,7 @@
         <text name="rl_ui_input_water" text="Víz"/>
         <text name="rl_ui_input_straw" text="Szalma"/>
         <text name="rl_ui_output_milk" text="Tej"/>
+        <text name="rl_ui_output_pallets_milk" text="Tej"/>
         <text name="rl_ui_output_manure" text="Trágya"/>
         <text name="rl_ui_output_liquidManure" text="Hígtrágya"/>
         <text name="rl_ui_output_pallets_eggs" text="Tojás"/>

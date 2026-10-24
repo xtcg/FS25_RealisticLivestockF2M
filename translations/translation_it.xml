@@ -234,6 +234,7 @@
         <text name="rl_ui_input_water" text="Acqua"/>
         <text name="rl_ui_input_straw" text="Paglia"/>
         <text name="rl_ui_output_milk" text="Latte"/>
+        <text name="rl_ui_output_pallets_milk" text="Latte"/>
         <text name="rl_ui_output_manure" text="Letame"/>
         <text name="rl_ui_output_liquidManure" text="Liquame"/>
         <text name="rl_ui_output_pallets_eggs" text="Uova"/>

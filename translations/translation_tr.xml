@@ -239,6 +239,7 @@
         <text name="rl_ui_input_water" text="Su"/>
         <text name="rl_ui_input_straw" text="Saman"/>
         <text name="rl_ui_output_milk" text="Süt"/>
+        <text name="rl_ui_output_pallets_milk" text="Süt"/>
         <text name="rl_ui_output_manure" text="Katı Gübre"/>
         <text name="rl_ui_output_liquidManure" text="Sıvı Gübre"/>
         <text name="rl_ui_output_pallets_eggs" text="Yumurta"/>
