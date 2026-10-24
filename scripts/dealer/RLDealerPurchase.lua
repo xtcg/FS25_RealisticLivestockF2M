@@ -52,8 +52,36 @@ local function normalize(request, principal)
     return out
 end
 function P.new() return { version = P.VERSION, records = {}, locks = {}, recoveryRequired = false } end
-function P.export(store)
-    return copy({ version = P.VERSION, records = store.records, recoveryRequired = store.recoveryRequired })
+-- A settled order (final, no audit pending) saved with a COMMITTED game needs only its request, receipt, result,
+-- amount and transfer ids: the prepared compensation evidence is a snapshot of the whole stock (70-175 KB an
+-- order, saved with every game for ever) and the game's own files now hold what it protected. The save-time
+-- export replaces it by its digest and size. The WAL keeps it whole: a WAL ahead of older assets still audits a
+-- terminal record against it (Purchase.import forceReconciliation).
+local function prunedCompensation(compensation)
+    if type(compensation) ~= "table" or compensation.pruned == true then return compensation end
+    local text = RLTradePersistence.canonical(compensation)
+    return { pruned = true, digest = RLTradePersistence.checksum(text), bytes = #text }
+end
+--- The settled view of an exported journal: a copy whose settled orders carry no compensation evidence.
+function P.settled(data)
+    local out = { version = data.version, records = {}, recoveryRequired = data.recoveryRequired }
+    for id, record in pairs(data.records) do
+        if type(record) == "table" and terminal[record.stage] and not record.needsReconciliation and type(record.plan) == "table" then
+            local slim = {}
+            for k, v in pairs(record) do if k ~= "plan" then slim[k] = copy(v) end end
+            slim.plan = {}
+            for k, v in pairs(record.plan) do slim.plan[k] = k == "compensation" and prunedCompensation(v) or copy(v) end
+            out.records[id] = slim
+        else
+            out.records[id] = copy(record)
+        end
+    end
+    return out
+end
+function P.export(store, options)
+    local data = copy({ version = P.VERSION, records = store.records, recoveryRequired = store.recoveryRequired })
+    if options and options.settled then return P.settled(data) end
+    return data
 end
 local function release(store, record)
     for _, item in ipairs(record.request.items) do
@@ -107,6 +135,8 @@ local function finish(store, record, adapter, receipt, reason)
         transferIds = copy(record.plan.transferIds) }
     if not checkpoint(store, adapter) then return nil, "CHECKPOINT_UNCERTAIN" end
     release(store, record)
+    -- The adapter's prepared copy of this order (cloned animals, the stock snapshot) is dead from here on.
+    if type(adapter.settled) == "function" then call(adapter, "settled", record.context.token) end
     return copy(record.result)
 end
 -- principal is resolved by the SERVER connection adapter; it is not a client field.

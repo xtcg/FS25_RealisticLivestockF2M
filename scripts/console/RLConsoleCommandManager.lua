@@ -55,6 +55,7 @@ function RLConsoleCommandManager.new()
     -- Animal identity ledger (RLIdentityConsole): status and report are read-only; the rest is server only.
     addConsoleCommand("rlIdentityStatus", "Identity ledger: mode, state, generation, counts, shadow collisions (read-only)", "status", RLIdentityConsole.commands, "")
     addConsoleCommand("rlIdentityDump", "Identity evidence for the test cards: every live key, every ledger key, the host farm's money (log lines)", "dump", RLIdentityConsole.commands, "")
+    addConsoleCommand("rlIdentityMemory", "Lua memory and identity ledger sizes per state and domain, raws left per domain (read-only)", "memory", RLIdentityConsole.commands, "")
     addConsoleCommand("rlIdentityReport", "Identity ledger: what switching it on would find per herd domain (read-only)", "report", RLIdentityConsole.commands, "")
     if g_currentMission:getIsServer() then
         addConsoleCommand("rlIdentityActivate", "Switch the identity ledger on; 'accept' takes the weaker guarantee for unprovable herds", "activate", RLIdentityConsole.commands, "[accept]")

@@ -198,3 +198,31 @@ check("T2 opSequence is persisted and monotonic", I.nextOp(lc2) == 1 and I.nextO
 local le2 = ledgerWith("41", { kind = "MIGRATION_POINT", startRaw = I.MAX_RAW + 1, userAccepted = true })
 check("T2 a domain whose cursor is past the range is valid and refuses with RANGE_EXHAUSTED", I.validate(le2) == nil
     and select(2, I.reserveBatch(le2, "x", plan(1))) == "RANGE_EXHAUSTED")
+
+-- ID-03b: a domain that used 10000 keys walks the 9999 repeated padId strings of raws 10001..19999 in one
+-- reservation; the walk is not a caller veto and does not hit MAX_SKIPS.
+do
+    local lw = ledgerWith("43")
+    for i = 1, 10000 do
+        local r = assert(I.reserveBatch(lw, "w" .. i, plan(1, "sale", "43")))
+        assert(I.bindMaterialization(lw, "w" .. i, "d")); assert(I.consume(lw, r.keys[1].key))
+    end
+    local r, why = I.reserveBatch(lw, "w10001", plan(1, "sale", "43"))
+    check("ID-03b the 10001st key of a domain is reserved past the repeated ids", r ~= nil and why == nil)
+    check("ID-03b it is raw 20000 (ids of 10001..19999 are all taken)", r ~= nil and r.keys[1].raw == 20000)
+    local r2 = I.reserveBatch(lw, "w10002", plan(1, "sale", "43"), { isOccupied = function() return true end })
+    check("ID-03b caller vetoes still stop at MAX_SKIPS", r2 == nil)
+end
+
+-- ID-04: stats reports the sizes P-01 needs (keys by state, cursor and raws left per domain)
+do
+    local ls = ledgerWith("44")
+    local r1 = assert(I.reserveBatch(ls, "s1", plan(2, "sale", "44")))
+    assert(I.bindMaterialization(ls, "s1", "d")); assert(I.consume(ls, r1.keys[1].key))
+    assert(I.reserveBatch(ls, "s2", plan(1, "sale", "44")))
+    local s = I.stats(ls)
+    check("ID-04 keys and states are counted", s.keys == 3 and s.byState.CONSUMED == 1 and s.byState.MATERIALIZED == 1 and s.byState.RESERVED == 1)
+    check("ID-04 the domain reports its cursor and the raws left", s.domains["2/44"].next == 4 and s.domains["2/44"].keys == 3
+        and s.domains["2/44"].left == I.MAX_RAW - 3)
+    check("ID-04 requests are counted", s.requests == 2)
+end

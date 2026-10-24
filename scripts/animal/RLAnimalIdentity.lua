@@ -218,21 +218,31 @@ function I.reserveBatch(ledger, requestId, plan, opts)
     if domain.status ~= I.VERIFIED then return nil, "DOMAIN_UNPROVEN" end
 
     local isOccupied = opts and opts.isOccupied
-    local picked, chosen, raw, skips = {}, {}, domain.next, 0
+    local picked, chosen, raw, skips, walked = {}, {}, domain.next, 0, 0
     while #picked < n do
         if raw > I.MAX_RAW then return nil, "RANGE_EXHAUSTED" end
         local uniqueId = I.format(plan.farmId, raw)
         local key = I.keyString(plan.farmId, uniqueId, plan.country)
+        -- The ledger's own history is walked, not counted: padId makes raws 10001..19999 repeat the ids of raws
+        -- 1..9999, so a domain that handed out 10000 keys must pass ~10000 taken ones once (the cursor then
+        -- stays past them). Only vetoes of the caller count against MAX_SKIPS.
         local taken = ledger.keys[key] ~= nil or chosen[key] or inBlocked(domain, raw)
-        if not taken and isOccupied ~= nil then
-            local ok, veto = pcall(isOccupied, key)
-            if not ok then return nil, "OCCUPANCY_CHECK_FAILED" end
-            taken = veto == true
-        end
         if taken then
-            skips = skips + 1
-            if skips > I.MAX_SKIPS then return nil, "SKIP_LIMIT" end
+            walked = walked + 1
         else
+            local veto = false
+            if isOccupied ~= nil then
+                local ok, answer = pcall(isOccupied, key)
+                if not ok then return nil, "OCCUPANCY_CHECK_FAILED" end
+                veto = answer == true
+            end
+            taken = veto
+            if veto then
+                skips = skips + 1
+                if skips > I.MAX_SKIPS then return nil, "SKIP_LIMIT" end
+            end
+        end
+        if not taken then
             chosen[key] = true
             picked[#picked + 1] = { raw = raw, uniqueId = uniqueId, key = key }
         end
@@ -246,7 +256,7 @@ function I.reserveBatch(ledger, requestId, plan, opts)
         request.keys[i] = p.key
     end
     domain.next = raw
-    domain.skipped = domain.skipped + skips
+    domain.skipped = domain.skipped + skips + walked
     ledger.requests[requestId] = request
     bump(ledger)
     return result(request, ledger, false)
@@ -502,6 +512,26 @@ function I.applyMigration(ledger, report, records)
         end
     end
     return ledger
+end
+
+
+--- Read-only sizes of a ledger: keys by state, requests, and per domain how many keys it holds, where its cursor is
+--- and how many raws are left before RANGE_EXHAUSTED (ids repeat for raws 10001..19999, so the usable room is smaller).
+function I.stats(ledger)
+    local out = { keys = 0, byState = {}, requests = 0, duplicates = 0, domains = {} }
+    for dk, d in pairs(ledger.domains) do
+        out.domains[dk] = { status = d.status, next = d.next, left = math.max(0, I.MAX_RAW - d.next + 1), skipped = d.skipped, keys = 0 }
+    end
+    for key, rec in pairs(ledger.keys) do
+        out.keys = out.keys + 1
+        out.byState[rec.state] = (out.byState[rec.state] or 0) + 1
+        local farmId, _, country = I.parseKey(key)
+        local d = farmId ~= nil and out.domains[I.domainKey(country, farmId)] or nil
+        if d ~= nil then d.keys = d.keys + 1 end
+    end
+    for _ in pairs(ledger.requests) do out.requests = out.requests + 1 end
+    for _ in pairs(ledger.duplicates or {}) do out.duplicates = out.duplicates + 1 end
+    return out
 end
 
 

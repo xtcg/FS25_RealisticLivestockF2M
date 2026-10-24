@@ -103,8 +103,23 @@ do
     local sys = { countries = { [3] = { index = 3, farms = { { id = 9, ids = { [1] = 4, [2] = 9 }, quality = 1.5 } } } } }
     local farm = sys.countries[3].farms[1]
     R.activate({ records = {}, counters = { { country = 3, farmId = "9", type = "T1", nextRaw = 5 }, { country = 3, farmId = "9", type = "T2", nextRaw = 10 } } }, { accept = true })
-    local raw = W.nextSystemRaw("sale-animal", sys, 3, farm, 1, "sale", function() error("legacy must not run") end)
+    local raw = W.nextSystemRaw("ai-animal", sys, 3, farm, 1, "ai", function() error("legacy must not run") end)
     check("ON system farm: continues above the highest species counter and mirrors only its own species", raw == 10 and farm.ids[1] == 10 and farm.ids[2] == 9)
+
+    -- A sale-list animal takes the native counter and no ledger key; the domain only moves past it.
+    local keysBefore = I.stats(R.ledger).keys
+    local journalBefore = #R.journalKeys()
+    local sale = W.nextSystemRaw("sale-animal", sys, 3, farm, 1, "sale", function() farm.ids[1] = farm.ids[1] + 1; return farm.ids[1] end)
+    check("ON sale animal: the native counter numbers it, no ledger key, nothing journaled",
+        sale == 11 and I.stats(R.ledger).keys == keysBefore and #R.journalKeys() == journalBefore)
+    check("ON sale animal: the ledger domain is raised past the counter and blocks the raws below",
+        R.ledger.domains["3/9"].next == 12 and I.isBlocked(R.ledger, "9", U.generateUniqueId("9", 11), 3) == false
+        and R.ledger.domains["3/9"].blocked[1][2] == 11)
+    local ai = W.nextSystemRaw("ai-animal", sys, 3, farm, 1, "ai", function() error("legacy must not run") end)
+    check("ON sale animal: the next ledger key in that domain is above it", ai == 12)
+    R.setLive({ { farmId = "9", uniqueId = U.generateUniqueId("9", 13), country = 3, type = "1" } })
+    local passed = W.nextSystemRaw("sale-animal", sys, 3, farm, 1, "sale", function() farm.ids[1] = farm.ids[1] + 1; return farm.ids[1] end)
+    check("ON sale animal: a live key (a bought one) is passed like any taken key", passed == 14)
 end
 
 -- ---- litters -----------------------------------------------------------------------------------
@@ -265,11 +280,11 @@ do
     local sys = { countries = { [3] = { index = 3, farms = { { id = 9, ids = { [1] = 0 } } } } } }
     local sf = sys.countries[3].farms[1]
     R.activate({ records = {}, counters = { { country = 3, farmId = "9", type = "T1", nextRaw = 1 } } }, { accept = true })
-    local s1 = W.nextSystemRaw("sale-animal", sys, 3, sf, 1, "sale", function() error("legacy must not run") end)
+    local s1 = W.nextSystemRaw("ai-animal", sys, 3, sf, 1, "ai", function() error("legacy must not run") end)
     R.setMode(R.OFF)
-    local s2 = W.nextSystemRaw("sale-animal", sys, 3, sf, 1, "sale", function() sf.ids[1] = sf.ids[1] + 1; return sf.ids[1] end)
+    local s2 = W.nextSystemRaw("ai-animal", sys, 3, sf, 1, "ai", function() sf.ids[1] = sf.ids[1] + 1; return sf.ids[1] end)
     assert(R.activate({ records = {}, counters = { { country = 3, farmId = "9", type = "T1", nextRaw = sf.ids[1] + 1 } } }, {}))
-    local s3 = W.nextSystemRaw("sale-animal", sys, 3, sf, 1, "sale", function() error("legacy must not run") end)
+    local s3 = W.nextSystemRaw("ai-animal", sys, 3, sf, 1, "ai", function() error("legacy must not run") end)
     check("R8 a sale-farm domain is reconciled with its counter too", s1 == 1 and s2 == 2 and s3 == 3)
 end
 
@@ -355,7 +370,7 @@ do
         R.journalBarrier = function() calls = calls + 1; return answer end
         return { countries = { [3] = { index = 3, farms = { { id = 9, ids = { [1] = 1 }, quality = 1 } } } } }
     end
-    local function take(sys) return W.nextSystemRaw("sale-animal", sys, 3, sys.countries[3].farms[1], 1, "sale", function() error("legacy") end) end
+    local function take(sys) return W.nextSystemRaw("ai-animal", sys, 3, sys.countries[3].farms[1], 1, "ai", function() error("legacy") end) end
 
     local sys = setup()
     for _ = 1, 5 do take(sys) end
