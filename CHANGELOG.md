@@ -1,5 +1,62 @@
 # Changelog
 
+## v0.2.1.0 — 2026-10-24
+
+### 中文
+
+#### 玩法更新
+
+- **统一营养模型**：牛、羊、山羊和猪只用一套现实等效营养模型。设置里不再有「营养模式」选项，旧（Legacy）规则已移除。旧存档里保存的 Legacy 选择会在读档时自动迁移；体重、体储备、怀孕状态、库存和产品都不变。
+- **母畜哺育**：肉牛母牛、母羊和母猪按每只幼崽自身的需要（体重和生长阶段）供奶，从日粮和体储备中支出，不再受固定的母乳上限限制。肉牛犊吃奶到本品种的断奶月龄。带仔母猪和仔猪栏也进入模型：母乳、教槽料、28 天断奶。
+- **奶牛和山羊**：幼崽先喝母亲的奶，剩下的才进入奶罐或奶桶。山羊有自己的饲料、体况和生长配置，可以和羊同栏饲养。
+- **肉牛不再有产奶基因**：肉牛品种的公牛、母牛和犊牛不再生成、遗传、显示或计价产奶基因，旧存档中的数值在读档时清除。
+- **缺料提醒**：栏舍饲料不足时提示一次，补料后才会再次提醒。
+- **体重显示**：体重条和「目标体重」改为显示生长曲线的成年体重。以前用的是较小的数值，体重条在约 70% 成年体重时就显示满了。这项改动只影响显示，屠宰和交易仍按原来的计算。
+- **精液管图标**只显示种公畜的耳标。
+- 中英文玩家指南已按统一营养模型更新。
+
+#### Bug 修复
+
+- **购买扣款**：按玩家确认的价格扣款，与服务器报价相差 2% 以内即可成交。以前在选择目的地时会悄悄重新计价，可能多扣钱。
+- **Hof Bergmann 奶牛**：产出信息中牛奶只显示一次，奶桶一行有了名称。以前显示 `Missing 'rl_ui_output_pallets_milk'`。
+- **拖车模型**：LSFM 动物运输拖车装载品种包的牛（如 Irish Moiled、Belted Galloway）时报「文件找不到」，模型不显示。原因是生成的模型表路径被拖车错误地拼接，已修正。
+- 无母幼崽的计数修正；快进时动物年龄与模型时钟保持一致。
+- 母乳预测为零后，在同一步内恢复。
+- 修正中文交易文本中动物数量与价格的顺序。
+- 实验性的商人 v2（默认关闭）完成了第一轮实机测试并修复相关问题，包括补货、未保存退出后的锁定、进圈成交校验、日期变更卡顿和控制台参数。
+
+#### 已知问题
+
+- 被模型覆盖的动物如果所在栏舍无法运行模型，会暂停生长（健康不变）；该栏舍仍会按基础游戏规则消耗饲料槽中的饲料。
+
+
+### English
+
+#### Gameplay changes
+
+- **One nutrition model**: cattle, sheep, goats and pigs use a single Real-equivalent nutrition model. The Nutrition model setting and the Legacy rules are removed. A Legacy choice stored in an existing save is migrated on load; weights, reserves, pregnancies, stock and products are unchanged.
+- **Dams feed their young**: beef cows, ewes and sows supply each young's own demand (from its weight and growth stage) out of their ration and body reserves, without fixed milk caps. Beef calves suckle until their breed's weaning age. Sows with litters and piglet pens are now covered by the model: sow milk, creep feed and weaning at 28 days.
+- **Dairy cows and goats**: the young drink first, and only the remainder goes to the milk tank or milk cans. Goats have their own feed, body condition and growth settings and can share pens with sheep.
+- **Beef cattle have no milk yield gene**: beef bulls, cows and calves no longer generate, inherit, show or price a milk gene. Stored values are removed on load.
+- **Feed shortage notice**: a pen that runs short of feed shows one notice, which re-arms after the pen is fed.
+- **Weight display**: the weight bar and "Target weight" now show the adult weight of the growth curve. The smaller value used before showed a full bar at about 70% of adult weight. This change affects only the display; slaughter and trading values are calculated as before.
+- **Semen straw icons** show only the sire's ear tag.
+- The Chinese and English player guides are updated for the single nutrition model.
+
+#### Bug fixes
+
+- **Purchase charge**: the price the player confirmed is charged when it is within 2% of the server's quote. Previously, choosing a destination silently repriced the purchase and could charge more.
+- **Hof Bergmann dairy cows**: milk appears only once in the output info, and the milk-can row has a name. Previously it showed `Missing 'rl_ui_output_pallets_milk'`.
+- **Trailer models**: LSFM animated livestock trailers reported "file not found" and showed no model for animal-pack breeds (such as Irish Moiled and Belted Galloway). The trailer joined the generated model table's paths incorrectly; this is fixed.
+- Young without a dam are counted correctly, and fast-forward keeps animal ages in step with the model clock.
+- A dam's milk recovers in the same step after a zero forecast.
+- Fixed the order of animal count and price in Chinese trade text.
+- The experimental Dealer v2 (disabled by default) passed its first in-game test round. The issues it found are fixed, including stock filling, the lock after quitting without saving, purchase verification for pens, the stall at day change and console arguments.
+
+#### Known issues
+
+- An animal covered by the model is held (no growth, health unchanged) in a pen that cannot run the model; that pen still consumes trough feed under base-game rules.
+
 ## v0.2.0.0 — 2026-10-22
 
 ### 中文
