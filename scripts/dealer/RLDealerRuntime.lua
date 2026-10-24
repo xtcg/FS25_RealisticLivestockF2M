@@ -83,7 +83,10 @@ function R.compareJournal(document, generation, lineage)
         end
         recoveryMatches = recovery ~= nil and RLTradePersistence.canonical(recovery)==RLTradePersistence.canonical(currentRecovery)
     end
-    if RLTradePersistence.canonical(wal.purchase) == RLTradePersistence.canonical(current) and recoveryMatches then return true end
+    -- The saved checkpoint carries settled orders without their compensation evidence (Purchase.settled); compare
+    -- both journals in that view, or a WAL written after a reload would never match.
+    if recoveryMatches and RLTradePersistence.canonical(RLDealerPurchase.settled(wal.purchase))
+        == RLTradePersistence.canonical(RLDealerPurchase.settled(current)) then return true end
     -- A WAL on the generation of the last verified checkpoint was written after that save, and no
     -- later save took it in: the session that bought was left without saving (or crashed). The game
     -- writes money and animals only in a save, so the whole save on disk is before the purchase and

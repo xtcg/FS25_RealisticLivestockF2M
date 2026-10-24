@@ -46,6 +46,11 @@ local I = RLAnimalIdentity
 R.OFF, R.SHADOW, R.ON = "OFF", "SHADOW", "ON"
 R.MAX_SHADOW_LINES = 40
 R.COMPACT_EVERY = 500
+-- Roles whose animals are only listed for sale: most are never bought and leave with the next restock, so a
+-- permanent ledger key for each (about 1500 a game day) filled the ledger and used up a domain's 90000 ids in
+-- ~45 days. They number by the native counter past live and issued keys; an animal that is bought is a live
+-- animal from then on and is protected as one (R.setLive on load, the scan on activation).
+R.TRANSIENT_ROLES = { sale = true }
 
 local function log(level, fmt, ...)
     if Log ~= nil and Log[level] ~= nil then Log[level](Log, fmt, ...) end
@@ -326,10 +331,16 @@ function R.raw(ctx, legacyFn)
     if R.allocationBlocked then return nil, R.allocationBlocked end
     if R.mode == R.ON and R.journalBarrier == nil and RLAnimalIdentityCheckpoint
         and not RLAnimalIdentityCheckpoint.journalVerified then return nil, "JOURNAL_VERIFICATION_REQUIRED" end
-    if not R.authoritative() then
-        -- Not the allocator (OFF, SHADOW, loading, recovery): the native counter, past taken keys.
+    local authoritative = R.authoritative()
+    if not authoritative or R.TRANSIENT_ROLES[ctx.role] then
+        -- Not the allocator (OFF, SHADOW, loading, recovery), or an animal on the dealer's sale list: the
+        -- native counter, past taken keys.
         local raw, skipped, first = R.freeRaw(ctx, legacyFn)
-        if R.mode == R.SHADOW and R.state == "READY" then
+        if authoritative then
+            -- The ledger stays behind the counter: its domain never hands out a raw the counter has passed.
+            local domain = raw ~= nil and ctx.country ~= nil and ctx.herd ~= nil and R.ledger.domains[I.domainKey(ctx.country, ctx.herd)] or nil
+            if domain ~= nil then I.raiseHighWater(R.ledger, ctx.country, ctx.herd, raw + 1) end
+        elseif R.mode == R.SHADOW and R.state == "READY" then
             local ok, err = pcall(observe, ctx, raw, skipped, first)
             if not ok then log("warning", "IDENTITY_SHADOW failed: %s", tostring(err)) end
         end

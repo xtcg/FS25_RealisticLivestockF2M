@@ -154,7 +154,7 @@ do
     for k, v in pairs(saved) do C[k] = v end
     local manager = source("scripts/console/RLConsoleCommandManager.lua")
     check("r4 console: every RLIdentityConsole command registers the dropping target",
-        select(2, manager:gsub(", RLIdentityConsole%.commands, ", "")) == 15 and manager:find(", RLIdentityConsole, ", 1, true) == nil)
+        select(2, manager:gsub(", RLIdentityConsole%.commands, ", "")) == 16 and manager:find(", RLIdentityConsole, ", 1, true) == nil)
 
     local oldId, oldD = RLAnimalIdentityRuntime, RLDealerRuntime
     RLAnimalIdentityRuntime = { server = true }
@@ -207,4 +207,26 @@ do
     local service = source("scripts/dealer/RLDealerService.lua")
     local _, logged = service:gsub('Log:error%("RLDEALERV2 purchase failed with an error: %%s", tostring%(result%)%)', "")
     check("a purchase that raises is logged with its error (both routes)", logged == 2)
+end
+
+-- MEM: the memory probe weighs without following an animal's pen and never throws
+do
+    loadMod("scripts/console/RLIdentityConsole.lua")
+    local C = RLIdentityConsole
+    local pen = { big = {} }
+    for i = 1, 100 do pen.big[i] = { i } end
+    local animal = { genetics = { a = 1, b = { 2 } }, name = "cow", clusterSystem = pen, rlGrowth = { x = 1 } }
+    local t, b = C.weigh(animal, 5000)
+    check("MEM weigh counts the animal's own tables and strings, not its pen", t == 4 and b == 3)
+    check("MEM weigh stops at the cap", select(1, C.weigh(pen, 10)) == 10)
+    local cyc = {}; cyc.self = cyc
+    check("MEM weigh survives a cycle", select(1, C.weigh(cyc, 100)) == 1)
+    local oldR, oldM = RLAnimalIdentityRuntime, g_currentMission
+    RLAnimalIdentityRuntime = { ledger = nil, issued = { a = true, b = true }, journalKeys = function() return {} end }
+    g_currentMission = { animalSystem = { animals = { [1] = { animal, animal } }, aiAnimals = {} } }
+    local text = C.memory()
+    check("MEM memory reports Lua memory, sampled animals and issued keys", text:find("luaKB=", 1, true) ~= nil
+        and text:find("animals sale count=2 sampled=2 avgTables=4", 1, true) ~= nil and text:find("issuedKeys=2", 1, true) ~= nil
+        and text:find("probe failed", 1, true) == nil)
+    RLAnimalIdentityRuntime, g_currentMission = oldR, oldM
 end

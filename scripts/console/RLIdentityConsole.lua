@@ -2,6 +2,7 @@
     RLIdentityConsole.lua
     Commands of the animal identity ledger (RLAnimalIdentity*). Lines start with "RLIDENTITY" for grep.
       rlIdentityStatus          mode, state, generation, counts, shadow collisions (read-only)
+      rlIdentityMemory          Lua memory and ledger sizes per state and domain, raws left per domain (read-only)
       rlIdentityReport          what a switch to ON would find: per domain live keys, counters, reasons (read-only)
       rlIdentityActivate [accept]   switch the ledger on; `accept` takes the weaker MIGRATION_POINT guarantee
                                 for domains whose counter history cannot be proven (server only)
@@ -233,6 +234,87 @@ function C.dealerOrder(requestId)
     local result, failure = s.localLookup(requestId)
     if not result then return say("RLDEALERV2 ORDER " .. requestId .. " " .. tostring(failure)) end
     return say(string.format("RLDEALERV2 ORDER %s %s amount=%s", requestId, result.status, tostring(result.amount)))
+end
+
+
+-- Tables and string bytes reachable from one value, without the objects an animal only points at (its pen).
+local WEIGH_SKIP = { clusterSystem = true, owner = true, husbandry = true, placeable = true, parent = true }
+function C.weigh(root, cap)
+    local seen, tables, bytes = {}, 0, 0
+    local function walk(v, depth)
+        if type(v) == "string" then bytes = bytes + #v return end
+        if type(v) ~= "table" or seen[v] or tables >= cap or depth > 8 then return end
+        seen[v] = true
+        tables = tables + 1
+        for k, x in pairs(v) do if not WEIGH_SKIP[k] then walk(x, depth + 1) end end
+    end
+    walk(root, 0)
+    return tables, bytes
+end
+
+
+local function sampleLine(name, list, n)
+    local count, sampled, tables, bytes = 0, 0, 0, 0
+    for _, animal in pairs(list) do
+        count = count + 1
+        if sampled < n then
+            local t, b = C.weigh(animal, 5000)
+            sampled, tables, bytes = sampled + 1, tables + t, bytes + b
+        end
+    end
+    if sampled == 0 then return string.format("RLIDENTITY MEM animals %s count=0", name) end
+    return string.format("RLIDENTITY MEM animals %s count=%d sampled=%d avgTables=%.0f avgStringBytes=%.0f", name, count, sampled, tables / sampled, bytes / sampled)
+end
+
+
+--- Lua memory (KB, before and after a full collection) next to the ledger's sizes: the numbers P-01 needs.
+function C.memory()
+    local R = RLAnimalIdentityRuntime
+    local before = collectgarbage("count")
+    collectgarbage("collect")
+    local after = collectgarbage("count")
+    local lines = { string.format("RLIDENTITY MEM luaKB=%.0f afterCollectKB=%.0f", before, after) }
+    if R.ledger ~= nil then
+        local s = RLAnimalIdentity.stats(R.ledger)
+        local states = {}
+        for state, n in pairs(s.byState) do states[#states + 1] = state .. "=" .. n end
+        table.sort(states)
+        lines[#lines + 1] = string.format("RLIDENTITY MEM ledger keys=%d requests=%d duplicates=%d journal=%d %s", s.keys, s.requests, s.duplicates,
+            #R.journalKeys(), table.concat(states, " "))
+        local names = {}
+        for dk in pairs(s.domains) do names[#names + 1] = dk end
+        table.sort(names)
+        for _, dk in ipairs(names) do
+            local d = s.domains[dk]
+            lines[#lines + 1] = string.format("RLIDENTITY MEM domain %s %s keys=%d next=%d rawsLeft=%d", dk, tostring(d.status), d.keys, d.next, d.left)
+        end
+    end
+    local ok, err = pcall(function()
+        local mission = g_currentMission
+        if mission ~= nil and mission.animalSystem ~= nil then
+            local sale, ai = {}, {}
+            for _, animals in pairs(mission.animalSystem.animals or {}) do for _, a in pairs(animals) do sale[#sale + 1] = a end end
+            for _, animals in pairs(mission.animalSystem.aiAnimals or {}) do for _, a in pairs(animals) do ai[#ai + 1] = a end end
+            lines[#lines + 1] = sampleLine("sale", sale, 40)
+            lines[#lines + 1] = sampleLine("ai", ai, 40)
+        end
+        local issued = 0
+        for _ in pairs(R.issued or {}) do issued = issued + 1 end
+        lines[#lines + 1] = string.format("RLIDENTITY MEM issuedKeys=%d", issued)
+        local store = RLDealerRuntime ~= nil and RLDealerRuntime.store or nil
+        if store ~= nil and store.purchase ~= nil then
+            local orders, held = 0, 0
+            for _ in pairs(store.purchase.records) do orders = orders + 1 end
+            local t, b = C.weigh(store.purchase, 400000)
+            held = t
+            lines[#lines + 1] = string.format("RLIDENTITY MEM dealer purchaseOrders=%d purchaseTables=%d purchaseStringBytes=%d", orders, held, b)
+            local l, lb = C.weigh(store.listings, 400000)
+            lines[#lines + 1] = string.format("RLIDENTITY MEM dealer listingTables=%d listingStringBytes=%d", l, lb)
+        end
+    end)
+    if not ok then lines[#lines + 1] = "RLIDENTITY MEM probe failed: " .. tostring(err) end
+    for _, line in ipairs(lines) do say(line) end
+    return table.concat(lines, "; ")
 end
 
 
