@@ -1226,6 +1226,16 @@ do
         and longest < RLPenLog.MAX_LINE)
 end
 
+do
+    local bull = GrowthSim.makeAnimal("BULL_ANGUS", { age = 8 })
+    bull.rlGrowth.frameTargetKg = 1234.5
+    local plain = { targetWeight = 321, isIndividual = false }
+    check(string.format("display target: a covered animal shows its curve plateau (%s kg, target %s kg), any other its target weight",
+        tostring(G.getDisplayTarget(bull)), tostring(bull.targetWeight)),
+        G.getDisplayTarget(bull) == 1234.5 and bull.targetWeight ~= 1234.5
+        and G.getDisplayTarget(plain) == 321 and G.getDisplayTarget(nil) == nil)
+end
+
 for _, line in ipairs(LOG) do
     if line:find("^safeCall") or line:find("^error") then check("no script error: " .. line, false) end
 end

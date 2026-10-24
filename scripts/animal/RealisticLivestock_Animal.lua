@@ -680,10 +680,11 @@ function Animal:addInfos(infos, forceShowAll)
         end
 
 
+        local displayTarget = RLGrowth.getDisplayTarget(self) or self.targetWeight
         self.infoWeight.value = 1
-        self.infoWeight.ratio = self.weight / self.targetWeight
+        self.infoWeight.ratio = displayTarget > 0 and self.weight / displayTarget or 0
         self.infoWeight.valueText = string.format("%.2f", self.weight) ..
-        "kg / " .. string.format("%.2f", self.targetWeight) .. "kg"
+        "kg / " .. string.format("%.2f", displayTarget) .. "kg"
 
         table.insert(infos, self.infoWeight)
     end
@@ -1177,7 +1178,7 @@ function Animal:showMonitorInfo(box)
     end
 
     box:addLine(g_i18n:getText("rl_ui_weight"), string.format("%.2f", self.weight) .. "kg")
-    box:addLine(g_i18n:getText("rl_ui_targetWeight"), string.format("%.2f", self.targetWeight) .. "kg")
+    box:addLine(g_i18n:getText("rl_ui_targetWeight"), string.format("%.2f", RLGrowth.getDisplayTarget(self) or self.targetWeight) .. "kg")
     local price=self:getSellPrice()
     local priced=type(price)=="number" and price==price and math.abs(price)<math.huge and price>=0
         and type(self.weight)=="number" and self.weight>0 and self.weight<math.huge

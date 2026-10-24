@@ -381,6 +381,21 @@ function RLGrowth.getFrameTarget(animal, binding)
 end
 
 
+--- The adult weight the UI shows an animal growing to: its curve's plateau (getFrameTarget) when
+--- the model covers it, else its target weight under the old rules. Display only: the slaughter
+--- reference and finishing still read animal.targetWeight.
+--- @param animal table
+--- @return number|nil kg
+function RLGrowth.getDisplayTarget(animal)
+    if animal == nil then return nil end
+    if RLGrowth.covers(animal) then
+        local binding = RLGrowth.getBinding(animal:getSubType())
+        if binding ~= nil then return RLGrowth.getFrameTarget(animal, binding) end
+    end
+    return animal.targetWeight
+end
+
+
 --- An animal's birth weight: its saved one, else the mean x its birth gene (an animal that came
 --- with no record of its birth).
 function RLGrowth.getBirthWeight(animal, binding)
