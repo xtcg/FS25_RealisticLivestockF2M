@@ -127,6 +127,7 @@ createXMLFile=function(_,path) return w.document(path) end
 setXMLString=function(handle,key,value) handle:setString(key,value) end
 saveXMLFile=function(handle) return handle:save() end
 loadMod("tests/fixtures/fs25_save_pass.lua")
+RLNativeSaveHooks.instance=RLNativeSaveHooks.new()
 w.info.placeablesXML="/save/placeables.xml";w.info.vehiclesXML="/save/vehicles.xml";w.info.farmsXML="/save/farms.xml"
 local sourceSaved=false
 local snapshotBase=w.runtime.getSnapshot

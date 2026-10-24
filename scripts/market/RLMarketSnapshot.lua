@@ -119,7 +119,7 @@ local function capture(animal, context, deps)
     local function outputOf(s, names)
         local chosen, chosenKey
         for key, output in pairs(s.output or {}) do
-            if type(output) == "table" and (type(output.get) == "function" or (type(output.curve) == "table" and type(output.curve.get) == "function")) and output.fillType ~= nil then
+            if RLAnimalOutput.curve(output) ~= nil and output.fillType ~= nil then
                 local name = fillName(output.fillType)
                 local order = name ~= nil and name .. ":" .. tostring(key) or nil
                 if name ~= nil and names[name] and (chosenKey == nil or order < chosenKey) then

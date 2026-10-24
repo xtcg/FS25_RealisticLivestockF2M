@@ -185,23 +185,8 @@ end
 -- { fillType, curve } (AnimalSystem:loadSubType), not as a curve; the tank milk first, else milk
 -- sold in cans (output.pallets of a lactation fill type: Hof Bergmann's cattle). nil = none.
 function R.getMilkCurve(sub)
-    local output = sub ~= nil and sub.output or nil
-    if output == nil then return nil end
-    local function curveOf(entry)
-        local curve = type(entry) == "table" and (entry.curve or entry) or nil
-        if type(curve) == "table" and type(curve.get) == "function" then return curve end
-        return nil
-    end
-    local milk = output.milk
-    if milk ~= nil and (Animal == nil or Animal.isSemenFillType == nil or not Animal.isSemenFillType(milk.fillType)) then
-        local curve = curveOf(milk)
-        if curve ~= nil then return curve end
-    end
-    local pallets = output.pallets
-    if pallets ~= nil and Animal ~= nil and Animal.isLactationPalletFillType ~= nil and Animal.isLactationPalletFillType(pallets.fillType) then
-        return curveOf(pallets)
-    end
-    return nil
+    local curve=RLAnimalOutput.milkCurve(sub)
+    return curve
 end
 
 local function refreshMilk(animal, lastBirth, time)
