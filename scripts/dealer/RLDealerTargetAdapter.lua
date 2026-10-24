@@ -3,8 +3,9 @@
 RLDealerTargetAdapter = {}
 local A=RLDealerTargetAdapter
 -- Engine state of the pen, not the animal: ids, cluster link, dirty flag, and the 3D visual a pen gives each
--- animal (Animal:createVisual; it links back to the animal, and appears as soon as the animal is in the pen).
-local volatile={id=true,idFull=true,clusterSystem=true,isDirty=true,visualAnimal=true}
+-- animal (AnimalClusterHusbandry:updateVisuals sets visualAnimalIndex and Animal:createVisual's visualAnimal,
+-- which links back to the animal; both appear as soon as the animal is in the pen).
+local volatile={id=true,idFull=true,clusterSystem=true,isDirty=true,visualAnimal=true,visualAnimalIndex=true}
 local function finite(v) return type(v)=="number" and v==v and math.abs(v)<math.huge end
 local function dense(t)
     if type(t)~="table" then return false end
@@ -40,6 +41,15 @@ local function equal(a,b)
     for k,v in pairs(a) do if not equal(v,b[k]) then return false end end
     for k in pairs(b) do if a[k]==nil then return false end end
     return true
+end
+-- The animal still matches its snapshot. Volatile keys of an older saved snapshot are ignored, and a texture
+-- variation the pen picked for an animal that had none (updateVisuals) is not a change.
+local function intact(a,saved)
+    local now=frozen(a)
+    if now==nil or type(saved)~="table" then return false end
+    local base={};for k,v in pairs(saved) do if not volatile[k] then base[k]=v end end
+    if base.variation==nil then now.variation=nil end
+    return equal(now,base)
 end
 local function healthy(a)
     if key(a)==nil or a.isDead or a.isSold or a.beingRidden then return false end
@@ -129,13 +139,13 @@ function A.observe(b)
         if e.animal~=nil and count[e.animal] then
             if byKey[e.key]~=e.animal or key(e.animal)~=e.key then return {known=false,reason="BATCH_IDENTITY_CHANGED"} end
             out.added[#out.added+1]=i;expected[e.animal]=true
-            if e.animal.clusterSystem~=b.clusterSystem or not equal(frozen(e.animal),e.snapshot) then out.fieldsIntact=false end
+            if e.animal.clusterSystem~=b.clusterSystem or not intact(e.animal,e.snapshot) then out.fieldsIntact=false end
         elseif byKey[e.key]~=nil then return {known=false,reason="BATCH_IDENTITY_CONFLICT"}
         else out.missing[#out.missing+1]=i end
     end
     for _,e in ipairs(b.others) do
         expected[e.animal]=true
-        if not count[e.animal] or byKey[e.key]~=e.animal or not equal(frozen(e.animal),e.snapshot) then out.othersIntact=false end
+        if not count[e.animal] or byKey[e.key]~=e.animal or not intact(e.animal,e.snapshot) then out.othersIntact=false end
     end
     for _,a in ipairs(list) do if not expected[a] then out.othersIntact=false end end
     return out
@@ -146,7 +156,7 @@ local function ready(b,allowAdds,allowRemoves)
     if not observed.othersIntact or not observed.fieldsIntact then return nil,"TARGET_FIELDS_OR_MEMBERS_CHANGED" end
     for _,i in ipairs(observed.missing) do
         local e=b.entries[i]
-        if e.animal and (key(e.animal)~=e.key or not healthy(e.animal) or not equal(frozen(e.animal),e.snapshot)) then return nil,"BATCH_CHANGED" end
+        if e.animal and (key(e.animal)~=e.key or not healthy(e.animal) or not intact(e.animal,e.snapshot)) then return nil,"BATCH_CHANGED" end
     end
     local ok,why=queueState(b,allowAdds,allowRemoves);if not ok then return nil,why end
     return observed
@@ -155,7 +165,7 @@ function A.apply(b)
     if b.receipt.applied then return nil,"ALREADY_APPLIED" end
     local o,why=ready(b,false,false);if not o then return nil,why end
     if #o.added~=0 then return nil,"BATCH_ALREADY_PRESENT" end
-    for _,e in ipairs(b.entries) do if not e.animal or not equal(frozen(e.animal),e.snapshot) or e.animal.clusterSystem~=nil then return nil,"BATCH_CHANGED" end end
+    for _,e in ipairs(b.entries) do if not e.animal or not intact(e.animal,e.snapshot) or e.animal.clusterSystem~=nil then return nil,"BATCH_CHANGED" end end
     b.receipt.applied=true;b.receipt.stage="APPLYING"
     for _,e in ipairs(b.entries) do
         b.ownedAdds[e.animal]=true
@@ -196,7 +206,7 @@ function A.verifyRestored(b)
     if not o.known then return nil,o.reason end
     if not o.othersIntact or not o.fieldsIntact or not o.queuesClean or #o.added~=0 then return nil,"TARGET_NOT_RESTORED" end
     for _,e in ipairs(b.entries) do
-        if e.animal and (e.animal.clusterSystem~=nil or not equal(frozen(e.animal),e.snapshot)) then return nil,"BATCH_NOT_RESTORED" end
+        if e.animal and (e.animal.clusterSystem~=nil or not intact(e.animal,e.snapshot)) then return nil,"BATCH_NOT_RESTORED" end
     end
     return true
 end
@@ -241,7 +251,7 @@ function A.rebind(destination,evidence,owners)
             local live=scan.byKey[saved.key]
             if live and live.destination~=destination then return nil,"BATCH_IN_OTHER_OWNER" end
             if section=="others" and not live then return nil,"OTHER_MEMBER_MISSING" end
-            if live and not equal(frozen(live.animal),saved.snapshot) then return nil,"REBOUND_STATE_CHANGED" end
+            if live and not intact(live.animal,saved.snapshot) then return nil,"REBOUND_STATE_CHANGED" end
             b[section][i]={animal=live and live.animal or nil,key=saved.key,snapshot=copy(saved.snapshot)}
         end
     end

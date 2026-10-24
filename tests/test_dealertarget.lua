@@ -142,7 +142,8 @@ check("dealer target: target absence cannot prove compensation if original objec
 -- binding an occupied pen failed (TARGET_STATE_UNREADABLE) and the visual the flush gave a new animal
 -- read as a changed field (TARGET_FIELDS_OR_MEMBERS_CHANGED). The visual is the pen's, not the animal's.
 do
-    local function giveVisual(a) local v={husbandryId=7,nodeId=12345};v.animal=a;a.visualAnimal=v end
+    -- as AnimalClusterHusbandry:updateVisuals: visual slot index, a texture variation when the animal has none, visual
+    local function giveVisual(a) local v={husbandryId=7,nodeId=12345};v.animal=a;a.visualAnimal=v;a.visualAnimalIndex=4;a.variation=a.variation or 2 end
     local d,c,batch,other=fixture()
     giveVisual(other)
     local b,why=A.bind(d,batch)
@@ -154,4 +155,22 @@ do
     d,c,batch,other=fixture();giveVisual(other);b=assert(A.bind(d,batch))
     c.onAdd=function() other.weight=999 end
     check("dealer target: business state of a visual animal is still guarded", not A.apply(b) and c.flushes==0)
+    -- r7 game test: the pen re-laid out the visual slots of the animals already in it on the same flush
+    d,c,batch,other=fixture();giveVisual(other);b=assert(A.bind(d,batch))
+    c.afterFlush=function() for _,a in ipairs(c.animals) do giveVisual(a);a.visualAnimalIndex=a==other and 9 or 5 end end
+    ok,o=A.apply(b)
+    check("dealer target: visual slot index the flush moves is not a field change", ok and o.othersIntact and o.fieldsIntact, ok==nil and o or nil)
+    d,c,batch,other=fixture();giveVisual(other);b=assert(A.bind(d,batch))
+    c.afterFlush=function() other.variation=other.variation+1 end
+    ok,o=A.apply(b)
+    check("dealer target: a texture the animal already had is still guarded", not ok)
+    -- evidence written by r7 still carries visualAnimalIndex in the snapshots; a rebind must not read it as a change
+    d,c,batch,other=fixture();giveVisual(other);b=assert(A.bind(d,batch))
+    c.afterFlush=function() for _,a in ipairs(c.animals) do giveVisual(a) end end
+    assert(A.apply(b))
+    local evidence=A.exportBinding(b)
+    for _,section in ipairs({"entries","others"}) do for _,e in ipairs(evidence[section]) do e.snapshot.visualAnimalIndex=3 end end
+    for _,a in ipairs(c.animals) do a.visualAnimalIndex=6 end
+    local rb,rwhy=A.rebind(d,evidence,{d})
+    check("dealer target: rebind ignores visual slot index saved by an older build", rb~=nil, rwhy)
 end
