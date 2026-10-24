@@ -297,6 +297,8 @@ function A.new(ctx)
         if not ok then return hold("PURCHASE_EFFECT_ERROR") end
         return value,reason
     end
+    -- The coordinator calls this once the order is final and checkpointed: nothing reads its prepared copy again.
+    a.settled=function(token) a.active[token]=nil end
     a.reconcile=function(token,plan,context)
         local active=a.active[token]
         if not active or not equal(plan,active.plan) or stock.recoveryRequired or a.busy then return nil,"OWNERSHIP_RECONCILIATION_REQUIRED" end

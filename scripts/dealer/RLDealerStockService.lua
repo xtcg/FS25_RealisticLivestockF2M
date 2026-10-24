@@ -101,7 +101,7 @@ function V.buildSnapshot(store, meta, markers)
     end
     return RLDealerPersistence.capture(meta, RLDealerClock.export(store.farm.clock),
         RLDealerListingRegistry.export(store.listings), copy(store.farm.sources),
-        RLDealerPurchase.export(store.purchase), markers, ownership)
+        RLDealerPurchase.export(store.purchase, { settled = true }), markers, ownership)
 end
 function V.fromVerifiedDocument(document)
     if type(document) ~= "table" or document.state ~= "VERIFIED" or document.sourceResolution ~= "RESOLVED" then

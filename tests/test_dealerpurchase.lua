@@ -255,3 +255,42 @@ P.execute(store,request("r2"),"user1",a)
 loaded=assert(P.import(P.export(store),{forceReconciliation=true}))
 check("dealer purchase: forced audit retains multiple historical owners for one sale",loaded.locks.a.recoveryOwners.r1 and loaded.locks.a.recoveryOwners.r2)
 check("dealer purchase: forced audit releases shared recovery locks after every owner resolves",P.recover(loaded,a) and not next(loaded.locks) and not loaded.recoveryRequired)
+
+-- PRUNE: a settled order is saved without its compensation evidence, the WAL keeps it whole
+do
+    store,a,w=fixture(); P.execute(store,request(),"user1",a)
+    local full=P.export(store)
+    local view=P.export(store,{settled=true})
+    local c=view.records.r1.plan.compensation
+    check("prune: a COMMITTED order's compensation is replaced by digest and size",c.pruned==true and type(c.digest)=="string" and c.bytes>0
+        and c.moneyBefore==nil and full.records.r1.plan.compensation.moneyBefore==1000)
+    check("prune: amount, transfer ids, receipt, result and request are kept",view.records.r1.plan.amount==200
+        and RLTradePersistence.canonical(view.records.r1.plan.transferIds)==RLTradePersistence.canonical(full.records.r1.plan.transferIds)
+        and RLTradePersistence.canonical(view.records.r1.receipt)==RLTradePersistence.canonical(full.records.r1.receipt)
+        and RLTradePersistence.canonical(view.records.r1.result)==RLTradePersistence.canonical(full.records.r1.result)
+        and RLTradePersistence.canonical(view.records.r1.request)==RLTradePersistence.canonical(full.records.r1.request))
+    local store2,a2,w2=fixture(); w2.fault="target"; P.execute(store2,request(),"user1",a2); w2.fault=nil
+    local view2=P.export(store2,{settled=true})
+    check("prune: a ROLLED_BACK order is pruned too",view2.records.r1.stage=="ROLLED_BACK" and view2.records.r1.plan.compensation.pruned==true)
+    check("prune: the in-memory store and the default export are untouched",store.records.r1.plan.compensation.moneyBefore==1000
+        and RLTradePersistence.canonical(P.export(store))==RLTradePersistence.canonical(full))
+    check("prune: the settled view is smaller",#RLTradePersistence.canonical(view)<#RLTradePersistence.canonical(full))
+    local loadedView=assert(P.import(view))
+    check("prune: a pruned journal imports and answers lookups as before",P.lookup(loadedView,"r1","user1").status=="COMMITTED"
+        and not loadedView.recoveryRequired)
+    check("prune: the same request again returns the saved result, no second purchase",P.execute(loadedView,request(),"user1",a).status=="COMMITTED" and w.applies==1)
+    check("prune: exporting a pruned journal again is stable",RLTradePersistence.canonical(P.export(loadedView,{settled=true}))==RLTradePersistence.canonical(view)
+        and RLTradePersistence.canonical(P.settled(P.export(loadedView)))==RLTradePersistence.canonical(view))
+    check("prune: a WAL (full) and the loaded pruned store compare equal in the settled view",
+        RLTradePersistence.canonical(P.settled(full))==RLTradePersistence.canonical(P.settled(P.export(loadedView))))
+    -- unfinished and audit-pending records are never pruned
+    local stuck=P.export(store); stuck.records.r1.stage="APPLYING"; stuck.records.r1.receipt=nil; stuck.records.r1.result=nil
+    check("prune: an unfinished order keeps its compensation",P.settled(stuck).records.r1.plan.compensation.moneyBefore==1000)
+    local audit=assert(P.import(full,{forceReconciliation=true}))
+    check("prune: an order awaiting an ownership audit keeps its compensation",P.export(audit,{settled=true}).records.r1.plan.compensation.moneyBefore==1000)
+    -- adapter release hook
+    local released
+    store,a,w=fixture(); a.settled=function(token) released=token end
+    P.execute(store,request(),"user1",a)
+    check("prune: the adapter is told when the order is final (its prepared copy can go)",released=="dealer:r1")
+end
