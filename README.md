@@ -8,9 +8,9 @@ Livestock farming is more than feeding animals, waiting for them to grow, and se
 
 Realistic Livestock: Farm to Market aims to make animal husbandry a more complete farming experience, where genetics, breed characteristics, feeding strategies, growth, reproduction, processing costs, and market conditions all matter.
 
-## 0.2.0.0 defaults
+## 0.2.1.0 defaults
 
-New saves use Real-equivalent nutrition by default, and the sheep and pig v2 growth models are enabled. Cattle growth, body condition and calf rearing remain enabled. Existing saves retain their saved nutrition choice; user `modSettings` overrides still take precedence. Pregnant/postpartum sow pens and pens containing unweaned piglets keep Legacy feeding. Goats and Hof Bergmann's separate MILKCOW type retain their compatibility rules. The experimental Dealer v2 channel remains disabled.
+Cattle, sheep, goats and pigs use one Real-equivalent nutrition model; the Nutrition model setting and the Legacy rules are gone (a saved Legacy choice is migrated on load). The sheep and pig v2 growth models, cattle growth, body condition and calf rearing are enabled. Dams feed their young from their own ration and reserves, including sows with litters and dairy cows and goats whose young drink before the rest is collected. User `modSettings` overrides still take precedence. Hof Bergmann's separate MILKCOW type, horses and poultry keep their own rules. The experimental Dealer v2 channel remains disabled.
 
 ## Credits & Origins
 
@@ -98,7 +98,7 @@ Raise with purpose. Finish with care. Sell with strategy.
 - Hof Bergmann is not included and must be downloaded separately through its [official distribution channels](https://www.lsfarming-mods.com/).
 - Built upon the open-source Realistic Livestock project and Ritter's maintained version.
 - Released under the GPL-3.0 license, with attribution retained for the original contributors. See [LICENSE](LICENSE); corresponding source is available in this repository.
-- Version 0.2.0.0 uses `FS25_RealisticLivestockF2M.zip`. Runtime namespaces follow the package name; existing F2M dewar and hand-tool saves retain their namespace. Back up existing saves and remove `FS25_RealisticLivestockRM.zip` before upgrading; never load both packages.
+- Since 0.2.0.0 the package is `FS25_RealisticLivestockF2M.zip`. Runtime namespaces follow the package name; existing F2M dewar and hand-tool saves retain their namespace. Back up existing saves and remove `FS25_RealisticLivestockRM.zip` before upgrading; never load both packages.
 - This introduction focuses on livestock production and economics. Broader crop and agricultural price tuning is handled separately by [FS25_EconomyTuner](https://github.com/xtcg/FS25_EconomyTuner), formerly FS25_SellPrices. Unreleased changes and validation status remain in [CHANGELOG.md](CHANGELOG.md).
 
 ## Related Mods (Optional)
