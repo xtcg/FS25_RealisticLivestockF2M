@@ -64,3 +64,50 @@ do
     check("r4 fetus: a fetus read from the network stream is unborn (age -1)",
         text:find("age = -1,  -- unborn", 1, true) ~= nil and text:find("Animal.new({\n                age = 0,", 1, true) == nil)
 end
+
+-- 2. The replay reads the milk curve the game actually loads: output.milk = { fillType, curve }.
+do
+    loadMod("tests/dealerreplaysim.lua")
+    local R, S = RLDealerReplay, DealerReplaySim
+    local seed = S.seed("HOLSTEIN", "female", 1)
+    local entry = { breedingWeightRatio = 0.55, profile = { minRecoveryMonth = 3 } }
+    local production = S.history(seed, 30.25, "NORMAL_PRODUCTION", {
+        { kind = "CONCEPTION", atMonths = 17.125, parity = 1 },
+        { kind = "CALVING", atMonths = 27.125, parity = 1 },
+    })
+    local options = { daysPerMonth = 1, entry = entry, pregnancySubTypes = { [4] = { seed.subType } } }
+    local stubMilk = seed.subType.output.milk
+    local function withOutput(output, fn)
+        local saved = seed.subType.output
+        seed.subType.output = output
+        local a, b = fn()
+        seed.subType.output = saved
+        return a, b
+    end
+    local real, why = withOutput({ milk = { fillType = 7, curve = stubMilk } }, function() return R.run(seed, production, options) end)
+    -- (The totals differ from the stub shape: RLFeed.getMatureMilk still reads milk.get - a separate finding.)
+    check("r4 milk: the game's { fillType, curve } output replays a calved cow (not MILK_RULES)",
+        real ~= nil and real.ledger.milkLiters > 0, why and why.reason)
+    local oldLactation = Animal.isLactationPalletFillType
+    Animal.isLactationPalletFillType = function(f) return f == 99 end
+    local cans
+    cans, why = withOutput({ pallets = { fillType = 99, curve = stubMilk } }, function() return R.run(seed, production, options) end)
+    check("r4 milk: milk sold in cans (Hof Bergmann output.pallets) is a milk curve too", cans ~= nil and cans.ledger.milkLiters > 0, why and why.reason)
+    local eggs
+    eggs, why = withOutput({ pallets = { fillType = 5, curve = stubMilk } }, function() return R.run(seed, production, options) end)
+    check("r4 milk: other pallets are not milk", eggs == nil and why.reason == "MILK_RULES")
+    Animal.isLactationPalletFillType = oldLactation
+    local none
+    none, why = withOutput({}, function() return R.run(seed, production, options) end)
+    check("r4 milk: a calved dairy cow without any milk curve still refuses", none == nil and why.reason == "MILK_RULES")
+    local oldBeef = RLRearingPolicy.isBeef
+    RLRearingPolicy.isBeef = function(sub) return sub == seed.subType end
+    local beef
+    beef, why = withOutput({}, function() return R.run(seed, production, options) end)
+    RLRearingPolicy.isBeef = oldBeef
+    check("r4 milk: a beef dam needs no milk curve to have calved", beef ~= nil or why.reason ~= "MILK_RULES", why and why.reason)
+    check("r4 milk: getMilkCurve reads both shapes and ignores a curve-less entry",
+        R.getMilkCurve({ output = { milk = { fillType = 1, curve = stubMilk } } }) == stubMilk
+        and R.getMilkCurve({ output = { milk = stubMilk } }) == stubMilk
+        and R.getMilkCurve({ output = { milk = { fillType = 1 } } }) == nil and R.getMilkCurve({}) == nil)
+end
