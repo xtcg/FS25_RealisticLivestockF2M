@@ -2,6 +2,7 @@
     RLIdentityConsole.lua
     Commands of the animal identity ledger (RLAnimalIdentity*). Lines start with "RLIDENTITY" for grep.
       rlIdentityStatus          mode, state, generation, counts, shadow collisions (read-only)
+      rlIdentityMemory          Lua memory and ledger sizes per state and domain, raws left per domain (read-only)
       rlIdentityReport          what a switch to ON would find: per domain live keys, counters, reasons (read-only)
       rlIdentityActivate [accept]   switch the ledger on; `accept` takes the weaker MIGRATION_POINT guarantee
                                 for domains whose counter history cannot be proven (server only)
@@ -233,6 +234,33 @@ function C.dealerOrder(requestId)
     local result, failure = s.localLookup(requestId)
     if not result then return say("RLDEALERV2 ORDER " .. requestId .. " " .. tostring(failure)) end
     return say(string.format("RLDEALERV2 ORDER %s %s amount=%s", requestId, result.status, tostring(result.amount)))
+end
+
+
+--- Lua memory (KB, before and after a full collection) next to the ledger's sizes: the numbers P-01 needs.
+function C.memory()
+    local R = RLAnimalIdentityRuntime
+    local before = collectgarbage("count")
+    collectgarbage("collect")
+    local after = collectgarbage("count")
+    local lines = { string.format("RLIDENTITY MEM luaKB=%.0f afterCollectKB=%.0f", before, after) }
+    if R.ledger ~= nil then
+        local s = RLAnimalIdentity.stats(R.ledger)
+        local states = {}
+        for state, n in pairs(s.byState) do states[#states + 1] = state .. "=" .. n end
+        table.sort(states)
+        lines[#lines + 1] = string.format("RLIDENTITY MEM ledger keys=%d requests=%d duplicates=%d journal=%d %s", s.keys, s.requests, s.duplicates,
+            #R.journalKeys(), table.concat(states, " "))
+        local names = {}
+        for dk in pairs(s.domains) do names[#names + 1] = dk end
+        table.sort(names)
+        for _, dk in ipairs(names) do
+            local d = s.domains[dk]
+            lines[#lines + 1] = string.format("RLIDENTITY MEM domain %s %s keys=%d next=%d rawsLeft=%d", dk, tostring(d.status), d.keys, d.next, d.left)
+        end
+    end
+    for _, line in ipairs(lines) do say(line) end
+    return table.concat(lines, "; ")
 end
 
 
