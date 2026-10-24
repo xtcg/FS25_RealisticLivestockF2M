@@ -3,11 +3,8 @@
 -- No live hook is installed here, and calving requires a real offspring service.
 RLDealerSourceFarm = { VERSION = 1 }
 local F = RLDealerSourceFarm
-local function copy(v)
-    if type(v) ~= "table" then return v end
-    local out = {}; for k, x in pairs(v) do out[k] = copy(x) end; return out
-end
-local function finite(v) return type(v) == "number" and v == v and math.abs(v) < math.huge end
+local copy=RLPlain.copy
+local finite=RLPlain.finite
 local function id(v) return type(v) == "string" and #v > 0 and #v <= 256 end
 function F.new(namespace, months)
     if not id(namespace) then return nil, "SOURCE_NAMESPACE" end

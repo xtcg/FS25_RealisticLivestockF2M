@@ -2,10 +2,7 @@
 -- Recovery never recreates an animal from a transaction receipt or redraws it.
 RLDealerSourceAdapter = { VERSION = 1 }
 local A = RLDealerSourceAdapter
-local function copy(v)
-    if type(v) ~= "table" then return v end
-    local out={};for k,x in pairs(v) do out[k]=copy(x) end;return out
-end
+local copy=RLPlain.copy
 local function equal(a,b)
     if type(a)~=type(b) then return false end
     if type(a)~="table" then return a==b end

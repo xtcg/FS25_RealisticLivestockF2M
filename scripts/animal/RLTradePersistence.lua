@@ -38,9 +38,7 @@ P.INTEGRITY_RECOVERY = "RECOVERY_REQUIRED"
 P.LIMITS = { maxNodes = 200000, maxString = 262144, maxDepth = 12, detailed = 100, tombstones = 500, wages = 500 }
 
 
-local function isFinite(value)
-    return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
-end
+local isFinite=RLPlain.finite
 
 
 local function sortedKeys(t)
@@ -258,12 +256,7 @@ function P.checksum(text)
 end
 
 
-local function copy(value)
-    if type(value) ~= "table" then return value end
-    local result = {}
-    for k, v in pairs(value) do result[k] = copy(v) end
-    return result
-end
+local copy=RLPlain.copy
 
 
 -- A finished record kept as a tombstone: enough to show what it was and to dedupe it.

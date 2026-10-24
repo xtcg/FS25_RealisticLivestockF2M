@@ -4,15 +4,7 @@
 RLDealerWorld = {}
 local W = RLDealerWorld
 local function fail(reason) error(reason, 0) end
-local function dense(t)
-    if type(t) ~= "table" then return false end
-    local n = 0
-    for k in pairs(t) do
-        if type(k) ~= "number" or k < 1 or k % 1 ~= 0 or k > #t then return false end
-        n = n + 1
-    end
-    return n == #t
-end
+local dense=RLPlain.dense
 local function empty(t) return type(t) == "table" and next(t) == nil end
 local function capture(t)
     if not dense(t) then fail("REGISTRY_UNREADABLE") end

@@ -29,12 +29,7 @@
 RLDealerPlanner = { VERSION = 3 }
 local P = RLDealerPlanner
 
-local function copy(v)
-    if type(v) ~= "table" then return v end
-    local out = {}
-    for k, x in pairs(v) do out[k] = copy(x) end
-    return out
-end
+local copy=RLPlain.copy
 
 
 local function templateFor(entry, plan)

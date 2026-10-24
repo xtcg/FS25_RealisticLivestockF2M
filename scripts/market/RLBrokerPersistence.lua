@@ -5,7 +5,7 @@ local P=RLBrokerPersistence
 P.SCHEMA=1
 P.LIMITS={maxNodes=500000,maxString=4194304,maxDepth=32}
 local T=function() return RLTradePersistence end
-local function text(v) return type(v)=="string" and v:match("%S")~=nil end
+local text=RLPlain.text
 local function integer(v,min) return type(v)=="number" and v==v and v>=min and v<2^52 and v%1==0 end
 local function fail(ok,why) if not ok then error(why,0) end end
 local function keys(v,allowed) for k in pairs(v) do fail(allowed[k],"EXTRA_FIELD:"..tostring(k)) end end

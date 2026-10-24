@@ -28,10 +28,7 @@ local packages = {
 }
 local byKey = {}
 for _,member in ipairs(members) do byKey[member.key]=member end
-local function copy(v)
-    if type(v)~="table" then return v end
-    local out={};for k,item in pairs(v) do out[k]=copy(item) end;return out
-end
+local copy=RLPlain.copy
 function C.members() return copy(members) end
 function C.get(key) return copy(byKey[key]) end
 function C.packages() return copy(packages) end

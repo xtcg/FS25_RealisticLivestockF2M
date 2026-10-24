@@ -17,26 +17,16 @@
 -- recordsByAnimalId,ownership,preparedEvidence}; no result is externally installed.
 RLDealerSourceFactory={VERSION=1}
 local F=RLDealerSourceFactory
-local function finite(v) return type(v)=="number" and v==v and math.abs(v)<math.huge end
+local finite=RLPlain.finite
 local function id(v) return type(v)=="string" and #v>0 and #v<=256 and v~="-1" and v~="0" and v~="0-0" and v~="1-1" end
-local function copy(v) if type(v)~="table" then return v end;local o={};for k,x in pairs(v) do o[k]=copy(x) end;return o end
-local function equal(a,b)
-    if type(a)~=type(b) then return false end
-    if type(a)~="table" then return a==b end
-    for k,v in pairs(a) do if not equal(v,b[k]) then return false end end
-    for k in pairs(b) do if a[k]==nil then return false end end
-    return true
-end
+local copy=RLPlain.copy
+local equal=RLPlain.equal
 local function keys(v,allowed)
     if type(v)~="table" then return false end
     for key in pairs(v) do if not allowed[key] then return false end end
     return true
 end
-local function dense(v)
-    if type(v)~="table" then return false end
-    local n=0;for key in pairs(v) do if not finite(key) or key%1~=0 or key<1 or key>#v then return false end;n=n+1 end
-    return n==#v
-end
+local dense=RLPlain.dense
 local function integer(v,low,high) return finite(v) and v%1==0 and v>=low and (not high or v<=high) end
 local function calendar(v,birthday)
     if not keys(v,{day=true,month=true,year=true,country=birthday,lastAgeMonth=birthday})

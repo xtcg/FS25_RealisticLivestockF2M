@@ -84,7 +84,9 @@ function AnimalProduction.updateOutput(self,temp)
         -- never this curve.
         if cattleMilk and RLRearingPolicy ~= nil and RLRearingPolicy.isBeef(subType) then milkScale = 0 end
 
-        litersPerDay = RLAnimalOutput.curve(output):get(curveAge)
+        -- An output with no readable curve gives nothing (and the warning below); it must not abort the hourly update.
+        local curve = RLAnimalOutput.curve(output)
+        litersPerDay = curve ~= nil and curve:get(curveAge) or nil
 
         if litersPerDay == nil then
             Log:warning("updateOutput: nil litersPerDay for '%s' output '%s' (age=%d, hasCurve=%s, subType='%s')",

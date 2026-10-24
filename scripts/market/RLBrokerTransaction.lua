@@ -3,7 +3,7 @@
 RLBrokerTransaction={}
 local T=RLBrokerTransaction
 local D=RLMarketData
-local function text(v)return type(v)=="string" and v:match("%S")~=nil end
+local text=RLPlain.text
 local function integer(v,min)return type(v)=="number" and v==v and v%1==0 and v>=min and v<2^52 end
 local function copy(v)return assert(D.copy(v))end
 local function fp(v)return D.fingerprint(v)end

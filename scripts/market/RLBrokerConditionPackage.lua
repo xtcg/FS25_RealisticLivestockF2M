@@ -2,8 +2,8 @@
 -- model reachability (U51), price calibration, or permission to publish an order.
 RLBrokerConditionPackage = {}
 local P = RLBrokerConditionPackage
-local function finite(v) return type(v) == "number" and v == v and math.abs(v) < math.huge end
-local function text(v) return type(v) == "string" and v:match("%S") ~= nil end
+local finite=RLPlain.finite
+local text=RLPlain.text
 local function requireValue(ok, reason) if not ok then error(reason, 0) end end
 local fields = {
     ["s.ageMonths"] = "number", ["s.health"] = "number", ["s.weightKg"] = "number",
@@ -44,11 +44,7 @@ function P.validateWeights(w)
     for gene, weight in pairs(w) do if not genes[gene] or not finite(weight) or weight < 0 then return false end; sum = sum + weight end
     return finite(sum) and math.abs(sum - 1) <= 1e-12
 end
-local function dense(list)
-    if type(list) ~= "table" then return false end
-    local n = 0; for k in pairs(list) do if type(k) ~= "number" or k % 1 ~= 0 or k < 1 or k > #list then return false end; n = n + 1 end
-    return n == #list
-end
+local dense=RLPlain.dense
 local function compile(raw)
     local p, reason = RLMarketData.copy(raw); requireValue(p ~= nil, reason)
     requireValue(p.schemaVersion == 1 and text(p.id) and p.candidate == true, "INVALID_PACKAGE_HEADER")

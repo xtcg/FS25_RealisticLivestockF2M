@@ -23,6 +23,8 @@ source(modDirectory .. "scripts/fontlib/RmFontManager.lua")
 source(modDirectory .. "scripts/gui/MPLoadingScreen.lua")
 
 -- SECTION 2b: Utilities
+-- Plain-data primitives (copy, equal, finite, ...) the dealer, market and trade modules bind at file scope
+source(modDirectory .. "scripts/core/RLPlain.lua")
 source(modDirectory .. "scripts/core/RLNativeSaveHooks.lua")
 source(modDirectory .. "scripts/utils/RmSafeUtils.lua")
 source(modDirectory .. "scripts/utils/RLAnimalUtil.lua")

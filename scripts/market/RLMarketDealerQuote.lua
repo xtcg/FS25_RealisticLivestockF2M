@@ -8,7 +8,7 @@ local revisions={"classRevision","traitMappingRevision","marketEpoch","configRev
 local function copy(v)return assert(D.copy(v))end
 local function fp(v)return assert(D.fingerprint(v))end
 local function nonnegative(v)return RLMarketMoney.finite(v) and v>=0 end
-local function text(v)return type(v)=="string" and v:match("%S")~=nil end
+local text=RLPlain.text
 local function fields(v,allowed)
     if type(v)~="table" then return false end
     for key in pairs(v)do if not allowed[key] then return false end end

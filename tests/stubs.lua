@@ -132,6 +132,8 @@ function loadAnimalSection(first, last)
     assert(load("local Log = RmLogging.getLogger()\n" .. text:sub(from, to), "Animal section " .. first))()
 end
 
+-- Plain-data primitives the dealer, market and trade modules bind at file scope (main.lua sources it first).
+loadMod("scripts/core/RLPlain.lua")
 -- The game's milk rule (births, the monthly tick, yield, the forecast and the dealer).
 loadMod("scripts/animal/RLAnimalOutput.lua")
 loadMod("scripts/animal/AnimalProduction.lua")

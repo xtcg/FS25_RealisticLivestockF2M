@@ -3,7 +3,7 @@
 -- available to pending coordinators; quota checkpoint participation is separate.
 RLBrokerMonth = {}
 local M=RLBrokerMonth
-local function text(v)return type(v)=="string" and v:match("%S")~=nil end
+local text=RLPlain.text
 local function integer(v)return type(v)=="number" and v==v and v>=0 and v<2^52 and v%1==0 end
 local function fp(v)return RLMarketData.fingerprint(v) end
 local function copy(v)return RLMarketData.copy(v) end

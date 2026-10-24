@@ -2,7 +2,7 @@
 -- Never calls sell-price, canBeSold, birth-count recovery, growth initialization,
 -- update/step, disease treatment, or any state-producing animal method.
 RLMarketSnapshot = {}
-local function finite(v) return type(v) == "number" and v == v and v ~= math.huge and v ~= -math.huge end
+local finite=RLPlain.finite
 local function field(out, key, value, caps, capability)
     if value ~= nil then out[key] = value end
     if caps then caps[capability or key] = value ~= nil end

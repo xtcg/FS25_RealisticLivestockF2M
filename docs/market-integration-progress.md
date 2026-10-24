@@ -188,3 +188,21 @@ Review追加并关闭了错误难度/参考载荷的缓存报价可被接纳、�
 
 
 本续批验证：完整 `python3 -B tests/run.py` **6904/6904，exit 0**（Lua 5.5，日志 `/private/tmp/fs25-project-framework-tests.log`）；Lua 5.4 下11个相关测试文件 **390/390**；10个新增/修改模块通过 Lua 5.1 语法编译（Animal 主文件保留既有 GIANTS `continue`，其委托由专项和完整回归执行）。新原生保存监听测试共13项，包含三个真实安装器组合、目录优先级及观察器异常。没有执行游戏内或联机保存验证。
+
+
+## 共享数据原语与静态结构检查（2026-10-25）
+
+基于上一节的分支，合入 `dev@09c1db03`（PR #96，无冲突，合并后回归 6930/6930）后继续。
+
+- **`RLPlain`**（`scripts/core/RLPlain.lua`，`main.lua` 第2b节最先加载）收口 dealer / market / 交易账本各文件私有定义的同形函数：`copy`（无环保护的递归复制）、`equal`（结构相等）、`finite`、`text`（含非空白字符的字符串）、`dense`（键恰为 1..#t）。只收录各处**逐字等价**的实现：改写按“归一化函数体（变量名、分号、空白无关）完全一致”机械匹配，共替换 93 处定义（60 个文件）；带校验的复制（`RLMarketData.copy`、`RLTradePersistence.parse`）、带上限的协议检查（`RLDealerPurchaseProtocol` 的 `dense/text`）、基于规范串的 `equal`、带环检测的 `RLDealerListingRegistry.copy`、剔除 `ref` 的 `RLHBContractAdapter.copy` 语义不同，原样保留。`RLMarketSchema` 因其测试要求仅凭 Lua 原语即可加载（证明线协议不依赖 mod 全局），保留私有副本。事件层（MP）、feed/growth 纯模型层不在本批范围。
+- **`tests/check_structure.py`**（由 `tests/run.py` 调用，CI 的 `python tests/run.py` 即带上它）：
+  1. 加载顺序：解析 `main.lua` 的 `source` 顺序，找出每个文件在**文件作用域**（函数体之外）读取、而由**更晚**加载的文件赋值的全局。此前 `main.lua` 里十余处“必须排在 X 之后”只写在注释里，只有实机加载才暴露。自检：把 5 组注释已声明的依赖对（RLDiseaseRecord→RLDiseaseDefinition、RLDealerQualityModel→Resolver、RLConstants→RLGenetics、RLHerdsmanRuleService→Presenter、RLMenuTabPolicy→RLMenu）互换，必须报违规，否则判定扫描失明。当前真实顺序 0 违规；把 `RLPlain` 挪到最后会报 60 处。
+  2. 全局冲突：两个文件对同一全局赋值（非 `X = X or ...` 幂等形式）会按加载顺序静默覆盖；当前 0 处。
+  3. 私有副本：dealer / market / animal 内不得再出现与 `RLPlain` 等价的文件作用域私有定义（含 `isFinite` 写法），例外清单写在检查器里并注明原因。
+- **`AnimalProduction.updateOutput`**：曲线不可读（`RLAnimalOutput.curve` 返回 nil）的输出原先在逐小时更新中直接索引 nil 报错，其后的 nil 保护与告警成了死代码；现按该保护的原意产出 0 并告警，不中断同一动物其余输出。新增 2 项测试。
+- 新增 `tests/test_plain.lua`（19 项：NaN/无穷、共享子表独立复制、元表丢弃、额外键双向、空洞/字符串/小数/零负键）。
+
+验证：完整 `python3 -B tests/run.py` **6952/6952，exit 0**（Lua 5.5）；`economics.py` 可运行；`marketreachability.py --months 2 --subtype COW_HEREFORD` 在改动前后输出逐项一致（仅 `sourceSha256` 元数据不同）。未做实机、联机验证；本批不改存档 schema、网络协议、经济参数或准入开关。
+
+仍未收口（需按调用与恢复契约分别处理，不能按行数批量替换）：6 个 MP 事件各自的 `getUserContext` 与“权限 + 农场作用域”校验；`integer` 的 17 种带不同上下界的变体；`fail/call/fields/keys` 的不同错误返回约定；`AnimalProduction.updateOutput`（175 行）按产出类型拆分。
+

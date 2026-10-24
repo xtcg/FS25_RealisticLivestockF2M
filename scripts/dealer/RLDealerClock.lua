@@ -4,7 +4,7 @@ RLDealerClock = {}
 local C = RLDealerClock
 C.VERSION = 1
 C.CHECKPOINT_MONTHS = 0.25
-local function finite(x) return type(x) == "number" and x == x and math.abs(x) < math.huge end
+local finite=RLPlain.finite
 function C.new(months)
     months = months or 0
     if not finite(months) or months < 0 then return nil, "INVALID_TIME" end

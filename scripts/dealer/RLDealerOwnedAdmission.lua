@@ -3,14 +3,8 @@
 -- and a synchronous durable whole-stock barrier are supplied by its caller.
 RLDealerOwnedAdmission={VERSION=1}
 local A=RLDealerOwnedAdmission
-local function copy(v) if type(v)~="table" then return v end;local o={};for k,x in pairs(v) do o[k]=copy(x) end;return o end
-local function equal(a,b)
-    if type(a)~=type(b) then return false end
-    if type(a)~="table" then return a==b end
-    for k,v in pairs(a) do if not equal(v,b[k]) then return false end end
-    for k in pairs(b) do if a[k]==nil then return false end end
-    return true
-end
+local copy=RLPlain.copy
+local equal=RLPlain.equal
 local lifetime={CALF_MILK="UNWEANED",CALF_WEANED="GROWING",HEIFER_REPLACEMENT="REPLACEMENT",FEEDER="STORE",
     HEIFER_READY="BREEDING",HEIFER_IN_CALF="BREEDING",BULL_YOUNG="BREEDING",COW_FIRST="PRODUCTION",COW_YOUNG="PRODUCTION"}
 local function snapshot(s)

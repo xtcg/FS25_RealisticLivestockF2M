@@ -1,7 +1,7 @@
 -- Expected values only: no RNG, game time, animals or public-order liquidity.
 RLMarketMath = {}
 local M = RLMarketMath
-local function finite(n) return type(n) == "number" and n == n and math.abs(n) ~= math.huge end
+local finite=RLPlain.finite
 function M.waiting(input)
     if type(input) ~= "table" or not finite(input.months) or input.months < 0
         or input.months % 1 ~= 0 or input.months > 120

@@ -80,12 +80,7 @@ function RLLiveSale.ledger()
 end
 
 
-local function copy(value)
-    if type(value) ~= "table" then return value end
-    local result = {}
-    for k, v in pairs(value) do result[k] = copy(v) end
-    return result
-end
+local copy=RLPlain.copy
 
 
 local function stableId(object)

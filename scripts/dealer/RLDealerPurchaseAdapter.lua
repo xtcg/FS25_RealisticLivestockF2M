@@ -3,7 +3,7 @@
 -- mandatory server capabilities; constructing this module never enables a route.
 RLDealerPurchaseAdapter = { VERSION=1 }
 local A=RLDealerPurchaseAdapter
-local function copy(v) if type(v)~="table" then return v end;local o={};for k,x in pairs(v) do o[k]=copy(x) end;return o end
+local copy=RLPlain.copy
 local function equal(a,b)
     if type(a)~=type(b) then return false end
     if type(a)~="table" then return a==b end

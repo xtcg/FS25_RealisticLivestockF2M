@@ -1,13 +1,8 @@
 -- D3-3 hourly reference. Detached cattle only; never called by live dealer generation yet.
 RLDealerReplay = { VERSION = 1, RECIPE_VERSION = 1 }
 local R = RLDealerReplay
-local function finite(x) return type(x) == "number" and x == x and math.abs(x) < math.huge end
-local function copy(t)
-    if type(t) ~= "table" then return t end
-    local out = {}
-    for k, v in pairs(t) do out[k] = copy(v) end
-    return out
-end
+local finite=RLPlain.finite
+local copy=RLPlain.copy
 
 -- Candidate recipes use existing feed profiles and physical planner limits, never energy
 -- invented from a deficit. Calibration reports determine which purposes they can supply.
