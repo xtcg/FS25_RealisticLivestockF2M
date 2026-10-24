@@ -53,6 +53,29 @@ function RLModelMerge.isRelative(path)
 end
 
 
+--- Keep the absolute paths of a generated config absolute for readers that resolve its file attributes
+--- with Utils.getFilename(value, folder of the config). Utils.getFilename joins any value that does
+--- not start with "$" to the folder, so "D:/mods/..." became "<modSettings>/generated/D:/mods/..."
+--- (the LSFM animated livestock trailer reads the type's config that way: its animals were missing).
+--- Only calls whose folder is inside `dir` change, and only for drive or root absolute values.
+---@param utils table The Utils table whose getFilename is wrapped (once per dir)
+---@param dir string Folder of the generated configs, ending in "/"
+function RLModelMerge.guardGeneratedPaths(utils, dir)
+    if type(utils) ~= "table" or type(utils.getFilename) ~= "function" or type(dir) ~= "string" or dir == "" then return end
+    utils.rlGeneratedPathDirs = utils.rlGeneratedPathDirs or {}
+    if utils.rlGeneratedPathDirs[dir] then return end
+    utils.rlGeneratedPathDirs[dir] = true
+    local getFilename = utils.getFilename
+    utils.getFilename = function(filename, baseDir, ...)
+        if type(filename) == "string" and type(baseDir) == "string" and baseDir:sub(1, #dir) == dir
+            and (filename:match("^%a:[/\\]") ~= nil or filename:sub(1, 1) == "/") then
+            return filename, false
+        end
+        return getFilename(filename, baseDir, ...)
+    end
+end
+
+
 --- Make every relative file attribute absolute against `dir` (the folder of the config the text
 --- came from), so the text still finds its files once it is written somewhere else. File
 --- attributes: any name containing "filename" (filename, filenamePosed, sample filename) and
