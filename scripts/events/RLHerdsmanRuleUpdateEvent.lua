@@ -70,11 +70,7 @@ end
 --- Resolve user context for warning-path decisions.
 ---@param connection table
 ---@return string userName, any userId
-local function getUserContext(connection)
-    local userId = g_currentMission.userManager:getUniqueUserIdByConnection(connection)
-    local userName = (g_currentMission.userManager:getUserByConnection(connection) or {}).nickname or "unknown"
-    return userName, userId
-end
+local getUserContext=RLPermissionHelper.getUserContext
 
 --- Validate a remote client's payload, rebroadcast to the other peers, then apply here.
 function RLHerdsmanRuleUpdateEvent:run(connection)
@@ -120,16 +116,11 @@ function RLHerdsmanRuleUpdateEvent:run(connection)
         end
 
         if stored.farmId ~= nil then
-            local userFarm = g_farmManager:getFarmForUniqueUserId(userId)
-            if userFarm == nil or userFarm.farmId == nil then
-                Log:warning("RLHerdsmanRuleUpdateEvent:run: no farm lookup for user '%s' (userId=%s); aborting update id=%s farmId=%s",
-                    tostring(userName), tostring(userId), tostring(rule.id), tostring(stored.farmId))
-                return
-            end
-            if userFarm.farmId ~= stored.farmId then
-                Log:warning("RLHerdsmanRuleUpdateEvent:run: farm-scope mismatch for user '%s' (userId=%s, userFarmId=%s) rule id=%s farmId=%s",
-                    tostring(userName), tostring(userId), tostring(userFarm.farmId),
-                    tostring(rule.id), tostring(stored.farmId))
+            local requesterFarmId=RLPermissionHelper.getRequesterFarmId(userId)
+            local allowed,reason=RLPermissionHelper.authorize(true,requesterFarmId,stored.farmId)
+            if not allowed then
+                Log:warning("RLHerdsmanRuleUpdateEvent:run: farm-scope rejected (%s) user='%s' requesterFarmId=%s ownerFarmId=%s",
+                    tostring(reason),tostring(userName),tostring(requesterFarmId),tostring(stored.farmId))
                 return
             end
         end

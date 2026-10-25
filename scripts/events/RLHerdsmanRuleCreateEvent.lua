@@ -43,10 +43,8 @@ end
 ---@param ruleFarmId number|nil the rule's owning farm id
 ---@return boolean authorized
 function RLHerdsmanRuleCreateEvent.isAuthorized(hasTradePermission, senderFarmId, ruleFarmId)
-    return hasTradePermission == true
-        and senderFarmId ~= nil
-        and ruleFarmId ~= nil
-        and senderFarmId == ruleFarmId
+    local allowed=RLPermissionHelper.authorize(hasTradePermission,senderFarmId,ruleFarmId)
+    return allowed
 end
 
 --- Serialize via the shared rule wire codec.
@@ -70,11 +68,7 @@ end
 --- Resolve user context for warning-path decisions.
 ---@param connection table
 ---@return string userName, any userId
-local function getUserContext(connection)
-    local userId = g_currentMission.userManager:getUniqueUserIdByConnection(connection)
-    local userName = (g_currentMission.userManager:getUserByConnection(connection) or {}).nickname or "unknown"
-    return userName, userId
-end
+local getUserContext=RLPermissionHelper.getUserContext
 
 --- Validate a remote client's payload, rebroadcast to the other peers, then apply here.
 function RLHerdsmanRuleCreateEvent:run(connection)
@@ -91,8 +85,7 @@ function RLHerdsmanRuleCreateEvent:run(connection)
         local hasTradePermission = g_currentMission:getHasPlayerPermission("tradeAnimals", connection)
 
         -- A stale or absent farm lookup is real in MP; the predicate treats nil as unauthorized.
-        local userFarm = g_farmManager:getFarmForUniqueUserId(userId)
-        local senderFarmId = (userFarm ~= nil) and userFarm.farmId or nil
+        local senderFarmId=RLPermissionHelper.getRequesterFarmId(userId)
 
         if not RLHerdsmanRuleCreateEvent.isAuthorized(hasTradePermission, senderFarmId, rule.farmId) then
             Log:warning("RLHerdsmanRuleCreateEvent:run: create rejected for user '%s' (userId=%s) -- permission=%s senderFarmId=%s ruleFarmId=%s rule id=%s",

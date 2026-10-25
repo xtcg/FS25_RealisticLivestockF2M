@@ -64,11 +64,7 @@ end
 --- Resolve user context for warning-path decisions.
 ---@param connection table
 ---@return string userName, any userId
-local function getUserContext(connection)
-    local userId = g_currentMission.userManager:getUniqueUserIdByConnection(connection)
-    local userName = (g_currentMission.userManager:getUserByConnection(connection) or {}).nickname or "unknown"
-    return userName, userId
-end
+local getUserContext=RLPermissionHelper.getUserContext
 
 --- Validate a remote client's delete, rebroadcast to the other peers, then apply here.
 function RLHerdsmanRuleDeleteEvent:run(connection)
@@ -102,16 +98,11 @@ function RLHerdsmanRuleDeleteEvent:run(connection)
         end
 
         if stored.farmId ~= nil then
-            local userFarm = g_farmManager:getFarmForUniqueUserId(userId)
-            if userFarm == nil or userFarm.farmId == nil then
-                Log:warning("RLHerdsmanRuleDeleteEvent:run: no farm lookup for user '%s' (userId=%s); aborting delete id=%s farmId=%s",
-                    tostring(userName), tostring(userId), tostring(id), tostring(stored.farmId))
-                return
-            end
-            if userFarm.farmId ~= stored.farmId then
-                Log:warning("RLHerdsmanRuleDeleteEvent:run: farm-scope mismatch for user '%s' (userId=%s, userFarmId=%s) rule id=%s storedFarmId=%s",
-                    tostring(userName), tostring(userId), tostring(userFarm.farmId),
-                    tostring(id), tostring(stored.farmId))
+            local requesterFarmId=RLPermissionHelper.getRequesterFarmId(userId)
+            local allowed,reason=RLPermissionHelper.authorize(true,requesterFarmId,stored.farmId)
+            if not allowed then
+                Log:warning("RLHerdsmanRuleDeleteEvent:run: farm-scope rejected (%s) user='%s' requesterFarmId=%s ownerFarmId=%s",
+                    tostring(reason),tostring(userName),tostring(requesterFarmId),tostring(stored.farmId))
                 return
             end
         end

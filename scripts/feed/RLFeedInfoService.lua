@@ -59,9 +59,16 @@ end
 
 
 --- Rows are rebuilt when the hour or the trough's stock changes, not on every info refresh.
-local function getRowsCacheKey(placeable)
-    local total = placeable.getTotalFood ~= nil and placeable:getTotalFood() or 0
-    return tostring(RLBodyCondition.getTickId()) .. ":" .. string.format("%.3f", total)
+local function getRowsInputs(placeable)
+    local spec=placeable.spec_husbandryFood
+    local stocks={}
+    for index,supported in pairs(spec.supportedFillTypes or {}) do
+        if supported then
+            stocks[index]={stock=spec.fillLevels[index] or 0,available=placeable:getAvailableFood(index) or 0}
+        end
+    end
+    return {tick=RLBodyCondition.getTickId(),stocks=stocks,capacity=spec.capacity,
+        monthHours=spec.rlFeedMonth and spec.rlFeedMonth.hours}
 end
 
 
@@ -79,12 +86,16 @@ end
 function RLFeedInfoService.getFeedRows(placeable)
     local spec = placeable.spec_husbandryFood
     local ration = RLFeed.getRation(placeable)
-    local key = getRowsCacheKey(placeable)
+    local inputs = getRowsInputs(placeable)
+    local profiles=RLFeedProfiles.getConfig and RLFeedProfiles.getConfig()
+    local month,previous=spec.rlFeedMonth,spec.rlFeedPrevious
     local cache = spec.rlFeedRowsCache
-    if cache ~= nil and cache.key == key and cache.ration == ration and cache.last == spec.rlFeedLast
-        and cache.client == spec.rlFeedClient then return cache.rows, ration end
+    if cache ~= nil and cache.ration == ration and cache.last == spec.rlFeedLast
+        and cache.client == spec.rlFeedClient and cache.month==month and cache.previous==previous
+        and cache.profiles==profiles and RLPlain.equal(cache.inputs,inputs) then return cache.rows, ration end
     local rows = RLFeedInfoService.buildFeedRows(placeable, ration)
-    spec.rlFeedRowsCache = { key = key, ration = ration, last = spec.rlFeedLast, client = spec.rlFeedClient, rows = rows }
+    spec.rlFeedRowsCache = { inputs=inputs,ration=ration,last=spec.rlFeedLast,client=spec.rlFeedClient,
+        month=month,previous=previous,profiles=profiles,rows=rows }
     return rows, ration
 end
 

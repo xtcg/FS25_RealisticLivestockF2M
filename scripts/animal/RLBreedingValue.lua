@@ -75,7 +75,8 @@ RLBreedingValue.DEFAULTS = {
 RLBreedingValue.QUOTE_CACHE_MS = 2000
 
 local quoteCache = setmetatable({}, { __mode = "k" })
-local counterpartCache = {}
+local counterpartCache = setmetatable({}, { __mode = "k" })
+local counterpartScope=setmetatable({}, {__mode="v"})
 
 local GENE_MIN, GENE_MAX = 0.25, 1.75
 local STANDARD = { productivity = 1, fertility = 1, health = 1, quality = 1 }
@@ -121,7 +122,8 @@ end
 function RLBreedingValue.reset()
     RLBreedingValue.config = nil
     quoteCache = setmetatable({}, { __mode = "k" })
-    counterpartCache = {}
+    counterpartCache = setmetatable({}, { __mode = "k" })
+    counterpartScope=setmetatable({}, {__mode="v"})
 end
 
 
@@ -484,22 +486,34 @@ end
 --- @return table|nil
 function RLBreedingValue.getCounterpart(subType, gender)
     if subType.gender == gender then return subType end
-    local key = tostring(subType.name) .. ":" .. gender
-    local cached = counterpartCache[key]
-    if cached ~= nil then return cached or nil end
     local animalSystem = g_currentMission ~= nil and g_currentMission.animalSystem or nil
-    local found = false
+    local registry=animalSystem and animalSystem.subTypes
+    if animalSystem~=counterpartScope[1] or registry~=counterpartScope[2] then
+        counterpartCache=setmetatable({}, {__mode="k"})
+        counterpartScope[1],counterpartScope[2]=animalSystem,registry
+    end
+    local byGender=counterpartCache[subType]
+    local cached=byGender and byGender[gender]
+    if cached and registry and registry[cached.index]==cached.value
+        and cached.value.typeIndex==subType.typeIndex and cached.value.breed==subType.breed
+        and cached.value.gender==gender and cached.value.sellPrice~=nil then return cached.value end
+    local found,foundIndex
     if animalSystem ~= nil and subType.breed ~= nil then
-        for _, other in pairs(animalSystem.subTypes or {}) do
+        for index, other in pairs(registry or {}) do
             if other.typeIndex == subType.typeIndex and other.breed == subType.breed and other.gender == gender
                 and other.sellPrice ~= nil then
-                found = other
+                found,foundIndex = other,index
                 break
             end
         end
     end
-    counterpartCache[key] = found
-    return found or nil
+    -- An incomplete subtype registry is normal during load; a miss must not
+    -- become a session-long negative cache. Retain no old world/name aliases.
+    if found then
+        byGender=byGender or {};counterpartCache[subType]=byGender
+        byGender[gender]={index=foundIndex,value=found}
+    elseif byGender then byGender[gender]=nil end
+    return found
 end
 
 

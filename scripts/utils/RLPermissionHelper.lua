@@ -24,7 +24,24 @@ RLPermissionHelper.REASON = {
 ---@param id any Candidate farm id
 ---@return boolean valid True when the id denotes a real player farm
 local function isRealFarmId(id)
-    return type(id) == "number" and id > 0 and id <= FarmManager.MAX_NUM_FARMS
+    return type(id) == "number" and id > 0 and id%1==0
+        and FarmManager~=nil and type(FarmManager.MAX_NUM_FARMS)=="number" and id <= FarmManager.MAX_NUM_FARMS
+end
+
+--- Live connection facts, shared by remote event handlers. No context is cached
+--- across requests, farm changes or missions; nicknames are diagnostics only.
+function RLPermissionHelper.getUserContext(connection)
+    local users=g_currentMission and g_currentMission.userManager
+    if users==nil or type(users.getUniqueUserIdByConnection)~="function" then return "unknown",nil end
+    local id=users:getUniqueUserIdByConnection(connection)
+    local user=users.getUserByConnection and users:getUserByConnection(connection)
+    return user and user.nickname or "unknown",id
+end
+
+function RLPermissionHelper.getRequesterFarmId(userId)
+    if userId==nil or g_farmManager==nil or type(g_farmManager.getFarmForUniqueUserId)~="function" then return nil end
+    local farm=g_farmManager:getFarmForUniqueUserId(userId)
+    return farm and farm.farmId or nil
 end
 
 
@@ -79,17 +96,16 @@ end
 ---@return any userId The requesting player's unique user id
 ---@return any requesterFarmId The requester's resolved farm id, as fed to `authorize`
 function RLPermissionHelper.authorizeConnection(connection, permissionKey, ownerFarmId)
-    local userId = g_currentMission.userManager:getUniqueUserIdByConnection(connection)
-    local userName = (g_currentMission.userManager:getUserByConnection(connection) or {}).nickname or "unknown"
+    local userName,userId=RLPermissionHelper.getUserContext(connection)
     Log:trace("RLPermissionHelper.authorizeConnection: resolved user '%s' (userId=%s)",
         tostring(userName), tostring(userId))
 
-    local hasPermission = g_currentMission:getHasPlayerPermission(permissionKey, connection)
+    local hasPermission = g_currentMission~=nil and type(g_currentMission.getHasPlayerPermission)=="function"
+        and g_currentMission:getHasPlayerPermission(permissionKey, connection)==true
     Log:trace("RLPermissionHelper.authorizeConnection: permission '%s' = %s",
         tostring(permissionKey), tostring(hasPermission))
 
-    local userFarm = g_farmManager:getFarmForUniqueUserId(userId)
-    local requesterFarmId = userFarm ~= nil and userFarm.farmId or nil
+    local requesterFarmId=RLPermissionHelper.getRequesterFarmId(userId)
     Log:trace("RLPermissionHelper.authorizeConnection: resolved requesterFarmId=%s ownerFarmId=%s",
         tostring(requesterFarmId), tostring(ownerFarmId))
 

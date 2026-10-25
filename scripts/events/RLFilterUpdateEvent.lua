@@ -45,11 +45,7 @@ function RLFilterUpdateEvent:readStream(streamId, connection)
     self:run(connection)
 end
 
-local function getUserContext(connection)
-    local userId = g_currentMission.userManager:getUniqueUserIdByConnection(connection)
-    local userName = (g_currentMission.userManager:getUserByConnection(connection) or {}).nickname or "unknown"
-    return userName, userId
-end
+local getUserContext=RLPermissionHelper.getUserContext
 
 function RLFilterUpdateEvent:run(connection)
     local filter = self.filter
@@ -94,16 +90,11 @@ function RLFilterUpdateEvent:run(connection)
         end
 
         if stored.farmId ~= nil then
-            local userFarm = g_farmManager:getFarmForUniqueUserId(userId)
-            if userFarm == nil or userFarm.farmId == nil then
-                Log:warning("RLFilterUpdateEvent:run: no farm lookup for user '%s' (userId=%s); aborting update id=%s",
-                    tostring(userName), tostring(userId), tostring(filter.id))
-                return
-            end
-            if userFarm.farmId ~= stored.farmId then
-                Log:warning("RLFilterUpdateEvent:run: farm-scope mismatch for user '%s' (userId=%s, userFarmId=%s) filter id=%s farmId=%s",
-                    tostring(userName), tostring(userId), tostring(userFarm.farmId),
-                    tostring(filter.id), tostring(stored.farmId))
+            local requesterFarmId=RLPermissionHelper.getRequesterFarmId(userId)
+            local allowed,reason=RLPermissionHelper.authorize(true,requesterFarmId,stored.farmId)
+            if not allowed then
+                Log:warning("RLFilterUpdateEvent:run: farm-scope rejected (%s) user='%s' requesterFarmId=%s ownerFarmId=%s",
+                    tostring(reason),tostring(userName),tostring(requesterFarmId),tostring(stored.farmId))
                 return
             end
         end
