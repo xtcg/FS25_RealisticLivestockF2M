@@ -355,6 +355,13 @@ local function new(options)
         end)
     end
     local api={storage=storage,contracts=cp(contracts),inspectionMode="INJECTED_NATIVE_INSPECTOR",allowEngineSave=true}
+    function api.readPayload(role)
+        return guarded(function()
+            need(stores[role]~=nil,"UNKNOWN_SAVE_PAYLOAD_ROLE")
+            readLedger(role)
+            return cp(assert(stores[role].read()).payload)
+        end)
+    end
     function api.begin(rawScope)
         return guarded(function()
             need(active==nil,"SHARED_SAVE_ALREADY_ACTIVE")

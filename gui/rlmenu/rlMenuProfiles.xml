@@ -817,4 +817,12 @@
         <handleFocus value="true"/>
         <sliderImageFocusedColor value="$preset_fs25_colorMainHighlight"/>
     </Profile>
+    <Profile name="rlMenu_brokerText" extends="fs25_textDefault" with="anchorTopLeft pivotTopLeft">
+        <textSize value="18px"/>
+        <textMaxNumLines value="16"/>
+        <handleFocus value="false"/>
+        <textAlignment value="left"/>
+        <textVerticalAlignment value="top"/>
+        <textLineHeightScale value="1.15"/>
+    </Profile>
 </GUIProfiles>

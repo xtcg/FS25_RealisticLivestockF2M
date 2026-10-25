@@ -24,7 +24,8 @@ local function validate(v,validator)
     fail(type(d.payload)=="table","INVALID_PAYLOAD")
     if d.kind=="STAGING" then
         local p=d.payload
-        keys(p,{phase=true,previous=true,proposed=true,proposedDigest=true})
+        keys(p,{phase=true,previous=true,proposed=true,proposedDigest=true,replacedDigest=true})
+        fail(p.replacedDigest==nil or text(p.replacedDigest),"INVALID_STAGING")
         fail((p.phase=="STAGED" or p.phase=="COMPLETED") and type(p.previous)=="string" and type(p.proposed)=="string" and text(p.proposedDigest),"INVALID_STAGING")
         fail(T().checksum(p.proposed)==p.proposedDigest,"INVALID_STAGING_DIGEST")
     else
@@ -125,20 +126,24 @@ function P.newStore(storage,options)
         local d,why=api.readEnvelope();if not d then return nil,why end
         return copy(d.payload)
     end
-    function api.write(payload)
+    -- rewind=true is the explicit recovery replacement: a verified checkpoint document replaces a
+    -- newer live WAL whose copy the caller already holds as evidence. It records no previous slot.
+    local function commit(payload,rewind)
         local okay,why=guarded(function()
             local old,missing=load();fail(old~=nil or missing=="NOT_FOUND",missing)
             local p=copy(payload);local sequence=p.sequence or (scope.kind=="MONTHS" and p.currentAbsoluteMonth)
             fail(integer(sequence,0),"PAYLOAD_SEQUENCE_REQUIRED")
             if old then
                 if sequence==old.sequence and T().canonical(p)==T().canonical(old.payload) then return true end
-                fail(sequence>old.sequence,"SEQUENCE_NOT_ADVANCED")
+                fail(rewind or sequence>old.sequence,"SEQUENCE_NOT_ADVANCED")
             end
             local d={schemaVersion=1,kind=scope.kind,lineage=scope.lineage,generation=scope.generation,checkpointId=scope.checkpointId,sequence=sequence,payload=p}
             local proposed,bad=P.encode(d,validatePayload);fail(proposed~=nil,bad)
-            local previous=old and assert(P.encode(old,validatePayload)) or ""
+            local previous=old and not rewind and assert(P.encode(old,validatePayload)) or ""
             local s={schemaVersion=1,kind="STAGING",lineage=scope.lineage,generation=scope.generation,checkpointId=scope.checkpointId,sequence=sequence,
                 payload={phase="STAGED",previous=previous,proposed=proposed,proposedDigest=T().checksum(proposed)}}
+            -- A rewind keeps no previous slot, but its staging record names what it replaced.
+            if rewind and old then s.payload.replacedDigest=T().checksum(assert(P.encode(old,validatePayload))) end
             local staged=assert(P.encode(s));evidence={previous=previous,staged=staged,proposed=proposed}
             fail(storage.write(stage,staged)==true and readPath(stage)==staged,"STAGING_WRITE_OR_READBACK_FAILED")
             fail(storage.write(path,proposed)==true and readPath(path)==proposed,"PRIMARY_WRITE_OR_READBACK_FAILED")
@@ -149,6 +154,8 @@ function P.newStore(storage,options)
         end)
         return okay==true,why
     end
+    function api.write(payload) return commit(payload,false) end
+    function api.replace(payload) return commit(payload,true) end
     function api.status() return {state=blocked and "RECOVERY_REQUIRED" or "READY",busy=busy,evidence=evidence and copy(evidence) or nil} end
     return api
 end

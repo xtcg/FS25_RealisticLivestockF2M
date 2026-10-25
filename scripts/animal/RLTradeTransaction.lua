@@ -40,6 +40,7 @@ function T.begin(store, id, kind, fingerprint, resources)
         if old.kind ~= kind or old.fingerprint ~= fingerprint then return nil, "ID_COLLISION" end
         return copy(old), "REPLAY"
     end
+    if RLBrokerRuntime and not RLBrokerRuntime.mutationAllowed() then return nil,"BROKER_RESOURCE_FENCE" end
     -- Batch 4: the savegame checkpoint's gate (loading, verifying, saving, recovery required).
     if store.admit ~= nil then
         local admitted, why = store.admit(store, id, kind)

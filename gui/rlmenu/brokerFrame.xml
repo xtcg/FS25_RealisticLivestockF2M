@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<GUI name="RLMenuBrokerFrame">
+    <GuiElement profile="fs25_menuContainer">
+        <GuiElement profile="fs25_menuHeaderPanel">
+            <Bitmap profile="fs25_menuHeaderIconBg"><Bitmap profile="fs25_menuHeaderIcon" imageSliceId="rlMenu.sell_animal"/></Bitmap>
+            <Text profile="fs25_menuHeaderTitle" text="$l10n_rl_broker_title"/>
+        </GuiElement>
+        <Text profile="rlMenu_brokerText" id="statusText" position="20px -110px" size="1500px 45px"/>
+        <Bitmap profile="fs25_multiTextOptionContainer" position="20px -165px" size="1500px 50px">
+            <MultiTextOption profile="fs25_settingsMultiTextOption" id="orderSelector" onClick="onOrderChanged"/>
+            <Text profile="fs25_settingsMultiTextOptionTitle" text="$l10n_rl_broker_order"/>
+        </Bitmap>
+        <Text profile="rlMenu_brokerText" id="orderText" position="20px -230px" size="1500px 65px"/>
+        <Text profile="rlMenu_brokerText" id="conditionsText" position="20px -305px" size="1500px 75px"/>
+        <Bitmap profile="fs25_multiTextOptionContainer" position="20px -390px" size="1500px 50px">
+            <MultiTextOption profile="fs25_settingsMultiTextOption" id="animalSelector" onClick="onAnimalChanged"/>
+            <Text profile="fs25_settingsMultiTextOptionTitle" text="$l10n_rl_broker_animal"/>
+        </Bitmap>
+        <Text profile="rlMenu_brokerText" id="priceText" position="20px -455px" size="1500px 100px"/>
+        <Text profile="rlMenu_brokerText" id="diagnosticsText" position="20px -570px" size="1500px 300px"/>
+    </GuiElement>
+</GUI>

@@ -146,4 +146,16 @@ do
     fails("mission: a pen that is not saved", { object("pen-1", { "husbandryAnimals" }, { PlaceableHusbandryAnimals }, { pen = 1, saved = false }), modShop },
         "UNPERSISTED_NATIVE_ANIMAL_CONTAINER")
     check("mission: an incomplete mission is unsupported", select(2, N.fromMission({})) == "NATIVE_MISSION_INVENTORY_UNSUPPORTED")
+    local tombstone=placeables(pen("pen-1",animal("1","COW_ANGUS"))..'<placeable uniqueId="removed-shed" isDeleted="true" filename="s.xml" farmId="1"/>')
+    keys=assert(N.fromMission(mission({mapPen})))(tombstone,"placeables")
+    check("mission: deleted preplaced tombstone requires no live object",keys and #keys==1)
+    local transient=object(nil,{"FS25_SomeMod.cosmetic"},{otherSpec},{saved=false})
+    keys=assert(N.fromMission(mission({mapPen,transient})))(placeables(pen("pen-1",animal("1","COW_ANGUS"))),"placeables")
+    check("mission: nonpersistent non-animal object needs no persistent UID",keys and #keys==1)
+    loadMod("scripts/market/RLBrokerHBSupport.lua")
+    _G.FS25_HofBergmann={PlaceableHusbandryFoodSpillage=otherSpec}
+    g_modManager={getModByName=function() return {version="1.5.0.0 Beta1"} end}
+    local hbPen=object("pen-1",{"husbandryAnimals","FS25_HofBergmann.husbandryFoodSpillage"},{PlaceableHusbandryAnimals,otherSpec},{pen=1})
+    keys=assert(N.fromMission(mission({hbPen}),{trustedCompanion=RLBrokerHBSupport.trustedCompanion}))(placeables(pen("pen-1",animal("1","COW_ANGUS"))),"placeables")
+    check("mission: audited HB companion retains native animal writer",keys and #keys==1)
 end

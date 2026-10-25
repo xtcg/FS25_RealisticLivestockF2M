@@ -98,6 +98,10 @@ function AnimalBuyEvent:run(connection)
 	end
 
 	RmSafeUtils.safeCall("AnimalBuyEvent:run", function()
+        if RLBrokerRuntime and not RLBrokerRuntime.mutationAllowed() then
+            connection:sendEvent(AnimalBuyEvent.newServerToClient(AnimalBuyEvent.BUY_ERROR_NO_PERMISSION))
+            return
+        end
 
 		-- Phase timing: per-phase TRACE lines (setup / validate / removeSale /
 		-- addAnimals / addMoney+sendEvent) so a slow buy can be localised to one phase.

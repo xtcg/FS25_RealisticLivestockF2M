@@ -44,7 +44,8 @@ RLMenu.TRAILER_EPP = RLMenuTabPolicy.EPP
 -- openFromBridge's startPageId validation. If a tab is added/removed, bump
 -- this and renumber setupMenuPages in lockstep -- the spec ASKS to halt on
 -- such changes.
-RLMenu.PAGE_COUNT = 9
+RLMenu.PAGE_COUNT = 10
+RLMenu.BROKER_PAGE_ID = 10
 
 -- Dev-only GUI hot-reload: open() re-runs setupGui() so on-disk XML edits show on reopen
 -- without a restart. Each reload LEAKS the prior element tree and double-registers its
@@ -109,6 +110,7 @@ function RLMenu.setupGui()
     RLMenuHerdsmanFrame.setupGui()
     RLMenuSettingsFrame.setupGui()
     RLMenuTransferFrame.setupGui()
+    RLMenuBrokerFrame.setupGui()
 
     -- 3. Create the menu instance and load its XML
     g_rlMenu = RLMenu.new()
@@ -222,8 +224,12 @@ function RLMenu:setupMenuPages()
         self.transferFrame:initialize()
     end
 
+    self:registerPage(self.brokerFrame,10,traced("broker",function() return visible("broker") end))
+    self:addPageTab(self.brokerFrame,nil,nil,"rlMenu.sell_animal")
+    if self.brokerFrame and self.brokerFrame.initialize then self.brokerFrame:initialize() end
+
     Log:debug(
-        "RLMenu:setupMenuPages: 9 pages registered (buy, sell, move, manage, ai, messages, herdsman, settings, transfer); visibility delegated to RLMenuTabPolicy per (openMode, counterpart)")
+        "RLMenu:setupMenuPages: 10 pages registered (buy, sell, move, manage, ai, messages, herdsman, settings, transfer, broker); visibility delegated to RLMenuTabPolicy per (openMode, counterpart)")
 end
 
 --- Configure the bottom button bar.
@@ -410,13 +416,27 @@ function RLMenu.open()
     g_gui:showGui("RLMenu")
 end
 
+--- Mouse launcher shared by native and RLRM settings.
+function RLMenu.openBrokerPage()
+    if not g_rlMenu or (g_gui.getIsDialogVisible and g_gui:getIsDialogVisible()) then return false end
+    if g_rlMenu.isOpen then
+        local index=RLMenuTabPolicy.visiblePageIndex(RLMenu.BROKER_PAGE_ID,g_rlMenu.openMode,g_rlMenu.trailerCounterpart)
+        if not index then return false end
+        -- showGui for the already-open menu need not call onOpen again.
+        -- Select the live page directly when launched from its Settings tab.
+        g_rlMenu.pageSelector:setState(index,true)
+        return true
+    end
+    return RLMenu.openFromBridge(RLMenu.BROKER_PAGE_ID,RLMenu.MODE_FULL,{fromInGameMenu=true})
+end
+
 --- Open the RL Menu from another GUI surface, REPLACING a non-dialog screen. Refuses
 --- while a modal dialog is up: replacing the screen underneath would leave that dialog
 --- floating with no owner. State is mutated only after the decision to show and rolled
 --- back if showGui throws, so a partial show cannot poison the next open. There is NO
 --- vanilla fallback - a refused open returns false and the caller warns.
 ---
---- @param startPageId number Page index in [1, RLMenu.PAGE_COUNT] to land on (Buy=1).
+--- @param startPageId number Registered page ID in [1, RLMenu.PAGE_COUNT] to land on (Buy=1).
 ---   IGNORED for MODE_TRAILER (the anchor is heuristic-derived; callers pass nil).
 --- @param mode string RLMenu.MODE_FULL, RLMenu.MODE_DEALER, or RLMenu.MODE_TRAILER.
 --- @param context table|nil For MODE_TRAILER: { trailer, counterpart, counterpartHandle }.
@@ -450,6 +470,8 @@ function RLMenu.openFromBridge(startPageId, mode, context)
             tostring(mode), tostring(startPageId))
         return false
     end
+    local visiblePageIndex=RLMenuTabPolicy.visiblePageIndex(startPageId,mode)
+    if visiblePageIndex==nil then return false end
 
     -- Dialog gate: replacing the underlying screen via showGui leaves any
     -- active dialog floating, with input focus stuck on the dialog and no
@@ -489,7 +511,7 @@ function RLMenu.openFromBridge(startPageId, mode, context)
     -- restorePage first, so clearing it makes
     -- pageSelector:setState(restorePageIndex, true) the authoritative path.
     g_rlMenu.openMode = mode
-    g_rlMenu.restorePageIndex = startPageId
+    g_rlMenu.restorePageIndex = visiblePageIndex
     g_rlMenu.restorePage = nil
     g_rlMenu.anchoredHusbandry = anchorHusbandry
 

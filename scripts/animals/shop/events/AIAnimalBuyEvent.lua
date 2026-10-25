@@ -61,6 +61,7 @@ end
 
 
 function AIAnimalBuyEvent:run(connection)
+    if RLBrokerRuntime and not RLBrokerRuntime.mutationAllowed() then return end
 
 	RmSafeUtils.safeCall("AIAnimalBuyEvent:run", function()
 

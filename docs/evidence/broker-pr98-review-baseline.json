@@ -1,0 +1,54 @@
+[
+  {
+    "test": "brokerui",
+    "baseCommit": "63edd8d0",
+    "failures": [
+      "broker UI: old dialog cannot settle or discard a newer animal quote",
+      "broker UI: nonpositive pickup net explains rejection instead of eligible",
+      "broker UI: disabled switch is visible and hides settlement button"
+    ],
+    "newFeatureProbes": [
+      "broker UI: disabled switch is visible and hides settlement button"
+    ],
+    "regressionProbes": [
+      "broker UI: old dialog cannot settle or discard a newer animal quote",
+      "broker UI: nonpositive pickup net explains rejection instead of eligible"
+    ]
+  },
+  {
+    "test": "brokermonth",
+    "baseCommit": "63edd8d0",
+    "failures": [
+      "month: load authority cannot rewind a running session"
+    ],
+    "newFeatureProbes": [],
+    "regressionProbes": [
+      "month: load authority cannot rewind a running session"
+    ]
+  },
+  {
+    "test": "brokercattlepolicy",
+    "baseCommit": "63edd8d0",
+    "failures": [
+      "broker cattle: finish fact uses live weight/condition instead of age REAL COW_ANGUS",
+      "broker cattle: missing finish reference stays unknown REAL COW_ANGUS",
+      "broker cattle: finish fact uses live weight/condition instead of age REAL BULL_ANGUS",
+      "broker cattle: missing finish reference stays unknown REAL BULL_ANGUS",
+      "broker cattle: finish fact uses live weight/condition instead of age LEGACY COW_ANGUS",
+      "broker cattle: missing finish reference stays unknown LEGACY COW_ANGUS",
+      "broker cattle: finish fact uses live weight/condition instead of age LEGACY BULL_ANGUS",
+      "broker cattle: missing finish reference stays unknown LEGACY BULL_ANGUS"
+    ],
+    "newFeatureProbes": [],
+    "regressionProbes": [
+      "broker cattle: finish fact uses live weight/condition instead of age REAL COW_ANGUS",
+      "broker cattle: missing finish reference stays unknown REAL COW_ANGUS",
+      "broker cattle: finish fact uses live weight/condition instead of age REAL BULL_ANGUS",
+      "broker cattle: missing finish reference stays unknown REAL BULL_ANGUS",
+      "broker cattle: finish fact uses live weight/condition instead of age LEGACY COW_ANGUS",
+      "broker cattle: missing finish reference stays unknown LEGACY COW_ANGUS",
+      "broker cattle: finish fact uses live weight/condition instead of age LEGACY BULL_ANGUS",
+      "broker cattle: missing finish reference stays unknown LEGACY BULL_ANGUS"
+    ]
+  }
+]

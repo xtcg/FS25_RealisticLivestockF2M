@@ -154,6 +154,7 @@ end
 ---@return string|nil failureStage Why it was refused: "source" | "ownership" | "identity" | "animal" | "price"
 ---@return string|nil reason Log text when refused
 function AIAnimalSellEvent.quoteSale(object, identities, sellerFarmId)
+    if RLBrokerRuntime and not RLBrokerRuntime.mutationAllowed() then return nil,"source","BROKER_RESOURCE_FENCE" end
 
 	if object == nil or object.getClusterSystem == nil or object:getClusterSystem() == nil then
 		return nil, "source", "no source"

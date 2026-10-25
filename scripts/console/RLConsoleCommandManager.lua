@@ -62,6 +62,10 @@ function RLConsoleCommandManager.new()
         addConsoleCommand("rlIdentityMode", "Identity ledger back to OFF (old counters) or SHADOW (observe only)", "mode", RLIdentityConsole.commands, "<OFF|SHADOW>")
         addConsoleCommand("rlIdentityRecoveryClear", "Leave identity RECOVERY_REQUIRED after reading the evidence", "recoveryClear", RLIdentityConsole.commands, "")
     end
+    addConsoleCommand("rlBrokerStatus", "Merchant purchase contracts: state, pause reason, recovery marker (read-only)", "brokerStatus", RLIdentityConsole.commands, "")
+    if g_currentMission:getIsServer() then
+        addConsoleCommand("rlBrokerRecoveryClear", "Leave a merchant purchase pause when the saved checkpoint still verifies (single player, before any delivery this session)", "brokerRecoveryClear", RLIdentityConsole.commands, "")
+    end
     addConsoleCommand("rlDealerV2Status", "Dealer v2 channel: state, gate reason, stock counts (read-only)", "dealerStatus", RLIdentityConsole.commands, "")
     if g_currentMission:getIsServer() then
         addConsoleCommand("rlDealerV2Enable", "Switch the dealer v2 channel on for this session (singleplayer cattle; needs the identity ledger ON)", "dealerEnable", RLIdentityConsole.commands, "")

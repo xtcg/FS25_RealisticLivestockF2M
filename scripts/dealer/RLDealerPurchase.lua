@@ -151,6 +151,7 @@ function P.execute(store, request, principal, adapter)
         return nil, "RECOVERY_REQUIRED"
     end
     if store.recoveryRequired then return nil, "RECOVERY_REQUIRED" end
+    if RLBrokerRuntime and not RLBrokerRuntime.mutationAllowed() then return nil,"BROKER_RESOURCE_FENCE" end
     local ms; ms, why = now(store, adapter); if not ms then return nil, why end
     -- Never steal an expired lock from a transaction that may own side effects.
     for _, item in ipairs(r.items) do

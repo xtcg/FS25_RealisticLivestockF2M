@@ -40,7 +40,7 @@
             <!-- ScrollingLayout uses fs25_settingsLayout. Rows render in
                  source order; per-section 20px GuiElement spacers act as
                  visual gaps without text headers. Order matches
-                 RLSettings.SETTINGS index 1..21. -->
+                 RLSettings.SETTINGS index 1..23. -->
             <ScrollingLayout profile="fs25_settingsLayout" id="generalSettingsLayout">
 
                 <!-- 1. Mortality -->
@@ -208,6 +208,19 @@
                     <Text profile="fs25_settingsMultiTextOptionTitle" text="$l10n_rl_settings_maxVisualAnimals_label"/>
                 </Bitmap>
 
+                <Bitmap profile="fs25_multiTextOptionContainer" id="rlmenuSettingRow_brokerEnabled">
+                    <BinaryOption profile="fs25_settingsBinaryOption" id="rlmenuSetting_brokerEnabled" onClick="onClickGeneralSetting">
+                        <Text profile="fs25_multiTextOptionTooltip" name="tooltip"/>
+                    </BinaryOption>
+                    <Text profile="fs25_settingsMultiTextOptionTitle" text="$l10n_rl_settings_brokerEnabled_label"/>
+                </Bitmap>
+                <Bitmap profile="fs25_multiTextOptionContainer" id="rlmenuSettingRow_brokerOrders">
+                    <Button profile="rl_settingsButton" id="rlmenuSetting_brokerOrders" text="$l10n_rl_settings_brokerOrders_text" onClick="onClickGeneralAction">
+                        <ThreePartBitmap profile="fs25_settingsButtonBg"/>
+                        <Text profile="fs25_multiTextOptionTooltip" name="tooltip"/>
+                    </Button>
+                    <Text profile="fs25_settingsMultiTextOptionTitle" text="$l10n_rl_settings_brokerOrders_label"/>
+                </Bitmap>
             </ScrollingLayout>
 
             <!-- SliderBox moved out to top level under

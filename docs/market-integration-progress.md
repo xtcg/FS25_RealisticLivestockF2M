@@ -1,5 +1,37 @@
 # 畜牧商人 v2 与通用市场：分步实施记录
 
+## 2026-10-25：PR #98 第二轮审查与暂停恢复（0.2.2.2）
+
+[审查记录](reviews/broker-pr98-review-20261025.md)“第二轮审查”及其复审：独立审查的 8 条发现逐条复核，5 条属实或局部属实并修复，2 条按设计不改，1 条（页面开销与文本框高度）记入待办。
+
+- **暂停可恢复**：`rlBrokerStatus` / `rlBrokerRecoveryClear`（`RLBrokerGameBinding.recover`）。读档后用检查点证明世界一致，才以 `RLBrokerPersistence` 新增的 `replace` 取代更新的未保存 WAL，旧 WAL 先复制为 `rm_RlBrokerLive_broker.unsaved.*`，暂存记录写入 `replacedDigest`。本会话已成交、健康运行、验证失败都不会改变或放开暂停。
+- **身份保持自动释放**：身份账本之后恢复为 READY，`G.update` 重新评估并启动；占位标记不再写入存档；多人客户端先判单机范围。
+- **旧渠道栈门控**：`legacyDepth` 用 fence epoch，重置期间的调用不能把计数减为负，包装器返回全部返回值。
+- **首次保存前月度需求**：`RLBrokerMonth:resumeUnsaved` 按游戏日期恢复并复用上次未保存会话的未来需求。
+- **nil 拒收**：`eligibilityContext` 在动物中途消失时给出身份未验证的明确拒收。
+
+后续开发：证据文件改为固定槽位 `unsaved.<1..9>`，每次保存携带；Broker 页面增加“恢复收购”按钮（`G.canRecover`，经确认框，17 个语言文件补键）；新增游戏内[测试卡](broker-game-test-cards.md) BG01–BG06。
+
+新增 `test_brokergamebinding`（恢复、身份保持、首次保存前需求、标记）、`test_brokerruntime`（fence epoch、nil 拒收、确认计数）用例，控制台注册断言 16→18。全量回归 **7197/7197**，修改的 5 个模块通过 Lua 5.1 编译。仍无真实游戏验证；暂停期间做过保存的存档保持关闭，需人工核对证据。
+
+## 2026-10-25：PR #98 审查与鼠标入口（0.2.2.1）
+
+[审查记录](reviews/broker-pr98-review-20261025.md)：修复旧确认框回调可能确认新报价、读档授权允许运行中倒退月份、仅凭年龄推断完成育肥，以及非正接运净额仍显示合格四项问题。原提交已复现相应反例，修复后通过。
+
+商人收购设置默认开启，关闭状态随存档保存；关闭不清订单、额度或恢复锁。暂停菜单“设置”页直接提供“商人收购合同”点击按钮，RLRM“设置→常规”提供开关及查看需求按钮。无需组合键。入口区分注册页号与可见页索引，在已打开的设置页直接切页，并保留回到原生菜单的路径。
+
+冻结源码全量回归 **7176/7176、exit 0**（`/private/tmp/rlrm-broker-review-full.log`）；Lua 5.4 定向 **730/730**；27 个模块及 3 个原生设置函数通过 Lua 5.1 编译；结构检查 399 文件、396 全局、0 问题，`git diff --check` 通过。真实游戏界面与交付/存档实测仍未执行，本次不扩大物种、自送或多人范围。
+
+## 2026-10-25：基于 PR #95 的首个可玩范围
+
+当前增量见 [玩家入口](broker-playable.md) 与 [完整资格/经济证据](evidence/broker-cattle-release.md)。以下范围状态替代历史记录中的“Broker 全部未接线”：单机 Angus 断奶小牛、月度共享额度、牧场接运、逐只确认及 native 共同保存已完成代码接线，首次完整保存后开放；联合 XML/事务/UI 回调离线回归已增加。全局 Market 定价、自送、猪羊和多人继续关闭。
+
+同时修复正常成交 staged/live quota 证明不一致，增加保存前完整文档递增/回读屏障、sidecar 覆盖前快照、最终目录 store 重绑、未保存月度需求复用和不明结果随保存携带。Broker 与旧交易入口双向执行栈门控；保存时排除未售商人库存，避免反复导入永久身份账本。HB Beta1 companion 按版本及模块身份授权。
+
+不把 U88/U89 实机/联机验收标为完成。安装包为 `0.2.2.0` 候选版，未发布 release，未合并 PR #95。
+
+最终验证：冻结源码的 `python3 tests/run.py` **7148/7148、exit 0**，日志 `/private/tmp/rlrm-broker-frozen.log`。Lua 5.4 定向 **702/702**（新 Broker、联合保存、UI、身份与相关既有交易）；27 个 Broker/保存/身份/菜单模块通过 Lua 5.1 编译。`tests/check_structure.py` 为 399 文件、396 个文件级全局、0 问题，`git diff --check` 通过。现有磁盘回归使用已授权的沙箱外执行；不把先前 `/var/tmp` 受阻的那次运行算作通过。
+
 依据：`FS25_畜牧商人v2与通用市场_整合实施设计_2026-10-22.md`，以 A–L 修订优先。开发工作树 `rlrm-market-integration`；分支 `feat/market-integration-p0`；远端更新后冻结的 baseSHA 为 `7f01d330f2de0b32a30ca8eda1ef9b1cdf4aba40`。
 
 ## 第一包：P0 / G0 起步
