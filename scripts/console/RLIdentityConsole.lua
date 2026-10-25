@@ -125,7 +125,7 @@ function C.brokerRecoveryClear()
     if not RLAnimalIdentityRuntime.server then return "RLBROKER: server only" end
     local ok, why = RLBrokerGameBinding.recover()
     if not ok then return say("RLBROKER: recovery kept: " .. tostring(why)) end
-    local kept = why ~= nil and ("; the unsaved Broker records are kept as " .. tostring(why) .. " (the next save replaces the save folder, so copy that file out first if you want it)") or ""
+    local kept = why ~= nil and ("; the unsaved Broker records are kept as " .. tostring(why) .. " (every later save carries it along; up to 9 are kept)") or ""
     return say("RLBROKER: recovery cleared; the Broker restarted from the saved checkpoint, so its orders and quotas are the saved ones" .. kept .. ". Save the game once.")
 end
 

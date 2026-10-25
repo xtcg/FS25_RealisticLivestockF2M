@@ -7,10 +7,6 @@ G.RECOVERY_MARKER="rlBrokerRecovery"
 -- In-memory placeholder while the identity ledger is not READY. Never persisted: the evidence
 -- files it stands for are carried by the save and re-evaluated on the next load.
 G.IDENTITY_HOLD_MARKER="ASSETS:BROKER_IDENTITY_NOT_READY"
-local function timestamp()
-    local stamp=type(getDate)=="function" and getDate("%Y%m%d%H%M%S") or tostring(g_time)
-    return stamp.."-"..tostring(g_time)
-end
 local function need(v,why) if not v then error(why or "BROKER_GAME_BINDING_FAILED",0) end return v end
 local function same(a,b) return D.fingerprint(a)==D.fingerprint(b) end
 local function recoveryMarker(dir)
@@ -29,10 +25,23 @@ local function clearRecoveryMarker(dir)
     local saved=xml:save();xml:delete()
     return saved~=false
 end
-local function carryEvidence(from,to)
+-- Unsaved WAL copies kept by a recovery clear use fixed slot names, so every later save can
+-- carry them across the engine's folder replacement (no directory listing is needed).
+G.UNSAVED_SLOTS=9
+local function unsavedName(slot) return "rm_RlBrokerLive_broker.unsaved."..slot..".xml" end
+local function unsavedNames()
+    local names={}
+    for slot=1,G.UNSAVED_SLOTS do names[slot]=unsavedName(slot) end
+    return names
+end
+local function carryEvidence(from,to,names)
     if not from or from==to then return end
-    for _,name in ipairs({"rm_RlMarketIdentity.xml","rm_RlMarketAcquisition.xml","rm_RlMarketBroker.xml",
-        "rm_RlMarketMonths.xml","rm_RlBrokerLive_broker.xml","rm_RlBrokerLive_months.xml"}) do
+    if not names then
+        names={"rm_RlMarketIdentity.xml","rm_RlMarketAcquisition.xml","rm_RlMarketBroker.xml",
+            "rm_RlMarketMonths.xml","rm_RlBrokerLive_broker.xml","rm_RlBrokerLive_months.xml"}
+        for _,name in ipairs(unsavedNames()) do names[#names+1]=name end
+    end
+    for _,name in ipairs(names) do
         for _,suffix in ipairs({"",".staging"}) do
             local source,target=from.."/"..name..suffix,to.."/"..name..suffix
             if fileExists(source) then need(copyFile(source,target,true)==true,"BROKER_RECOVERY_EVIDENCE_COPY_FAILED") end
@@ -148,7 +157,12 @@ function G.start(m,options)
             -- The checkpoint above proved the loaded world equals the saved cohort, so a live WAL
             -- that differs holds only transactions the world never saved. Keep it as evidence
             -- (the engine refuses mod file deletion) and put the saved document back.
-            local evidenceBase=dir.."/rm_RlBrokerLive_broker.unsaved."..timestamp()..".xml"
+            local slot
+            for candidate=1,G.UNSAVED_SLOTS do
+                if not fileExists(dir.."/"..unsavedName(candidate)) then slot=candidate;break end
+            end
+            need(slot,"BROKER_RECOVERY_EVIDENCE_SLOTS_FULL")
+            local evidenceBase=dir.."/"..unsavedName(slot)
             for _,suffix in ipairs({"",".staging"}) do
                 local source=dir.."/rm_RlBrokerLive_broker.xml"..suffix
                 if fileExists(source) then
@@ -256,6 +270,18 @@ function G.recover()
     end
     return true,G.recoveredEvidence
 end
+-- Whether the UI should offer the recovery clear: a real pause (not the permanent single-player
+-- scope or a start still in progress), identity ready, and no delivery made this session.
+function G.canRecover()
+    local m=g_currentMission
+    if not m or not m:getIsServer() or not m.missionDynamicInfo or m.missionDynamicInfo.isMultiplayer~=false then return false end
+    local I=RLAnimalIdentityCheckpoint
+    if G.pass or not I or I.state~="READY" then return false end
+    local r=RLBrokerRuntime.current
+    if r and r.confirmedThisSession then return false end
+    if r then return r.state=="RECOVERY_REQUIRED" end
+    return G.disabledReason~=nil and G.disabledReason~="BROKER_SINGLEPLAYER_ONLY" and G.disabledReason~="BROKER_IDENTITY_NOT_READY"
+end
 function G.beginSave(info)
     local r=RLBrokerRuntime.current
     if G.carryRecovery or (r and r.state=="RECOVERY_REQUIRED") then
@@ -263,6 +289,8 @@ function G.beginSave(info)
         carryEvidence(G.directory,info.savegameDirectory)
         return
     end
+    -- Evidence kept by a recovery clear survives every later folder replacement.
+    carryEvidence(G.directory,info.savegameDirectory,unsavedNames())
     if not r then return end
     need(not r.busy and not G.pass,"BROKER_OVERLAPPING_SAVE")
     local identity=RLAnimalIdentityRuntime

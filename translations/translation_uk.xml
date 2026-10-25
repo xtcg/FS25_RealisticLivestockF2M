@@ -1153,5 +1153,11 @@
         <text name="rl_settings_brokerOrders_text" text="View purchase demand"/>
         <text name="rl_settings_brokerOrders_tooltip" text="Open monthly demand and animal eligibility. You can browse while purchases are off."/>
         <text name="rl_broker_reason_BROKER_DISABLED" text="Merchant purchases are off. Enable them in RLRM Settings &gt; General."/>
+        <text name="rl_broker_recover" text="Recover purchases"/>
+        <text name="rl_broker_recover_confirm" text="Restart purchase contracts from the saved checkpoint? Records of unsaved purchases are set aside as evidence, and orders and quotas return to the saved state. Use this only after reloading, before any new delivery."/>
+        <text name="rl_broker_recovered" text="Purchase contracts restarted from the saved checkpoint. Save the game once."/>
+        <text name="rl_broker_reason_BROKER_RECOVERY_RELOAD_REQUIRED" text="A delivery was made in this session. Reload the last save to recover."/>
+        <text name="rl_broker_reason_BROKER_NOT_PAUSED" text="Purchase contracts are not paused."/>
+        <text name="rl_broker_reason_BROKER_RECOVERY_EVIDENCE_SLOTS_FULL" text="Too many earlier recovery records are kept. Review them before another recovery."/>
     </texts>
 </l10n>

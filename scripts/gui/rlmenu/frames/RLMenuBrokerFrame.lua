@@ -112,6 +112,9 @@ function F:showSelection()
     end
     self.menuButtonInfo={{inputAction=InputAction.MENU_BACK},
         {inputAction=InputAction.MENU_EXTRA_1,text=tr("refresh"),callback=function() self:refresh() end}}
+    if RLBrokerGameBinding.canRecover() then
+        self.menuButtonInfo[#self.menuButtonInfo+1]={inputAction=InputAction.MENU_EXTRA_2,text=tr("recover"),callback=function() self:onRecover() end}
+    end
     if self.qualified and r:ready() then
         self.menuButtonInfo[#self.menuButtonInfo+1]={inputAction=InputAction.MENU_ACCEPT,text=tr("pickup"),callback=function() self:onPickup() end}
     end
@@ -126,6 +129,16 @@ function F:onPickup()
     local a=self.animals[self.animalIndex]
     YesNoDialog.show(self.onConfirmed,self,string.format(tr("confirm"),a.label,money(quote.money.netToPlayer)),tr("title"),
         nil,nil,nil,nil,nil,self.pending)
+end
+function F:onRecover()
+    if not self.isFrameOpen or self.pending or not RLBrokerGameBinding.canRecover() then return end
+    YesNoDialog.show(self.onRecoverConfirmed,self,tr("recover_confirm"),tr("title"),nil,nil,nil,nil,nil,self.serial)
+end
+function F:onRecoverConfirmed(confirmed,serial)
+    if not confirmed or not self.isFrameOpen or serial~=self.serial then return end
+    local ok,why=RLBrokerGameBinding.recover()
+    InfoDialog.show(ok and tr("recovered") or reason(why))
+    self:refresh()
 end
 function F:onConfirmed(confirmed,pending)
     if not pending or self.pending~=pending then return end

@@ -149,13 +149,19 @@ check("broker recovery: a delivery this session cannot be cleared in place",sele
 G.reset();G.attempt()
 check("broker recovery: unsaved WAL pauses Broker and legacy channels at load",RLBrokerRuntime.current.state=="RECOVERY_REQUIRED"
     and not RLBrokerRuntime.mutationAllowed())
+check("broker recovery: a paused Broker offers the recovery",G.canRecover())
 local cleared,clearWhy=G.recover()
 local evidence
 for path in pairs(w.files) do if path:find("rm_RlBrokerLive_broker.unsaved.",1,true) then evidence=path end end
 check("broker recovery: verified checkpoint reopens, WAL kept as evidence",cleared==true and evidence~=nil and RLBrokerRuntime.current:ready()
     and RLBrokerRuntime.mutationAllowed() and RLBrokerRuntime.current:listOrders()[1].remaining.breed==before)
+check("broker recovery: no recovery offered for a healthy Broker",not G.canRecover())
 G.reset();assert(G.start(x.m))
 check("broker recovery: the cleared state loads normally afterwards",RLBrokerRuntime.current:ready())
+G.beginSave({savegameDirectory="stage-evidence"})
+check("broker recovery: unsaved WAL evidence is carried by a later healthy save",
+    w.files["stage-evidence/rm_RlBrokerLive_broker.unsaved.1.xml"]~=nil and w.files["test-save/rm_RlBrokerLive_broker.unsaved.1.xml"]~=nil)
+G.pass=nil;G.reset()
 -- A save made while paused changes the career body, so it can no longer prove the checkpoint:
 -- the clear is refused and every channel stays closed.
 x,w=setup();x.save()

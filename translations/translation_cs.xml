@@ -1185,5 +1185,11 @@
         <text name="rl_settings_brokerOrders_text" text="查看收购需求"/>
         <text name="rl_settings_brokerOrders_tooltip" text="点击查看月度需求和动物资格；关闭收购时仍可查看。"/>
         <text name="rl_broker_reason_BROKER_DISABLED" text="商人收购已关闭，请在 RLRM 设置的常规页开启。"/>
+        <text name="rl_broker_recover" text="恢复收购"/>
+        <text name="rl_broker_recover_confirm" text="从已保存的检查点重启收购合同？未保存的收购记录会作为证据另存，订单和额度回到保存时的状态。请只在重新读档后、尚未进行新的交付时使用。"/>
+        <text name="rl_broker_recovered" text="收购合同已从保存的检查点重启，请保存一次游戏。"/>
+        <text name="rl_broker_reason_BROKER_RECOVERY_RELOAD_REQUIRED" text="本次游戏中已有交付，请读取上一次存档后再恢复。"/>
+        <text name="rl_broker_reason_BROKER_NOT_PAUSED" text="收购合同当前没有暂停。"/>
+        <text name="rl_broker_reason_BROKER_RECOVERY_EVIDENCE_SLOTS_FULL" text="保留的恢复记录过多，请先检查这些记录再恢复。"/>
     </texts>
 </l10n>

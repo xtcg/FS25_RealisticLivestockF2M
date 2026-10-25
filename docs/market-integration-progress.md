@@ -10,6 +10,8 @@
 - **首次保存前月度需求**：`RLBrokerMonth:resumeUnsaved` 按游戏日期恢复并复用上次未保存会话的未来需求。
 - **nil 拒收**：`eligibilityContext` 在动物中途消失时给出身份未验证的明确拒收。
 
+后续开发：证据文件改为固定槽位 `unsaved.<1..9>`，每次保存携带；Broker 页面增加“恢复收购”按钮（`G.canRecover`，经确认框，17 个语言文件补键）；新增游戏内[测试卡](broker-game-test-cards.md) BG01–BG06。
+
 新增 `test_brokergamebinding`（恢复、身份保持、首次保存前需求、标记）、`test_brokerruntime`（fence epoch、nil 拒收、确认计数）用例，控制台注册断言 16→18。全量回归 **7197/7197**，修改的 5 个模块通过 Lua 5.1 编译。仍无真实游戏验证；暂停期间做过保存的存档保持关闭，需人工核对证据。
 
 ## 2026-10-25：PR #98 审查与鼠标入口（0.2.2.1）
