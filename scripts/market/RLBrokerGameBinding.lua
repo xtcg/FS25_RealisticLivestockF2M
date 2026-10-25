@@ -4,13 +4,30 @@ local G=RLBrokerGameBinding
 local D=RLMarketData
 local P=RLBrokerCattlePolicy
 G.RECOVERY_MARKER="rlBrokerRecovery"
+-- In-memory placeholder while the identity ledger is not READY. Never persisted: the evidence
+-- files it stands for are carried by the save and re-evaluated on the next load.
+G.IDENTITY_HOLD_MARKER="ASSETS:BROKER_IDENTITY_NOT_READY"
+local function timestamp()
+    local stamp=type(getDate)=="function" and getDate("%Y%m%d%H%M%S") or tostring(g_time)
+    return stamp.."-"..tostring(g_time)
+end
 local function need(v,why) if not v then error(why or "BROKER_GAME_BINDING_FAILED",0) end return v end
 local function same(a,b) return D.fingerprint(a)==D.fingerprint(b) end
 local function recoveryMarker(dir)
     local xml=XMLFile.loadIfExists("rlBrokerRecoveryRead",dir.."/careerSavegame.xml")
     if not xml then return nil end
     local marker=xml:getString("careerSavegame#"..G.RECOVERY_MARKER)
-    xml:delete();return marker
+    xml:delete()
+    -- An explicit recovery clear leaves an empty value: the engine XML API has no remove-attribute call here.
+    if marker=="" then return nil end
+    return marker
+end
+local function clearRecoveryMarker(dir)
+    local xml=XMLFile.loadIfExists("rlBrokerRecoveryClear",dir.."/careerSavegame.xml")
+    if not xml then return true end
+    xml:setString("careerSavegame#"..G.RECOVERY_MARKER,"")
+    local saved=xml:save();xml:delete()
+    return saved~=false
 end
 local function carryEvidence(from,to)
     if not from or from==to then return end
@@ -32,6 +49,15 @@ local function archivePresent(dir)
         xml:delete();return marker~=nil
     end
     return false
+end
+-- A scope-only marker protects nothing when no Broker evidence was ever persisted
+-- (nothing to re-verify), so it must not outlive a transient cause such as a
+-- duplicated identity key that the player later fixes.
+local function markerWorth(marker,dir)
+    if not marker or marker==G.IDENTITY_HOLD_MARKER then return false end
+    if marker:sub(1,7)=="ASSETS:" then return true end
+    return dir~=nil and (archivePresent(dir) or fileExists(dir.."/rm_RlBrokerLive_broker.xml")
+        or fileExists(dir.."/rm_RlBrokerLive_broker.xml.staging"))
 end
 local function newStores(dir,lineage)
     local validators={broker=RLBrokerTransaction.validateDocument,months=function(doc)
@@ -65,7 +91,8 @@ local function checkpoint(a,r)
     end
     return need(RLMarketCheckpoint.new(a.storage,a.contracts,hooks))
 end
-function G.start(m)
+function G.start(m,options)
+    local recover=type(options)=="table" and options.recover==true
     if not m:getIsServer() or not m.missionDynamicInfo or m.missionDynamicInfo.isMultiplayer~=false then
         G.disabledReason="BROKER_SINGLEPLAYER_ONLY";return false,G.disabledReason
     end
@@ -101,7 +128,8 @@ function G.start(m)
         monthStore=proxy("months"),transactionStore=proxy("broker")}))
     G.stores,G.directory,G.storeBinding=stores,dir,binding
     RLBrokerRuntime.current=r
-    G.carryRecovery=recoveryMarker(dir)
+    local marker=recoveryMarker(dir)
+    G.carryRecovery=not recover and marker or nil
     if G.carryRecovery then
         r.assetRisk=G.carryRecovery:sub(1,7)=="ASSETS:"
         r:block("BROKER_RECOVERY_CARRIED:"..G.carryRecovery)
@@ -116,6 +144,21 @@ function G.start(m)
         need(proof.lineage==G.lineage,"BROKER_LINEAGE_MISMATCH")
         local doc=need(a.readPayload("broker"))
         local live,why=stores.broker.read()
+        if recover and live and not same(live,doc) then
+            -- The checkpoint above proved the loaded world equals the saved cohort, so a live WAL
+            -- that differs holds only transactions the world never saved. Keep it as evidence
+            -- (the engine refuses mod file deletion) and put the saved document back.
+            local evidenceBase=dir.."/rm_RlBrokerLive_broker.unsaved."..timestamp()..".xml"
+            for _,suffix in ipairs({"",".staging"}) do
+                local source=dir.."/rm_RlBrokerLive_broker.xml"..suffix
+                if fileExists(source) then
+                    need(copyFile(source,evidenceBase..suffix,true)==true,"BROKER_RECOVERY_EVIDENCE_COPY_FAILED")
+                end
+            end
+            G.recoveredEvidence=evidenceBase
+            need(stores.broker.replace(doc),"BROKER_RECOVERY_WAL_REPLACE_FAILED")
+            live=doc
+        end
         need((not live and why=="NOT_FOUND") or (live and same(live,doc)),"BROKER_UNSAVED_OR_MIXED_TRANSACTION")
         local history=need(a.readPayload("months"))
         local liveMonths,monthWhy=stores.months.read()
@@ -128,33 +171,90 @@ function G.start(m)
     else
         local live,why=stores.broker.read()
         need(not live and why=="NOT_FOUND","BROKER_WAL_WITHOUT_CHECKPOINT")
+        -- Future demand left by an earlier unsaved session is reused at the game date.
+        local liveMonths=stores.months.read()
+        if liveMonths then need(r.month:resumeUnsaved(liveMonths,r:currentMonth())) end
         r.state,r.reason="SAVE_REQUIRED","BROKER_INITIAL_SAVE_REQUIRED"
     end
     need(r:publish())
+    -- Only an unarchived save reaches here with a marker: an archived one would have failed the
+    -- career body digest above, because the marker is part of that body.
+    if recover and marker then need(clearRecoveryMarker(dir),"BROKER_RECOVERY_MARKER_CLEAR_FAILED") end
     return true
 end
-function G.update()
-    if G.started or G.disabledReason or not g_currentMission then return end
-    local I=RLAnimalIdentityCheckpoint
-    if not I or I.state=="LOADING" then return end
-    if I.state~="READY" then
-        G.disabledReason="BROKER_IDENTITY_NOT_READY"
-        local m=g_currentMission
-        local dir=m.missionInfo and m.missionInfo.savegameDirectory
-        if dir and (archivePresent(dir) or fileExists(dir.."/rm_RlBrokerLive_broker.xml") or recoveryMarker(dir)) then
-            G.directory=dir;G.carryRecovery="ASSETS:BROKER_IDENTITY_NOT_READY"
-            RLBrokerRuntime.recoveryHold=true
-        end
-        return
-    end
+-- One start attempt with the shared failure handling.
+function G.attempt(options)
     G.started=true
-    local ok,result,why=pcall(G.start,g_currentMission)
+    local ok,result,why=pcall(G.start,g_currentMission,options)
     if not ok or result~=true then
         local reason=ok and why or tostring(result)
         if RLBrokerRuntime.current then RLBrokerRuntime.current:block(reason) end
         G.disabledReason=reason
         RmLogging.getLogger("RLRM"):warning("Broker unavailable: %s",tostring(reason))
+        return false,reason
     end
+    return true
+end
+function G.update()
+    if G.started or not g_currentMission then return end
+    if G.disabledReason and not G.identityWait then return end
+    local m=g_currentMission
+    -- Report the permanent single-player scope before any identity state: a client or
+    -- dedicated server never gets an identity ledger and must not read as "not ready".
+    if not m:getIsServer() or not m.missionDynamicInfo or m.missionDynamicInfo.isMultiplayer~=false then
+        G.disabledReason="BROKER_SINGLEPLAYER_ONLY";return
+    end
+    local I=RLAnimalIdentityCheckpoint
+    if not I or I.state=="LOADING" then return end
+    if I.state~="READY" then
+        -- Identity recovery (rlIdentityRecoveryClear) can still make it READY: keep looking.
+        if not G.identityWait then
+            G.identityWait=true
+            G.disabledReason="BROKER_IDENTITY_NOT_READY"
+            local dir=m.missionInfo and m.missionInfo.savegameDirectory
+            if dir and (archivePresent(dir) or fileExists(dir.."/rm_RlBrokerLive_broker.xml") or recoveryMarker(dir)) then
+                G.directory=dir;G.carryRecovery=G.IDENTITY_HOLD_MARKER
+                RLBrokerRuntime.recoveryHold=true
+            end
+        end
+        return
+    end
+    if G.identityWait then
+        G.identityWait=nil;G.disabledReason=nil;G.carryRecovery=nil
+        RLBrokerRuntime.recoveryHold=nil
+    end
+    G.attempt()
+end
+-- Console route (rlBrokerRecoveryClear): leave a Broker pause after the evidence was read.
+-- Everything is re-verified by a full start. Refused once this session has run a Broker
+-- delivery, because then the world is newer than the checkpoint and only a reload is sound.
+function G.recover()
+    local m=g_currentMission
+    if not m or not m:getIsServer() or not m.missionDynamicInfo or m.missionDynamicInfo.isMultiplayer~=false then
+        return nil,"BROKER_SINGLEPLAYER_ONLY"
+    end
+    if G.pass then return nil,"BROKER_SAVE_IN_PROGRESS" end
+    local I=RLAnimalIdentityCheckpoint
+    if not I or I.state~="READY" then return nil,"BROKER_IDENTITY_NOT_READY" end
+    local r=RLBrokerRuntime.current
+    if r and r.confirmedThisSession then return nil,"BROKER_RECOVERY_RELOAD_REQUIRED" end
+    if r and r.state~="RECOVERY_REQUIRED" and not G.carryRecovery and not G.disabledReason then return nil,"BROKER_NOT_PAUSED" end
+    G.recoveredEvidence=nil
+    local before={identityWait=G.identityWait,disabled=G.disabledReason,carry=G.carryRecovery,
+        started=G.started,hold=RLBrokerRuntime.recoveryHold,current=RLBrokerRuntime.current}
+    G.identityWait,G.disabledReason,G.carryRecovery,G.started=nil,nil,nil,nil
+    RLBrokerRuntime.recoveryHold=nil
+    RLBrokerRuntime.current=nil
+    local ok,why=G.attempt({recover=true})
+    if not ok then
+        -- A failed attempt must never open legacy trading that the earlier pause was closing:
+        -- the whole earlier pause comes back, whatever the failed start built.
+        G.identityWait,G.disabledReason,G.carryRecovery,G.started=before.identityWait,before.disabled,before.carry,before.started
+        RLBrokerRuntime.recoveryHold,RLBrokerRuntime.current=before.hold,before.current
+        G.recoveredEvidence=nil
+        return nil,why
+    end
+    return true,G.recoveredEvidence
 end
 function G.beginSave(info)
     local r=RLBrokerRuntime.current
@@ -190,7 +290,7 @@ function G.finishSave(info)
         G.carryRecovery=G.carryRecovery or ((r.assetRisk and "ASSETS:" or "SCOPE:")..tostring(r.reason))
         carryEvidence(G.directory,info.savegameDirectory)
     end
-    if G.carryRecovery and info.xmlFile and info.xmlFile~=0 then
+    if markerWorth(G.carryRecovery,info.savegameDirectory) and info.xmlFile and info.xmlFile~=0 then
         setXMLString(info.xmlFile,"careerSavegame#"..G.RECOVERY_MARKER,G.carryRecovery)
     end
 end
@@ -269,7 +369,7 @@ function G.install()
                     local m=g_currentMission
                     local dir=m and m.missionInfo and m.missionInfo.savegameDirectory or G.directory
                     G.directory=dir or G.directory
-                    if dir then pcall(function()
+                    if dir and markerWorth(G.carryRecovery,dir) then pcall(function()
                         local xml=XMLFile.loadIfExists("rlBrokerRecoveryWrite",dir.."/careerSavegame.xml")
                         if xml then xml:setString("careerSavegame#"..G.RECOVERY_MARKER,G.carryRecovery);xml:save();xml:delete() end
                     end) end
@@ -295,7 +395,8 @@ function G.reset()
     G.started,G.disabledReason,G.pass,G.stores,G.lineage,G.directory,G.balance,G.storeBinding=nil,nil,nil,nil,nil,nil,nil,nil
     G.carryRecovery=nil
     RLBrokerRuntime.current=nil
+    G.identityWait=nil
     RLBrokerRuntime.recoveryHold=nil
-    RLBrokerRuntime.legacyDepth=0
+    RLBrokerRuntime.resetFence()
     RLMarketResourceLock.instance=nil
 end

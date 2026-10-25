@@ -14,10 +14,12 @@ x.m.onMoney=function() fence=RLBrokerRuntime.mutationAllowed() end
 local result,err=x.r:confirm(quote)
 check("broker runtime: picker to source removal to payment and shared quota",result and result.status=="COMMITTED" and #x.s.system.animals==1 and x.f.money==1987.5 and x.m.calls==1 and x.r:listOrders()[1].remaining.breed==3)
 check("broker runtime: legacy channels fenced inside payout callback",fence==false and RLBrokerRuntime.mutationAllowed())
+check("broker runtime: a committed delivery blocks in-place recovery",x.r.confirmedThisSession==true)
 local replay=x.r:confirm(quote)
 check("broker runtime: repeated UI confirmation returns original outcome",replay and replay.status=="COMMITTED" and x.m.calls==1 and x.writes()==6)
 x=setup();quote=assert(x.r:preview(x.req));x.m.time=16000
 local no,reason=x.r:confirm(quote)
+check("broker runtime: a refused confirmation does not count as a delivery for recovery",x.r.confirmedThisSession==nil)
 check("broker runtime: 15-second expiry checked before removal",not no and reason=="BROKER_QUOTE_EXPIRED" and #x.s.system.animals==2 and x.m.calls==0)
 x=setup();quote=assert(x.r:preview(x.req));x.m.environment.currentPeriod=3
 no,reason=x.r:confirm(quote)
@@ -47,3 +49,21 @@ RLBrokerRuntime.guardLegacy(owner,"execute")
 local protected=pcall(owner.execute)
 check("broker runtime: legacy failure releases only the stack fence",not protected and RLBrokerRuntime.legacyDepth==0)
 RLBrokerRuntime.current=nil
+
+x=setup()
+local crossing={execute=function() RLBrokerRuntime.resetFence();return "a",2,3,4 end}
+RLBrokerRuntime.guardLegacy(crossing,"execute")
+local r1,r2,r3,r4=crossing.execute()
+check("broker runtime: a call running across a fence reset cannot make the depth negative, returns every value",
+    RLBrokerRuntime.legacyDepth==0 and r1=="a" and r4==4)
+x=setup()
+local captureReal=RLMarketSnapshot.capture
+RLMarketSnapshot.capture=function(...)
+    local snapshot,why=captureReal(...)
+    table.remove(x.s.system.animals,1)
+    return snapshot,why
+end
+local vanished,vanishedWhy=x.r:preflight(x.req)
+RLMarketSnapshot.capture=captureReal
+check("broker runtime: animal vanishing before eligibility is a refusal, not a service error",
+    vanishedWhy~="BROKER_SERVICE_ERROR" and (vanished==nil or vanished.eligibility.eligible==false))

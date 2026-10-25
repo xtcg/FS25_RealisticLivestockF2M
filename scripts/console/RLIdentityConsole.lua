@@ -8,6 +8,8 @@
                                 for domains whose counter history cannot be proven (server only)
       rlIdentityMode <OFF|SHADOW>   back to the old counters or to observing only (server only)
       rlIdentityRecoveryClear   after reading the evidence, leave RECOVERY_REQUIRED (server only)
+      rlBrokerStatus            merchant purchase contracts: state, pause reason, recovery marker (read-only)
+      rlBrokerRecoveryClear     leave a Broker pause when the saved checkpoint still verifies (server only)
 ]]
 
 RLIdentityConsole = {}
@@ -107,6 +109,24 @@ function C.recoveryClear()
     local ok, why = RLAnimalIdentityCheckpoint.recoveryClear(scan)
     if not ok then return say("RLIDENTITY: recovery kept: " .. tostring(why)) end
     return say(string.format("RLIDENTITY: recovery cleared; the ledger took in %d live record(s) and moved past the old counters", #scan.records))
+end
+
+
+-- ---- merchant purchase contracts (Broker) ----------------------------------------------------------
+function C.brokerStatus()
+    local G, B = RLBrokerGameBinding, RLBrokerRuntime
+    local r = B.current
+    return say(string.format("RLBROKER STATUS enabled=%s runtime=%s(%s) assetRisk=%s hold=%s disabled=%s carried=%s mutationAllowed=%s",
+        tostring(B.isEnabled()), tostring(r and r.state), tostring(r and r.reason), tostring(r and r.assetRisk),
+        tostring(B.recoveryHold), tostring(G.disabledReason), tostring(G.carryRecovery), tostring(B.mutationAllowed())))
+end
+
+function C.brokerRecoveryClear()
+    if not RLAnimalIdentityRuntime.server then return "RLBROKER: server only" end
+    local ok, why = RLBrokerGameBinding.recover()
+    if not ok then return say("RLBROKER: recovery kept: " .. tostring(why)) end
+    local kept = why ~= nil and ("; the unsaved Broker records are kept as " .. tostring(why) .. " (the next save replaces the save folder, so copy that file out first if you want it)") or ""
+    return say("RLBROKER: recovery cleared; the Broker restarted from the saved checkpoint, so its orders and quotas are the saved ones" .. kept .. ". Save the game once.")
 end
 
 

@@ -84,6 +84,7 @@ function B.new(options)
         need(RLPlain.finite(e.currentYear) and RLPlain.finite(e.currentPeriod),"BROKER_CLOCK_UNAVAILABLE")
         return e.currentYear*12+e.currentPeriod-1
     end
+    function r:currentMonth() return clock() end
     local monthStore=options.monthStore
     r.month=need(RLBrokerMonth.new({seed=options.lineage,generatorVersion=1,balance=options.balance,
         catalog=P.catalog(),store=monthStore}))
@@ -107,7 +108,9 @@ function B.new(options)
             and B.isEnabled() and r.state=="READY" and not r.frozen and otherChannelsReady() end,
         eligibilityContext=function(actor,req,snap,_,location)
             local a=resolve(req,actor)
-            local facts,caps=P.facts(a,snap)
+            -- The animal can leave or its key can be duplicated between capture and here.
+            local facts,caps
+            if a then facts,caps=P.facts(a,snap) end
             local animalResource=RLMarketResourceLock.resource("ANIMAL",snap.identityKey)
             local oldSale=RLLiveSale and RLLiveSale.ledger()
             local oldContract=RLContractTrade and RLContractTrade.store
@@ -116,9 +119,9 @@ function B.new(options)
                 oldLocked=oldLocked or ledger.recoveryRequired or ledger.locks["animal:"..snap.identityKey]
                     or ledger.locks["cash:farm"..string.format("%.0f",actor.farmId)]
             end
-            return {permissionGranted=true,ownershipVerified=true,identityVerified=true,
-                unlocked=not oldLocked and (r.locks:owner(animalResource)==nil or r.locks:owner(animalResource)==r.confirmingRequestId),
-                orderOpen=true,sourceSupported=location.PICKUP,
+            return {permissionGranted=true,ownershipVerified=a~=nil,identityVerified=a~=nil,
+                unlocked=a~=nil and not oldLocked and (r.locks:owner(animalResource)==nil or r.locks:owner(animalResource)==r.confirmingRequestId),
+                orderOpen=true,sourceSupported=a~=nil and location.PICKUP,
                 quota=r.quota:available(r.current.monthId,req.orderId,snap.speciesKey,snap.breedId),
                 facts=facts or {},factCapabilities=caps or {},request=req}
         end,
@@ -189,6 +192,9 @@ function B.new(options)
         self.assetRisk=true;self.busy=true;self.confirmingRequestId=quote.requestId
         local ok,result,why=pcall(self.tx.confirm,self.tx,self:principal(),quote.requestId,quote.credential,quote.request)
         self.busy=false;self.confirmingRequestId=nil
+        -- A recovery restart is only sound while the world still equals the loaded save; a
+        -- refusal that changed nothing leaves no request behind and does not count.
+        if not ok or self.tx:getStatus()~="READY" or self.tx:hasRequest(quote.requestId) then self.confirmedThisSession=true end
         if ok and self.tx:getStatus()=="READY" and not self.tx:hasRequest(quote.requestId) then self.assetRisk=previousRisk end
         if not ok or self.tx:getStatus()~="READY" then blocked(ok and "BROKER_UNRESOLVED_TRANSACTION" or "BROKER_CONFIRM_ERROR") end
         return ok and result or nil,ok and why or self.reason
@@ -204,19 +210,28 @@ function B.mutationAllowed()
     local r=B.current
     return r==nil or (not r.busy and not r.frozen and not (r.state=="RECOVERY_REQUIRED" and r.assetRisk))
 end
--- These legacy entry points are synchronous and return at most three values.
--- Broker cannot enter through a money/event callback while another channel is
--- midway through its mutation, and the depth is restored even if it throws.
+-- These legacy entry points are synchronous. Broker cannot enter through a
+-- money/event callback while another channel is midway through its mutation,
+-- and the depth is restored even if it throws. A map reset starts a new fence
+-- epoch, so a call still running across the reset cannot drive the new count
+-- negative.
+B.fenceEpoch=0
+function B.resetFence()
+    B.fenceEpoch=B.fenceEpoch+1
+    B.legacyDepth=0
+end
 function B.guardLegacy(owner,method)
     if type(owner)~="table" or type(owner[method])~="function" then return end
     local original=owner[method]
+    local function finish(epoch,ok,...)
+        if epoch==B.fenceEpoch then B.legacyDepth=math.max(0,(B.legacyDepth or 0)-1) end
+        if not ok then error((...),0) end
+        return ...
+    end
     owner[method]=function(...)
         local m=g_currentMission
         if not B.current or not m or not m:getIsServer() then return original(...) end
         B.legacyDepth=(B.legacyDepth or 0)+1
-        local ok,a,b,c=pcall(original,...)
-        B.legacyDepth=B.legacyDepth-1
-        if not ok then error(a,0) end
-        return a,b,c
+        return finish(B.fenceEpoch,pcall(original,...))
     end
 end

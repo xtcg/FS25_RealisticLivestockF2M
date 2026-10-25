@@ -54,6 +54,22 @@ function M.new(deps)
         savedHistory=checked
         return true
     end
+    -- Before the first native save there is no checkpoint, yet a previous
+    -- unsaved session may have left future demand in the live history. The game
+    -- date is the only authority: the history is checked up to that month (it must
+    -- hold it, otherwise this fails closed). Later months stay in the live store and
+    -- ensureCurrent reuses them rather than rerolling.
+    function runtime:resumeUnsaved(history,absoluteMonth)
+        if not integer(absoluteMonth) then return false,"INVALID_ABSOLUTE_MONTH" end
+        local checked,why=validateHistory(history,seedFingerprint,allowTest)
+        if not checked then return false,why end
+        if checked.currentAbsoluteMonth<=absoluteMonth then return true end
+        local projected=assert(copy(checked));projected.revision=nil
+        for key,value in pairs(projected.months) do if value.absoluteMonth>absoluteMonth then projected.months[key]=nil end end
+        projected.currentAbsoluteMonth=absoluteMonth
+        projected.revision=assert(fp(projected))
+        return self:resumeCheckpoint(projected)
+    end
     function runtime:setInputs(nextBalance,nextCatalog)
         if busy then return false,"BROKER_MONTH_BUSY" end
         local checked,why=RLBrokerDemand.validateInputs(nextBalance,nextCatalog)

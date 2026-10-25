@@ -8,9 +8,9 @@ Livestock farming is more than feeding animals, waiting for them to grow, and se
 
 Realistic Livestock: Farm to Market aims to make animal husbandry a more complete farming experience, where genetics, breed characteristics, feeding strategies, growth, reproduction, processing costs, and market conditions all matter.
 
-## 0.2.2.1 candidate: merchant purchase contracts
+## 0.2.2.2 candidate: merchant purchase contracts
 
-The RLRM menu now has monthly purchase demand, animal eligibility details and explicit single-animal farm pickup. The first scope is single-player Angus weaned calves. Purchases are enabled by default. Save once to initialize the shared checkpoint, then click Merchant purchase contracts on the native pause-menu Settings page. RLRM General settings include a persisted switch; no keyboard shortcut is required. Orders, quota and settlement use the existing Broker services. Native XML and UI callback regressions pass; actual game validation is still pending. See [scope and usage](docs/broker-playable.md) and [model/economic evidence](docs/evidence/broker-cattle-release.md).
+The RLRM menu now has monthly purchase demand, animal eligibility details and explicit single-animal farm pickup. The first scope is single-player Angus weaned calves. Purchases are enabled by default. Save once to initialize the shared checkpoint, then click Merchant purchase contracts on the native pause-menu Settings page. RLRM General settings include a persisted switch; no keyboard shortcut is required. Orders, quota and settlement use the existing Broker services. A paused Broker (for example after quitting with an unsaved delivery) can be inspected with `rlBrokerStatus` and reopened with `rlBrokerRecoveryClear` when the saved checkpoint still verifies. Native XML and UI callback regressions pass; actual game validation is still pending. See [scope and usage](docs/broker-playable.md) and [model/economic evidence](docs/evidence/broker-cattle-release.md).
 
 ## Defaults
 

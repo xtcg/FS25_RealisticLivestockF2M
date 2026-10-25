@@ -1,5 +1,17 @@
 # 畜牧商人 v2 与通用市场：分步实施记录
 
+## 2026-10-25：PR #98 第二轮审查与暂停恢复（0.2.2.2）
+
+[审查记录](reviews/broker-pr98-review-20261025.md)“第二轮审查”及其复审：独立审查的 8 条发现逐条复核，5 条属实或局部属实并修复，2 条按设计不改，1 条（页面开销与文本框高度）记入待办。
+
+- **暂停可恢复**：`rlBrokerStatus` / `rlBrokerRecoveryClear`（`RLBrokerGameBinding.recover`）。读档后用检查点证明世界一致，才以 `RLBrokerPersistence` 新增的 `replace` 取代更新的未保存 WAL，旧 WAL 先复制为 `rm_RlBrokerLive_broker.unsaved.*`，暂存记录写入 `replacedDigest`。本会话已成交、健康运行、验证失败都不会改变或放开暂停。
+- **身份保持自动释放**：身份账本之后恢复为 READY，`G.update` 重新评估并启动；占位标记不再写入存档；多人客户端先判单机范围。
+- **旧渠道栈门控**：`legacyDepth` 用 fence epoch，重置期间的调用不能把计数减为负，包装器返回全部返回值。
+- **首次保存前月度需求**：`RLBrokerMonth:resumeUnsaved` 按游戏日期恢复并复用上次未保存会话的未来需求。
+- **nil 拒收**：`eligibilityContext` 在动物中途消失时给出身份未验证的明确拒收。
+
+新增 `test_brokergamebinding`（恢复、身份保持、首次保存前需求、标记）、`test_brokerruntime`（fence epoch、nil 拒收、确认计数）用例，控制台注册断言 16→18。全量回归 **7197/7197**，修改的 5 个模块通过 Lua 5.1 编译。仍无真实游戏验证；暂停期间做过保存的存档保持关闭，需人工核对证据。
+
 ## 2026-10-25：PR #98 审查与鼠标入口（0.2.2.1）
 
 [审查记录](reviews/broker-pr98-review-20261025.md)：修复旧确认框回调可能确认新报价、读档授权允许运行中倒退月份、仅凭年龄推断完成育肥，以及非正接运净额仍显示合格四项问题。原提交已复现相应反例，修复后通过。

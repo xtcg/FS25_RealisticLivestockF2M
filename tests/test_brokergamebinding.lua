@@ -139,5 +139,87 @@ check("broker game: saving recovery retains opaque WAL and a closed marker",D.fi
 G.reset();x.m.missionInfo.savegameDirectory="recovery-stage"
 local resumed=G.start(x.m)
 check("broker game: another save cannot launder an unknown transaction",not resumed and RLBrokerRuntime.current.state=="RECOVERY_REQUIRED" and not RLBrokerRuntime.mutationAllowed() and x.m.calls==1)
+-- Recovery: an unsaved delivery pauses the Broker and legacy trading; the explicit clear
+-- re-verifies the checkpoint, keeps the unsaved WAL as evidence and reopens both.
+x,w=setup();x.save()
+local before=x.r:listOrders()[1].remaining.breed
+req={orderId=x.r:listOrders()[1].orderId,animalKey=RLTradeSourceAdapter.identityKey(x.a),sourceRef=x.s.uniqueId,transportMode="PICKUP"}
+quote=assert(x.r:preview(req));assert(x.r:confirm(quote))
+check("broker recovery: a delivery this session cannot be cleared in place",select(2,G.recover())=="BROKER_RECOVERY_RELOAD_REQUIRED")
+G.reset();G.attempt()
+check("broker recovery: unsaved WAL pauses Broker and legacy channels at load",RLBrokerRuntime.current.state=="RECOVERY_REQUIRED"
+    and not RLBrokerRuntime.mutationAllowed())
+local cleared,clearWhy=G.recover()
+local evidence
+for path in pairs(w.files) do if path:find("rm_RlBrokerLive_broker.unsaved.",1,true) then evidence=path end end
+check("broker recovery: verified checkpoint reopens, WAL kept as evidence",cleared==true and evidence~=nil and RLBrokerRuntime.current:ready()
+    and RLBrokerRuntime.mutationAllowed() and RLBrokerRuntime.current:listOrders()[1].remaining.breed==before)
+G.reset();assert(G.start(x.m))
+check("broker recovery: the cleared state loads normally afterwards",RLBrokerRuntime.current:ready())
+-- A save made while paused changes the career body, so it can no longer prove the checkpoint:
+-- the clear is refused and every channel stays closed.
+x,w=setup();x.save()
+local career=assert(XMLFile.loadIfExists("t","test-save/careerSavegame.xml"))
+career:setString("careerSavegame#"..G.RECOVERY_MARKER,"ASSETS:TEST");assert(career:save());career:delete()
+G.reset();G.attempt()
+check("broker recovery: carried ASSETS marker blocks every channel",RLBrokerRuntime.current.state=="RECOVERY_REQUIRED" and not RLBrokerRuntime.mutationAllowed())
+local pausedRuntime=RLBrokerRuntime.current
+local refused=G.recover()
+check("broker recovery: a marked save cannot prove the checkpoint, so the pause stays closed",refused==nil
+    and RLBrokerRuntime.current==pausedRuntime and RLBrokerRuntime.current.state=="RECOVERY_REQUIRED" and not RLBrokerRuntime.mutationAllowed())
+x,w=setup();x.save()
+local healthy=RLBrokerRuntime.current
+check("broker recovery: a healthy Broker is not torn down by the clear",select(2,G.recover())=="BROKER_NOT_PAUSED" and RLBrokerRuntime.current==healthy)
+-- Nothing was ever persisted: a scope marker only blocks until the cause is gone.
+x,w=setup()
+career=assert(XMLFile.create("engine","test-save/careerSavegame.xml","careerSavegame"))
+career:setString("careerSavegame#"..G.RECOVERY_MARKER,"SCOPE:TEST");assert(career:save());career:delete()
+G.reset();G.attempt()
+check("broker recovery: carried scope marker blocks the Broker only",RLBrokerRuntime.current.state=="RECOVERY_REQUIRED" and RLBrokerRuntime.mutationAllowed())
+check("broker recovery: scope marker is cleared on disk and the Broker restarts",G.recover()==true and RLBrokerRuntime.current.state=="SAVE_REQUIRED"
+    and w.files["test-save/careerSavegame.xml"].nodes.careerSavegame[G.RECOVERY_MARKER]=="")
+G.reset();assert(G.start(x.m))
+check("broker recovery: cleared scope marker is not carried again",RLBrokerRuntime.current.state=="SAVE_REQUIRED")
+-- Identity recovery that completes later releases the Broker hold.
+x,w=setup();x.save()
+G.reset();RLAnimalIdentityCheckpoint.state="RECOVERY_REQUIRED"
+G.update()
+check("broker identity: not-ready identity with Broker evidence holds mutations",G.disabledReason=="BROKER_IDENTITY_NOT_READY" and not RLBrokerRuntime.mutationAllowed())
+RLAnimalIdentityCheckpoint.state="READY"
+G.update()
+check("broker identity: hold is released once identity is READY again",RLBrokerRuntime.current~=nil and RLBrokerRuntime.current:ready()
+    and RLBrokerRuntime.mutationAllowed() and G.disabledReason==nil)
+-- The identity placeholder is never persisted as a recovery marker.
+G.reset();RLAnimalIdentityCheckpoint.state="RECOVERY_REQUIRED";G.update()
+G.beginSave({savegameDirectory="stage-identity"})
+career=assert(XMLFile.create("engine","stage-identity/careerSavegame.xml","careerSavegame"))
+G.finishSave({savegameDirectory="stage-identity",xmlFile=career});assert(career:save());career:delete()
+check("broker identity: a save during the identity hold writes no permanent marker",
+    (w.files["stage-identity/careerSavegame.xml"].nodes.careerSavegame or {})[G.RECOVERY_MARKER]==nil)
+RLAnimalIdentityCheckpoint.state="READY"
+G.reset();x.m.missionDynamicInfo.isMultiplayer=true;RLAnimalIdentityCheckpoint.state="DISABLED"
+G.update()
+check("broker identity: multiplayer reads as single-player scope",G.disabledReason=="BROKER_SINGLEPLAYER_ONLY")
+x.m.missionDynamicInfo.isMultiplayer=false;RLAnimalIdentityCheckpoint.state="READY"
+-- Future demand left by an earlier unsaved session is reused before the first native save.
+x,w=setup()
+local base=x.m.environment.currentPeriod
+x.m.environment.currentPeriod=base+1
+local futureId=assert(x.r:listOrders())[1].orderId
+x.m.environment.currentPeriod=base
+G.reset()
+check("broker game: first-save session resumes at the game date over unsaved future demand",G.start(x.m)==true
+    and RLBrokerRuntime.current.state=="SAVE_REQUIRED" and RLBrokerRuntime.current:listOrders()~=nil)
+x.m.environment.currentPeriod=base+1
+check("broker game: that future demand is reused, not rerolled",RLBrokerRuntime.current:listOrders()[1].orderId==futureId)
+x.m.environment.currentPeriod=base
+-- A scope-only marker with no Broker evidence on disk is not carried to the next load.
+x,w=setup()
+x.r:block("SCOPE_TEST")
+G.beginSave({savegameDirectory="stage"})
+career=assert(XMLFile.create("engine","stage/careerSavegame.xml","careerSavegame"))
+G.finishSave({savegameDirectory="stage",xmlFile=career});assert(career:save());career:delete()
+check("broker recovery: scope-only pause with no evidence leaves no marker",
+    (w.files["stage/careerSavegame.xml"].nodes.careerSavegame or {})[G.RECOVERY_MARKER]==nil)
 RLMarketSaveAdapter.new=nativeFactory
 G.reset()
