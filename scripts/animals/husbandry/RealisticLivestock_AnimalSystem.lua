@@ -1308,6 +1308,7 @@ function AnimalSystem:saveToXMLFile(_)
     xmlFile:setInt("rm_RlAnimalSystem#version", 1)
     -- The native counters are a participant of the identity checkpoint (same save pass).
     if RLAnimalIdentityCheckpoint ~= nil then RLAnimalIdentityCheckpoint.markParticipant("animalSystem", xmlFile, "rm_RlAnimalSystem") end
+    if RLBrokerGameBinding then RLBrokerGameBinding.observeIdentity("system",xmlFile) end
 
 
     xmlFile:setSortedTable("rm_RlAnimalSystem.animalTypes.type", self.types, function (key, type)

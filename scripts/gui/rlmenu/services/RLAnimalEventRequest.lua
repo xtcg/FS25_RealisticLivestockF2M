@@ -76,14 +76,14 @@ function RLAnimalEventRequest.dispatch(eventClass, event, onReply, timeoutMs, de
     -- A dispatch with no completion handler can never release the caller's UI lock (the lock
     -- is released only inside onReply), and the boolean contract "true => a completion will
     -- fire" would break. Reject rather than accept-and-strand.
-    if onReply == nil then
+    if type(onReply) ~= "function" then
         Log:warning("RLAnimalEventRequest.dispatch: nil onReply for eventClass=%s, rejecting (no completion could release the caller's lock)",
             tostring(eventClass))
         return false
     end
 
     -- Per-class one-in-flight: reject a second same-class request (do NOT queue).
-    if RLAnimalEventRequest._inFlight[eventClass] ~= nil then
+    if RLAnimalEventRequest._resetting or RLAnimalEventRequest._inFlight[eventClass] ~= nil then
         Log:debug("RLAnimalEventRequest.dispatch: eventClass=%s already in flight, rejecting (caller keeps selection)",
             tostring(eventClass))
         return false
@@ -94,6 +94,27 @@ function RLAnimalEventRequest.dispatch(eventClass, event, onReply, timeoutMs, de
     local timer = nil
 
     RLAnimalEventRequest._inFlight[eventClass] = requestToken
+
+    local function stopWatchdog()
+        if timer~=nil then
+            local stopped,err=pcall(function()if type(timer.stop)=="function" then timer:stop()end end)
+            if not stopped then Log:warning("RLAnimalEventRequest: watchdog cleanup failed: %s",tostring(err)) end
+        end
+    end
+    local function cleanup(reason)
+        if reason ~= "timeout" then stopWatchdog() end
+        local removed,err=pcall(function()messageCenter:unsubscribe(eventClass,requestToken)end)
+        if not removed then Log:warning("RLAnimalEventRequest: subscription cleanup failed: %s",tostring(err)) end
+        if RLAnimalEventRequest._inFlight[eventClass] == requestToken then
+            RLAnimalEventRequest._inFlight[eventClass] = nil
+        end
+        requestToken.cancel=nil
+    end
+    requestToken.cancel=function()
+        if consumed then return end
+        consumed=true
+        cleanup("cancel")
+    end
 
     -- Single-consume completion: reply OR timeout, whichever lands first, exactly once.
     -- Always clears state (timer / subscription / flag) BEFORE invoking onReply, and
@@ -108,13 +129,7 @@ function RLAnimalEventRequest.dispatch(eventClass, event, onReply, timeoutMs, de
         -- Stop the watchdog ONLY on a reply: a one-shot timer that already elapsed has removed
         -- itself before invoking this callback, so on the timeout branch a second stop() is a
         -- redundant no-op (and an extra reach into mission state for no effect).
-        if reason ~= "timeout" and timer ~= nil and timer.stop ~= nil then
-            timer:stop()
-        end
-        messageCenter:unsubscribe(eventClass, requestToken)
-        if RLAnimalEventRequest._inFlight[eventClass] == requestToken then
-            RLAnimalEventRequest._inFlight[eventClass] = nil
-        end
+        cleanup(reason)
         Log:debug("RLAnimalEventRequest: eventClass=%s completed via %s (errorCode=%s)",
             tostring(eventClass), tostring(reason), tostring(errorCode))
         if onReply ~= nil then
@@ -132,9 +147,14 @@ function RLAnimalEventRequest.dispatch(eventClass, event, onReply, timeoutMs, de
         messageCenter:subscribe(eventClass, function(_token, errorCode)
             finish(errorCode, "reply")
         end, requestToken)
+        if consumed then return end
         timer = timerFactory(timeoutMs, function()
             finish(RLAnimalEventRequest.TIMEOUT_CODE, "timeout")
         end)
+        if consumed then
+            stopWatchdog()
+            return
+        end
         Log:trace("RLAnimalEventRequest.dispatch: eventClass=%s subscribed + watchdog armed (%dms), sending",
             tostring(eventClass), timeoutMs)
         sendEvent(event)
@@ -146,13 +166,11 @@ function RLAnimalEventRequest.dispatch(eventClass, event, onReply, timeoutMs, de
         -- onReply (nothing dispatched); return false so the caller releases its lock.
         Log:error("RLAnimalEventRequest.dispatch: eventClass=%s threw during arm/send: %s",
             tostring(eventClass), tostring(err))
-        if timer ~= nil and timer.stop ~= nil then
-            timer:stop()
-        end
-        messageCenter:unsubscribe(eventClass, requestToken)
-        if RLAnimalEventRequest._inFlight[eventClass] == requestToken then
-            RLAnimalEventRequest._inFlight[eventClass] = nil
-        end
+        -- A synchronous reply may have completed before sendEvent threw. Its
+        -- completion is authoritative; do not report a second, refused dispatch.
+        if consumed then return true end
+        consumed=true
+        cleanup("error")
         return false
     end
 
@@ -173,7 +191,17 @@ end
 --- teardown never fires its watchdog - the timer needs the mission - so without this it
 --- would reject the first same-class trade of the next session.
 function RLAnimalEventRequest.reset()
+    if RLAnimalEventRequest._resetting then return end
+    RLAnimalEventRequest._resetting=true
+    local previous=RLAnimalEventRequest._inFlight
     RLAnimalEventRequest._inFlight = {}
+    for _,token in pairs(previous) do
+        if type(token)=="table" and type(token.cancel)=="function" then
+            local okay,err=pcall(token.cancel)
+            if not okay then Log:warning("RLAnimalEventRequest.reset: cleanup failed: %s",tostring(err)) end
+        end
+    end
+    RLAnimalEventRequest._resetting=false
     Log:debug("RLAnimalEventRequest.reset: cleared in-flight state")
 end
 

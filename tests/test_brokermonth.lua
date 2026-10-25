@@ -102,3 +102,11 @@ check("month: queued input requires an explicit calendar projection",not reload.
 local unavailableCatalog=F.catalog();for _,entry in ipairs(unavailableCatalog.entries)do entry.verified=false end
 local admitted,diagnostics=reload.runtime:setInputs(F.balance(),unavailableCatalog)
 check("month: missing individual scope evidence is diagnosed rather than a malformed config",admitted and #diagnostics>0)
+local clock=fixture(true)
+assert(clock.runtime:ensureCurrent(1));local savedHistory=F.copy(clock.disk)
+assert(clock.runtime:ensureCurrent(2))
+clock.runtime=assert(M.new(clock.deps));assert(clock.runtime:resumeCheckpoint(savedHistory))
+check("month: saved date may resume beneath retained future demand",clock.runtime:ensureCurrent(1)~=nil)
+assert(clock.runtime:ensureCurrent(2))
+local rewind,rewindReason=clock.runtime:ensureCurrent(1)
+check("month: load authority cannot rewind a running session",rewind==nil and rewindReason=="BROKER_CLOCK_ROLLBACK_REQUIRED" and clock.runtime:getStatus().state=="RECOVERY_REQUIRED")

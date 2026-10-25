@@ -21,6 +21,14 @@ function RLSettings.onClickTagColour()
 
 end
 
+-- Mouse-accessible from the native pause-menu Settings page and from RLRM's
+-- General settings. Opening demand does not change the enable setting.
+function RLSettings.onClickOpenBroker()
+    if not RLMenu.openBrokerPage() then
+        Log:warning("RLSettings.onClickOpenBroker: purchase page could not be opened")
+    end
+end
+
 
 --- Open the visual-animals dialog from the General-tab action row (mirrors the
 --- tagColour -> EarTagColourPickerDialog pattern). Client-local control: the
@@ -268,10 +276,10 @@ end
 -- each row by its rlmenuSetting_<name> element id. setting.index is consumed by
 -- RLDebugUtils.dumpSettings, which prints state rows in index order (it skips
 -- ignore==true rows), so index must stay a faithful mirror of the XML order below.
--- Keep the two in step when adding or moving a row. Sections (1..21):
+-- Keep the two in step when adding or moving a row. Sections (1..23):
 -- Mortality (1-2), Health & Disease (3-4), Husbandry & Economy (5-8),
 -- Custom Animals (9-10), Message Log (11-12), Display Preferences (13-16),
--- Tools & Admin (17-20), Visual Animals (21, client-local, no admin gate).
+-- Tools & Admin (17-20), Visual Animals (21, client-local, no admin gate), Broker (22-23).
 RLSettings.SETTINGS = {
 
 	["deathEnabled"] = {
@@ -516,6 +524,20 @@ RLSettings.SETTINGS = {
 		["type"] = "Button",
 		["ignore"] = true,
 		["callback"] = RLSettings.onClickVisualAnimals
+	},
+	["brokerEnabled"] = {
+		["index"] = 22,
+		["adminOnly"] = true,
+		["type"] = "BinaryOption",
+		["default"] = 2,
+		["binaryType"] = "offOn",
+		["values"] = { false, true }
+	},
+	["brokerOrders"] = {
+		["index"] = 23,
+		["type"] = "Button",
+		["ignore"] = true,
+		["callback"] = RLSettings.onClickOpenBroker
 	}
 
 }
@@ -925,7 +947,7 @@ function RLSettings.saveToXMLFile(name, state)
 end
 
 
---- Build the RLRM launcher row on the base-game pause-menu Settings page.
+--- Build the RLRM Settings and Broker launchers on the native Settings page.
 --- The server-side settings load runs first and unconditionally, followed
 --- by an unconditional defaulting pass for states the savegame did not
 --- provide; the GUI part clones the section header plus a single button
@@ -957,6 +979,10 @@ function RLSettings.initialize()
 	end
 
 	local scrollPanel = g_inGameMenu.pageSettings.gameSettingsLayout
+	-- Native menu objects can survive a mission reload. Remove only our own
+	-- clones so reinitialization never adds duplicate launch buttons.
+	for _, row in ipairs(scrollPanel.rlLivestockLauncherRows or {}) do row:delete() end
+	scrollPanel.rlLivestockLauncherRows = nil
 
 	-- Template scan only; cloning happens after the loop so the elements
 	-- array is not mutated while pairs() walks it.
@@ -982,40 +1008,33 @@ function RLSettings.initialize()
 	sectionHeader:setText(g_i18n:getText("rl_settings"))
 	sectionHeader.id = nil
 
-	local buttonRow = buttonRowTemplate:clone(scrollPanel)
-	buttonRow.id = nil
-
-	local buttonsWired = 0
-
-	for _, element in pairs(buttonRow.elements) do
-
-		if element.typeName == "Text" then
-			element:setText(g_i18n:getText("rl_settings_openMenu_label"))
-			element.id = nil
+	local rows={sectionHeader}
+	for _, launcher in ipairs({
+		{label="rl_settings_openMenu_label",text="rl_settings_openMenu_button",callback=RLSettings.onClickOpenMenu},
+		{label="rl_settings_brokerOrders_label",text="rl_settings_brokerOrders_text",callback=RLSettings.onClickOpenBroker}
+	}) do
+		local buttonRow=buttonRowTemplate:clone(scrollPanel)
+		buttonRow.id=nil
+		rows[#rows+1]=buttonRow
+		local buttonsWired=0
+		for _,element in pairs(buttonRow.elements) do
+			if element.typeName=="Text" then element:setText(g_i18n:getText(launcher.label));element.id=nil end
+			if element.typeName=="Button" then
+				element:setText(g_i18n:getText(launcher.text))
+				element:applyProfile("rl_settingsButton")
+				element.isAlwaysFocusedOnOpen,element.focused,element.id=false,false,nil
+				element.onClickCallback=launcher.callback
+				buttonsWired=buttonsWired+1
+			end
 		end
-
-		if element.typeName == "Button" then
-			element:setText(g_i18n:getText("rl_settings_openMenu_button"))
-			element:applyProfile("rl_settingsButton")
-			element.isAlwaysFocusedOnOpen = false
-			element.focused = false
-			element.id = nil
-			element.onClickCallback = RLSettings.onClickOpenMenu
-			buttonsWired = buttonsWired + 1
+		if buttonsWired~=1 then
+			for _,row in ipairs(rows) do row:delete() end
+			Log:warning("RLSettings.initialize: launcher template changed; no custom launchers added")
+			return
 		end
-
 	end
-
-	if buttonsWired ~= 1 then
-		-- Fail closed: leave the base-game page untouched rather than ship
-		-- a broken or duplicated launcher row.
-		buttonRow:delete()
-		sectionHeader:delete()
-		Log:warning("RLSettings.initialize: self-check FAILED - expected 1 launcher button, wired %d (base-game button-row template shape changed?); removed the cloned header/row", buttonsWired)
-		return
-	end
-
-	Log:debug("RLSettings.initialize: self-check - 1 launcher button wired, 0 setting rows added")
+	scrollPanel.rlLivestockLauncherRows=rows
+	Log:debug("RLSettings.initialize: 2 mouse-accessible launcher buttons wired")
 
 end
 
@@ -1027,7 +1046,7 @@ function RLSettings.onClickOpenMenu()
 
 	Log:info("RLSettings.onClickOpenMenu: opening RL Menu Settings tab (page 8, MODE_FULL)")
 
-	if RLMenu.openFromBridge(8, RLMenu.MODE_FULL) == false then
+	if RLMenu.openFromBridge(8, RLMenu.MODE_FULL, {fromInGameMenu=true}) == false then
 		Log:warning("RLSettings.onClickOpenMenu: openFromBridge refused; staying on the pause menu")
 	end
 

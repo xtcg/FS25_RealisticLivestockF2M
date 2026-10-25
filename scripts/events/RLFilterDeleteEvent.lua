@@ -42,11 +42,7 @@ function RLFilterDeleteEvent:readStream(streamId, connection)
     self:run(connection)
 end
 
-local function getUserContext(connection)
-    local userId = g_currentMission.userManager:getUniqueUserIdByConnection(connection)
-    local userName = (g_currentMission.userManager:getUserByConnection(connection) or {}).nickname or "unknown"
-    return userName, userId
-end
+local getUserContext=RLPermissionHelper.getUserContext
 
 function RLFilterDeleteEvent:run(connection)
     local id = self.id
@@ -79,16 +75,11 @@ function RLFilterDeleteEvent:run(connection)
         end
 
         if stored.farmId ~= nil then
-            local userFarm = g_farmManager:getFarmForUniqueUserId(userId)
-            if userFarm == nil or userFarm.farmId == nil then
-                Log:warning("RLFilterDeleteEvent:run: no farm lookup for user '%s' (userId=%s); aborting delete id=%s",
-                    tostring(userName), tostring(userId), tostring(id))
-                return
-            end
-            if userFarm.farmId ~= stored.farmId then
-                Log:warning("RLFilterDeleteEvent:run: farm-scope mismatch for user '%s' (userId=%s, userFarmId=%s) filter id=%s storedFarmId=%s",
-                    tostring(userName), tostring(userId), tostring(userFarm.farmId),
-                    tostring(id), tostring(stored.farmId))
+            local requesterFarmId=RLPermissionHelper.getRequesterFarmId(userId)
+            local allowed,reason=RLPermissionHelper.authorize(true,requesterFarmId,stored.farmId)
+            if not allowed then
+                Log:warning("RLFilterDeleteEvent:run: farm-scope rejected (%s) user='%s' requesterFarmId=%s ownerFarmId=%s",
+                    tostring(reason),tostring(userName),tostring(requesterFarmId),tostring(stored.farmId))
                 return
             end
         end

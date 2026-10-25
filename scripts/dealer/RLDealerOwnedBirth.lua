@@ -3,7 +3,7 @@
 -- barrier. Once a barrier is attempted, failure retains evidence and closes recovery.
 RLDealerOwnedBirth={VERSION=1}
 local C=RLDealerOwnedBirth
-local function copy(v) if type(v)~="table" then return v end;local o={};for k,x in pairs(v) do o[k]=copy(x) end;return o end
+local copy=RLPlain.copy
 local function equal(a,b) return RLTradePersistence.canonical(a)==RLTradePersistence.canonical(b) end
 local fields={"age","breed","gender","isIndividual","isCastrated","genetics","health","isParent","birthCount",
     "isPregnant","reproduction","input","output","weight","targetWeight","rlGrowth","bodyCondition","rlFeedGain",

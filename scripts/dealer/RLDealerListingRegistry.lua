@@ -6,7 +6,7 @@ R.VERSION, R.MIGRATION_VERSION, R.EXTERNAL_BUYER_LAMBDA = 1, 1, 0
 R.LIFETIMES = { UNWEANED = 0.5, GROWING = 1, STORE = 1, REPLACEMENT = 1,
     BREEDING = 2, PRODUCTION = 2, SHORT_CYCLE = 0.5, HORSE = 2 }
 local states = { DRAFT = true, LISTED = true, RESERVED = true, SOLD = true, WITHDRAWN = true, QUARANTINED = true }
-local function finite(x) return type(x) == "number" and x == x and math.abs(x) < math.huge end
+local finite=RLPlain.finite
 local function copy(x, seen)
     if type(x) ~= "table" then return x end
     seen = seen or {}; if seen[x] then error("cyclic listing data") end

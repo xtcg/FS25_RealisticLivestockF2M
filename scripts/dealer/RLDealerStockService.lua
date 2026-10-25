@@ -5,10 +5,7 @@ local V = RLDealerStockService
 local cattleLifetime = { CALF_MILK = "UNWEANED", CALF_WEANED = "GROWING", HEIFER_REPLACEMENT = "REPLACEMENT",
     FEEDER = "STORE", HEIFER_READY = "BREEDING", HEIFER_IN_CALF = "BREEDING", BULL_YOUNG = "BREEDING",
     COW_FIRST = "PRODUCTION", COW_YOUNG = "PRODUCTION" }
-local function copy(v)
-    if type(v) ~= "table" then return v end
-    local out = {}; for k, x in pairs(v) do out[k] = copy(x) end; return out
-end
+local copy=RLPlain.copy
 function V.new(namespace, months)
     local farm, why = RLDealerSourceFarm.new(namespace, months)
     if not farm then return nil, why end

@@ -132,7 +132,11 @@ function loadAnimalSection(first, last)
     assert(load("local Log = RmLogging.getLogger()\n" .. text:sub(from, to), "Animal section " .. first))()
 end
 
+-- Plain-data primitives the dealer, market and trade modules bind at file scope (main.lua sources it first).
+loadMod("scripts/core/RLPlain.lua")
 -- The game's milk rule (births, the monthly tick, yield, the forecast and the dealer).
+loadMod("scripts/animal/RLAnimalOutput.lua")
+loadMod("scripts/animal/AnimalProduction.lua")
 loadMod("scripts/animal/RLLactation.lua")
 -- What each subtype is kept for and which genes it has (reads RLBreedTraits when a test loads it).
 loadMod("scripts/animal/RLRearingPolicy.lua")
@@ -148,7 +152,10 @@ RLLivestockPrices = { getMultiplier = function() return 1 end }
 -- Body condition (scripts/nutrition). Loaded for every test: Animal and the price, carcass and
 -- reproduction code read it. Without an AnimalType global no animal is covered, so its factors
 -- are 1 and tests of other code see the old behaviour; tests/test_bodycondition.lua covers it.
+loadMod("scripts/core/RLNativeSaveHooks.lua")
+loadMod("scripts/animal/RLSpeciesCatalog.lua")
 loadMod("scripts/animal/RLSpecies.lua")
+loadMod("scripts/animal/RLAnimalState.lua")
 loadMod("scripts/animal/RLWeightMath.lua")
 loadMod("scripts/animal/RLMilkParity.lua")
 loadMod("scripts/nutrition/RLNutritionMath.lua")

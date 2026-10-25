@@ -14,12 +14,9 @@ P.LOCK_MS = 5000
 P.LIMITS = {maxNodes=400000,maxString=262144,maxDepth=32}
 local terminal = { COMMITTED = true, ROLLED_BACK = true }
 local stages = { PREPARED = true, APPLYING = true, COMMITTED = true, ROLLED_BACK = true, RECOVERY_REQUIRED = true }
-local function finite(v) return type(v) == "number" and v == v and math.abs(v) < math.huge end
+local finite=RLPlain.finite
 local function str(v) return type(v) == "string" and #v > 0 and #v <= 4096 end
-local function copy(v)
-    if type(v) ~= "table" then return v end
-    local out = {}; for k, x in pairs(v) do out[k] = copy(x) end; return out
-end
+local copy=RLPlain.copy
 local function call(a, name, ...)
     local ok, value, why = pcall(a[name], ...)
     if not ok then return nil, "ADAPTER_ERROR:" .. name end
@@ -154,6 +151,7 @@ function P.execute(store, request, principal, adapter)
         return nil, "RECOVERY_REQUIRED"
     end
     if store.recoveryRequired then return nil, "RECOVERY_REQUIRED" end
+    if RLBrokerRuntime and not RLBrokerRuntime.mutationAllowed() then return nil,"BROKER_RESOURCE_FENCE" end
     local ms; ms, why = now(store, adapter); if not ms then return nil, why end
     -- Never steal an expired lock from a transaction that may own side effects.
     for _, item in ipairs(r.items) do

@@ -551,12 +551,7 @@ local function raiseDomains(ledger, report, scan, only)
 end
 
 
-local function copy(v)
-    if type(v) ~= "table" then return v end
-    local out = {}
-    for k, x in pairs(v) do out[k] = copy(x) end
-    return out
-end
+local copy=RLPlain.copy
 
 
 local function checkScan(scan)
@@ -578,7 +573,7 @@ end
 --- the world holds now and move every domain past the native counters, which numbered the animals in the
 --- meantime. All or nothing: works on a copy, swaps it in only when the whole scan was read and the result is
 --- a valid ledger. Returns true and the report, or nil and why (the ledger unchanged).
-function R.reconcile(scan)
+function R.reconcile(scan, options)
     if R.ledger == nil then return nil, "NO_LEDGER" end
     if R.authoritative() then return nil, "ALREADY_AUTHORITATIVE" end
     local bad = checkScan(scan)
@@ -587,7 +582,8 @@ function R.reconcile(scan)
     local report = R.report(scan)
     local ok, err = pcall(function()
         for _, r in ipairs(freshRecords(work, scan.records)) do
-            if r.country ~= nil and r.farmId ~= nil and r.uniqueId ~= nil and not (tostring(r.farmId) == "1" and tostring(r.uniqueId) == "1") then
+            local transient=options and options.excludeTransient==true and R.TRANSIENT_ROLES[r.where]==true
+            if not transient and r.country ~= nil and r.farmId ~= nil and r.uniqueId ~= nil and not (tostring(r.farmId) == "1" and tostring(r.uniqueId) == "1") then
                 I.importLiveKey(work, r.farmId, r.uniqueId, r.country, "legacy")
             end
         end

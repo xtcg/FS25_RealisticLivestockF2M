@@ -42,9 +42,7 @@ RLSaleSettlement.UNKNOWN = "UNKNOWN"
 local COUNTER_WRAP = 999999
 
 
-local function isFinite(value)
-    return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
-end
+local isFinite=RLPlain.finite
 
 
 --- The fields addMoney changes for this farm and money type, or nil and why they cannot be read.
@@ -118,12 +116,7 @@ function RLSaleSettlement.classify(before, after, amount, threw)
 end
 
 
-local function copy(value)
-    if type(value) ~= "table" then return value end
-    local result = {}
-    for k, v in pairs(value) do result[k] = copy(v) end
-    return result
-end
+local copy=RLPlain.copy
 
 
 --- Pay (or charge) once. The receipt is recorded before the call, so a re-entrant or repeated

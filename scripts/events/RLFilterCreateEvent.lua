@@ -58,11 +58,7 @@ end
 --- Log user context for warning-path decisions.
 ---@param connection table
 ---@return string userName, any userId
-local function getUserContext(connection)
-    local userId = g_currentMission.userManager:getUniqueUserIdByConnection(connection)
-    local userName = (g_currentMission.userManager:getUserByConnection(connection) or {}).nickname or "unknown"
-    return userName, userId
-end
+local getUserContext=RLPermissionHelper.getUserContext
 
 --- Validate a remote client's payload, rebroadcast to the other peers, then apply here
 --- and fan the change out to the filter-consuming menu frames.
@@ -84,16 +80,11 @@ function RLFilterCreateEvent:run(connection)
         end
 
         if filter.farmId ~= nil then
-            local userFarm = g_farmManager:getFarmForUniqueUserId(userId)
-            if userFarm == nil or userFarm.farmId == nil then
-                Log:warning("RLFilterCreateEvent:run: no farm lookup for user '%s' (userId=%s); aborting create id=%s",
-                    tostring(userName), tostring(userId), tostring(filter.id))
-                return
-            end
-            if userFarm.farmId ~= filter.farmId then
-                Log:warning("RLFilterCreateEvent:run: farm-scope mismatch for user '%s' (userId=%s, userFarmId=%s) filter id=%s farmId=%s",
-                    tostring(userName), tostring(userId), tostring(userFarm.farmId),
-                    tostring(filter.id), tostring(filter.farmId))
+            local requesterFarmId=RLPermissionHelper.getRequesterFarmId(userId)
+            local allowed,reason=RLPermissionHelper.authorize(true,requesterFarmId,filter.farmId)
+            if not allowed then
+                Log:warning("RLFilterCreateEvent:run: farm-scope rejected (%s) user='%s' requesterFarmId=%s ownerFarmId=%s",
+                    tostring(reason),tostring(userName),tostring(requesterFarmId),tostring(filter.farmId))
                 return
             end
         end

@@ -831,18 +831,8 @@ end
 --- fill type: goat milk, Hof Bergmann's cattle cans). One reader for both shapes.
 --- @return number
 function RLFeed.getMatureMilk(subType)
-    local output = subType ~= nil and subType.output or nil
-    if output == nil then return 0 end
-    local milk = output.milk
-    if milk ~= nil and milk.get ~= nil and (Animal == nil or Animal.isSemenFillType == nil or not Animal.isSemenFillType(milk.fillType)) then
-        return milk:get(60) or 0
-    end
-    local pallets = output.pallets
-    if pallets ~= nil and Animal ~= nil and Animal.isLactationPalletFillType ~= nil and Animal.isLactationPalletFillType(pallets.fillType) then
-        local curve = pallets.curve or pallets
-        return curve.get ~= nil and (curve:get(60) or 0) or 0
-    end
-    return 0
+    local curve=RLAnimalOutput.milkCurve(subType)
+    return curve~=nil and (curve:get(60) or 0) or 0
 end
 
 

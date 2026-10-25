@@ -2,8 +2,8 @@
 -- model reachability (U51), price calibration, or permission to publish an order.
 RLBrokerConditionPackage = {}
 local P = RLBrokerConditionPackage
-local function finite(v) return type(v) == "number" and v == v and math.abs(v) < math.huge end
-local function text(v) return type(v) == "string" and v:match("%S") ~= nil end
+local finite=RLPlain.finite
+local text=RLPlain.text
 local function requireValue(ok, reason) if not ok then error(reason, 0) end end
 local fields = {
     ["s.ageMonths"] = "number", ["s.health"] = "number", ["s.weightKg"] = "number",
@@ -31,9 +31,12 @@ local weights = {
     ["sheep.terminal"] = {quality = 0.65, productivity = 0, fertility = 0.25, health = 0.1},
     ["sheep.maternal"] = {quality = 0.15, productivity = 0, fertility = 0.55, health = 0.3},
 }
-local kindSpecies = {cattleWeaned = "COW", cattleStore = "COW", cattleFinished = "COW", cattleReplacement = "COW", cattlePregnant = "COW", cattleLactating = "COW", cattleSire = "COW", pigGrower = "PIG", pigFinished = "PIG", pigReplacement = "PIG", pigSire = "PIG", lambGrower = "SHEEP", lambFinished = "SHEEP", eweReplacement = "SHEEP", ramSire = "SHEEP"}
-local kindGroup = {cattleWeaned = "GROWER", cattleStore = "GROWER", cattleFinished = "FINISHED", cattleReplacement = "BREEDING", cattlePregnant = "BREEDING", cattleLactating = "BREEDING", cattleSire = "BREEDING", pigGrower = "GROWER", pigFinished = "FINISHED", pigReplacement = "BREEDING", pigSire = "BREEDING", lambGrower = "GROWER", lambFinished = "FINISHED", eweReplacement = "BREEDING", ramSire = "BREEDING"}
-local bounds = {cattleWeaned = {4, 10, 80}, cattleStore = {8, 26, 80}, cattleFinished = {14, 36, 85}, cattleReplacement = {12, 30, 90}, cattlePregnant = {18, 72, 90}, cattleLactating = {24, 72, 90}, cattleSire = {14, 48, 95}, pigGrower = {1, 4, 85}, pigFinished = {4, 10, 85}, pigReplacement = {6, 10, 90}, pigSire = {8, 24, 95}, lambGrower = {3, 8, 80}, lambFinished = {3, 12, 85}, eweReplacement = {7, 18, 90}, ramSire = {8, 36, 95}}
+local kindSpecies,kindGroup,bounds,kinds={},{},{},{}
+for _,package in ipairs(RLSpeciesCatalog.packages()) do
+    local b=package.bounds
+    kindSpecies[package.kind],kindGroup[package.kind],bounds[package.kind]=package.species,package.group,b
+    kinds[package.kind]={package.species,package.group,b[1],package.defaultMaxAge or b[2],b[3]}
+end
 function P.indexWeights(id) return weights[id] and RLMarketData.copy(weights[id]) or nil end
 function P.validateWeights(w)
     if type(w) ~= "table" or getmetatable(w) ~= nil then return false end
@@ -41,11 +44,7 @@ function P.validateWeights(w)
     for gene, weight in pairs(w) do if not genes[gene] or not finite(weight) or weight < 0 then return false end; sum = sum + weight end
     return finite(sum) and math.abs(sum - 1) <= 1e-12
 end
-local function dense(list)
-    if type(list) ~= "table" then return false end
-    local n = 0; for k in pairs(list) do if type(k) ~= "number" or k % 1 ~= 0 or k < 1 or k > #list then return false end; n = n + 1 end
-    return n == #list
-end
+local dense=RLPlain.dense
 local function compile(raw)
     local p, reason = RLMarketData.copy(raw); requireValue(p ~= nil, reason)
     requireValue(p.schemaVersion == 1 and text(p.id) and p.candidate == true, "INVALID_PACKAGE_HEADER")
@@ -213,13 +212,6 @@ function P.compile(raw)
     return result
 end
 
-local kinds = {
-    cattleWeaned = {"COW", "GROWER", 4, 10, 80}, cattleStore = {"COW", "GROWER", 8, 20, 80},
-    cattleFinished = {"COW", "FINISHED", 14, 30, 85}, cattleReplacement = {"COW", "BREEDING", 12, 30, 90},
-    cattlePregnant = {"COW", "BREEDING", 18, 72, 90}, cattleLactating = {"COW", "BREEDING", 24, 72, 90}, cattleSire = {"COW", "BREEDING", 14, 48, 95},
-    pigGrower = {"PIG", "GROWER", 1, 4, 85}, pigFinished = {"PIG", "FINISHED", 4, 10, 85}, pigReplacement = {"PIG", "BREEDING", 6, 10, 90}, pigSire = {"PIG", "BREEDING", 8, 24, 95},
-    lambGrower = {"SHEEP", "GROWER", 3, 8, 80}, lambFinished = {"SHEEP", "FINISHED", 3, 12, 85}, eweReplacement = {"SHEEP", "BREEDING", 7, 18, 90}, ramSire = {"SHEEP", "BREEDING", 8, 36, 95},
-}
 function P.candidate(kind, options)
     local spec = kinds[kind]; if spec == nil then return nil, "UNKNOWN_PACKAGE_KIND" end
     local o, failure = RLMarketData.copy(options or {})
@@ -294,7 +286,8 @@ function P.candidate(kind, options)
                 if o.breedingObjective == "DAIRY" then p.genetics.geneMin.productivity = quality and 1.20 or 1.05 end
             end
         end
-        local prefix = spec[1] == "COW" and "cattle" or spec[1] == "SHEEP" and "sheep" or nil
+        local member=RLSpeciesCatalog.get(spec[1])
+        local prefix=member and member.indexPrefix
         if prefix and p.breedingObjective then p.genetics.indexId = prefix .. "." .. p.breedingObjective:lower() else p.genetics.weights = o.indexWeights end
     end
     return p

@@ -3,7 +3,7 @@
 RLBrokerTransaction={}
 local T=RLBrokerTransaction
 local D=RLMarketData
-local function text(v)return type(v)=="string" and v:match("%S")~=nil end
+local text=RLPlain.text
 local function integer(v,min)return type(v)=="number" and v==v and v%1==0 and v>=min and v<2^52 end
 local function copy(v)return assert(D.copy(v))end
 local function fp(v)return D.fingerprint(v)end
@@ -27,7 +27,7 @@ local function resources(plan,evidence,principal)
     local snapshot=plan.currentSnapshot
     if type(snapshot)~="table" or snapshot.identityKey~=plan.request.animalKey or not text(snapshot.speciesKey)
         or not text(snapshot.breedId) then return nil,"INVALID_PLAN_ANIMAL" end
-    if type(evidence)~="table" or evidence.version~=1 or evidence.kind~="BROKER_SOURCE" or not text(evidence.sourceId)
+    if type(evidence)~="table" or (evidence.version~=1 and evidence.version~=2) or evidence.kind~="BROKER_SOURCE" or not text(evidence.sourceId)
         or evidence.identityKey~=snapshot.identityKey or evidence.ownerFarmId~=principal.farmId
         or (evidence.sourceKind~="PEN" and evidence.sourceKind~="TRAILER") or type(evidence.animal)~="table"
         or type(evidence.members)~="table" or type(evidence.queues)~="table" or evidence.reloadRestoreSupported~=false then return nil,"INVALID_SOURCE_EVIDENCE" end
@@ -37,10 +37,20 @@ local function resources(plan,evidence,principal)
     local seen,count,selected={},0,0
     for index,member in pairs(evidence.members)do
         if not integer(index,1) or index>#evidence.members or type(member)~="table" or not text(member.identityKey) or seen[member.identityKey]
-            or type(member.state)~="table" or not integer(member.engineId,0) then return nil,"INVALID_SOURCE_MEMBER" end
+            then return nil,"INVALID_SOURCE_MEMBER" end
+        local engineId=member.engineId
+        if engineId~=nil and not text(engineId) and not integer(engineId,0) then return nil,"INVALID_SOURCE_MEMBER" end
+        local stateFingerprint
+        if evidence.version==1 then
+            if type(member.state)~="table" then return nil,"INVALID_SOURCE_MEMBER" end
+            stateFingerprint=fp(member.state)
+        else
+            if member.state~=nil or not text(member.stateFingerprint) or member.stateFingerprint:sub(1,8)~="market1:" then return nil,"INVALID_SOURCE_MEMBER" end
+            stateFingerprint=member.stateFingerprint
+        end
         seen[member.identityKey]=true;count=count+1
         if member.identityKey==evidence.identityKey then
-            if not exact(member.state,evidence.animal) then return nil,"SOURCE_SELECTED_STATE_MISMATCH" end
+            if stateFingerprint~=fp(evidence.animal) then return nil,"SOURCE_SELECTED_STATE_MISMATCH" end
             selected=selected+1
         end
     end
@@ -154,7 +164,12 @@ function T.new(deps)
         else accepted=staged:release(r.requestId,true) end
         if not accepted then return unknown(r,"QUOTA_TERMINAL_FAILED") end
         r.state=state;r.stage=state;r.outcome={status=state,requestId=r.requestId,reason=reason}
-        if not persist(staged:export()) then return unknown(r,"TERMINAL_DURABILITY_UNKNOWN") end
+        local stagedQuota=staged:export()
+        -- restore() intentionally quarantines reservations. Staging an ordinary
+        -- live commit through it must not invent recovery evidence that the
+        -- live commit does not have: WAL and live exports must remain identical.
+        if state=="COMMITTED" and not reconciled then stagedQuota.requests[r.requestId].reconciliationEvidence=nil end
+        if not persist(stagedQuota) then return unknown(r,"TERMINAL_DURABILITY_UNKNOWN") end
         if state=="COMMITTED" then
             if reconciled then accepted=deps.quota:reconcileCommit(r.requestId,reconciled) else accepted=deps.quota:commit(r.requestId) end
         else accepted=deps.quota:release(r.requestId,reconciled~=nil) end
@@ -258,6 +273,18 @@ function T.new(deps)
         return result,reason
     end
     function runtime:export()return document()end
+    function runtime:hasRequest(id) return records[id]~=nil end
+    -- A native save may follow a month change or restored historical receipts
+    -- without a new delivery. Give that exact live document its own sequence
+    -- and read-back barrier before taking the shared native-save snapshot.
+    function runtime:saveDocument()
+        if busy or recovery then return nil,"BROKER_NOT_READY_FOR_SAVE" end
+        busy=true
+        local ok,written=pcall(persist)
+        busy=false
+        if not ok or not written then recovery=true;return nil,"BROKER_SAVE_DOCUMENT_UNCERTAIN" end
+        return document()
+    end
     function runtime:getStatus()return recovery and "RECOVERY_REQUIRED" or "READY" end
     function runtime:restore(saved,validatedCheckpoint)
         if busy or next(records)~=nil then return false,"BROKER_STORE_NOT_EMPTY" end

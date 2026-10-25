@@ -4,7 +4,7 @@ RLBrokerMoneyAdapter = {}
 local A=RLBrokerMoneyAdapter
 local function copy(v)return assert(RLMarketData.copy(v))end
 local function fingerprint(v)return assert(RLMarketData.fingerprint(v))end
-local function finite(n)return type(n)=="number" and n==n and math.abs(n)<math.huge end
+local finite=RLPlain.finite
 function A.new(options)
     if type(options)~="table" or type(options.persistReceipt)~="function" or type(options.moneyType)~="table" then return nil,"MONEY_CONTEXT_REQUIRED" end
     local receipts,payments,busyFarms={},{},{}

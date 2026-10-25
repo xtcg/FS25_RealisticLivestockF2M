@@ -204,6 +204,7 @@ function C.onSaveEnd(missionInfo)
         local written, digest = false, nil
         if xml ~= nil then
             written, digest = P.writeLedger(xml, pass.data)
+            if written and RLBrokerGameBinding then RLBrokerGameBinding.observeIdentity("owner",xml) end
             written = written and xml:save() == true
             xml:delete()
         end
@@ -574,29 +575,15 @@ function C.install()
             end
         end
     end
-    if FSCareerMissionInfo ~= nil and FSCareerMissionInfo.saveToXMLFile ~= nil then
-        FSCareerMissionInfo.saveToXMLFile = Utils.prependedFunction(FSCareerMissionInfo.saveToXMLFile,
-            guard("onSaveBegin", function(self) C.onSaveBegin(self) end))
-        FSCareerMissionInfo.saveToXMLFile = Utils.appendedFunction(FSCareerMissionInfo.saveToXMLFile,
-            guard("onSaveEnd", function(self) C.onSaveEnd(self) end))
-    end
-    if PlaceableSystem ~= nil and PlaceableSystem.saveToXML ~= nil then
-        PlaceableSystem.saveToXML = Utils.prependedFunction(PlaceableSystem.saveToXML,
-            guard("marker", function(_, xml) C.markParticipant("placeables", xml, "placeables") end))
-    end
-    if VehicleSystem ~= nil and VehicleSystem.saveToXML ~= nil then
-        VehicleSystem.saveToXML = Utils.prependedFunction(VehicleSystem.saveToXML,
-            guard("marker", function(_, _, xml) C.markParticipant("vehicles", xml, "vehicles") end))
-    end
-    if Farm ~= nil and Farm.saveToXMLFile ~= nil then
-        Farm.saveToXMLFile = Utils.appendedFunction(Farm.saveToXMLFile,
-            guard("marker", function(_, xml) C.markParticipant("farms", xml, "farms") end))
-    end
-    if SavegameController ~= nil and SavegameController.onSaveComplete ~= nil then
-        SavegameController.onSaveComplete = Utils.appendedFunction(SavegameController.onSaveComplete,
-            guard("onSaveComplete", function(controller, errorCode, finalDirectory)
-                local savegame = controller ~= nil and controller.currentSavegame or nil
-                C.onSaveComplete(errorCode, savegame ~= nil and savegame.savegameDirectory or finalDirectory)
-            end))
-    end
+    return RLNativeSaveHooks.install(C,{
+        begin=guard("onSaveBegin",function(self) C.onSaveBegin(self) end),
+        finish=guard("onSaveEnd",function(self) C.onSaveEnd(self) end),
+        placeables=guard("marker",function(_,xml) C.markParticipant("placeables",xml,"placeables") end),
+        vehicles=guard("marker",function(_,_,xml) C.markParticipant("vehicles",xml,"vehicles") end),
+        farms=guard("marker",function(_,xml) C.markParticipant("farms",xml,"farms") end),
+        complete=guard("onSaveComplete",function(controller,code,directory)
+            local savegame=controller~=nil and controller.currentSavegame or nil
+            C.onSaveComplete(code,savegame~=nil and savegame.savegameDirectory or directory)
+        end),
+    })
 end

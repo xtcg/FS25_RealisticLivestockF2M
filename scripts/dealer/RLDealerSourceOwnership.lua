@@ -2,16 +2,10 @@
 -- physiology schema: real-born genes/identities are never filtered through preset ranges.
 RLDealerSourceOwnership = { VERSION = 1 }
 local O = RLDealerSourceOwnership
-local function finite(x) return type(x) == "number" and x == x and math.abs(x) < math.huge end
+local finite=RLPlain.finite
 local function id(x) return type(x) == "string" and x ~= "" and x ~= "-1" and #x <= 256 end
-local function copy(x) if type(x) ~= "table" then return x end; local c = {}; for k,v in pairs(x) do c[k] = copy(v) end; return c end
-local function equal(a,b)
-    if type(a) ~= type(b) then return false end
-    if type(a) ~= "table" then return a == b end
-    for k,v in pairs(a) do if not equal(v,b[k]) then return false end end
-    for k in pairs(b) do if a[k] == nil then return false end end
-    return true
-end
+local copy=RLPlain.copy
+local equal=RLPlain.equal
 local function fail(reason, raw) return nil, { reason = reason, quarantine = raw } end
 local function genes(g)
     if type(g) ~= "table" then return false end
@@ -21,12 +15,7 @@ local function genes(g)
     end
     return g.metabolism > 0
 end
-local function dense(t)
-    if type(t) ~= "table" then return false end
-    local count = 0
-    for k in pairs(t) do if not finite(k) or k < 1 or k % 1 ~= 0 or k > #t then return false end; count = count + 1 end
-    return count == #t
-end
+local dense=RLPlain.dense
 local function calendar(d, birthday)
     return type(d) == "table" and finite(d.day) and d.day >= 1 and d.day <= 31 and d.day % 1 == 0
         and finite(d.month) and d.month >= 1 and d.month <= 12 and d.month % 1 == 0

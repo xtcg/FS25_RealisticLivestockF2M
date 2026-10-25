@@ -3,7 +3,7 @@
 -- the complete birth-herd identity, never a display tag or a species suffix.
 RLMarketResourceLock = {}
 local L = RLMarketResourceLock
-local function text(s) return type(s)=="string" and s:match("%S")~=nil end
+local text=RLPlain.text
 function L.resource(kind, key)
     if kind~="ANIMAL" and kind~="WALLET" and kind~="CONTAINER" and kind~="QUOTA" then return nil,"INVALID_RESOURCE_KIND" end
     if not text(key) then return nil,"INVALID_RESOURCE_KEY" end

@@ -58,6 +58,8 @@ check("broker preflight: unknown source remains read-only estimate",preflight.pr
 source=true;context.facts.weaned=nil
 preflight=assert(service:preflight(actor,request))
 check("broker preflight: missing capability has reasons rather than fake low value",preflight.eligibility.status=="UNKNOWN" and preflight.price==nil)
+local rejected,rejection,details=service:preview(actor,request)
+check("broker quote: rejected preview retains full diagnostics",rejected==nil and rejection=="BROKER_INELIGIBLE" and details and details.eligibility.status=="UNKNOWN" and #details.eligibility.unknowns>0)
 check("broker quote: missing principal rejected even if adapter permissive",service:preview(nil,request)==nil)
 context.facts.weaned=true
 local first=assert(service:preview(actor,request))

@@ -1,23 +1,14 @@
 -- D3-5 installation into a prepared real Animal. Authority/ownership remain transaction seams.
 RLDealerHandoff = { VERSION = 1 }
 local H = RLDealerHandoff
-local function finite(x) return type(x) == "number" and x == x and math.abs(x) < math.huge end
+local finite=RLPlain.finite
 local function fail(reason) return nil, { reason = reason } end
 local function identity(value)
     return (type(value) == "string" and value ~= "" and value ~= "-1" and value ~= "0" and value ~= "0-0")
         or (finite(value) and value > 0 and value == math.floor(value))
 end
-local function copy(value)
-    if type(value) ~= "table" then return value end
-    local out = {}; for k, v in pairs(value) do out[k] = copy(v) end; return out
-end
-local function equal(a, b)
-    if type(a) ~= type(b) then return false end
-    if type(a) ~= "table" then return a == b end
-    for k, v in pairs(a) do if not equal(v, b[k]) then return false end end
-    for k in pairs(b) do if a[k] == nil then return false end end
-    return true
-end
+local copy=RLPlain.copy
+local equal=RLPlain.equal
 -- Include fields whose source value may be nil: pairs(payload) would leave stale target state.
 -- Registry indices, identity, birthday, clusterSystem and pregnancy are intentionally not here.
 local installed = { "age", "breed", "gender", "isIndividual", "isCastrated", "genetics", "health", "isParent",

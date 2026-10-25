@@ -2,7 +2,7 @@
 -- explicit inputs; absent capabilities are UNKNOWN, never invented zero values.
 RLBrokerEligibility = {}
 local E = RLBrokerEligibility
-local function finite(v) return type(v) == "number" and v == v and math.abs(v) < math.huge end
+local finite=RLPlain.finite
 local function contains(list, value) for _, item in ipairs(list or {}) do if item == value then return true end end return false end
 local function result() return {eligible = false, status = "UNKNOWN", checks = {}, failures = {}, unknowns = {}} end
 local function record(out, code, status, actual, expected, capability)

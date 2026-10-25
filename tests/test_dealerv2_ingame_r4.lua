@@ -154,7 +154,7 @@ do
     for k, v in pairs(saved) do C[k] = v end
     local manager = source("scripts/console/RLConsoleCommandManager.lua")
     check("r4 console: every RLIdentityConsole command registers the dropping target",
-        select(2, manager:gsub(", RLIdentityConsole%.commands, ", "")) == 16 and manager:find(", RLIdentityConsole, ", 1, true) == nil)
+        select(2, manager:gsub(", RLIdentityConsole%.commands, ", "")) == 18 and manager:find(", RLIdentityConsole, ", 1, true) == nil)
 
     local oldId, oldD = RLAnimalIdentityRuntime, RLDealerRuntime
     RLAnimalIdentityRuntime = { server = true }

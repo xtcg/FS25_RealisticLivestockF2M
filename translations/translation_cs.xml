@@ -1123,5 +1123,73 @@
         <text name="rl_wool_shorn" text="%s：已为%d只羊剪毛，共%d升羊毛等待装托盘"/>
         <text name="rl_menu_settings_tab_manual" text="玩家指南"/>
         <text name="rl_ui_priceUnavailable" text="当前无法报价。请刷新后重试。"/>
+        <text name="rl_broker_title" text="商人收购合同"/>
+        <text name="rl_broker_order" text="本月收购需求"/>
+        <text name="rl_broker_animal" text="动物 / 月龄 / 体重"/>
+        <text name="rl_broker_order_name" text="断奶安格斯小牛 — %d 头"/>
+        <text name="rl_broker_conditions" text="安格斯牛，4–10 月龄，健康 &gt;= 80；已断奶，发育月龄 &gt;= 4。&#10;体重为个体生长参考的 75–120%；未妊娠、未产奶。"/>
+        <text name="rl_broker_capacity" text="剩余额度：订单 %d / 牛类 %d / 安格斯 %d"/>
+        <text name="rl_broker_expires" text="本游戏月结束时到期（含今天剩余 %d 个游戏日）。"/>
+        <text name="rl_broker_ready" text="单机 · 牧场付费接运 · 每次确认一只"/>
+        <text name="rl_broker_no_orders" text="暂无可用需求"/>
+        <text name="rl_broker_no_animals" text="你的圈舍中没有安格斯牛"/>
+        <text name="rl_broker_refresh" text="刷新"/>
+        <text name="rl_broker_pickup" text="确认接运报价"/>
+        <text name="rl_broker_price" text="参考价 %s | 佣金及限价扣减 %s | 接运费 %s | 净收入 %s"/>
+        <text name="rl_broker_conservative" text="首版：运输前净额不超过当前商人卖价，接运费为普通运输费的 50%，无来源奖励或完成奖金。"/>
+        <text name="rl_broker_confirm" text="将 %s 出售给商人？&#10;扣除接运费后净收入：%s&#10;将移除一只动物，报价有效期为 15 秒。"/>
+        <text name="rl_broker_sold" text="动物已接走，净收入已支付，需求额度已更新。请保存游戏以保留成交结果。"/>
+        <text name="rl_broker_eligible" text="符合条件，可以请求并确认接运报价。"/>
+        <text name="rl_broker_rejected" text="不符合条件"/>
+        <text name="rl_broker_unknown" text="缺少必要信息"/>
+        <text name="rl_broker_unavailable" text="当前无法收购"/>
+        <text name="rl_broker_yes" text="是"/>
+        <text name="rl_broker_no" text="否"/>
+        <text name="rl_broker_reason_BROKER_INITIAL_SAVE_REQUIRED" text="请先保存一次游戏，初始化收购合同后刷新本页。"/>
+        <text name="rl_broker_reason_BROKER_SINGLEPLAYER_ONLY" text="当前收购合同仅支持单机。"/>
+        <text name="rl_broker_reason_BROKER_INITIALIZING" text="收购服务正在初始化，请稍后刷新。"/>
+        <text name="rl_broker_reason_BROKER_UNRESOLVED_TRANSACTION" text="交易结果需要恢复，已暂停收购，请勿改用其他途径重复出售。"/>
+        <text name="rl_broker_reason_BROKER_QUOTE_EXPIRED" text="报价已过期，请刷新后重新确认。"/>
+        <text name="rl_broker_reason_BROKER_REQUOTE_REQUIRED" text="价格发生变化，请刷新后确认新报价。"/>
+        <text name="rl_broker_reason_BROKER_NO_LONGER_ELIGIBLE" text="动物已不符合条件，请刷新查看原因。"/>
+        <text name="rl_broker_reason_BROKER_UNSAVED_OR_MIXED_TRANSACTION" text="检测到未保存或不一致的交易证据，已暂停收购。"/>
+        <text name="rl_broker_reason_BROKER_PERMISSION_DENIED" text="你没有交易这些动物的权限。"/>
+        <text name="rl_broker_reason_BROKER_SAVE_REQUIRED" text="请先保存一次游戏，然后刷新。"/>
+        <text name="rl_broker_reason_NONPOSITIVE_BROKER_NET" text="可用价款不足以支付接运费。"/>
+        <text name="rl_broker_reason_BROKER_INELIGIBLE" text="所选动物不符合收购条件。"/>
+        <text name="rl_broker_reason_BROKER_CLOCK_ROLLBACK_REQUIRED" text="已保存的需求历史晚于游戏日期，已暂停收购。"/>
+        <text name="rl_broker_check_s_ageMonths" text="月龄 / 最低收购月龄"/>
+        <text name="rl_broker_check_s_health" text="健康"/>
+        <text name="rl_broker_check_s_weightKg" text="体重 / 生长参考"/>
+        <text name="rl_broker_check_s_reproductive_pregnant" text="妊娠状态"/>
+        <text name="rl_broker_check_s_reproductive_lactating" text="产奶状态"/>
+        <text name="rl_broker_check_f_weaned" text="断奶状态"/>
+        <text name="rl_broker_check_f_developmentReady" text="发育月龄 &gt;= 4"/>
+        <text name="rl_broker_check_f_finished" text="育成阶段"/>
+        <text name="rl_broker_check_quota_order" text="订单额度"/>
+        <text name="rl_broker_check_quota_species" text="牛类额度"/>
+        <text name="rl_broker_check_quota_breed" text="安格斯额度"/>
+        <text name="rl_broker_check_tradeAllowed" text="动物交易资格"/>
+        <text name="rl_broker_check_identityVerified" text="动物身份"/>
+        <text name="rl_broker_check_unlocked" text="交易锁"/>
+        <text name="rl_broker_check_sourceSupported" text="圈舍接运支持"/>
+        <text name="rl_broker_check_permissionGranted" text="交易权限"/>
+        <text name="rl_broker_check_ownershipVerified" text="所有权"/>
+        <text name="rl_broker_check_orderOpen" text="订单状态"/>
+        <text name="rl_broker_check_species" text="物种"/>
+        <text name="rl_broker_check_productionClass" text="用途分类"/>
+        <text name="rl_broker_check_breed" text="品种"/>
+        <text name="rl_settings_brokerEnabled_label" text="商人收购"/>
+        <text name="rl_settings_brokerEnabled_tooltip" text="单机默认开启。关闭只暂停新交易，保留订单、额度和恢复记录。"/>
+        <text name="rl_settings_brokerOrders_label" text="商人收购合同"/>
+        <text name="rl_settings_brokerOrders_text" text="查看收购需求"/>
+        <text name="rl_settings_brokerOrders_tooltip" text="点击查看月度需求和动物资格；关闭收购时仍可查看。"/>
+        <text name="rl_broker_reason_BROKER_DISABLED" text="商人收购已关闭，请在 RLRM 设置的常规页开启。"/>
+        <text name="rl_broker_recover" text="恢复收购"/>
+        <text name="rl_broker_recover_confirm" text="从已保存的检查点重启收购合同？未保存的收购记录会作为证据另存，订单和额度回到保存时的状态。请只在重新读档后、尚未进行新的交付时使用。"/>
+        <text name="rl_broker_recovered" text="收购合同已从保存的检查点重启，请保存一次游戏。"/>
+        <text name="rl_broker_reason_BROKER_RECOVERY_RELOAD_REQUIRED" text="本次游戏中已有交付，请读取上一次存档后再恢复。"/>
+        <text name="rl_broker_reason_BROKER_NOT_PAUSED" text="收购合同当前没有暂停。"/>
+        <text name="rl_broker_reason_BROKER_RECOVERY_EVIDENCE_SLOTS_FULL" text="保留的恢复记录过多，请先检查这些记录再恢复。"/>
     </texts>
 </l10n>

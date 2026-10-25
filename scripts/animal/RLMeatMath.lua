@@ -89,9 +89,7 @@ function RLMeatMath.compute(snapshot, params, formula)
 end
 
 
-local function isFinite(value)
-    return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
-end
+local isFinite=RLPlain.finite
 
 
 --- What a quote cannot rely on: the reasons compute() would have fallen back or produced a

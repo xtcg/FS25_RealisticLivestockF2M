@@ -5,23 +5,19 @@
 -- Shared by tests/test_sheep_s5_nursing.lua and the offline calibration (tests/sheepcalib.lua).
 
 loadMod("tests/feedsim.lua")
+loadMod("tests/fixtures/species_sim_support.lua")
 
 SheepSim = {}
 
 local FILL = FeedSim.FILL
-local SHEEP
-for _, sub in ipairs(Economics.subTypes) do
-    if sub.typeName == "SHEEP" and SHEEP == nil then SHEEP = sub.typeIndex end
-end
+local SHEEP=assert(SpeciesSimSupport.typeIndex(Economics.subTypes,"SHEEP"))
 SheepSim.TYPE = SHEEP
 AnimalType.SHEEP = SHEEP
 -- The animal system's subtype list (a ewe lamb's market reference is her breed's ram's).
 g_currentMission.animalSystem.subTypes = Economics.subTypes
 
-local function group(title, weight, names)
-    local fillTypes = {}
-    for _, name in ipairs(names) do table.insert(fillTypes, FILL[name]) end
-    return { title = title, productionWeight = weight, eatWeight = 1, fillTypes = fillTypes }
+local function group(title,weight,names)
+    return SpeciesSimSupport.foodGroup(FILL,title,weight,names)
 end
 -- Hof Bergmann 1.5 (character/animalFood.xml): SHEEP has one SERIAL group.
 local sheepFood = { consumptionType = 1, groups = { group("grass", 1.0, { "GRASS_WINDROW", "DRYGRASS_WINDROW", "CLOVER_WINDROW" }) } }

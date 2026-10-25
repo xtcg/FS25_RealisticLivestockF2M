@@ -2,7 +2,7 @@
 -- never a game clock; month zero corresponds to the supplied calendar origin.
 RLMarketCurve = {}
 local C = RLMarketCurve
-local function finite(v) return type(v) == "number" and v == v and math.abs(v) < math.huge end
+local finite=RLPlain.finite
 function C.validate(curve)
     if type(curve) ~= "table" or getmetatable(curve) ~= nil or curve.interpolation ~= "linear"
         or (curve.axis ~= "breedingScore" and curve.axis ~= "calendarMonth")
