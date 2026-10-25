@@ -1123,5 +1123,61 @@
         <text name="rl_wool_shorn" text="%s: %d sheep shorn, %d l of wool waiting for pallets"/>
         <text name="rl_menu_settings_tab_manual" text="Player guide"/>
         <text name="rl_ui_priceUnavailable" text="Az ár nem érhető el. Frissítsen, majd próbálja újra."/>
+        <text name="rl_broker_title" text="Merchant purchase contracts"/>
+        <text name="rl_broker_order" text="Monthly demand"/>
+        <text name="rl_broker_animal" text="Animal / age (months) / weight"/>
+        <text name="rl_broker_order_name" text="Weaned Angus calves — %d head"/>
+        <text name="rl_broker_conditions" text="Angus cattle, 4–10 months, health &gt;= 80; weaned, development &gt;= 4 months.&#10;Weight: 75–120% of the individual growth reference; not pregnant or lactating."/>
+        <text name="rl_broker_capacity" text="Remaining: order %d / cattle %d / Angus %d"/>
+        <text name="rl_broker_expires" text="Expires at the end of this game month (%d game day(s) including today)."/>
+        <text name="rl_broker_ready" text="Single player · farm pickup · confirm one animal at a time"/>
+        <text name="rl_broker_no_orders" text="No available demand"/>
+        <text name="rl_broker_no_animals" text="No Angus cattle in your pens"/>
+        <text name="rl_broker_refresh" text="Refresh"/>
+        <text name="rl_broker_pickup" text="Request pickup"/>
+        <text name="rl_broker_price" text="Reference %s | Commission and price cap %s | Pickup %s | Net income %s"/>
+        <text name="rl_broker_conservative" text="Initial release: capped at the current Dealer BID; pickup costs 50% of normal transport. No acquisition or completion bonus."/>
+        <text name="rl_broker_confirm" text="Sell %s to the merchant?&#10;Net income after pickup: %s&#10;One animal will be removed. Quote valid for 15 seconds."/>
+        <text name="rl_broker_sold" text="Animal collected. Net income paid and demand quota updated. Save the game to keep this result."/>
+        <text name="rl_broker_eligible" text="Eligible. You can request a confirmed pickup quote."/>
+        <text name="rl_broker_rejected" text="Does not qualify"/>
+        <text name="rl_broker_unknown" text="Required information unavailable"/>
+        <text name="rl_broker_unavailable" text="Purchase unavailable"/>
+        <text name="rl_broker_yes" text="Yes"/>
+        <text name="rl_broker_no" text="No"/>
+        <text name="rl_broker_reason_BROKER_INITIAL_SAVE_REQUIRED" text="Save the game once to initialize purchase contracts, then refresh this page."/>
+        <text name="rl_broker_reason_BROKER_SINGLEPLAYER_ONLY" text="Purchase contracts currently support single player only."/>
+        <text name="rl_broker_reason_BROKER_INITIALIZING" text="Purchase contracts are initializing. Refresh in a moment."/>
+        <text name="rl_broker_reason_BROKER_UNRESOLVED_TRANSACTION" text="A transaction needs recovery. Purchases are paused; do not retry through another channel."/>
+        <text name="rl_broker_reason_BROKER_QUOTE_EXPIRED" text="The quote expired. Refresh and request another quote."/>
+        <text name="rl_broker_reason_BROKER_REQUOTE_REQUIRED" text="The price changed. Refresh and confirm the new quote."/>
+        <text name="rl_broker_reason_BROKER_NO_LONGER_ELIGIBLE" text="This animal no longer qualifies. Refresh to see the reason."/>
+        <text name="rl_broker_reason_BROKER_UNSAVED_OR_MIXED_TRANSACTION" text="Unsaved or inconsistent transaction evidence was found. Purchase contracts are paused."/>
+        <text name="rl_broker_reason_BROKER_PERMISSION_DENIED" text="You do not have permission to trade these animals."/>
+        <text name="rl_broker_reason_BROKER_SAVE_REQUIRED" text="Save the game once, then refresh."/>
+        <text name="rl_broker_reason_NONPOSITIVE_BROKER_NET" text="Pickup costs exceed the available price."/>
+        <text name="rl_broker_reason_BROKER_INELIGIBLE" text="The selected animal does not qualify."/>
+        <text name="rl_broker_reason_BROKER_CLOCK_ROLLBACK_REQUIRED" text="The saved demand history is ahead of the game date. Purchases are paused."/>
+        <text name="rl_broker_check_s_ageMonths" text="Age / minimum purchase age"/>
+        <text name="rl_broker_check_s_health" text="Health"/>
+        <text name="rl_broker_check_s_weightKg" text="Weight / growth reference"/>
+        <text name="rl_broker_check_s_reproductive_pregnant" text="Pregnancy"/>
+        <text name="rl_broker_check_s_reproductive_lactating" text="Lactation"/>
+        <text name="rl_broker_check_f_weaned" text="Weaning"/>
+        <text name="rl_broker_check_f_developmentReady" text="Development &gt;= 4 months"/>
+        <text name="rl_broker_check_f_finished" text="Grower stage"/>
+        <text name="rl_broker_check_quota_order" text="Order capacity"/>
+        <text name="rl_broker_check_quota_species" text="Cattle capacity"/>
+        <text name="rl_broker_check_quota_breed" text="Angus capacity"/>
+        <text name="rl_broker_check_tradeAllowed" text="Animal trade eligibility"/>
+        <text name="rl_broker_check_identityVerified" text="Animal identity"/>
+        <text name="rl_broker_check_unlocked" text="Transaction lock"/>
+        <text name="rl_broker_check_sourceSupported" text="Pen pickup support"/>
+        <text name="rl_broker_check_permissionGranted" text="Trade permission"/>
+        <text name="rl_broker_check_ownershipVerified" text="Ownership"/>
+        <text name="rl_broker_check_orderOpen" text="Order status"/>
+        <text name="rl_broker_check_species" text="Species"/>
+        <text name="rl_broker_check_productionClass" text="Production class"/>
+        <text name="rl_broker_check_breed" text="Breed"/>
     </texts>
 </l10n>

@@ -5,6 +5,7 @@ local R = RLMarketRuntime
 local Log = RmLogging.getLogger("RLRM")
 local modDirectory = g_currentModDirectory
 function R.reset()
+    if RLBrokerGameBinding then RLBrokerGameBinding.reset() end
     if RLMarketEnginePrice~=nil then RLMarketEnginePrice.clear() end
     R.configState, R.requestedMode, R.mode = {}, "legacy", "legacy"
     R.state, R.reason = "DORMANT", nil
@@ -47,10 +48,19 @@ function R.marketPricingReady(scope)
     return false, "MARKET_PRICING_NOT_VERIFIED"
 end
 function R.brokerPreviewReady(scope)
+    if RLBrokerRuntime and RLBrokerRuntime.current and RLBrokerCattlePolicy.supported(scope) then
+        return RLBrokerRuntime.current.state~="RECOVERY_REQUIRED"
+    end
     return false, "BROKER_PREVIEW_NOT_IMPLEMENTED"
 end
 function R.brokerSettlementReady(scope, transportMode)
+    if RLBrokerRuntime and RLBrokerRuntime.current and transportMode=="PICKUP" and RLBrokerCattlePolicy.supported(scope) then
+        return RLBrokerRuntime.current:ready()
+    end
     return false, "BROKER_SETTLEMENT_NOT_VERIFIED"
+end
+function R:update(dt)
+    if RLBrokerGameBinding then RLBrokerGameBinding.update() end
 end
 function R.getConfig()
     if R.configState.current == nil then return nil, R.reason or "MARKET_CONFIG_NOT_LOADED" end

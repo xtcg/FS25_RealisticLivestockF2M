@@ -44,7 +44,7 @@ RLMenu.TRAILER_EPP = RLMenuTabPolicy.EPP
 -- openFromBridge's startPageId validation. If a tab is added/removed, bump
 -- this and renumber setupMenuPages in lockstep -- the spec ASKS to halt on
 -- such changes.
-RLMenu.PAGE_COUNT = 9
+RLMenu.PAGE_COUNT = 10
 
 -- Dev-only GUI hot-reload: open() re-runs setupGui() so on-disk XML edits show on reopen
 -- without a restart. Each reload LEAKS the prior element tree and double-registers its
@@ -109,6 +109,7 @@ function RLMenu.setupGui()
     RLMenuHerdsmanFrame.setupGui()
     RLMenuSettingsFrame.setupGui()
     RLMenuTransferFrame.setupGui()
+    RLMenuBrokerFrame.setupGui()
 
     -- 3. Create the menu instance and load its XML
     g_rlMenu = RLMenu.new()
@@ -222,8 +223,12 @@ function RLMenu:setupMenuPages()
         self.transferFrame:initialize()
     end
 
+    self:registerPage(self.brokerFrame,10,traced("broker",function() return visible("broker") end))
+    self:addPageTab(self.brokerFrame,nil,nil,"rlMenu.sell_animal")
+    if self.brokerFrame and self.brokerFrame.initialize then self.brokerFrame:initialize() end
+
     Log:debug(
-        "RLMenu:setupMenuPages: 9 pages registered (buy, sell, move, manage, ai, messages, herdsman, settings, transfer); visibility delegated to RLMenuTabPolicy per (openMode, counterpart)")
+        "RLMenu:setupMenuPages: 10 pages registered (buy, sell, move, manage, ai, messages, herdsman, settings, transfer, broker); visibility delegated to RLMenuTabPolicy per (openMode, counterpart)")
 end
 
 --- Configure the bottom button bar.

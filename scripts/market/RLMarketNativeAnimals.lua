@@ -155,7 +155,8 @@ end
 -- PlaceableHusbandryAnimals saves as any other). A mod specialization whose name
 -- says it may hold animals, absent objects, nonpersistent animal containers and
 -- ambiguous layouts are unsupported. Other mod objects are NON_ANIMAL.
-function N.fromMission(mission)
+function N.fromMission(mission,options)
+    options=options or {}
     if type(mission)~='table' or type(mission.placeableSystem)~='table' or type(mission.placeableSystem.placeables)~='table'
         or type(mission.vehicleSystem)~='table' or type(mission.vehicleSystem.vehicles)~='table' or type(mission.animalSystem)~='table'
         or type(PlaceableHusbandryAnimals)~='table' or type(LivestockTrailer)~='table'then return nil,'NATIVE_MISSION_INVENTORY_UNSUPPORTED'end
@@ -163,7 +164,7 @@ function N.fromMission(mission)
     for _,name in ipairs({'getSubTypeIndexByName','getSubTypeByIndex','getTypeByIndex'})do if type(system[name])~='function'then return nil,'NATIVE_SUBTYPE_REGISTRY_UNSUPPORTED'end end
     local function inventory(role)return role=='placeables' and mission.placeableSystem.placeables or mission.vehicleSystem.vehicles end
     local function objectLayout(object,role)
-        need(type(object)=='table' and text(object.uniqueId),'NATIVE_UID_LAYOUT_UNSUPPORTED')
+        need(type(object)=='table','NATIVE_UID_LAYOUT_UNSUPPORTED')
         array(object.specializationNames);array(object.specializations)
         need(#object.specializationNames==#object.specializations,'NATIVE_SPECIALIZATIONS_UNSUPPORTED')
         local names,pen,trailer={},false,false
@@ -174,7 +175,9 @@ function N.fromMission(mission)
             local animalish=base:find('animal',1,true) or base:find('livestock',1,true) or base:find('rideable',1,true) or base:find('horse',1,true) or base:find('husbandry',1,true)
             if modded then
                 -- A mod's own specialization: admitted only when nothing in its name says it stores animals.
-                need(not animalish,'NATIVE_ANIMAL_SPECIALIZATION_UNSUPPORTED')
+                local trusted=animalish and type(options.trustedCompanion)=='function'
+                    and options.trustedCompanion(name,object.specializations[index])==true
+                need(not animalish or trusted,'NATIVE_ANIMAL_SPECIALIZATION_UNSUPPORTED')
             elseif name=='husbandryAnimals'then need(object.specializations[index]==PlaceableHusbandryAnimals,'NATIVE_PEN_WRITER_UNSUPPORTED');pen=true
             elseif name=='livestockTrailer'then need(object.specializations[index]==LivestockTrailer,'NATIVE_TRAILER_WRITER_UNSUPPORTED');trailer=true
             elseif animalish then
@@ -188,6 +191,8 @@ function N.fromMission(mission)
         if pen or trailer then
             need(type(object.getNeedsSaving)=='function' and object:getNeedsSaving()==true,'UNPERSISTED_NATIVE_ANIMAL_CONTAINER')
         end
+        need(text(object.uniqueId) or (not pen and not trailer and type(object.getNeedsSaving)=='function'
+            and object:getNeedsSaving()==false),'NATIVE_UID_LAYOUT_UNSUPPORTED')
         local layout={uniqueId=object.uniqueId,kind='NON_ANIMAL'}
         if pen then
             need(role=='placeables' and integer(object.spec_husbandryAnimals.animalTypeIndex,1),'NATIVE_PEN_TYPE_UNSUPPORTED')
@@ -206,6 +211,12 @@ function N.fromMission(mission)
     local function resolveContainer(role,header)
         local found
         for _,object in pairs(inventory(role))do if object.uniqueId==header.uniqueId then need(found==nil,'NATIVE_WORLD_DUPLICATE_CONTAINER_UID');found=object end end
+        if header.isDeleted=='true' then
+            need(found==nil,'DELETED_CONTAINER_STILL_IN_WORLD')
+            -- Native preplaced-object tombstone. It holds no live container;
+            -- N.new still rejects any undeclared animal node beneath it.
+            return {uniqueId=header.uniqueId,kind='NON_ANIMAL'}
+        end
         need(found~=nil,'NATIVE_WORLD_CONTAINER_MISSING')
         need(header.isDeleted==nil or header.isDeleted=='false','DELETED_NATIVE_CONTAINER_UNSUPPORTED')
         local layout=objectLayout(found,role)
@@ -225,7 +236,9 @@ function N.fromMission(mission)
         local seen={}
         for _,object in pairs(inventory(role))do
             local layout=objectLayout(object,role)
-            need(not seen[layout.uniqueId],'NATIVE_WORLD_DUPLICATE_CONTAINER_UID');seen[layout.uniqueId]=true
+            if layout.uniqueId~=nil then
+                need(not seen[layout.uniqueId],'NATIVE_WORLD_DUPLICATE_CONTAINER_UID');seen[layout.uniqueId]=true
+            end
             if layout.kind~='NON_ANIMAL'then need(saved[layout.uniqueId],'NATIVE_ANIMAL_CONTAINER_ABSENT_FROM_SAVE')end
         end
         return true

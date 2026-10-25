@@ -8,7 +8,11 @@ Livestock farming is more than feeding animals, waiting for them to grow, and se
 
 Realistic Livestock: Farm to Market aims to make animal husbandry a more complete farming experience, where genetics, breed characteristics, feeding strategies, growth, reproduction, processing costs, and market conditions all matter.
 
-## 0.2.1.0 defaults
+## 0.2.2.0 candidate: merchant purchase contracts
+
+The RLRM menu now has monthly purchase demand, animal eligibility details and explicit single-animal farm pickup. The first scope is single-player Angus weaned calves. Save once to initialize the shared checkpoint, then refresh the page. Orders, quota and settlement use the existing Broker services. Native XML and UI callback regressions pass; actual game validation is still pending. See [scope and usage](docs/broker-playable.md) and [model/economic evidence](docs/evidence/broker-cattle-release.md).
+
+## Defaults
 
 Cattle, sheep, goats and pigs use one Real-equivalent nutrition model; the Nutrition model setting and the Legacy rules are gone (a saved Legacy choice is migrated on load). The sheep and pig v2 growth models, cattle growth, body condition and calf rearing are enabled. Dams feed their young from their own ration and reserves, including sows with litters and dairy cows and goats whose young drink before the rest is collected. User `modSettings` overrides still take precedence. Hof Bergmann's separate MILKCOW type, horses and poultry keep their own rules. The experimental Dealer v2 channel remains disabled.
 

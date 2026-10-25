@@ -1,5 +1,15 @@
 # 畜牧商人 v2 与通用市场：分步实施记录
 
+## 2026-10-25：基于 PR #95 的首个可玩范围
+
+当前增量见 [玩家入口](broker-playable.md) 与 [完整资格/经济证据](evidence/broker-cattle-release.md)。以下范围状态替代历史记录中的“Broker 全部未接线”：单机 Angus 断奶小牛、月度共享额度、牧场接运、逐只确认及 native 共同保存已完成代码接线，首次完整保存后开放；联合 XML/事务/UI 回调离线回归已增加。全局 Market 定价、自送、猪羊和多人继续关闭。
+
+同时修复正常成交 staged/live quota 证明不一致，增加保存前完整文档递增/回读屏障、sidecar 覆盖前快照、最终目录 store 重绑、未保存月度需求复用和不明结果随保存携带。Broker 与旧交易入口双向执行栈门控；保存时排除未售商人库存，避免反复导入永久身份账本。HB Beta1 companion 按版本及模块身份授权。
+
+不把 U88/U89 实机/联机验收标为完成。安装包为 `0.2.2.0` 候选版，未发布 release，未合并 PR #95。
+
+最终验证：冻结源码的 `python3 tests/run.py` **7148/7148、exit 0**，日志 `/private/tmp/rlrm-broker-frozen.log`。Lua 5.4 定向 **702/702**（新 Broker、联合保存、UI、身份与相关既有交易）；27 个 Broker/保存/身份/菜单模块通过 Lua 5.1 编译。`tests/check_structure.py` 为 399 文件、396 个文件级全局、0 问题，`git diff --check` 通过。现有磁盘回归使用已授权的沙箱外执行；不把先前 `/var/tmp` 受阻的那次运行算作通过。
+
 依据：`FS25_畜牧商人v2与通用市场_整合实施设计_2026-10-22.md`，以 A–L 修订优先。开发工作树 `rlrm-market-integration`；分支 `feat/market-integration-p0`；远端更新后冻结的 baseSHA 为 `7f01d330f2de0b32a30ca8eda1ef9b1cdf4aba40`。
 
 ## 第一包：P0 / G0 起步

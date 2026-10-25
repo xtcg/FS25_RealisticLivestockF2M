@@ -40,8 +40,20 @@ function M.new(deps)
     local read,write=deps.store.read,deps.store.write
     local seedFingerprint=assert(fp(seed))
     local loaded,busy,document=false,false,nil
+    local savedHistory,currentCursor
     local state,reason,evidence="DORMANT",nil,nil
     local runtime={}
+    -- The game binding calls this only after verifying the native shared-save
+    -- cohort and ruling out any newer transaction WAL. Future demand generated
+    -- in an unsaved session is retained and reused, so loading the saved date
+    -- cannot reroll it or permanently disable an otherwise consistent save.
+    function runtime:resumeCheckpoint(history)
+        if loaded or busy or savedHistory then return false,"BROKER_MONTH_ALREADY_LOADED" end
+        local checked,why=validateHistory(history,seedFingerprint,allowTest)
+        if not checked then return false,why end
+        savedHistory=checked
+        return true
+    end
     function runtime:setInputs(nextBalance,nextCatalog)
         if busy then return false,"BROKER_MONTH_BUSY" end
         local checked,why=RLBrokerDemand.validateInputs(nextBalance,nextCatalog)
@@ -68,12 +80,19 @@ function M.new(deps)
                     document=verified;evidence=nil
                 end
                 loaded=true
+                if savedHistory then
+                    for key,value in pairs(savedHistory.months) do
+                        if fp(document.months[key])~=fp(value) then error("BROKER_CHECKPOINT_HISTORY_MISMATCH",0) end
+                    end
+                end
             end
             if document.currentAbsoluteMonth~=nil and absoluteMonth<document.currentAbsoluteMonth then
-                state,reason="RECOVERY_REQUIRED","BROKER_CLOCK_ROLLBACK_REQUIRED";return nil,reason
+                if not savedHistory or absoluteMonth<savedHistory.currentAbsoluteMonth then
+                    state,reason="RECOVERY_REQUIRED","BROKER_CLOCK_ROLLBACK_REQUIRED";return nil,reason
+                end
             end
             local current=document.months[monthKey(absoluteMonth)]
-            if current~=nil then state,reason="READY",nil;return assert(copy(current)) end
+            if current~=nil then currentCursor=absoluteMonth;state,reason="READY",nil;return assert(copy(current)) end
             state="GENERATING"
             local prior=document.months[monthKey(absoluteMonth-1)]
             local snapshot,why=RLBrokerDemand.generate(seed,absoluteMonth,version,balance,catalog,prior)
@@ -91,6 +110,7 @@ function M.new(deps)
             local checked,readWhy=validateHistory(actual,seedFingerprint,allowTest)
             if checked==nil or fp(checked)~=fp(staged) then error(readWhy or "BROKER_PUBLISH_READBACK_MISMATCH",0) end
             document=checked;state,reason,evidence="READY",nil,nil
+            currentCursor=absoluteMonth
             return assert(copy(document.months[monthKey(absoluteMonth)]))
         end
         local ok,snapshot,why=pcall(ensure)
@@ -104,7 +124,7 @@ function M.new(deps)
     end
     function runtime:getCurrent()
         if state~="READY" or document==nil or document.currentAbsoluteMonth==nil then return nil,reason or "BROKER_MONTH_NOT_READY" end
-        return copy(document.months[monthKey(document.currentAbsoluteMonth)])
+        return copy(document.months[monthKey(currentCursor or document.currentAbsoluteMonth)])
     end
     function runtime:getMonth(reference)
         if document==nil then return nil,"BROKER_HISTORY_NOT_LOADED" end
@@ -115,6 +135,14 @@ function M.new(deps)
         end
         if text(reference) then for _,snapshot in pairs(document.months) do if snapshot.monthId==reference then return copy(snapshot) end end end
         return nil,"UNKNOWN_BROKER_MONTH"
+    end
+    function runtime:checkpointDocument()
+        if state~="READY" or not currentCursor then return nil,"BROKER_MONTH_NOT_READY" end
+        local saved=assert(copy(document));saved.revision=nil
+        saved.currentAbsoluteMonth=currentCursor
+        for key,value in pairs(saved.months) do if value.absoluteMonth>currentCursor then saved.months[key]=nil end end
+        saved.revision=assert(fp(saved))
+        return saved
     end
     function runtime:readOrder(orderId)
         if not text(orderId) then return nil,"INVALID_BROKER_ORDER_ID" end
@@ -138,7 +166,7 @@ function M.new(deps)
         end
         return {status=status,capacityStatus=capacity,monthId=snapshot.monthId,orderId=orderId}
     end
-    function runtime:getStatus()return {state=state,reason=reason,busy=busy,currentAbsoluteMonth=document and document.currentAbsoluteMonth or nil}end
+    function runtime:getStatus()return {state=state,reason=reason,busy=busy,currentAbsoluteMonth=currentCursor or (document and document.currentAbsoluteMonth or nil)}end
     function runtime:getEvidence()return copy(evidence)end
     return runtime
 end

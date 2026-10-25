@@ -47,11 +47,11 @@ RLMenuTabPolicy.ANCHOR_SELL = 2
 -- is a trailer pen/world tab. MODE_TRAILER is counterpart-dependent, handled in trailerVisible.
 local FULL_VISIBLE = {
     buy = true, sell = true, move = true, info = true,
-    ai = true, messages = true, herdsman = true, settings = true,
+    ai = true, messages = true, herdsman = true, settings = true, broker = true,
 }
 
 local DEALER_VISIBLE = {
-    buy = true, sell = true, info = true, ai = true,
+    buy = true, sell = true, info = true, ai = true, broker = true,
     -- move / messages / herdsman / settings hidden in dealer mode
 }
 

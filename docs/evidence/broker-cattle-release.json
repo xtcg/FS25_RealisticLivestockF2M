@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "verificationType": "MODEL_REACHABILITY",
+  "baseCommit": "a5bf1ec53e96b14d93cfb368087df630d2011b1a",
+  "sourceDigest": "623f7feb77d5dc9c03c72ee88bc0c1152bd0fdd0d3edc7c0a3ca6b58a60dc19a",
+  "scope": {
+    "species": "COW",
+    "breed": "ANGUS",
+    "package": "cattleWeaned",
+    "transport": "PICKUP",
+    "multiplayer": false
+  },
+  "assumptions": [
+    "shipped growth/condition/rearing configuration",
+    "neutral genes",
+    "FORAGE + CALFMILK available",
+    "automatic water",
+    "no disease challenge",
+    "1 day per period",
+    "hourly samples for 12 months"
+  ],
+  "windows": [
+    {
+      "first": {
+        "age": 4.041666666666669,
+        "weight": 127.26286115200345,
+        "development": 4.04166666666708
+      },
+      "last": {
+        "age": 10,
+        "weight": 267.697583336126,
+        "development": 10.000000000008756
+      },
+      "name": "COW_ANGUS",
+      "mode": "REAL",
+      "hours": 144
+    },
+    {
+      "first": {
+        "age": 4,
+        "weight": 142.7773121287686,
+        "development": 4.000000000007801
+      },
+      "last": {
+        "age": 10,
+        "weight": 352.54775239262506,
+        "development": 9.997077597527342
+      },
+      "name": "BULL_ANGUS",
+      "mode": "REAL",
+      "hours": 145
+    },
+    {
+      "first": {
+        "age": 4.041666666666669,
+        "weight": 127.26286115200345,
+        "development": 4.04166666666708
+      },
+      "last": {
+        "age": 10,
+        "weight": 267.697583336126,
+        "development": 10.000000000008756
+      },
+      "name": "COW_ANGUS",
+      "mode": "LEGACY",
+      "hours": 144
+    },
+    {
+      "first": {
+        "age": 4,
+        "weight": 142.7773121287686,
+        "development": 4.000000000007801
+      },
+      "last": {
+        "age": 10,
+        "weight": 352.54775239262506,
+        "development": 9.997077597527342
+      },
+      "name": "BULL_ANGUS",
+      "mode": "LEGACY",
+      "hours": 145
+    }
+  ],
+  "economyHard": [
+    {
+      "age": 4,
+      "name": "COW_ANGUS",
+      "ask": 697.372803347756,
+      "weight": 127.26286115200345,
+      "bid": 536.4406179598122,
+      "net": 506.44061795981224,
+      "pickup": 30.0
+    },
+    {
+      "age": 4,
+      "name": "BULL_ANGUS",
+      "ask": 706.3538433243517,
+      "weight": 142.7773121287686,
+      "bid": 543.3491102495013,
+      "net": 505.015776916168,
+      "pickup": 38.33333333333333
+    },
+    {
+      "age": 10,
+      "name": "COW_ANGUS",
+      "ask": 1393.3239737648653,
+      "weight": 267.697583336126,
+      "bid": 1071.7876721268194,
+      "net": 1026.7876721268194,
+      "pickup": 45.0
+    },
+    {
+      "age": 10,
+      "name": "BULL_ANGUS",
+      "ask": 1454.8429424914502,
+      "weight": 352.54775239262506,
+      "bid": 1119.109955762654,
+      "net": 1053.2766224293207,
+      "pickup": 65.83333333333334
+    }
+  ],
+  "economyAssumptions": [
+    "real shipped sell/buy price code and animals.xml curves",
+    "markup 1.30",
+    "HARD/NORMAL/EASY multipliers 1/1.8/3",
+    "BEEFMEAT station reference 8.4",
+    "pickup 50% of native transport fee"
+  ],
+  "gameValidated": false,
+  "multiplayerValidated": false
+}

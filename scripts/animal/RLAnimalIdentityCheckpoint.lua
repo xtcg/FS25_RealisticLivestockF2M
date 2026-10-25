@@ -204,6 +204,7 @@ function C.onSaveEnd(missionInfo)
         local written, digest = false, nil
         if xml ~= nil then
             written, digest = P.writeLedger(xml, pass.data)
+            if written and RLBrokerGameBinding then RLBrokerGameBinding.observeIdentity("owner",xml) end
             written = written and xml:save() == true
             xml:delete()
         end

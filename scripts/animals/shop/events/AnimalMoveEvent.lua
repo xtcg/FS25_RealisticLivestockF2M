@@ -874,6 +874,10 @@ function AnimalMoveEvent:run(connection)
 	end
 
 	RmSafeUtils.safeCall("AnimalMoveEvent:run", function()
+        if RLBrokerRuntime and not RLBrokerRuntime.mutationAllowed() then
+            connection:sendEvent(AnimalMoveEvent.newServerToClient(AnimalMoveEvent.MOVE_ERROR_NO_PERMISSION))
+            return
+        end
 
 		Log:debug("AnimalMoveEvent:run (server): moveType='%s' animals=%d source=%s target=%s",
 			tostring(self.moveType), #self.animals,

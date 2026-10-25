@@ -78,6 +78,9 @@ end
 ---@return number|nil errorCode The reply code when the sale is refused
 ---@return string|nil reason Log text when the sale is refused
 function AnimalSellEvent.quoteSale(object, identifiers, farmId)
+    if RLBrokerRuntime and not RLBrokerRuntime.mutationAllowed() then
+        return nil,AnimalSellEvent.SELL_ERROR_INVALID_CLUSTER,"BROKER_RESOURCE_FENCE"
+    end
 
 	if object == nil or object.getClusterSystem == nil or object.getClusterById == nil or object:getClusterSystem() == nil then
 		return nil, AnimalSellEvent.SELL_ERROR_OBJECT_DOES_NOT_EXIST, "no source"
