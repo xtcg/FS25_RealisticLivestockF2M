@@ -35,6 +35,13 @@ for _,mode in ipairs({"REAL","LEGACY"}) do
         check("broker cattle: complete real-model qualification "..mode.." "..name,eligible>0)
         check("broker cattle: fact reads preserve growth state over twelve months "..mode.." "..name,unchanged)
         if sample then
+            local grown=assert(RLMarketData.copy(sample.snapshot))
+            grown.weightKg=grown.production.slaughterReferenceKg;grown.production.finishScore=70;grown.traitCapabilities.finishScore=true
+            local facts=P.facts(a,grown)
+            check("broker cattle: finish fact uses live weight/condition instead of age "..mode.." "..name,facts.finished==true)
+            grown.traitCapabilities.slaughterReference=false
+            facts=P.facts(a,grown)
+            check("broker cattle: missing finish reference stays unknown "..mode.." "..name,facts.finished==nil)
             for field,value in pairs({health=79,ageMonths=3.99,weightKg=1}) do
                 local bad=assert(RLMarketData.copy(sample.snapshot));bad[field]=value
                 check("broker cattle: rejects "..field.." "..mode.." "..name,not RLBrokerEligibility.evaluate(bad,rules,sample.context).eligible)

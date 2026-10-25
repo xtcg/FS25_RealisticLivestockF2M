@@ -1147,5 +1147,11 @@
         <text name="rl_broker_check_species" text="Species"/>
         <text name="rl_broker_check_productionClass" text="Production class"/>
         <text name="rl_broker_check_breed" text="Breed"/>
+        <text name="rl_settings_brokerEnabled_label" text="Merchant purchases"/>
+        <text name="rl_settings_brokerEnabled_tooltip" text="Enabled by default in single player. Off pauses new trades and keeps demand, quotas and recovery evidence."/>
+        <text name="rl_settings_brokerOrders_label" text="Merchant purchase contracts"/>
+        <text name="rl_settings_brokerOrders_text" text="View purchase demand"/>
+        <text name="rl_settings_brokerOrders_tooltip" text="Open monthly demand and animal eligibility. You can browse while purchases are off."/>
+        <text name="rl_broker_reason_BROKER_DISABLED" text="Merchant purchases are off. Enable them in RLRM Settings &gt; General."/>
     </texts>
 </l10n>

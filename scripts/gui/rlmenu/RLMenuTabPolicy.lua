@@ -15,6 +15,7 @@
 local Log = RmLogging.getLogger("RLRM")
 
 RLMenuTabPolicy = {}
+local PAGE_KEYS={"buy","sell","move","info","ai","messages","herdsman","settings","transfer","broker"}
 
 -- =============================================================================
 -- Constants
@@ -92,6 +93,18 @@ function RLMenuTabPolicy.isVisible(pageKey, openMode, counterpart)
         return trailerVisible(pageKey, counterpart)
     end
     return false
+end
+-- Registered page IDs and the selector's visible indices differ when pages
+-- are hidden (Transfer precedes Broker but is hidden in full/dealer mode).
+function RLMenuTabPolicy.visiblePageIndex(pageId,openMode,counterpart)
+    local visible=0
+    for id,key in ipairs(PAGE_KEYS) do
+        if RLMenuTabPolicy.isVisible(key,openMode,counterpart) then
+            visible=visible+1
+            if id==pageId then return visible end
+        end
+    end
+    return nil
 end
 
 --- The collapsed visible-tab index a trailer open should land on. Dealer placement only: an empty

@@ -24,11 +24,12 @@ local function setup()
         getFrameTarget=function() return 800 end,getBirthWeight=function() return 30 end,
         buildCurve=function() return {value=function() return 100 end} end}
     RLCalfRearing={STAGE_WEANED="WEANED",getStage=function() return "WEANED" end}
+    AnimalMoveEvent={getMeatPerHead=function() return 1 end,getCarcassReferenceWeight=function(a) return a.targetWeight end}
     RLAnimalIdentityCheckpoint={state="READY"}
     MoneyType={SOLD_ANIMALS=mt}
     RLAnimalBuyService={computeBuyPrice=function(x) return x:getSellPrice()*1.3 end}
     for _,x in ipairs({a,b}) do
-        x.age=6;x.subType="BULL_ANGUS";x.weight=100;x.gender="male";x.diseases={};x.isPregnant=false;x.isLactating=false;x.pregnancy=nil
+        x.age=6;x.subType="BULL_ANGUS";x.weight=100;x.targetWeight=800;x.gender="male";x.diseases={};x.isPregnant=false;x.isLactating=false;x.pregnancy=nil
         x.rlGrowth={developmentMonths=6};x.getSubType=function() return subtype end
         x.getSellPrice=function() return 1000 end
     end

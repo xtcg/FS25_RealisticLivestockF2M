@@ -1179,5 +1179,11 @@
         <text name="rl_broker_check_species" text="物种"/>
         <text name="rl_broker_check_productionClass" text="用途分类"/>
         <text name="rl_broker_check_breed" text="品种"/>
+        <text name="rl_settings_brokerEnabled_label" text="商人收购"/>
+        <text name="rl_settings_brokerEnabled_tooltip" text="单机默认开启。关闭只暂停新交易，保留订单、额度和恢复记录。"/>
+        <text name="rl_settings_brokerOrders_label" text="商人收购合同"/>
+        <text name="rl_settings_brokerOrders_text" text="查看收购需求"/>
+        <text name="rl_settings_brokerOrders_tooltip" text="点击查看月度需求和动物资格；关闭收购时仍可查看。"/>
+        <text name="rl_broker_reason_BROKER_DISABLED" text="商人收购已关闭，请在 RLRM 设置的常规页开启。"/>
     </texts>
 </l10n>

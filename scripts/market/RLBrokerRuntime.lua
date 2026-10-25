@@ -6,6 +6,13 @@ local D=RLMarketData
 local P=RLBrokerCattlePolicy
 local function copy(v) return assert(D.copy(v)) end
 local function need(v,why) if not v then error(why or "BROKER_ASSEMBLY_FAILED",0) end return v end
+function B.isEnabled()
+    local setting=RLSettings and RLSettings.SETTINGS and RLSettings.SETTINGS.brokerEnabled
+    if not setting then return true end
+    local state=setting.state
+    if state==nil then state=setting.default end
+    return type(setting.values)=="table" and setting.values[state]==true
+end
 local function otherChannelsReady()
     if (B.legacyDepth or 0)>0 then return false end
     for _,channel in pairs({trade=RLTradeCheckpoint,dealer=RLDealerCheckpoint}) do
@@ -90,14 +97,14 @@ function B.new(options)
         return current
     end
     function r:ready()
-        return self.state=="READY" and not self.frozen and not self.busy
+        return B.isEnabled() and self.state=="READY" and not self.frozen and not self.busy
             and self.tx:getStatus()=="READY" and RLAnimalIdentityCheckpoint.state=="READY" and otherChannelsReady()
     end
     r.orders=need(RLBrokerOrderService.new({serverEpoch=epoch,authorize=authorize,nowMs=now,
         readOrder=function(id) if not r:publish() then return nil,r.reason end return r.month:readOrder(id) end,
         capture=capture,previewReady=function(s) return P.supported(s) and r.state~="RECOVERY_REQUIRED" end,
         settlementReady=function(s,_,req) return P.supported(s) and req.transportMode=="PICKUP"
-            and r.state=="READY" and not r.frozen and otherChannelsReady() end,
+            and B.isEnabled() and r.state=="READY" and not r.frozen and otherChannelsReady() end,
         eligibilityContext=function(actor,req,snap,_,location)
             local a=resolve(req,actor)
             local facts,caps=P.facts(a,snap)
@@ -123,7 +130,7 @@ function B.new(options)
     r.tx=need(RLBrokerTransaction.new({serverEpoch=epoch,authorize=authorize,orderService=r.orders,
         locks=r.locks,quota=r.quota,source=RLBrokerSourceAdapter,prepareSource=prepare,
         store=options.transactionStore,nowMs=now,
-        ready=function() return r.state=="READY" and not r.frozen and otherChannelsReady() end,
+        ready=function() return B.isEnabled() and r.state=="READY" and not r.frozen and otherChannelsReady() end,
         saveFence=function() return not r.frozen end,
         createMoneyAdapter=function(persist)
             return RLBrokerMoneyAdapter.new({mission=m,moneyType=MoneyType.SOLD_ANIMALS,persistReceipt=persist})
@@ -164,6 +171,7 @@ function B.new(options)
     end
     function r:preflight(req) return self.orders:preflight(self:principal(),req) end
     function r:preview(req)
+        if not B.isEnabled() then return nil,"BROKER_DISABLED" end
         if not self:ready() then return nil,self.reason or "BROKER_INITIAL_SAVE_REQUIRED" end
         local credential,why,details=self.orders:preview(self:principal(),req)
         if not credential then return nil,why,details end
@@ -175,6 +183,7 @@ function B.new(options)
         if self.busy then return nil,"BROKER_BUSY" end
         -- Replay lookup precedes the ready gate, even after the animal left.
         if self.tx:hasRequest(quote.requestId) then return self.tx:lookup(self:principal(),quote.requestId,quote.credential,quote.request) end
+        if not B.isEnabled() then return nil,"BROKER_DISABLED" end
         if not self:ready() then return nil,self.reason or "BROKER_NOT_READY" end
         local previousRisk=self.assetRisk
         self.assetRisk=true;self.busy=true;self.confirmingRequestId=quote.requestId

@@ -37,10 +37,20 @@ function P.facts(animal,snapshot)
     local development=animal.rlGrowth.developmentMonths
     if not finite(reference) or reference<=0 or not finite(development) then return nil,"GROWTH_REFERENCE_REQUIRED" end
     local weaned=RLCalfRearing.getStage(animal)==RLCalfRearing.STAGE_WEANED
+    local production,caps=snapshot.production or {},snapshot.traitCapabilities or {}
+    local slaughterReference=production.slaughterReferenceKg
+    local finished
+    if caps.slaughterReference==true and finite(slaughterReference) and slaughterReference>0 and finite(snapshot.weightKg) then
+        -- Use the same individual-weight/finish thresholds as cattleFinished.
+        -- Age alone cannot establish an unfinished animal; missing evidence
+        -- remains UNKNOWN instead of being converted into a false fact.
+        if snapshot.weightKg<slaughterReference*.95 then finished=false
+        elseif caps.finishScore==true and finite(production.finishScore) then finished=production.finishScore>=65 end
+    end
     local facts={actualMinimumAgeMonths=4,minimumPurchaseKg=curve:value(4)*.75,ageReferenceKg=reference,
-        weaned=weaned,developmentReady=development>=4,finished=snapshot.ageMonths>10}
-    local caps={};for key in pairs(facts) do caps[key]=true end
-    return facts,caps
+        weaned=weaned,developmentReady=development>=4,finished=finished}
+    local factCaps={};for key in pairs(facts) do factCaps[key]=true end
+    return facts,factCaps
 end
 function P.quote(animal,snapshot,mission)
     if not P.supported(snapshot) then return nil,"UNSUPPORTED_CATTLE_SCOPE" end

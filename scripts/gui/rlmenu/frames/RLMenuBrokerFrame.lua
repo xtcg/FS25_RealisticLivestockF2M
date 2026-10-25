@@ -71,6 +71,7 @@ function F:showSelection()
     local state
     if r then
         state=r.reason
+        if not state and not RLBrokerRuntime.isEnabled() then state="BROKER_DISABLED" end
         if not state and r.state~="READY" then state=r.state end
     else state=RLBrokerGameBinding.disabledReason or "BROKER_INITIALIZING" end
     set(self.statusText,state and reason(state) or tr("ready"))
@@ -99,8 +100,9 @@ function F:showSelection()
                 end
             end
             self.qualified=detail.eligibility.eligible and detail.price and detail.price.pickupAvailable==true
-            set(self.diagnosticsText,#lines>0 and table.concat(lines,"\n") or
-                (detail.price and tr("eligible") or reason(detail.priceReason)))
+            local diagnostic=detail.price and (detail.price.pickupAvailable and tr("eligible") or reason("NONPOSITIVE_BROKER_NET"))
+                or reason(detail.priceReason)
+            set(self.diagnosticsText,#lines>0 and table.concat(lines,"\n") or diagnostic)
             if detail.price then
                 local p=detail.price
                 set(self.priceText,string.format(tr("price"),money(p.pickup.bodyAmount),money(p.pickup.totalFees-p.pickupFee),
@@ -122,11 +124,13 @@ function F:onPickup()
     if not quote then InfoDialog.show(reason(why));self:refresh();return end
     self.pending={quote=quote,runtime=self.runtime,serial=self.serial}
     local a=self.animals[self.animalIndex]
-    YesNoDialog.show(self.onConfirmed,self,string.format(tr("confirm"),a.label,money(quote.money.netToPlayer)),tr("title"))
+    YesNoDialog.show(self.onConfirmed,self,string.format(tr("confirm"),a.label,money(quote.money.netToPlayer)),tr("title"),
+        nil,nil,nil,nil,nil,self.pending)
 end
-function F:onConfirmed(confirmed)
-    local pending=self.pending;self.pending=nil
-    if not confirmed or not pending or not self.isFrameOpen or pending.serial~=self.serial
+function F:onConfirmed(confirmed,pending)
+    if not pending or self.pending~=pending then return end
+    self.pending=nil
+    if not confirmed or not self.isFrameOpen or pending.serial~=self.serial
         or pending.runtime~=RLBrokerRuntime.current then return end
     local result,why=pending.runtime:confirm(pending.quote)
     if result and result.status=="COMMITTED" then InfoDialog.show(tr("sold"))

@@ -87,7 +87,9 @@ function M.new(deps)
                 end
             end
             if document.currentAbsoluteMonth~=nil and absoluteMonth<document.currentAbsoluteMonth then
-                if not savedHistory or absoluteMonth<savedHistory.currentAbsoluteMonth then
+                -- A verified load may resume a saved date below retained future
+                -- demand. That authority is not a running-session time rewind.
+                if (currentCursor and absoluteMonth<currentCursor) or not savedHistory or absoluteMonth<savedHistory.currentAbsoluteMonth then
                     state,reason="RECOVERY_REQUIRED","BROKER_CLOCK_ROLLBACK_REQUIRED";return nil,reason
                 end
             end

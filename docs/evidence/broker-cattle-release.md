@@ -9,6 +9,7 @@
 - 断奶读取 `RLCalfRearing.getStage`；年龄读取 `RLGrowth.getContinuousAge`；发育读取保存的 `rlGrowth.developmentMonths`。
 - 以实际 binding、frameTarget 和出生体重纯构建个体曲线；不调用会写活体缓存的 `getCurve`。
 - 买家最低收购月龄为 4，最低体重为该个体 4 月龄参考的 75%；这是明确买家政策。
+- 是否完成育肥使用个体屠宰参考体重的 95% 和 finishScore 65 阈值判断，不再凭月龄推断；必要事实缺失保持 UNKNOWN。
 - 运行时另行检查完整身份在世界内唯一、实际圈舍成员、所有权、权限、锁和三层额度。
 
 ## 完整资格窗口
